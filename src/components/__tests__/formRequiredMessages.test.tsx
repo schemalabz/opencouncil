@@ -1,13 +1,9 @@
 import type * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { formSchema as reportFormSchema } from '@/components/admin/reports/ReportForm';
+import { reportFormSchema } from '@/lib/zod-schemas/report';
 import { meetingFormSchema as addMeetingFormSchema } from '@/lib/zod-schemas/meeting';
-import { formSchema as offerFormSchema } from '@/components/admin/offers/offer-form';
+import { offerFormSchema } from '@/lib/zod-schemas/offer';
 import { vmsg } from '@/lib/zod-schemas/messages';
-
-jest.mock('@/lib/db/offers', () => ({}));
-jest.mock('@/lib/db/cities', () => ({}));
-jest.mock('next-auth/react', () => ({}));
 
 const rhfOptions = { fields: {}, shouldUseNativeValidation: false } as const;
 

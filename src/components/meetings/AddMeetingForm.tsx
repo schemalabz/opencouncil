@@ -76,7 +76,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     const t = useTranslations('AddMeetingForm')
     const validationMessage = useValidationMessage()
 
-    const form = useForm<z.input<typeof meetingFormSchema>, unknown, z.output<typeof meetingFormSchema>>({
+    const form = useForm({
         resolver: useZodResolver(meetingFormSchema),
         defaultValues: {
             name: meeting?.name || "",

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
-import { partyFormDataSchema, partyFormSchema, type PartyFormInput, type PartyFormOutput } from "@/lib/zod-schemas/party"
+import { partyFormDataSchema, partyFormSchema, type PartyFormOutput } from "@/lib/zod-schemas/party"
 import { toFormData } from "@/lib/utils/formData"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
@@ -47,7 +47,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const t = useTranslations('PartyForm')
     const validationMessage = useValidationMessage()
 
-    const form = useForm<PartyFormInput, unknown, PartyFormOutput>({
+    const form = useForm({
         resolver: useZodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",

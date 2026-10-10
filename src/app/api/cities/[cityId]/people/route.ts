@@ -25,7 +25,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     console.log('Creating person')
     let data: PersonFormDataOutput
     try {
-        data = await parseFormData(await readFormData(request), personFormDataSchema)
+        data = parseFormData(await readFormData(request), personFormDataSchema)
     } catch (error) {
         return handleApiError(error, 'Failed to parse form data')
     }

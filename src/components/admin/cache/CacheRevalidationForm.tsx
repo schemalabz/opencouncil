@@ -17,7 +17,7 @@ type RevalidateFormData = z.output<typeof revalidateRequestSchema>;
 export function CacheRevalidationForm() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<z.input<typeof revalidateRequestSchema>, unknown, RevalidateFormData>({
+    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
         resolver: useZodResolver(revalidateRequestSchema),
         defaultValues: {
             tags: [''],

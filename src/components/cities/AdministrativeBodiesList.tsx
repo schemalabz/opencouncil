@@ -97,7 +97,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const t = useTranslations('AdministrativeBodiesList')
     const validationMessage = useValidationMessage()
 
-    const form = useForm<AdministrativeBodyFormInput, unknown, AdministrativeBodyFormOutput>({
+    const form = useForm({
         resolver: useZodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })

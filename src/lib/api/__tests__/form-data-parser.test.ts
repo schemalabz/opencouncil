@@ -1,4 +1,5 @@
-import { parseFormData } from '../form-data-parser';
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser';
+import { BadRequestError } from '@/lib/api/errors';
 import { toFormData } from '@/lib/utils/formData';
 import * as z from 'zod';
 
@@ -13,7 +14,7 @@ describe('parseFormData', () => {
       age: z.string().transform(val => parseInt(val, 10)),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.name).toBe('Athens');
     expect(result.age).toBe(30);
   });
@@ -29,7 +30,7 @@ describe('parseFormData', () => {
       name: z.string(),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.file).toBeInstanceOf(File);
     expect(result.file.name).toBe('test.txt');
     expect(result.file.type).toBe('text/plain');
@@ -56,14 +57,14 @@ describe('parseFormData', () => {
       }),
     });
 
-    await expect(parseFormData(formData, schema)).rejects.toBeInstanceOf(z.ZodError);
+    expect(() => parseFormData(formData, schema)).toThrow(z.ZodError);
   });
 
   it('should handle empty FormData', async () => {
     const formData = new FormData();
     const schema = z.object({});
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result).toEqual({});
   });
 
@@ -79,7 +80,7 @@ describe('parseFormData', () => {
       file2: z.instanceof(File),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.file1).toBeInstanceOf(File);
     expect(result.file2).toBeInstanceOf(File);
     expect(result.file1.name).toBe('file1.txt');
@@ -96,7 +97,7 @@ describe('parseFormData', () => {
       field2: z.string(),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.field1).toBe('value1');
     expect(result.field2).toBe('value2');
   });
@@ -114,7 +115,7 @@ describe('parseFormData', () => {
       enabled: z.string().transform(val => val === 'true'),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.logo).toBeInstanceOf(File);
     expect(result.logo.name).toBe('logo.png');
     expect(result.name).toBe('Athens');
@@ -130,7 +131,7 @@ describe('parseFormData', () => {
       tags: z.string(), // When iterating entries, last value overwrites previous
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     // Our implementation iterates all entries, so last value wins
     expect(result.tags).toBe('tag2');
   });
@@ -145,7 +146,7 @@ describe('parseFormData', () => {
       disabled: z.string().transform(val => val === 'true'),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.active).toBe(true);
     expect(result.disabled).toBe(false);
   });
@@ -159,7 +160,7 @@ describe('parseFormData', () => {
       optional: z.string().optional(),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.required).toBe('value');
     expect(result.optional).toBeUndefined();
   });
@@ -173,7 +174,7 @@ describe('parseFormData', () => {
       status: z.string().default('pending'),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.name).toBe('Athens');
     expect(result.status).toBe('pending');
   });
@@ -186,7 +187,7 @@ describe('parseFormData', () => {
       file: z.string().nullable().transform(val => val === 'null' ? null : val),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.file).toBeNull();
   });
 
@@ -198,7 +199,7 @@ describe('parseFormData', () => {
       empty: z.string(),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.empty).toBe('');
   });
 
@@ -210,7 +211,7 @@ describe('parseFormData', () => {
       enabled: z.string().transform(val => val === 'true'),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     expect(result.enabled).toBe(false);
   });
 
@@ -226,7 +227,7 @@ describe('parseFormData', () => {
       zero: z.string().transform(val => val === 'true'),
     });
 
-    const result = await parseFormData(formData, schema);
+    const result = parseFormData(formData, schema);
     // Only 'true' should be true, everything else is false
     expect(result.yes).toBe(false);
     expect(result.one).toBe(false);
@@ -241,7 +242,27 @@ describe('toFormData', () => {
     const formData = toFormData({ name: 'Athens', removeLogo: undefined, logo });
 
     expect([...formData.keys()]).toEqual(['name', 'logo']);
-    const result = await parseFormData(formData, z.object({ name: z.string(), logo: z.file(), removeLogo: z.stringbool().default(false) }));
+    const result = parseFormData(formData, z.object({ name: z.string(), logo: z.file(), removeLogo: z.stringbool().default(false) }));
     expect(result).toEqual({ name: 'Athens', logo: expect.any(File), removeLogo: false });
+  });
+});
+
+// A route reads the body with readFormData, so a body that is not form data
+// answers 400 through handleApiError, not 500.
+describe('readFormData', () => {
+  it('turns a body that is not multipart into a BadRequestError', async () => {
+    const request = new Request('http://localhost/x', {
+      method: 'POST',
+      body: '{"a":1}',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await expect(readFormData(request)).rejects.toBeInstanceOf(BadRequestError);
+  });
+
+  it('returns the form data of a multipart body', async () => {
+    const formData = new FormData();
+    formData.append('name', 'Αθήνα');
+    const data = await readFormData(new Request('http://localhost/x', { method: 'POST', body: formData }));
+    expect(data.get('name')).toBe('Αθήνα');
   });
 });

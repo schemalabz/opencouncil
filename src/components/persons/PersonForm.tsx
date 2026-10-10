@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
-import { personFormDataSchema, personFormSchema, type PersonFormInput, type PersonFormOutput } from "@/lib/zod-schemas/person"
+import { personFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
 import { toFormData } from "@/lib/utils/formData"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
@@ -56,7 +56,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
-    const form = useForm<PersonFormInput, unknown, PersonFormOutput>({
+    const form = useForm({
         resolver: useZodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",

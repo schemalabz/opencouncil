@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
     try {
         const formData = await readFormData(request);
-        const data = await parseFormData(formData, createCityFormDataSchema);
+        const data = parseFormData(formData, createCityFormDataSchema);
 
         // Boundary paste: validate before any side effects (logo upload, insert).
         let boundary: ReturnType<typeof parseBoundaryInput> | null = null;

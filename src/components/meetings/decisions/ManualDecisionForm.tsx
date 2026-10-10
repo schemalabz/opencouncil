@@ -3,7 +3,6 @@
 import { useForm, Controller } from 'react-hook-form';
 import { useZodResolver } from '@/hooks/useLocalizedValidation';
 import { useTranslations } from 'next-intl';
-import type * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +37,7 @@ export function ManualDecisionForm({ subjectLabel, uploadConfig, initial, onCont
     onClose: () => void;
 }) {
     const t = useTranslations('admin.decisionsPage');
-    const { control, register, handleSubmit, watch, formState: { errors } } = useForm<z.input<typeof manualDecisionFormSchema>, unknown, z.output<typeof manualDecisionFormSchema>>({
+    const { control, register, handleSubmit, watch, formState: { errors } } = useForm({
         resolver: useZodResolver(manualDecisionFormSchema),
         defaultValues: {
             pdfUrl: initial?.pdfUrl ?? '',

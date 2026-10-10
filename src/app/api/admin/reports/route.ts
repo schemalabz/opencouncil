@@ -7,36 +7,13 @@ import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
 import { getReportContract } from '@/lib/offers/state';
 import { meetingLabel } from '@/lib/meetingName';
 import { dayBounds } from '@/lib/dates/dayBounds';
-import { isCalendarDay } from '@/lib/zod-schemas/dates';
+import { reportRequestSchema } from '@/lib/zod-schemas/report';
 
 export async function POST(request: NextRequest) {
     try {
         await withUserAuthorizedToEdit({});
 
-        const body = await request.json();
-        const { cityId, startDate, endDate, contractReference } = body as {
-            cityId: string;
-            startDate: string;
-            endDate: string;
-            contractReference: string;
-        };
-
-        if (!cityId || !startDate || !endDate || !contractReference) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
-
-        if (typeof contractReference !== 'string' || contractReference.length > 200) {
-            return NextResponse.json({ error: 'Invalid contract reference' }, { status: 400 });
-        }
-
-        // The report covers whole days: the form sends YYYY-MM-DD.
-        if (!isCalendarDay(startDate) || !isCalendarDay(endDate)) {
-            return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
-        }
-
-        if (startDate >= endDate) {
-            return NextResponse.json({ error: 'startDate must be before endDate' }, { status: 400 });
-        }
+        const { cityId, startDate, endDate, contractReference } = reportRequestSchema.parse(await request.json());
 
         const city = await prisma.city.findUnique({
             where: { id: cityId },

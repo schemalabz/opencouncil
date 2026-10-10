@@ -20,16 +20,8 @@ import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { CityCombobox } from '@/components/cities/CityCombobox';
 import { useToast } from '@/hooks/use-toast';
-import { vmsg } from '@/lib/zod-schemas/messages';
-
-export const formSchema = z.object({
-    cityId: z.string().min(1, vmsg('cityRequired')),
-    dateRange: z.object({
-        from: z.date(),
-        to: z.date(),
-    }, { error: vmsg('periodRequired') }),
-    contractReference: z.string().min(1, vmsg('contractReferenceRequired')),
-});
+import { reportFormSchema, reportRequestSchema } from '@/lib/zod-schemas/report';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 
 /** The offer a report is about: its coverage period and ΑΔΑΜ (ISO date strings). */
 export interface ReportContract {
@@ -75,8 +67,8 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
-    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: useZodResolver(formSchema),
+    const form = useForm({
+        resolver: useZodResolver(reportFormSchema),
         defaultValues: {
             cityId: '',
             contractReference: '',
@@ -99,7 +91,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
         form.setValue('contractReference', contract?.adam ?? '');
     }
 
-    async function onSubmit(values: z.output<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof reportFormSchema>) {
         setIsGenerating(true);
         try {
             const response = await fetch('/api/admin/reports', {
@@ -110,12 +102,11 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                     startDate: format(values.dateRange.from, 'yyyy-MM-dd'),
                     endDate: format(values.dateRange.to, 'yyyy-MM-dd'),
                     contractReference: values.contractReference,
-                }),
+                } satisfies z.input<typeof reportRequestSchema>),
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to generate report');
+                throw new Error(apiErrorMessage(await response.json(), 'Failed to generate report'));
             }
 
             const blob = await response.blob();

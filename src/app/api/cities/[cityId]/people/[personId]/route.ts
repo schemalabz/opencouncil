@@ -31,7 +31,7 @@ export async function PUT(
     console.log(`Updating person ${params.personId}`)
     let data: PersonFormDataOutput
     try {
-        data = await parseFormData(await readFormData(request), personFormDataSchema)
+        data = parseFormData(await readFormData(request), personFormDataSchema)
     } catch (error) {
         return handleApiError(error, 'Failed to parse form data')
     }

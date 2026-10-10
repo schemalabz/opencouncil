@@ -34,56 +34,9 @@ import {
     SESSION_PROCESSING,
 } from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
-import { adamSchema } from '@/lib/zod-schemas/offer'
+import { offerFormSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
 import { useSession } from 'next-auth/react'
-import { vmsg } from '@/lib/zod-schemas/messages'
-
-export const formSchema = z.object({
-    recipientName: z.string().min(2, {
-        error: vmsg('recipientNameMin2'),
-    }),
-    platformPrice: z.number().min(0, {
-        error: vmsg('platformPriceNonNegative'),
-    }),
-    ingestionPerHourPrice: z.number().min(0, {
-        error: vmsg('ingestionPriceNonNegative'),
-    }),
-    hoursToIngest: z.number().int().min(1, {
-        error: vmsg('hoursToIngestMin1'),
-    }),
-    discountPercentage: z.number().min(0).max(100, {
-        error: vmsg('discountPercentageRange'),
-    }),
-    type: z.string().default("pilot"),
-    startDate: z.date({
-        error: vmsg('startDateRequired'),
-    }),
-    endDate: z.date({
-        error: vmsg('endDateRequired'),
-    }),
-    respondToName: z.string().min(2, {
-        error: vmsg('respondToNameMin2'),
-    }),
-    respondToEmail: z.email({
-        error: vmsg('invalidEmailAddress'),
-    }),
-    respondToPhone: z.string().min(10, {
-        error: vmsg('invalidPhoneNumber'),
-    }),
-    cityId: z.string().optional(),
-    correctnessGuarantee: z.boolean().default(false),
-    meetingsToIngest: z.number().int().min(1).optional(),
-    hoursToGuarantee: z.number().int().min(1).optional(),
-    includeEquipmentRental: z.boolean().default(false),
-    equipmentRentalPrice: z.number().min(0).optional(),
-    equipmentRentalName: z.string().optional(),
-    equipmentRentalDescription: z.string().optional(),
-    includePhysicalPresence: z.boolean().default(false),
-    physicalPresenceHours: z.number().int().min(0).optional(),
-    agreed: z.boolean().default(false),
-    adam: adamSchema,
-})
 
 interface OfferFormProps {
     offer?: Offer
@@ -150,7 +103,7 @@ const EMPTY_OFFER_DEFAULTS = {
     physicalPresenceHours: 0,
     agreed: false,
     adam: "",
-} satisfies Partial<z.input<typeof formSchema>>
+} satisfies Partial<z.input<typeof offerFormSchema>>
 
 /** Responder contact prefill from the signed-in session (fresh creates). */
 function sessionContactValues(session: ReturnType<typeof useSession>['data']) {
@@ -212,8 +165,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     const freshEnd = endDateForTerm(freshStart)
 
     const contact = sessionContactValues(session)
-    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: useZodResolver(formSchema),
+    const form = useForm({
+        resolver: useZodResolver(offerFormSchema),
         defaultValues: {
             ...EMPTY_OFFER_DEFAULTS,
             recipientName: source?.recipientName || "",
@@ -290,7 +243,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             : null,
     })
 
-    async function onSubmit(values: z.output<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof offerFormSchema>) {
         setIsSubmitting(true)
         try {
             const commonData = {

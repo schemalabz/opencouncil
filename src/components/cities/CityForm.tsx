@@ -43,7 +43,9 @@ const formSchema = cityFormSchema
 
 // The form sends one body to POST /cities and PUT /cities/{cityId}. POST takes
 // the city fields and the logo. PUT also takes the logo removal and the message.
-type CityRequestFields = Partial<z.input<typeof createCityFormDataSchema>> & z.input<typeof updateCityRequestFormDataSchema>
+// Every field that POST requires stays required here. Only the logo differs:
+// POST requires it, and an edit sends it only when it changes.
+type CityRequestFields = Omit<z.input<typeof createCityFormDataSchema>, 'logoImage'> & z.input<typeof updateCityRequestFormDataSchema>
 
 interface CityFormProps {
     city?: City
@@ -108,7 +110,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             .replace(/^-|-$/g, '')  // Remove leading/trailing dashes
     }
 
-    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
+    const form = useForm({
         resolver: useZodResolver(formSchema),
         defaultValues: {
             name: city?.name || "",
