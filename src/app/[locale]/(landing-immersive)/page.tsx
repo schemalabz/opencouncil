@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { LandingV2 } from '@/components/landing/v2/LandingV2';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getOgLocale } from '@/i18n/config';
@@ -10,7 +10,6 @@ import { getMapSubjectsCached, getGeneralSubjectsCached, getHotSubjectsCached, g
 import { getListedCitiesCached, getMapCitiesCached, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getUpcomingMeetingsCached } from '@/lib/db/meetings';
 import { DEFAULT_RANGE, HOT_SUBJECTS_LIMIT, HOT_SUBJECTS_MONTHS, rangeToSubjectFilters } from '@/lib/landing/landingCore';
-import { meetingLabel } from '@/lib/meetingName';
 
 export async function generateMetadata(props: {
     params: Promise<{ locale: string }>;
@@ -56,7 +55,6 @@ export async function generateMetadata(props: {
 
 export default async function HomePage() {
     const realm = await getRealm();
-    const locale = await getLocale();
     const initialFilters = rangeToSubjectFilters(DEFAULT_RANGE);
 
     const [subjects, generalRows, hotSubjects, cities, upcoming, subjectCountByCity, mapCities, petitioned] = await Promise.all([
@@ -100,7 +98,7 @@ export default async function HomePage() {
                 upcoming: upcoming.map((m) => ({
                     id: m.id,
                     cityId: m.cityId,
-                    name: meetingLabel(m, locale, m.city.timezone),
+                    name: m.name,
                     dateTime: new Date(m.dateTime).toISOString(),
                     city: {
                         id: m.city.id,

@@ -7,8 +7,7 @@ import { TopicIcon } from '@/components/TopicIcon';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDayMonthStamp } from '@/lib/formatters/time';
-import { stageSignalsFromPreview } from '@/lib/meetingStage';
-import { presentationKey, publicMeetingPresentation, type PresentationKey } from '@/lib/meetingPresentation';
+import { publicMeetingStage, stageSignalsFromPreview, type PublicMeetingStage } from '@/lib/meetingStage';
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
 import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import { localizeText } from '@/lib/serbian';
@@ -36,8 +35,8 @@ interface Entry {
     meeting: CouncilMeetingWithSubjectPreview;
     side: TimelineSide;
     upcoming: boolean;
-    /** The public stage, or the fact that replaces it (lib/meetingPresentation.ts), read once here for both layouts. */
-    stage: PresentationKey;
+    /** The public stage (lib/meetingStage.ts), read once here for both layouts. */
+    stage: PublicMeetingStage;
     height: number;
     /** The card's subject rows, importance-sorted once here — both layout
      * variants render every entry, so the sort must not live in the card. */
@@ -72,7 +71,7 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
         const side = timelineSide(meeting.administrativeBody?.type);
         if (side === null || seen.has(meeting.id)) return [];
         seen.add(meeting.id);
-        const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));
+        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
         return [{
             meeting,
             side,

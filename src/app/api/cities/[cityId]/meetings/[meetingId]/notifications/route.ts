@@ -4,7 +4,6 @@ import { createNotificationsForMeeting } from '@/lib/db/notifications';
 import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
-import { meetingLabelInCity } from '@/lib/meetingName';
 
 export async function POST(
     request: NextRequest,
@@ -54,8 +53,7 @@ export async function POST(
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
         include: {
-            city: true,
-            administrativeBody: true,
+            city: true
         }
     });
 
@@ -63,7 +61,7 @@ export async function POST(
     if (stats.notificationsCreated > 0 && meeting) {
         sendNotificationsCreatedAdminAlert({
             cityName: meeting.city.name_en,
-            meetingName: meetingLabelInCity(meeting, 'el'),
+            meetingName: meeting.name,
             notificationType: type,
             notificationsCreated: stats.notificationsCreated,
             subjectsTotal: stats.subjectsTotal,
@@ -85,7 +83,7 @@ export async function POST(
             cityId: params.cityId,
             meetingId: params.meetingId,
             cityName: meeting?.city.name_en ?? params.cityId,
-            meetingName: meeting ? meetingLabelInCity(meeting, 'el') : params.meetingId,
+            meetingName: meeting?.name ?? params.meetingId,
             notificationCount: stats.notificationsCreated,
             emailsSent: releaseResult.emailsSent,
             failed: releaseResult.failed,

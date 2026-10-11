@@ -7,8 +7,6 @@ import { Prisma, NonAgendaReason, LocationType, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 import { DEFAULT_SUBJECT_LIMIT, MAX_SUBJECT_LIMIT } from '@/lib/zod-schemas/subject';
-import { meetingLabelInCity } from '@/lib/meetingName';
-import { meetingNameSelect } from '@/lib/db/types';
 
 /**
  * The wire shape of a subject in the REST API.
@@ -40,11 +38,7 @@ const apiSubjectSelect = {
         select: { id: true, name: true, name_en: true },
     },
     councilMeeting: {
-        select: {
-            id: true,
-            ...meetingNameSelect,
-            city: { select: { timezone: true } },
-        },
+        select: { id: true, name: true, name_en: true, dateTime: true },
     },
 } satisfies Prisma.SubjectSelect;
 
@@ -167,8 +161,8 @@ function toApiSubject(
         description: row.description,
         cityId: row.cityId,
         meetingId: row.councilMeetingId,
-        meetingName: meetingLabelInCity(row.councilMeeting, 'el'),
-        meetingNameEn: meetingLabelInCity(row.councilMeeting, 'en'),
+        meetingName: row.councilMeeting.name,
+        meetingNameEn: row.councilMeeting.name_en,
         meetingDate: row.councilMeeting.dateTime.toISOString(),
         agendaItemIndex: row.agendaItemIndex,
         agendaItemTitle: row.agendaItemTitle,

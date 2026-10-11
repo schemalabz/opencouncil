@@ -2,7 +2,6 @@
 import { pdf } from '@react-pdf/renderer';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { MeetingData } from '@/lib/getMeetingData';
-import type { CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
 
 /** Why an audio export failed, for callers that need to say so in the reader's
  *  language. Anything not covered here is a genuine surprise and surfaces as-is. */
@@ -15,9 +14,7 @@ export class AudioExportError extends Error {
     }
 }
 
-export type MeetingDataForExport = Omit<MeetingData, 'meeting' | 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus' | 'transcriptHiddenForReview'> & {
-    meeting: CouncilMeetingWithAdminBody;
-};
+export type MeetingDataForExport = Omit<MeetingData, 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus' | 'transcriptHiddenForReview'>;
 
 export async function exportMeetingToDocx(data: MeetingDataForExport): Promise<Blob> {
   const { city, meeting, transcript, people } = data;

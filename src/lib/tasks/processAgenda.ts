@@ -8,7 +8,6 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
-import { meetingLabelInCity } from '@/lib/meetingName';
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -119,7 +118,7 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
             if (stats.notificationsCreated > 0) {
                 sendNotificationsCreatedAdminAlert({
                     cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
+                    meetingName: task.councilMeeting.name,
                     notificationType: 'beforeMeeting',
                     notificationsCreated: stats.notificationsCreated,
                     subjectsTotal: stats.subjectsTotal,
@@ -140,7 +139,7 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
                     cityId: task.councilMeeting.cityId,
                     meetingId: task.councilMeeting.id,
                     cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
+                    meetingName: task.councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
                     failed: releaseResult.failed,

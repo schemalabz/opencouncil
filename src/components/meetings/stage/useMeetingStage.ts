@@ -1,20 +1,10 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
-import { reviewDeadline, stageSignalsFromMeetingData } from '@/lib/meetingStage';
-import {
-    msUntilPresentationChange,
-    presentationKey,
-    publicMeetingPresentation,
-    type PresentationKey,
-    type PublicMeetingPresentation,
-} from '@/lib/meetingPresentation';
+import { msUntilStageChange, publicMeetingStage, reviewDeadline, stageSignalsFromMeetingData, type PublicMeetingStage } from '@/lib/meetingStage';
 
 export interface MeetingStageReading {
-    /** What the page shows: the stage, or the fact that replaces it (postponed, cancelled, no recording). */
-    presentation: PublicMeetingPresentation;
-    /** The key of the presentation, for chips, tones and /explain anchors. */
-    stage: PresentationKey;
+    stage: PublicMeetingStage;
     /** The review promise, while it is still ahead. */
     deadline: Date | null;
     /** The clock the reading was taken at, for anything relative that renders beside it. */
@@ -37,11 +27,10 @@ export function useMeetingStage(): MeetingStageReading {
             segmentCount,
             contributionCount: subjects.reduce((count, subject) => count + (subject.contributions?.length ?? 0), 0),
         });
-        const presentation = publicMeetingPresentation(meeting, signals, now);
-        return { presentation, stage: presentationKey(presentation), deadline: reviewDeadline(meeting.dateTime, now), now };
+        return { stage: publicMeetingStage(signals, now), deadline: reviewDeadline(meeting.dateTime, now), now };
     }, [meeting, taskStatus, segmentCount, subjects, now]);
 
-    const wait = msUntilPresentationChange(reading.presentation, meeting.dateTime, now);
+    const wait = msUntilStageChange(reading.stage, meeting.dateTime, now);
     useEffect(() => {
         if (wait === null) return;
         const timeout = setTimeout(() => setNow(new Date()), wait);

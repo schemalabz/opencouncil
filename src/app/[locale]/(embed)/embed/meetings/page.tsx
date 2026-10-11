@@ -37,8 +37,7 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     // Two queries are correct: a single DESC query would cut off the nearest upcoming
     // meetings when there are more upcoming than `limit`.
     const [upcomingAll, pastAll] = await Promise.all([
-        // A postponed or cancelled meeting is not coming up; the past list keeps it, with its status.
-        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming', takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming' }),
         getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past' }),
     ]);
 
@@ -48,13 +47,7 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     const hasAnyMeetings = upcoming.length + past.length > 0;
 
     const t = await getTranslations('EmbedWidget');
-    const tStage = await getTranslations('meetingStage');
-    const cardTranslations = {
-        subjects: t('subjects'),
-        more: t('more'),
-        watchLive: t('watchLive'),
-        scheduleStatus: { postponed: tStage('label.postponed'), cancelled: tStage('label.cancelled') },
-    };
+    const cardTranslations = { subjects: t('subjects'), more: t('more'), watchLive: t('watchLive') };
 
     const renderCards = (items: typeof upcoming, isUpcoming: boolean) =>
         items.map((meeting) => (
