@@ -26,6 +26,7 @@ import {
     createAdministrativeBody,
     createCity,
     createMeeting,
+    createNotificationPreference,
     createPerson,
     createSubject,
     createSpeakerSegment,
@@ -250,6 +251,215 @@ describe('handleProcessAgendaResult', () => {
         const beforeAgenda = afterSecond.filter(s => s.nonAgendaReason === 'beforeAgenda')
         expect(beforeAgenda).toHaveLength(1)
         expect(beforeAgenda[0].name).toBe('Opening v2')
+    })
+})
+
+describe('handleProcessAgendaResult — Λογοδοσία agenda with no items (#308)', () => {
+    let cityId: string
+    let bodyId: string
+    const upcoming = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+
+        const city = await createCity({ id: 'c1' })
+        cityId = city.id
+        const body = await createAdministrativeBody(cityId, {
+            notificationBehavior: 'NOTIFICATIONS_APPROVAL',
+        })
+        bodyId = body.id
+
+        // Two subscribers who share no topic and no location with the meeting.
+        for (const email of ['a@example.com', 'b@example.com']) {
+            const user = await createUser(email)
+            await createNotificationPreference({ userId: user.id, cityId })
+        }
+    })
+
+    async function runEmptyAgenda(meetingId: string) {
+        const task = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task.id, makeProcessAgendaResult([]))
+    }
+
+    test('an accountability meeting gets one high subject, and every subscriber gets a notification', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+
+        await runEmptyAgenda('m1')
+
+        const subjects = await prisma.subject.findMany({ where: { councilMeetingId: 'm1', cityId } })
+        expect(subjects).toHaveLength(1)
+        expect(subjects[0]).toMatchObject({ topicImportance: 'high', agendaItemIndex: 1 })
+
+        const notifications = await prisma.notification.findMany({
+            where: { cityId, meetingId: 'm1', type: 'beforeMeeting' },
+            include: { subjects: true },
+        })
+        expect(notifications).toHaveLength(2)
+        for (const n of notifications) {
+            expect(n.subjects.map(s => s.subjectId)).toEqual([subjects[0].id])
+        }
+    })
+
+    test('a meeting of another kind gets no subject and no notification', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'ordinary', dateTime: upcoming })
+
+        await runEmptyAgenda('m1')
+
+        expect(await prisma.subject.count({ where: { councilMeetingId: 'm1', cityId } })).toBe(0)
+        expect(await prisma.notification.count({ where: { cityId, meetingId: 'm1' } })).toBe(0)
+    })
+
+    const readAccountability = {
+        kind: 'accountability', kindEvidence: 'ειδική συνεδρίαση λογοδοσίας',
+        urgent: false, urgentEvidence: null, sessionNumber: null, sessionNumberEvidence: null,
+        format: 'inPerson', formatEvidence: 'στην αίθουσα',
+    } as const
+
+    async function runEmptyAgendaRead(meetingId: string) {
+        const task = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task.id, {
+            ...makeProcessAgendaResult([]),
+            meetingRecord: readAccountability,
+            meetingsInAgenda: [{ ...readAccountability, municipality: null, bodyName: null, ofThisBody: null, date: null, time: null, subjectCount: 0, isThisMeeting: true }],
+        })
+    }
+
+    test('a new meeting gets the subject when only the invitation says accountability, and then the kind', async () => {
+        // A new meeting has no kind until processAgenda reads its invitation (#856).
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: null, name: null, name_en: null, dateTime: upcoming })
+
+        await runEmptyAgendaRead('m1')
+
+        const subjects = await prisma.subject.findMany({ where: { councilMeetingId: 'm1', cityId } })
+        expect(subjects).toHaveLength(1)
+        expect(subjects[0]).toMatchObject({ name: 'Λογοδοσία της Δημοτικής Αρχής', topicImportance: 'high' })
+        expect((await prisma.councilMeeting.findUniqueOrThrow({ where: { cityId_id: { cityId, id: 'm1' } } })).kind).toBe('accountability')
+        expect(await prisma.notification.count({ where: { cityId, meetingId: 'm1', type: 'beforeMeeting' } })).toBe(2)
+    })
+
+    test('a committee meeting gets no subject when its invitation says accountability, which only a council holds', async () => {
+        const committee = await createAdministrativeBody(cityId, { type: 'committee', notificationBehavior: 'NOTIFICATIONS_APPROVAL' })
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: committee.id, kind: null, name: null, name_en: null, dateTime: upcoming })
+
+        await runEmptyAgendaRead('m1')
+
+        expect((await prisma.councilMeeting.findUniqueOrThrow({ where: { cityId_id: { cityId, id: 'm1' } } })).kind).toBeNull()
+        expect(await prisma.subject.count({ where: { councilMeetingId: 'm1', cityId } })).toBe(0)
+    })
+
+    test('a meeting gets no subject when the record refuses the kind to keep its stored name', async () => {
+        // The name says two meetings, so the record keeps no kind (#856).
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: null,
+            name: 'Ειδική Συνεδρίαση Λογοδοσίας και Τακτική Συνεδρίαση', name_en: null, dateTime: upcoming })
+
+        await runEmptyAgendaRead('m1')
+
+        expect((await prisma.councilMeeting.findUniqueOrThrow({ where: { cityId_id: { cityId, id: 'm1' } } })).kind).toBeNull()
+        expect(await prisma.subject.count({ where: { councilMeetingId: 'm1', cityId } })).toBe(0)
+    })
+
+    test('a numbered re-run retires the accountability subject after an admin changed the kind', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        await runEmptyAgenda('m1')
+        const accountability = await prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId } })
+        await prisma.councilMeeting.update({ where: { cityId_id: { cityId, id: 'm1' } }, data: { kind: 'ordinary' } })
+
+        const task = await createTaskStatus('m1', cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task.id, makeProcessAgendaResult([makeSubject({ name: 'Έγκριση μελέτης', agendaItemIndex: 1 })]))
+
+        expect(await prisma.subject.count({ where: { id: accountability.id } })).toBe(0)
+        expect(await prisma.subject.count({ where: { councilMeetingId: 'm1', cityId } })).toBe(1)
+    })
+
+    test('a re-run that finds numbered items replaces the accountability subject', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        await runEmptyAgenda('m1')
+        const accountability = await prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId } })
+
+        const task = await createTaskStatus('m1', cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Ερώτημα για τα πάρκα', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Ερώτημα για τους δρόμους', agendaItemIndex: 2 }),
+        ]))
+
+        const names = (await prisma.subject.findMany({
+            where: { councilMeetingId: 'm1', cityId },
+            orderBy: { agendaItemIndex: 'asc' },
+        })).map(s => s.name)
+        expect(names).toEqual(['Ερώτημα για τα πάρκα', 'Ερώτημα για τους δρόμους'])
+        // Item 1 must not take the id: links to the accountability subject
+        // would then open the first question.
+        expect(await prisma.subject.count({ where: { id: accountability.id } })).toBe(0)
+    })
+
+    test('a numbered item with the name of the accountability subject keeps its id across re-runs', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        const numbered = [
+            makeSubject({ name: 'Λογοδοσία της Δημοτικής Αρχής', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Ερώτημα για τα πάρκα', agendaItemIndex: 2 }),
+        ]
+        const run = async () => {
+            const task = await createTaskStatus('m1', cityId, { type: 'processAgenda' })
+            await handleProcessAgendaResult(task.id, makeProcessAgendaResult(numbered))
+            return prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId, agendaItemIndex: 1 } })
+        }
+
+        const first = await run()
+        const second = await run()
+
+        expect(second.id).toBe(first.id)
+    })
+
+    test('two numbered items with the fixed name do not let item 1 take the id of the fixed subject', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        await runEmptyAgenda('m1')
+        const accountability = await prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId } })
+
+        const task = await createTaskStatus('m1', cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task.id, makeProcessAgendaResult([
+            makeSubject({ name: 'Ερώτημα για τα πάρκα', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Λογοδοσία της Δημοτικής Αρχής', agendaItemIndex: 2 }),
+            makeSubject({ name: 'Λογοδοσία της Δημοτικής Αρχής', agendaItemIndex: 3 }),
+        ]))
+
+        expect(await prisma.subject.count({ where: { id: accountability.id } })).toBe(0)
+    })
+
+    test('a numbered item named like the fixed subject keeps its id when a re-run changes the case', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        const run = async (name: string) => {
+            const task = await createTaskStatus('m1', cityId, { type: 'processAgenda' })
+            await handleProcessAgendaResult(task.id, makeProcessAgendaResult([
+                makeSubject({ name, agendaItemIndex: 1 }),
+                makeSubject({ name: 'Ερώτημα για τα πάρκα', agendaItemIndex: 2 }),
+            ]))
+            return prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId, agendaItemIndex: 1 } })
+        }
+
+        const first = await run('Λογοδοσία της Δημοτικής Αρχής')
+        const second = await run(' λογοδοσία της δημοτικής αρχής')
+
+        expect(second.id).toBe(first.id)
+    })
+
+    test('a re-run that again finds no item keeps the accountability subject id', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: upcoming })
+        await runEmptyAgenda('m1')
+        const first = await prisma.subject.findFirstOrThrow({ where: { councilMeetingId: 'm1', cityId } })
+
+        await runEmptyAgenda('m1')
+
+        const subjects = await prisma.subject.findMany({ where: { councilMeetingId: 'm1', cityId } })
+        expect(subjects.map(s => s.id)).toEqual([first.id])
+    })
+
+    test('an accountability meeting that already took place gets no subject and no notification', async () => {
+        await createMeeting(cityId, { id: 'm1', administrativeBodyId: bodyId, kind: 'accountability', dateTime: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+
+        await runEmptyAgenda('m1')
+
+        expect(await prisma.subject.count({ where: { councilMeetingId: 'm1', cityId } })).toBe(0)
+        expect(await prisma.notification.count({ where: { cityId, meetingId: 'm1' } })).toBe(0)
     })
 })
 
