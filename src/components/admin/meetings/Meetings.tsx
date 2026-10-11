@@ -14,8 +14,6 @@ import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
 import { BulkPollDecisionsAction } from "./BulkPollDecisionsAction";
 import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
-import { meetingLabel } from '@/lib/meetingName';
-import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 interface MeetingsProps {
     meetings: CouncilMeetingWithAdminBodyAndSubjects[];
@@ -61,7 +59,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
         // Filter by search query
         if (searchQuery) {
             filtered = filtered.filter(meeting =>
-                meetingLabel(meeting, 'el', DEFAULT_TIMEZONE).toLowerCase().includes(searchQuery.toLowerCase()) ||
+                meeting.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 meeting.administrativeBody?.name.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }

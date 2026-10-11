@@ -14,7 +14,6 @@ import type { PreviewData } from "@/components/og/story-templates/types";
 import { downloadFile } from "@/lib/export/download";
 import { STORY_HEIGHT, STORY_WIDTH } from "@/lib/sharing/story";
 import { renderStoryToBlob, resolveImageToDataUri } from "@/lib/export/storyImage";
-import { meetingLabel } from '@/lib/meetingName';
 
 // Native template dimensions. Previews use CSS transform: scale() to fit thumbnail tiles.
 
@@ -48,7 +47,7 @@ export default function StoryTemplatePickerDialog({
     const previewData: PreviewData = useMemo(() => {
         const sorted = sortSubjectsBySpeakerContributionCount(subjects);
         return {
-            meetingName: meetingLabel(meeting, 'el', city.timezone),
+            meetingName: meeting.name,
             meetingDate: new Date(meeting.dateTime),
             cityName: city.name_municipality,
             cityLogoImage: city.logoImage,

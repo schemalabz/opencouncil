@@ -7,8 +7,6 @@ import { motion, useAnimation } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { usePlaybackSpeed } from '@/components/meetings/options/OptionsContext';
-import { meetingLabel } from '@/lib/meetingName';
-import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 
 // MuxErrorCode.NETWORK_NOT_READY. playback-core reaches us as a transitive
 // dependency, so importing the enum would mean pinning it directly.
@@ -26,7 +24,6 @@ type MuxErrorDetail = {
 export const Video: React.FC<{ className?: string, expandable?: boolean, /** a standing corner affordance instead of the hover-only overlay */ expandBadge?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, expandBadge = false, onExpandChange }) => {
     const t = useTranslations('transcript.controls');
     const { playerRef, meeting, isPlaying, currentTime, currentTimeRef, setIsPlaying, seekTo } = useVideo();
-    const { city, meeting: meetingRecord } = useCouncilMeetingData();
     const [muxFailed, setMuxFailed] = useState(false);
     const [muxStillEncoding, setMuxStillEncoding] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -140,7 +137,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
     const renderVideoElement = () => {
         return <VideoElement
             id={meeting.id}
-            title={meetingLabel(meetingRecord, 'el', city.timezone)}
+            title={meeting.name}
             playbackId={!muxFailed ? meeting.muxPlaybackId : null}
             fallbackSrc={fallbackSrc}
             onMuxError={(stillEncoding) => {

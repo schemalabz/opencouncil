@@ -2,7 +2,6 @@ import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
 import { subjectDecisionSelect } from '@/lib/db/types';
-import { TRANSCRIPT_PUBLIC_WHERE } from '@/lib/db/sharing/publicContent';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
@@ -428,9 +427,7 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
         const subjectIdSet = new Set(subjectIds);
         const segments = await prisma.speakerSegment.findMany({
             where: {
-                utterances: { some: { discussionSubjectId: { in: subjectIds } } },
-                // Search is public: no text of a transcript that a reader may not read.
-                meeting: TRANSCRIPT_PUBLIC_WHERE,
+                utterances: { some: { discussionSubjectId: { in: subjectIds } } }
             },
             include: subjectDiscussionSegmentInclude,
             orderBy: { startTimestamp: 'asc' }

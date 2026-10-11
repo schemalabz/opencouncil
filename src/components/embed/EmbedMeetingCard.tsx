@@ -1,14 +1,11 @@
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { DEFAULT_TIMEZONE, formatDate } from '@/lib/formatters/time';
+import { formatDate } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
-import { CalendarIcon, CalendarX, Building, ChevronRight } from 'lucide-react';
-import type { MeetingScheduleStatus } from '@prisma/client';
+import { CalendarIcon, Building, ChevronRight } from 'lucide-react';
 import { SiYoutube } from 'react-icons/si';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
-import { meetingDisplayName } from '@/lib/meetingName';
-import { hasPublicRecording, takesPlace } from '@/lib/meetingLifecycleRules';
 
 interface EmbedMeetingCardProps {
     /**
@@ -29,8 +26,6 @@ export interface EmbedTranslations {
     subjects: string;
     more: string;
     watchLive: string;
-    /** The label of a meeting that does not take place on its date. */
-    scheduleStatus: Record<Exclude<MeetingScheduleStatus, 'scheduled'>, string>;
 }
 
 export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityTimezone, translations: t, isUpcoming }: EmbedMeetingCardProps) {
@@ -39,9 +34,7 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
     const topSubjects = sortedSubjects.slice(0, 3);
     const remainingCount = Math.max(0, meeting.subjects.length - 3);
 
-    // A postponed or cancelled meeting has no stream, and neither has a
-    // meeting held by circulation.
-    const liveUrl = isUpcoming && !meeting.youtubeUrl && takesPlace(meeting) && hasPublicRecording(meeting)
+    const liveUrl = isUpcoming && !meeting.youtubeUrl
         ? meeting.administrativeBody?.youtubeChannelUrl
         : null;
 
@@ -57,16 +50,10 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                 className="embed-card-link"
             >
                 <div className="embed-card-title">
-                    {meetingDisplayName(meeting, locale, cityTimezone ?? DEFAULT_TIMEZONE)}
+                    {getLocalizedName(meeting, locale)}
                 </div>
 
                 <div className="embed-card-meta">
-                    {!takesPlace(meeting) && (
-                        <span className="embed-card-meta-item">
-                            <CalendarX size={13} />
-                            {t.scheduleStatus[meeting.scheduleStatus as Exclude<MeetingScheduleStatus, 'scheduled'>]}
-                        </span>
-                    )}
                     {meeting.administrativeBody && (
                         <span className="embed-card-meta-item">
                             <Building size={13} />

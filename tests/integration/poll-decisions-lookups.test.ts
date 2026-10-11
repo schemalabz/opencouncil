@@ -25,7 +25,6 @@ import { resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createSubject, createTaskStatus } from '../helpers/factories'
 import { makeExtractedDecision, makePollDecisionsResult } from '../helpers/builders'
 import { PollDecisionsReadDecision } from '@/lib/apiTypes'
-import { meetingNameSelect } from '@/lib/db/types'
 
 const mockStartTask = jest.mocked(startTask)
 const cityId = 'c1'
@@ -39,7 +38,7 @@ describe('requestPollDecisions', () => {
                 data: { type: 'pollDecisions', requestBody: '{}', councilMeetingId: meetingId, cityId: city },
                 // Matches taskStatusWithMeetingInclude in lib/tasks/tasks.ts: startTask's real
                 // return shape, so the mock satisfies the same type without an `any` escape hatch.
-                include: { councilMeeting: { select: { ...meetingNameSelect, city: { select: { name_en: true, timezone: true } } } } },
+                include: { councilMeeting: { select: { name_en: true, city: { select: { name_en: true } } } } },
             }))
         await createCity({ id: cityId, diavgeiaUid: '6104' })
         const body = await createAdministrativeBody(cityId, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })

@@ -14,8 +14,6 @@ import {
 } from "@/lib/export/meetings";
 import { MeetingDataCore } from "@/lib/getMeetingData";
 import { useToast } from '@/hooks/use-toast';
-import { meetingLabel } from '@/lib/meetingName';
-import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 interface BulkExportActionsProps {
     selectedMeetingIds: Set<string>;
@@ -258,7 +256,7 @@ export function BulkExportActions({
                                     <div key={meetingId} className="space-y-1">
                                         <div className="flex justify-between text-xs">
                                             <span className="truncate">
-                                                {meeting ? meetingLabel(meeting, 'el', DEFAULT_TIMEZONE) : `Meeting ${meetingId.slice(0, 8)}`}
+                                                {meeting?.name || `Meeting ${meetingId.slice(0, 8)}`}
                                             </span>
                                             <span>{progress}%</span>
                                         </div>

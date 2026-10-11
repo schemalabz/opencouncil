@@ -55,8 +55,6 @@ export interface DigestedMeetingView {
   cityId: string;
   meetingId: string;
   meetingName: string | null;
-  meetingKind: string | null;
-  sessionNumber: number | null;
   meetingDate: string | null;
   adminBodyName: string | null;
   processedAt: string;
@@ -445,8 +443,6 @@ export async function getSystemSnapshot(digestedPage = 1): Promise<SystemSnapsho
           cityId: row.cityId,
           meetingId: row.meetingId,
           meetingName: row.meetingName,
-          meetingKind: row.meetingKind,
-          sessionNumber: row.sessionNumber,
           meetingDate: row.meetingDate?.toISOString() ?? null,
           adminBodyName: row.adminBodyName,
           processedAt: row.processedAt.toISOString(),

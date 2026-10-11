@@ -2,7 +2,6 @@ import { TranscribeRequest, Voiceprint } from "../apiTypes";
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { startTask } from "./tasks";
 import { Prisma } from "@prisma/client";
-import { transcriptionRefusal } from "@/lib/meetingLifecycleRules";
 import prisma from "../db/prisma";
 import { getPeopleWhoMaySpeak } from "@/lib/db/people";
 import { getRoleTypePriority } from "../utils";
@@ -80,13 +79,6 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     if (!councilMeeting) {
         throw new NotFoundError("Council meeting not found");
-    }
-
-    // The admin button and the livestream cron both reach this function, so
-    // the refusal does not depend on the UI.
-    const refusal = transcriptionRefusal(councilMeeting);
-    if (refusal) {
-        throw new ConflictError(refusal);
     }
 
     // A typed refusal, so every caller — the admin page, the cron, a tool —
@@ -176,4 +168,3 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
     console.log(`Transcribe body: ${JSON.stringify(body)}`);
     return startTask('transcribe', body, councilMeetingId, cityId, { force });
 }
-

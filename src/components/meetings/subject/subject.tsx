@@ -33,7 +33,7 @@ import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionFo
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
 import { PendingNote } from "@/components/meetings/stage/PendingNote";
-import { presentationPendingKind } from "@/lib/meetingPresentation";
+import { pendingKind } from "@/lib/meetingStage";
 import { useVideo } from "@/components/meetings/VideoProvider";
 import type { Statistics } from "@/lib/statistics";
 import { TopicPill } from "@/components/TopicPill";
@@ -69,8 +69,8 @@ export default function Subject({ subjectId, highlightedContributionId, related,
 }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
-    const { presentation, deadline } = useMeetingStage();
-    const pending = presentationPendingKind(presentation);
+    const { stage, deadline } = useMeetingStage();
+    const pending = pendingKind(stage);
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();

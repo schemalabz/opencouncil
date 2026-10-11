@@ -3,8 +3,6 @@ import prisma from '@/lib/db/prisma';
 import type { PollDecisionsResult } from '@/lib/apiTypes';
 import type { AdaLookupOutcome } from '@/lib/db/types';
 import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
-import { meetingNameSelect } from '@/lib/db/types';
-import { meetingLabelInCity } from '@/lib/meetingName';
 
 /** What a pollDecisions task found for one typed ΑΔΑ. */
 export async function getAdaLookupOutcome(cityId: string, meetingId: string, taskId: string, ada: string): Promise<AdaLookupOutcome> {
@@ -30,7 +28,7 @@ export async function getAdaLookupOutcome(cityId: string, meetingId: string, tas
             decision: {
                 select: {
                     subjectId: true,
-                    subject: { select: { name: true, agendaItemIndex: true, councilMeetingId: true, councilMeeting: { select: { ...meetingNameSelect, city: { select: { timezone: true } } } } } },
+                    subject: { select: { name: true, agendaItemIndex: true, councilMeetingId: true, councilMeeting: { select: { name: true } } } },
                 },
             },
         },
@@ -48,7 +46,7 @@ export async function getAdaLookupOutcome(cityId: string, meetingId: string, tas
             ? {
                 subjectId: holder.subjectId,
                 meetingId: holder.subject.councilMeetingId,
-                meetingName: meetingLabelInCity(holder.subject.councilMeeting, 'el'),
+                meetingName: holder.subject.councilMeeting.name,
                 subjectName: holder.subject.name,
                 agendaItemIndex: holder.subject.agendaItemIndex,
             }

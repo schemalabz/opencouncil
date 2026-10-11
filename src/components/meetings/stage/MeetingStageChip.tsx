@@ -1,10 +1,10 @@
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import type { PresentationKey } from '@/lib/meetingPresentation';
+import type { PublicMeetingStage } from '@/lib/meetingStage';
 import { StageRing } from './StageRing';
 
-/** The colour the ring and the word take. Only the keys that need attention get one. */
-const TONE: Record<PresentationKey, string> = {
+/** The colour the ring and the word take. Only the two stages that need attention get one. */
+const TONE: Record<PublicMeetingStage, string> = {
     upcoming: 'text-[hsl(var(--orange-deep))]',
     live: 'text-red-700',
     waiting: 'text-muted-foreground',
@@ -12,9 +12,6 @@ const TONE: Record<PresentationKey, string> = {
     review: 'text-muted-foreground',
     complete: 'text-muted-foreground',
     archive: 'text-muted-foreground',
-    postponed: 'text-[hsl(var(--orange-deep))]',
-    cancelled: 'text-destructive',
-    noRecording: 'text-muted-foreground',
 };
 
 const SIZE = {
@@ -25,7 +22,7 @@ const SIZE = {
 } as const;
 
 interface MeetingStageChipProps {
-    stage: PresentationKey;
+    stage: PublicMeetingStage;
     /** The soft second half: a countdown, a deadline. */
     detail?: string | null;
     size?: keyof typeof SIZE;
