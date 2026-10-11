@@ -407,8 +407,11 @@ export async function saveSubjectsForMeeting(
     utteranceDiscussionStatuses?: SummarizeResult['utteranceDiscussionStatuses'],
     /** `pruneUnmatched` deletes existing agenda subjects that the incoming set
      *  does not account for. The agenda is authoritative, so processAgenda
-     *  asks for it; a summary is not, so summarize does not. */
-    options: { pruneUnmatched?: boolean } = {},
+     *  asks for it; a summary is not, so summarize does not.
+     *  `retire` deletes the existing agenda subjects with exactly one of these
+     *  names and descriptions, and keeps them out of the matching, so no
+     *  incoming subject takes their id. */
+    options: { pruneUnmatched?: boolean; retire?: { name: string; description: string }[] } = {},
 ): Promise<Map<string, string>> {
     const { topicsByName, validSpeakerIds, existingIntroducerIds } = await validateSubjectPersons(subjects, cityId);
     const subjectIdMap = new Map<string, string>();
@@ -418,14 +421,17 @@ export async function saveSubjectsForMeeting(
         where: { councilMeetingId, cityId },
         // `name` feeds the matcher's first pass: it is what identifies a
         // subject across a renumbered agenda.
-        select: { id: true, agendaItemIndex: true, agendaSectionIndex: true, nonAgendaReason: true, name: true }
+        select: { id: true, agendaItemIndex: true, agendaSectionIndex: true, nonAgendaReason: true, name: true, description: true }
     });
 
+    const retire = options.retire ?? [];
+    const retired = existingSubjects.filter((s) => s.nonAgendaReason === null
+        && retire.some((r) => s.name === r.name && s.description === r.description));
     const { toUpdate, toCreate, unmatched } = categorizeSubjectsForUpsert(
         subjects,
-        existingSubjects
+        existingSubjects.filter((s) => !retired.includes(s))
     );
-    const toPrune = options.pruneUnmatched ? unmatched.map((e) => e.id) : [];
+    const toPrune = [...(options.pruneUnmatched ? unmatched.map((e) => e.id) : []), ...retired.map((e) => e.id)];
 
     // Delete old BEFORE_AGENDA/OUT_OF_AGENDA subjects before creating new ones.
     // These can't be matched by agendaItemIndex (they have null), so without
