@@ -302,55 +302,27 @@ export async function runWake(
   /**
    * The API rejects any request whose assistant turn carries `tool_use`
    * blocks that the next message does not answer — and the whole wake dies
-   * with a 400 that every retry reproduces. The loop answers them on every
-   * path it knows about; this is the backstop for the ones it does not, seen
-   * in a live eval as «`tool_use` ids were found without `tool_result`
-   * blocks». Synthesizing the missing acks costs nothing and keeps the
-   * conversation well-formed.
+   * with a 400 that every retry reproduces («`tool_use` ids were found without
+   * `tool_result` blocks»). The loop answers every tool call it dispatches, on
+   * every stop reason, so an unanswered call can only sit at the TAIL of the
+   * list, on a path this loop does not know yet. This backstop answers that
+   * tail by appending, and only by appending: Sonnet 5.5 binds its thinking
+   * blocks to the conversation prefix, so inserting a message before a later
+   * assistant turn would invalidate that turn's blocks.
    */
   const answerDanglingToolCalls = () => {
-    let repaired = false;
-    // Every assistant turn, not just the last one. The end_turn repair paths
-    // append the assistant turn and then a plain-text nudge, so a turn that
-    // carried tool calls is orphaned in the MIDDLE of the list — checking only
-    // the tail never saw it, and the request 400s on a message far behind.
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i] as { role?: string; content?: unknown };
-      if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
-      const calls = msg.content.filter(isToolUseBlock);
-      if (calls.length === 0) continue;
-
-      const next = messages[i + 1] as { role?: string; content?: unknown } | undefined;
-      const answered = new Set<string>();
-      if (next?.role === "user" && Array.isArray(next.content)) {
-        for (const block of next.content) {
-          const b = block as { type?: string; tool_use_id?: string };
-          if (b?.type === "tool_result" && b.tool_use_id) answered.add(b.tool_use_id);
-        }
-      }
-      const missing = calls.filter((c) => !answered.has(c.id));
-      if (missing.length === 0) continue;
-
-      repaired = true;
-      const results = missing.map((b) => ({
-        type: "tool_result",
-        tool_use_id: b.id,
-        content: "noted",
-      }));
-      // tool_result blocks must lead their user message, so merge at the front
-      // rather than appending after the nudge text.
-      if (next?.role === "user" && Array.isArray(next.content)) {
-        next.content.unshift(...results);
-      } else {
-        messages.splice(i + 1, 0, { role: "user", content: results });
-      }
-    }
-    // Once per wake, like every other tag here — the backstop runs on every
-    // turn, so pushing per invocation double-counts a wake that orphans calls
-    // on two separate turns.
-    if (repaired && !repairs.includes("dangling-tool-calls")) {
-      repairs.push("dangling-tool-calls");
-    }
+    const last = messages[messages.length - 1] as
+      | { role?: string; content?: unknown }
+      | undefined;
+    if (!last || last.role !== "assistant" || !Array.isArray(last.content)) return;
+    const calls = last.content.filter(isToolUseBlock);
+    if (calls.length === 0) return;
+    messages.push({
+      role: "user",
+      content: calls.map((b) => ({ type: "tool_result", tool_use_id: b.id, content: "noted" })),
+    });
+    // Once per wake, like every other tag here.
+    if (!repairs.includes("dangling-tool-calls")) repairs.push("dangling-tool-calls");
   };
 
   try {

@@ -13,6 +13,7 @@ describe("pricing", () => {
     expect(usageToCost(oneMTokIn, "claude-opus-5")).toBe(5);
     expect(usageToCost(oneMTokIn, "claude-haiku-4-5-20251001")).toBe(1);
     expect(usageToCost(oneMTokIn, "claude-sonnet-5")).toBe(2);
+    expect(usageToCost(oneMTokIn, "claude-sonnet-5-5")).toBe(2);
     expect(usageToCost(oneMTokIn, "some-unknown-model")).toBe(2);
     expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 }, "claude-opus-5")).toBe(25);
   });
