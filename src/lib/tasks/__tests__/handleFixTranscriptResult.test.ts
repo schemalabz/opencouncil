@@ -57,13 +57,15 @@ describe('handleFixTranscriptResult', () => {
     expect(mockApplySpeakerHints).toHaveBeenCalledWith('task-1', result.speakerHints);
   });
 
-  it('looks for a later succeeded transcribe or fixTranscript run of the same meeting', async () => {
+  it('looks for a later transcribe or fixTranscript run of the same meeting whose result has arrived', async () => {
     await handleFixTranscriptResult('task-1', result);
 
+    // A later run counts from the moment its payload is in, not only once its
+    // handler has finished and the status reads succeeded.
     expect(mockTaskFindFirst.mock.calls[0][0].where).toEqual({
       cityId: 'city-1',
       councilMeetingId: 'meeting-1',
-      status: 'succeeded',
+      OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
       type: { in: ['transcribe', 'fixTranscript'] },
       createdAt: { gt: TASK_CREATED },
     });

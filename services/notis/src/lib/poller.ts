@@ -739,11 +739,13 @@ async function processMeetingEvents(
     // The meeting holds nothing to rank. Two very different things look like
     // this, and the difference is time.
     //
-    // A task sets its status to succeeded BEFORE it writes its subjects, and
-    // the event feed reads that status, so a real meeting looks empty for a
-    // few seconds after its event appears. Leave those alone. The next tick
-    // sees the subjects and fans out as normal — which is what the old 400
-    // did by accident, and what consuming here would have destroyed.
+    // The main app now sets a task to succeeded only after its handler has
+    // written the subjects. Before that change the status flipped first, and
+    // a real meeting looked empty for a few seconds after its event appeared;
+    // a deployment that still runs the old order, or any other reason the
+    // rows lag the status, gets the same grace. Leave those alone. The next
+    // tick sees the subjects and fans out as normal — which is what the old
+    // 400 did by accident, and what consuming here would have destroyed.
     //
     // Past the settle window the emptiness is the meeting's own: a λογοδοσία
     // session whose agenda has no numbered items, or an extraction that found

@@ -15,7 +15,14 @@ const EXCLUSIVE_WITH: Partial<Record<MeetingTaskType, readonly MeetingTaskType[]
     summarize: ['transcribe'],
 };
 
-/** A task of the meeting that is not in a terminal state and excludes `taskType`, or null. */
+/**
+ * A task of the meeting that is still running and excludes `taskType`, or null.
+ *
+ * A task whose result has arrived (responseBody set) no longer counts: the
+ * task server is done with it, its handler is writing the rows, and that
+ * handler is what starts the next step (transcribe → fixTranscript) before
+ * the status reads succeeded.
+ */
 export async function findConflictingTask(
     taskType: MeetingTaskType,
     cityId: string,
@@ -25,7 +32,13 @@ export async function findConflictingTask(
     const blockers = EXCLUSIVE_WITH[taskType];
     if (!blockers) return null;
     return db.taskStatus.findFirst({
-        where: { cityId, councilMeetingId, type: { in: [...blockers] }, status: { notIn: ['succeeded', 'failed'] } },
+        where: {
+            cityId,
+            councilMeetingId,
+            type: { in: [...blockers] },
+            status: { notIn: ['succeeded', 'failed'] },
+            responseBody: null,
+        },
         select: { id: true, type: true },
     });
 }

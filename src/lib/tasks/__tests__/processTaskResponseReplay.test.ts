@@ -51,10 +51,46 @@ describe('processTaskResponse — replay of a stored payload', () => {
     expect(mockSummarizeHandler).toHaveBeenCalledWith(TASK_ID, storedResult, undefined);
     expect(mockUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: TASK_ID, status: 'failed' },
+      where: { id: TASK_ID, status: { not: 'succeeded' } },
       data: { status: 'succeeded', failureReason: null },
     });
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('finishes a claim whose handler never completed: an old pending task with a payload becomes succeeded', async () => {
+    // The success callback wrote responseBody, then the request was cut before
+    // the handler finished. The task stays pending; the replay completes it.
+    mockFindUnique.mockResolvedValue({
+      ...storedTask,
+      status: 'pending',
+      stage: 'persisting results',
+      failureReason: null,
+      updatedAt: new Date(Date.now() - 16 * 60_000),
+    });
+    mockSummarizeHandler.mockResolvedValue(undefined);
+
+    await processTaskResponse('summarize', TASK_ID);
+
+    expect(mockSummarizeHandler).toHaveBeenCalledWith(TASK_ID, storedResult, undefined);
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: { not: 'succeeded' } },
+      data: { status: 'succeeded', failureReason: null },
+    });
+  });
+
+  it('refuses a young claim: its handler may still be running', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...storedTask,
+      status: 'pending',
+      stage: 'persisting results',
+      failureReason: null,
+      updatedAt: new Date(Date.now() - 2 * 60_000),
+    });
+
+    await expect(processTaskResponse('summarize', TASK_ID)).rejects.toThrow('still persisting its result');
+
+    expect(mockSummarizeHandler).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it('records the new failure of a failed task and rethrows when the replay fails', async () => {
@@ -67,8 +103,8 @@ describe('processTaskResponse — replay of a stored payload', () => {
 
     expect(mockUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: TASK_ID, status: 'failed' },
-      data: { failureReason: 'Error: still broken\n    at handler' },
+      where: { id: TASK_ID, status: { not: 'succeeded' } },
+      data: { status: 'failed', failureReason: 'Error: still broken\n    at handler' },
     });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -80,15 +116,15 @@ describe('processTaskResponse — replay of a stored payload', () => {
     await expect(processTaskResponse('summarize', TASK_ID, { force: true })).rejects.toThrow('force re-run broke');
 
     expect(mockSummarizeHandler).toHaveBeenCalledWith(TASK_ID, storedResult, { force: true });
-    // The write is guarded on status 'failed', so it cannot change this row.
+    // Every write skips a succeeded row, so it cannot change this one.
     for (const [args] of mockUpdateMany.mock.calls) {
-      expect(args.where).toEqual({ id: TASK_ID, status: 'failed' });
+      expect(args.where).toEqual({ id: TASK_ID, status: { not: 'succeeded' } });
     }
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['a pending task', { status: 'pending' }],
+    ['a pending task without a payload', { status: 'pending', responseBody: null }],
     ['a failed task without a payload', { status: 'failed', responseBody: null, failureReason: 'backend failed' }],
     ['a failed task from before failureReason, with failure text in responseBody',
       { status: 'failed', responseBody: 'Processing error: boom', failureReason: null }],

@@ -128,8 +128,9 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
 
         // A step that would work on rows another running step is about to
         // replace is refused, force or not. The automatic fixTranscript after a
-        // transcribe is not affected: handleTaskUpdate marks the transcribe
-        // succeeded before it runs the result handler that triggers it.
+        // transcribe is not affected: findConflictingTask does not count a task
+        // whose result has arrived, and the transcribe handler that starts the
+        // fixTranscript runs after that arrival.
         const conflicting = await findConflictingTask(taskType, cityId, councilMeetingId, tx);
         if (conflicting) {
             throw new PipelineBusyError(taskType, conflicting.type as MeetingTaskType);
@@ -238,6 +239,20 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
 }
 
 /**
+ * The stage a task shows between the arrival of its result and the end of the
+ * handler that writes it. The panel shows the stage of a pending task.
+ */
+export const RESULT_PERSISTING_STAGE = 'persisting results';
+
+/**
+ * How long a claim (a pending task with a payload) is left alone before a
+ * replay may finish it. The handler may still be running: the claim write is
+ * the row's last update until the flip, so a young claim is a live one.
+ * Above the 10-minute transaction budget of the transcribe handler.
+ */
+export const CLAIM_REPLAY_AFTER_MS = 15 * 60_000;
+
+/**
  * Record that a result handler threw. `responseBody` stays as it is: it holds the
  * task-server payload, which `processTaskResponse` replays once the handler is
  * fixed.
@@ -269,18 +284,76 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         // request is still processing. A second run of the result handler is
         // not safe (summarize replaces the non-agenda subjects), so only the
         // first success callback for a task proceeds.
-        const claimed = await prisma.taskStatus.updateMany({
-            where: { id: taskId, status: { not: 'succeeded' } },
-            data: { status: 'succeeded', responseBody: JSON.stringify(update.result), failureReason: null, version: update.version }
-        });
-        if (claimed.count === 0) {
-            console.warn(`Ignoring duplicate success callback for task ${taskId}`);
-            return;
-        }
+        //
+        // The claim is the payload: responseBody is null until the first
+        // success callback writes it. The status stays as it was until the
+        // handler has written the results, because `succeeded` is read from
+        // outside as "the results are there". Notis fans a meeting out to its
+        // readers on that status; when the flip came before the handler, it
+        // built the brief of the 8/10 Athens council from 63 agenda subjects
+        // with no discussion time and none of the 20 non-agenda subjects.
+        if (!update.result) {
+            // Nothing to write: the status is the whole claim. A task whose
+            // payload already arrived is being written; a stray result-less
+            // success must not flip it early.
+            const claimed = await prisma.taskStatus.updateMany({
+                where: { id: taskId, status: { not: 'succeeded' }, responseBody: null },
+                data: { status: 'succeeded', failureReason: null, version: update.version }
+            });
+            if (claimed.count === 0) {
+                console.warn(`Ignoring duplicate success callback for task ${taskId}`);
+                return;
+            }
+            console.log(`No result for task ${taskId}`);
 
-        if (update.result) {
+            // Task succeeded but has no result to process - still send completion admin alert
+            if (sendGenericAlerts) {
+                sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
+            }
+        } else {
+            const claimed = await prisma.taskStatus.updateMany({
+                where: { id: taskId, status: { not: 'succeeded' }, responseBody: null },
+                data: {
+                    responseBody: JSON.stringify(update.result),
+                    stage: RESULT_PERSISTING_STAGE,
+                    failureReason: null,
+                    version: update.version,
+                }
+            });
+            if (claimed.count === 0) {
+                console.warn(`Ignoring duplicate success callback for task ${taskId}`);
+                return;
+            }
+
+            let written = false;
             try {
                 await processResult(taskId, update.result, options);
+                written = true;
+            } catch (error) {
+                console.error(`Error processing result for task ${taskId}:`, error);
+                await recordProcessingFailure(taskId, error, update.version);
+
+                // Send Discord admin alert for processing failure
+                if (sendGenericAlerts) {
+                    sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: errorMessage(error) });
+                }
+            }
+
+            if (written) {
+                // The results are written: only now does the task read as
+                // succeeded. The stage goes back to the task server's last
+                // report, which is what the row showed before the claim. A
+                // failure of this write is not a failure of the handler: the
+                // rows are there, so it is logged, and the alert and the cache
+                // revalidation still run.
+                try {
+                    await prisma.taskStatus.updateMany({
+                        where: { id: taskId },
+                        data: { status: 'succeeded', stage: task.stage }
+                    });
+                } catch (flipError) {
+                    console.error(`Error marking task ${taskId} succeeded after its results were written:`, flipError);
+                }
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 if (sendGenericAlerts) {
@@ -295,30 +368,21 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         console.error(`Error revalidating cache for task ${taskId}:`, revalidateError);
                     }
                 }
-            } catch (error) {
-                console.error(`Error processing result for task ${taskId}:`, error);
-                await recordProcessingFailure(taskId, error, update.version);
-
-                // Send Discord admin alert for processing failure
-                if (sendGenericAlerts) {
-                    sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: errorMessage(error) });
-                }
-            }
-        } else {
-            console.log(`No result for task ${taskId}`);
-
-            // Task succeeded but has no result to process - still send completion admin alert
-            if (sendGenericAlerts) {
-                sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
             }
         }
     } else if (update.status === 'error') {
+        // A task whose result already arrived (responseBody set) is being
+        // written by its handler; a late error callback does not fail it.
         const claimed = await prisma.taskStatus.updateMany({
-            where: { id: taskId, status: { notIn: ['succeeded', 'failed'] } },
+            where: { id: taskId, status: { notIn: ['succeeded', 'failed'] }, responseBody: null },
             data: { status: 'failed', failureReason: update.error, version: update.version }
         });
         if (claimed.count === 0) {
-            console.warn(`Ignoring error callback for task ${taskId}, which is already ${task.status}`);
+            console.warn(
+                task.responseBody != null
+                    ? `Ignoring error callback for task ${taskId}: its result already arrived`
+                    : `Ignoring error callback for task ${taskId}, which is already ${task.status}`,
+            );
             return;
         }
 
@@ -327,11 +391,13 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: update.error });
         }
     } else if (update.status === 'processing') {
-        // Use updateMany with WHERE clause to atomically prevent overwriting terminal states
+        // Use updateMany with WHERE clause to atomically prevent overwriting
+        // terminal states, or the claim of a result that already arrived.
         await prisma.taskStatus.updateMany({
             where: {
                 id: taskId,
-                status: { notIn: ['succeeded', 'failed'] }
+                status: { notIn: ['succeeded', 'failed'] },
+                responseBody: null,
             },
             data: { status: 'pending', stage: update.stage, percentComplete: update.progressPercent, version: update.version }
         });
@@ -381,11 +447,23 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
         throw new Error(`Unsupported task type: ${taskType}`);
     }
 
-    // Only a finished task has a result to replay. A pending task can still
-    // receive its callback, and a failed task without a payload has nothing to
-    // replay (the task server reported an error, or the task did not start).
-    if ((task.status !== 'succeeded' && task.status !== 'failed') || task.responseBody === null) {
+    // Only a task whose result arrived has anything to replay. The success
+    // callback's claim writes responseBody, so a null here means the task
+    // server never reported a result: a pending task can still receive its
+    // callback, and a failed task without a payload has nothing to replay.
+    // A pending task WITH a payload is a claim whose handler never finished
+    // (the request was cut mid-write); the replay is how it finishes.
+    if (task.responseBody === null) {
         throw new Error(`Task ${taskId} has no result to replay (status ${task.status})`);
+    }
+    if (task.status !== 'succeeded' && task.status !== 'failed') {
+        const ageMs = Date.now() - task.updatedAt.getTime();
+        if (ageMs < CLAIM_REPLAY_AFTER_MS) {
+            throw new Error(
+                `Task ${taskId} is still persisting its result (claimed ${Math.round(ageMs / 60_000)} min ago); ` +
+                `replay it after ${CLAIM_REPLAY_AFTER_MS / 60_000} minutes if it does not finish`,
+            );
+        }
     }
 
     // A row from before the failureReason column can hold failure text here
@@ -398,19 +476,21 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
         throw new Error(`Task ${taskId} has no result to replay: responseBody is not a task payload`);
     }
 
-    // The handler runs on a succeeded task too (a forced re-run), but only a
-    // failed task changes: a replay never demotes a succeeded task.
+    // The handler runs on a succeeded task too (a forced re-run), but a
+    // replay never demotes a succeeded task: both writes skip it. A failed
+    // task, or a claim whose handler never finished, takes the replay's
+    // outcome.
     try {
         await handler(taskId, payload, options);
     } catch (error) {
         await prisma.taskStatus.updateMany({
-            where: { id: taskId, status: 'failed' },
-            data: { failureReason: errorDetail(error) },
+            where: { id: taskId, status: { not: 'succeeded' } },
+            data: { status: 'failed', failureReason: errorDetail(error) },
         });
         throw error;
     }
     await prisma.taskStatus.updateMany({
-        where: { id: taskId, status: 'failed' },
+        where: { id: taskId, status: { not: 'succeeded' } },
         data: { status: 'succeeded', failureReason: null },
     });
 }

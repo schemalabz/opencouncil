@@ -37,7 +37,6 @@ export async function handleGenerateHighlightResult(taskId: string, result: Gene
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
         select: {
-            status: true,
             requestBody: true
         }
     });
@@ -62,10 +61,10 @@ export async function handleGenerateHighlightResult(taskId: string, result: Gene
         return;
     }
 
-    // Determine status based on task result
-    const status: 'success' | 'failure' = task.status === 'succeeded' && result.parts && result.parts.length > 0 
-        ? 'success' 
-        : 'failure';
+    // The handler runs on a success callback, or on a replay of one, so the
+    // result alone says whether a video came back. The task does not read as
+    // succeeded while its handler runs.
+    const status: 'success' | 'failure' = result.parts && result.parts.length > 0 ? 'success' : 'failure';
 
     // Get createdById - either from update (success) or findUnique (failure)
     let createdById: string | null = null;
