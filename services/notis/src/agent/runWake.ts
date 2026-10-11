@@ -1,4 +1,5 @@
 import { buildDecisionEntry } from "./decisions";
+import { findUngroundedLinks, isServerResultBlock, linksOnly } from "./links";
 import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
 import { assembleSystem, assembleUserTurn, neutralizeFences } from "./prompt";
 import { buildMcpServers, buildTools } from "./tools";
@@ -228,6 +229,10 @@ export async function runWake(
   // single nudge on the commitment, and the reader got nothing at all.
   let deliveryRepaired = false;
   let bookkeepingRepaired = false;
+  // A send held because its link came from nowhere gets one nudge of its
+  // own: it is neither a delivery repair (the model did try to send) nor
+  // bookkeeping (the reader is owed the message).
+  let linkRepaired = false;
   let finished = false;
   // finish_wake was called at least once. `finished` is reset when a nudge
   // asks for a second call; a wake whose nudge went unanswered still finished.
@@ -298,6 +303,39 @@ export async function runWake(
   const grantTurnForNudge = (turn: number) => {
     if (repairTurns >= MAX_REPAIR_TURNS) return;
     if (turn + 1 >= deps.config.maxTurns + bonusTurns + repairTurns) repairTurns++;
+  };
+  /**
+   * Everything this wake has read from OUTSIDE itself, which is what can
+   * vouch for a link: the links written in the prompts, the events (their
+   * briefs carry every subject url and id), what the reader wrote — in the
+   * conversation and in the messages absorbed mid-run — and the
+   * server-produced result blocks of every assistant turn, the current one
+   * included. Left out on purpose: the model's own blocks (see links.ts), the
+   * shell's tool_results and nudges, which quote a held link back to the
+   * model, and the model's own past output in the user turn — its earlier
+   * sends, the profile, the memory and the decision log. A link the model
+   * once composed sits in all of those, and must not vouch for itself on
+   * the next wake. The prompts contribute only their links, never their
+   * prose, which names a bad example slug.
+   */
+  const groundingStatic = [
+    linksOnly(system.map((s) => s.text)),
+    JSON.stringify(events),
+    ...state.conversation.filter((m) => m.from === "reader").map((m) => m.text),
+  ].join("\n");
+  const groundingText = (current: unknown[]): string => {
+    const parts: string[] = [groundingStatic];
+    for (const e of absorbedAll) {
+      if (e.type === "user_message") parts.push(e.text);
+    }
+    for (const m of messages) {
+      const msg = m as { role?: string; content?: unknown };
+      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+        parts.push(JSON.stringify(msg.content.filter(isServerResultBlock)));
+      }
+    }
+    parts.push(JSON.stringify(current.filter(isServerResultBlock)));
+    return parts.join("\n");
   };
   /**
    * The API rejects any request whose assistant turn carries `tool_use`
@@ -404,6 +442,13 @@ export async function runWake(
         }
       }
       const results: unknown[] = [];
+      // Links a send_message of this turn carried that nothing vouches for.
+      // The send is held, the model is told why in the tool_result, and a
+      // finish_wake in the same turn earns the nudge below.
+      const heldLinks: string[] = [];
+      const vouchedText = response.content.some((b) => isToolUseBlock(b) && b.name === "send_message")
+        ? groundingText(response.content)
+        : "";
       for (const block of response.content) {
         if (!isToolUseBlock(block)) continue;
         let ack = "noted";
@@ -414,6 +459,19 @@ export async function runWake(
               ack =
                 "held: the reader sent a new message before delivery (see the reader " +
                 "update below) — nothing was sent; decide again what to send now";
+              break;
+            }
+            const ungrounded = findUngroundedLinks(t, vouchedText);
+            if (ungrounded.length > 0) {
+              heldLinks.push(...ungrounded);
+              if (!repairs.includes("ungrounded-link/held")) repairs.push("ungrounded-link/held");
+              ack =
+                `not sent: the link ${ungrounded.join(" and ")} did not come from any tool ` +
+                "result in this wake, from the brief or from the conversation, and a composed " +
+                "link is usually wrong — a slug made from a name is a 404 in the reader's " +
+                "hands. Send the message again with a link copied from a url field a tool " +
+                "returned (look it up first if you must: get_person, list_people, search, " +
+                "get_meeting), or without that link.";
               break;
             }
             if (t) {
@@ -537,7 +595,7 @@ export async function runWake(
       // model pass — unless a repair is owed, in which case the nudge rides
       // along with the tool_results and the loop continues. At most one nudge
       // per turn: each one costs a model turn of its own.
-      let nudge: { text: string; tag: string; kind: "delivery" | "bookkeeping" } | undefined;
+      let nudge: { text: string; tag: string; kind: "delivery" | "bookkeeping" | "link" } | undefined;
       // Delivery repairs come first, and each kind carries its own budget:
       // the reader feels an undelivered answer, and nobody but us feels a
       // missing commitment. A spent delivery budget falls through to the
@@ -553,7 +611,23 @@ export async function runWake(
           sent.length === 0 &&
           (declaredDecision === "send" ||
             (hasUserMessage && (declaredDecision !== "silence" || draft)));
-        if (!deliveryRepaired && answerOwed && !unsubscribe) {
+        // A held link comes first: the model believes it sent, and without
+        // the nudge the wake ends here with the message unsent. The tool
+        // result already says what was wrong; the nudge says it is not done.
+        if (heldLinks.length > 0 && !linkRepaired) {
+          nudge = {
+            kind: "link",
+            tag: "ungrounded-link/held",
+            text:
+              "(system check) A send_message of yours was NOT delivered: its link (" +
+              heldLinks.join(", ") +
+              ") did not come from any tool result in this wake — see its tool result " +
+              "above. The reader is still owed that message. Send it again with a link " +
+              "copied from a url field a tool returned, looking it up first if you must, " +
+              "or without the link; then finish_wake again with the wake's own rationale " +
+              "— about the reader and this wake's decision, never about this check.",
+          };
+        } else if (!deliveryRepaired && answerOwed && !unsubscribe) {
           // When the answer sits stranded as prose, quote it back. Without the
           // quote the model rereads its own text above and concludes it already
           // answered ("message already sent") — observed failure.
@@ -639,13 +713,16 @@ export async function runWake(
           finished = false;
           nudgeOutstanding = true;
           grantTurnForNudge(turn);
-          repairs.push(nudge.tag);
+          // The link hold already tagged the wake when it held the send.
+          if (!repairs.includes(nudge.tag)) repairs.push(nudge.tag);
           recordInjected(nudge.text);
           if (nudge.kind === "delivery") {
             deliveryRepaired = true;
             // The quote is in the nudge now; a bookkeeping nudge quotes
             // nothing, so it must leave the prose for the delivery check.
             strandedProse = undefined;
+          } else if (nudge.kind === "link") {
+            linkRepaired = true;
           } else {
             bookkeepingRepaired = true;
           }

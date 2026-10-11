@@ -1,7 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import { applyOutcome, runWake } from "../runWake";
 import {
   FIXED_NOW,
   FakeAnthropic,
+  makeBrief,
   makeDeps,
   makeState,
   meetingEvent,
@@ -1521,5 +1524,167 @@ describe("runWake helpers", () => {
     );
     expect(outcome.repairs).toBeUndefined();
     expect(trace.turns).toHaveLength(1);
+  });
+});
+
+describe("runWake — links nothing vouches for (2026-10)", () => {
+  const userEvent = { type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "Είναι καλός δήμαρχος;" };
+  const MAYOR_ID = "cm0tqeh9m08mj4o47a2xw2265";
+  const mcpResult = (text: string) => ({
+    type: "mcp_tool_result",
+    tool_use_id: "m1",
+    is_error: false,
+    content: [{ type: "text", text }],
+  });
+
+  it("holds a send whose link came from nowhere, nudges once, and delivers the corrected one", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", {
+            text: "Δεν κρίνω εγώ — δες τι λέει: https://opencouncil.gr/athens/people/dukas",
+          }),
+          toolUse("t2", "finish_wake", { decision: "send", rationale: "Ζήτησε κρίση, έδωσα το αρχείο." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          { type: "mcp_tool_use", id: "m1", name: "list_people", input: { cityId: "athens" }, server_name: "opencouncil" },
+          mcpResult(`{"people":[{"id":"${MAYOR_ID}","name":"Χάρης Δούκας","role":"Δήμαρχος"}]}`),
+          toolUse("t3", "send_message", {
+            text: `Δεν κρίνω εγώ — δες τι λέει: https://opencouncil.gr/athens/people/${MAYOR_ID}`,
+          }),
+          toolUse("t4", "finish_wake", { decision: "send", rationale: "Ζήτησε κρίση, έδωσα το αρχείο." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const delivered: string[] = [];
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [userEvent],
+      makeDeps(fake, { deliver: async (t) => (delivered.push(t), { ok: true }) }),
+    );
+
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual([`Δεν κρίνω εγώ — δες τι λέει: https://opencouncil.gr/athens/people/${MAYOR_ID}`]);
+    expect(delivered).toEqual(outcome.messages);
+    expect(outcome.repairs).toEqual(["ungrounded-link/held"]);
+    expect(outcome.rationale).toBe("Ζήτησε κρίση, έδωσα το αρχείο.");
+    // The tool_result told the model what was wrong, and the nudge was recorded.
+    const second = fake.requests[1].messages[2] as { content: Array<{ type: string; content?: string; text?: string }> };
+    expect(second.content[0].type).toBe("tool_result");
+    expect(second.content[0].content).toContain("not sent: the link https://opencouncil.gr/athens/people/dukas");
+    expect(trace.turns[1].role).toBe("injected");
+    expect(trace.turns).toHaveLength(3);
+  });
+
+  it("a link the brief, the reader's own message or an id in a tool result vouches for goes out untouched", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          mcpResult(`{"introducedBy":{"id":"${MAYOR_ID}","name":"Χάρης Δούκας"}}`),
+          // The meeting page cut from the brief's subject url.
+          toolUse("t1", "send_message", { text: "Η συνεδρίαση: https://opencouncil.gr/athens/m1" }),
+          // An id lifted from a tool result field.
+          toolUse("t2", "send_message", { text: `Ο δήμαρχος: https://opencouncil.gr/athens/people/${MAYOR_ID}.` }),
+          // A link the reader sent, and a host that is not ours.
+          toolUse("t3", "send_message", {
+            text: "Όπως έστειλες: https://opencouncil.gr/athens/parties/cm0tq4fgs08m54o47ljf1jxxd και https://diavgeia.gov.gr/doc/ΨΑΔΑ",
+          }),
+          toolUse("t4", "finish_wake", { decision: "send", rationale: "Το ζήτησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const state = makeState({
+      conversation: [
+        {
+          at: "2026-03-01T10:00:00.000Z",
+          from: "reader",
+          text: "Τι λέει αυτή η παράταξη; https://opencouncil.gr/athens/parties/cm0tq4fgs08m54o47ljf1jxxd",
+        },
+      ],
+    });
+    const brief = makeBrief();
+    brief.subjects[0].url = "https://opencouncil.gr/athens/m1/subjects/s1";
+    const { outcome } = await runWake(state, [userEvent, meetingEvent({ brief })], makeDeps(fake));
+
+    expect(outcome.messages).toHaveLength(3);
+    expect(outcome.repairs).toBeUndefined();
+  });
+
+  it("a link the model itself sent on an earlier wake does not vouch for itself", async () => {
+    // The production reader already received the 404; it sits in the
+    // conversation as a «you sent» line, in the profile and in the memory.
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Ξανά: https://opencouncil.gr/athens/people/dukas" }),
+          toolUse("t2", "finish_wake", { decision: "send", rationale: "Το ζήτησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      { content: [toolUse("t3", "finish_wake", { decision: "silence", rationale: "Δεν βρήκα σελίδα." })], stop_reason: "tool_use" },
+    ]);
+    const state = makeState({
+      profile: "Ρωτάει για τον δήμαρχο: https://opencouncil.gr/athens/people/dukas",
+      memory: "Στάλθηκε https://opencouncil.gr/athens/people/dukas στις 5/10.",
+      conversation: [
+        { at: "2026-03-01T10:00:00.000Z", from: "notis", text: "Δες: https://opencouncil.gr/athens/people/dukas" },
+      ],
+    });
+    const { outcome } = await runWake(state, [userEvent], makeDeps(fake));
+
+    expect(outcome.messages).toEqual([]);
+    expect(outcome.repairs).toEqual(["ungrounded-link/held"]);
+  });
+
+  it("the shipped prompts vouch only for the links they carry, not for the example slug in their prose", async () => {
+    const promptsDir = path.join(__dirname, "../../../prompts");
+    const systemText = fs.readFileSync(path.join(promptsDir, "system.md"), "utf8");
+    expect(systemText).toContain("/people/dukas");
+    const prompts = { system: systemText, contextPack: "", editorial: "", compaction: "" };
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Κρίνε εσύ: https://opencouncil.gr/athens/people/dukas" }),
+          toolUse("t2", "send_message", { text: "Πώς δουλεύει ο δήμος: https://opencouncil.gr/explain" }),
+          toolUse("t3", "finish_wake", { decision: "send", rationale: "Το ζήτησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      { content: [toolUse("t4", "finish_wake", { decision: "send", rationale: "Το ζήτησε." })], stop_reason: "tool_use" },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake, { prompts }));
+
+    expect(outcome.messages).toEqual(["Πώς δουλεύει ο δήμος: https://opencouncil.gr/explain"]);
+    expect(outcome.repairs).toEqual(["ungrounded-link/held"]);
+  });
+
+  it("the model's own earlier link does not vouch for itself; the delivery check still gets its turn", async () => {
+    const bad = toolUse("t1", "send_message", { text: "Δες: https://opencouncil.gr/athens/people/dukas" });
+    const fake = new FakeAnthropic([
+      { content: [bad, toolUse("t2", "finish_wake", { decision: "send", rationale: "Το αρχείο." })], stop_reason: "tool_use" },
+      {
+        content: [
+          toolUse("t3", "send_message", { text: "Δες: https://opencouncil.gr/athens/people/dukas" }),
+          toolUse("t4", "finish_wake", { decision: "send", rationale: "Το αρχείο." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t5", "finish_wake", { decision: "silence", rationale: "Δεν βρήκα σελίδα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(makeState(), [userEvent], makeDeps(fake));
+
+    expect(outcome.messages).toEqual([]);
+    expect(outcome.decision).toBe("silence");
+    // One link nudge, then the ordinary zero-send check; the hold is tagged once.
+    expect(outcome.repairs).toEqual(["ungrounded-link/held", "zero-send/finish"]);
+    expect(trace.turns.filter((t) => t.role === "injected")).toHaveLength(2);
   });
 });
