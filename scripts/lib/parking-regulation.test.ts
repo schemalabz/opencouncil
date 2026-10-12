@@ -5,6 +5,7 @@ import {
     unitDescription,
     unitName,
     unitTextualDefinition,
+    spotDescription,
     spotName,
     type AssemblyInput,
     type ConsultationConfig,
@@ -34,7 +35,7 @@ const config: ConsultationConfig = {
 
 const unit: UnitProperties = {
     id: 'res-voutsina-kyprou-anastaseos-r', category: 'residents', street: 'Βουτσινά', from: 'Κύπρου', to: 'Αναστάσεως', side: 'r',
-    zone: 'Β', zoneSource: 'p1-strips', lengthM: 66.4, estSpots: 12, calmTraffic: true, excludedReason: null, strips: 5,
+    zone: 'Β', zoneSource: 'p1-strips', lengthM: 66.4, spots: 12, spotsSource: 'estimate', calmTraffic: true, excludedReason: null, strips: 5,
 };
 
 const square: GeoJSON.Polygon = { type: 'Polygon', coordinates: [[[23.79, 38.0], [23.791, 38.0], [23.791, 38.001], [23.79, 38.001], [23.79, 38.0]]] };
@@ -61,7 +62,7 @@ const input: AssemblyInput = {
     units: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: unit, geometry: square }] },
     spots: {
         type: 'FeatureCollection',
-        features: [{ type: 'Feature', properties: { id: 'amea-kyprou-tsigante', category: 'amea_shared', street: 'Κύπρου', cross: 'Τσιγάντε', address: 'ΚΥΠΡΟΥ (διαστ. με Τσιγάντε)', nSpots: 2, parts: 7 }, geometry: { type: 'Point', coordinates: [23.79, 38.0] } }],
+        features: [{ type: 'Feature', properties: { id: 'amea-kyprou-tsigante', category: 'amea_shared', street: 'Κύπρου', cross: 'Τσιγάντε', address: 'ΚΥΠΡΟΥ (διαστ. με Τσιγάντε)', note: null, nSpots: 2, parts: 7 }, geometry: { type: 'Point', coordinates: [23.79, 38.0] } }],
     },
     zones: {
         type: 'FeatureCollection',
@@ -90,10 +91,11 @@ describe('unit naming', () => {
         expect(unitName({ ...unit, from: null, to: null })).toBe('Βουτσινά, δεξιά πλευρά');
     });
 
-    it('gives the estimated spots, or the reason a street has none', () => {
+    it('gives the spots, exact when the drawing writes them, or the reason a street has none', () => {
         expect(unitTextualDefinition(unit)).toBe('περίπου 12 θέσεις');
-        expect(unitTextualDefinition({ ...unit, estSpots: 1 })).toBe('περίπου 1 θέση');
-        expect(unitTextualDefinition({ ...unit, category: 'excluded', estSpots: 0, excludedReason: 'Ανεπαρκές πλάτος' })).toBe('Ανεπαρκές πλάτος');
+        expect(unitTextualDefinition({ ...unit, spots: 1 })).toBe('περίπου 1 θέση');
+        expect(unitTextualDefinition({ ...unit, spots: 6, spotsSource: 'drawing' })).toBe('6 θέσεις');
+        expect(unitTextualDefinition({ ...unit, category: 'excluded', spots: 0, excludedReason: 'Ανεπαρκές πλάτος' })).toBe('Ανεπαρκές πλάτος');
     });
 
     it('says in one sentence who may park, with the zone and the calm-traffic note', () => {
@@ -103,9 +105,16 @@ describe('unit naming', () => {
     });
 
     it('names a spot by its corner', () => {
-        const spot = { id: 'x', category: 'amea_shared', street: 'Κύπρου', cross: 'Τσιγάντε', address: null, nSpots: 2, parts: 7 };
+        const spot = { id: 'x', category: 'amea_shared', street: 'Κύπρου', cross: 'Τσιγάντε', address: null, note: null, nSpots: 2, parts: 7 };
         expect(spotName(spot)).toBe('Γωνία Κύπρου και Τσιγάντε');
         expect(spotName({ ...spot, cross: null })).toBe('Κύπρου');
+    });
+
+    it('describes a special spot by the report\'s note, and a pharmacy spot by its rule', () => {
+        const spot = { id: 'x', category: 'special', street: 'Μεσογείων', cross: null, address: null, note: 'Θέσεις ΤΑΧΙ.', nSpots: 3, parts: 1 };
+        expect(spotDescription(spot)).toBe('Θέσεις ΤΑΧΙ.');
+        expect(spotDescription({ ...spot, note: null })).toBe('Ειδική θέση που μένει όπως είναι σήμερα.');
+        expect(spotDescription({ ...spot, category: 'pharmacies' })).toMatch(/20 λεπτά/);
     });
 });
 

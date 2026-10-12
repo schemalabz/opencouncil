@@ -23,7 +23,9 @@ export interface UnitProperties {
     zone: string | null;
     zoneSource: string | null;
     lengthM: number;
-    estSpots: number;
+    spots: number;
+    /** `drawing` when the plan writes the count next to the strip; `estimate` when it is derived from the strip's area. */
+    spotsSource: 'drawing' | 'estimate';
     calmTraffic: boolean;
     excludedReason: string | null;
     strips: number;
@@ -35,6 +37,8 @@ export interface SpotProperties {
     street: string | null;
     cross: string | null;
     address: string | null;
+    /** What the spot is for, when the report says so ("Θέσεις ΤΑΧΙ."). */
+    note: string | null;
     nSpots: number;
     parts: number;
 }
@@ -136,7 +140,7 @@ export interface AssemblyResult {
 
 const SIDE_LABEL: Record<'l' | 'r', string> = { l: 'αριστερή πλευρά', r: 'δεξιά πλευρά' };
 export const UNIT_CATEGORIES = ['residents', 'paid', 'motorcycles', 'excluded'];
-export const SPOT_CATEGORIES = ['amea_shared', 'amea_dedicated', 'ev', 'special'];
+export const SPOT_CATEGORIES = ['amea_shared', 'amea_dedicated', 'ev', 'pharmacies', 'special'];
 const REF_PATTERN = /\{REF:([a-zA-Z][a-zA-Z0-9_-]*)\}/g;
 const ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -157,8 +161,9 @@ export function unitName(p: UnitProperties): string {
 /** The one detail a reader wants after the "where": how many cars fit, or why none do. */
 export function unitTextualDefinition(p: UnitProperties): string {
     if (p.category === 'excluded') return p.excludedReason ? capitalize(p.excludedReason.toLowerCase()) : '';
-    if (p.estSpots <= 0) return '';
-    return p.estSpots === 1 ? 'περίπου 1 θέση' : `περίπου ${p.estSpots} θέσεις`;
+    if (p.spots <= 0) return '';
+    const count = `${p.spots} ${p.spots === 1 ? 'θέση' : 'θέσεις'}`;
+    return p.spotsSource === 'drawing' ? count : `περίπου ${count}`;
 }
 
 /** One plain sentence: who may park here, and on what terms. */
@@ -166,7 +171,8 @@ export function unitDescription(p: UnitProperties): string {
     let sentence: string;
     switch (p.category) {
         case 'residents': {
-            const zone = p.zone === 'Α-Δ' ? ' Ζώνης Α ή Δ' : p.zone ? ` Ζώνης ${p.zone}` : '';
+            // A stretch two zones share is "Α-Β": either card parks there.
+            const zone = p.zone ? ` Ζώνης ${p.zone.split('-').join(' ή ')}` : '';
             sentence = `Μόνο με κάρτα κατοίκου${zone}, δωρεάν, όλο το 24ωρο.`;
             break;
         }
@@ -203,8 +209,10 @@ export function spotDescription(p: SpotProperties): string {
             return 'Για ένα συγκεκριμένο όχημα ΑΜΕΑ, με παλαιότερη απόφαση του Δήμου. Μένει όπως είναι.';
         case 'ev':
             return 'Μόνο όσο φορτίζει ένα ηλεκτρικό όχημα.';
+        case 'pharmacies':
+            return 'Θέση φαρμακείου: μόνο για στάση έως 20 λεπτά των πελατών του, καθημερινά 08:00–20:30.';
         case 'special':
-            return 'Ειδική θέση που μένει όπως είναι σήμερα.';
+            return p.note ?? 'Ειδική θέση που μένει όπως είναι σήμερα.';
         default:
             return '';
     }
