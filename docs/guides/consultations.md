@@ -204,7 +204,7 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 | Step | Scooter Regulation | Cooking Oil Regulation | Papagou Parking (ΣΕΣ) |
 |------|-------------------|----------------------|----------------------|
 | 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) | `python -m ses docx` (report .docx → chapters, tables, figures) |
-| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | `python -m ses build` (CAD PDF vectors georeferenced against OSM) |
+| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | `python -m ses build` (the DWG drawings in ΕΓΣΑ87, read as DXF; or PDF plots georeferenced against OSM) |
 | 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) | `config/street-aliases.json`, `config/id-aliases.json`, `out/diff-report.md` |
 | 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload | `generate-parking-regulation.ts` then admin dashboard upload |
 | 5. Create DB record | Prisma seed | Admin consultations page | Admin consultations page |
@@ -213,7 +213,7 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 
 [`scripts/parking-consultation/`](../../scripts/parking-consultation/README.md) (Python) and [`scripts/generate-parking-regulation.ts`](../../scripts/generate-parking-regulation.ts)
 
-The source material is two AutoCAD PDF plots (zones, parking organisation per street side) and a technical report. The Python pipeline georeferences each plot from its street labels against OpenStreetMap, reads the filled shapes by colour, joins the triangles that AutoCAD plots for one strip, groups the parking strips into block-side units with stable transliterated ids, clusters the spot symbols, derives the zone areas from the street network's blocks, and converts the report to markdown. The TypeScript generator assembles the regulation JSON from those outputs, names and links every unit, and validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) plus checks for duplicate ids and dangling `{REF:}` references. The README covers setup, the re-run procedure and the sanity numbers.
+The source material is the two AutoCAD drawings (Π1 zones, Π2 parking organisation per street side), delivered as DWG and read as DXF, and a technical report. The drawings are in ΕΓΣΑ87, so the Python pipeline takes the parking strips, the spot bays, the zones and the spot count of each strip from their layers, groups the strips into block-side units with stable transliterated ids, clusters the spot bays, derives the zone areas from the street network's blocks inside the study boundary, and converts the report to markdown. The earlier PDF plots can still be georeferenced from their street labels against OpenStreetMap (`--source pdf`). The TypeScript generator assembles the regulation JSON from those outputs, names and links every unit, and validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) plus checks for duplicate ids and dangling `{REF:}` references. The README covers setup, the re-run procedure and the sanity numbers.
 
 ## Hosting Regulation JSON Files
 
