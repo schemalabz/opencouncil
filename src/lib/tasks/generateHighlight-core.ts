@@ -1,7 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { startTask } from './tasks';
 import { GenerateHighlightRequest } from '@/lib/apiTypes';
-import { getSpeakerDisplayInfo } from '@/lib/utils';
+import { getSpeakerDisplayInfo, INDEPENDENT_COUNCIL_MEMBER_LABEL } from '@/lib/utils/roles';
 
 // NOT a "use server" module: this performs no authorization, so exposing it as
 // a server action would let anyone render any highlight. Callers must check
@@ -37,7 +37,7 @@ export async function requestGenerateHighlightCore(highlightId: string, options?
                                             person: {
                                                 include: {
                                                     roles: {
-                                                        include: { party: true },
+                                                        include: { party: true, administrativeBody: { select: { type: true } } },
                                                     },
                                                 },
                                             },
@@ -77,10 +77,10 @@ export async function requestGenerateHighlightCore(highlightId: string, options?
                 partyLabel = party.name_short || party.name;
             }
 
-            if (role) {
-                roleLabel = role.name || undefined;
+            if (role?.name) {
+                roleLabel = role.name;
             } else if (isIndependent) {
-                roleLabel = "Ανεξάρτητος Δημοτικός Σύμβουλος";
+                roleLabel = INDEPENDENT_COUNCIL_MEMBER_LABEL;
             }
         }
 

@@ -20,6 +20,7 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
+import { isIndependentCouncilMember } from '@/lib/utils/roles';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
@@ -85,17 +86,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     // Topic chips reflect the actual contributions list (already sorted server-side).
     const relevantTopics = contributionTopics;
 
-    // Check if person is an independent council member
-    const isIndependentCouncilMember = useMemo(() => {
-        const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
-        const partyRoles = activeRoles.filter(role => role.partyId);
-
-        if (partyRoles.length > 0) return false;
-
-        return activeRoles.some(role =>
-            role.administrativeBodyId && role.administrativeBody?.type === 'council'
-        );
-    }, [person.roles]);
+    const isIndependent = useMemo(() => isIndependentCouncilMember(person.roles), [person.roles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -274,7 +265,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     </span>
                                 );
                             })}
-                            {isIndependentCouncilMember && (
+                            {isIndependent && (
                                 <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
                             )}
                             </>
@@ -456,7 +447,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 {activeRoles.map(role => <RoleRow key={role.id} role={role} t={t} tCommon={tCommon} />)}
                                 {activeRoles.length === 0 && (
                                     <li className="text-sm text-muted-foreground">
-                                        {isIndependentCouncilMember ? t('independentCouncilMember') : '—'}
+                                        {isIndependent ? t('independentCouncilMember') : '—'}
                                     </li>
                                 )}
                             </ul>

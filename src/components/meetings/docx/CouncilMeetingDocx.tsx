@@ -1,7 +1,8 @@
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
-import { getSpeakerDisplayInfo, simplifyRoleName, formatTimestamp } from '@/lib/utils';
+import { formatTimestamp } from '@/lib/utils';
+import { getSpeakerLabels, formatPartyLabel } from '@/lib/utils/roles';
 import { getShortName } from '@/lib/formatters/name';
 import { MeetingDataForExport } from '@/lib/export/meetings';
 import { getRealmDomain } from '@/lib/realm';
@@ -95,12 +96,10 @@ const createTranscriptSection = ({ transcript, people, meeting }: Pick<MeetingDa
         const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
         const speakerName = speaker ? (speaker.name_short || getShortName(speaker.name)) : speakerSegment.speakerTag.label;
         const { party, role, isPartyHead } = speaker
-            ? getSpeakerDisplayInfo(speaker.roles || [], new Date(meeting.dateTime))
+            ? getSpeakerLabels(speaker.roles || [], new Date(meeting.dateTime))
             : { party: null, role: null, isPartyHead: false };
 
-        const partyLabel = party
-            ? isPartyHead ? `(${party.name_short}, Επικεφαλής) ` : `(${party.name_short}) `
-            : '';
+        const partyLabel = party ? `(${formatPartyLabel(party, isPartyHead)}) ` : '';
         const children = [
             new TextRun({
                 text: `${speakerName} ${partyLabel}`,
@@ -111,7 +110,7 @@ const createTranscriptSection = ({ transcript, people, meeting }: Pick<MeetingDa
 
         if (role) {
             children.push(new TextRun({
-                text: `${simplifyRoleName(role.name)} `,
+                text: `${role} `,
                 size: 20, // 10pt
                 color: '666666'
             }));

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { compareAgendaPosition, formatTimestamp } from '@/lib/utils';
+import { formatPartyLabel } from '@/lib/utils/roles';
 
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -544,7 +545,7 @@ function TranscriptSection({ entries, debugMode, debugCounterRef }: {
                     return (
                         <div key={i} id={debugId} className={debugMode ? 'border-l-4 pl-2' : ''} style={debugColor ? { borderLeftColor: debugColor } : undefined}>
                             <span className="font-bold">
-                                {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικεφαλής' : ''})` : ''}
+                                {entry.speakerName} {entry.party ? `(${formatPartyLabel(entry.party, entry.isPartyHead)})` : ''}
                             </span>
                             {entry.role && (
                                 <span className="text-xs text-gray-500"> {entry.role}</span>

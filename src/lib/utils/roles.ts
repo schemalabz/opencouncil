@@ -361,6 +361,50 @@ export function getPrimaryRole<T extends {
   return sorted[0] ?? null;
 }
 
+type SpeakerRole = Role & {
+  party?: Party | null;
+  cityId?: string | null;
+  administrativeBody?: { type: AdministrativeBodyType } | null;
+};
+
+export const INDEPENDENT_COUNCIL_MEMBER_LABEL = 'Ανεξάρτητος Δημοτικός Σύμβουλος';
+
+/**
+ * A member of the Δημοτικό Συμβούλιο who holds no active party role.
+ * Roles must carry their administrativeBody: without it no role counts as a council membership.
+ */
+export function isIndependentCouncilMember(
+  roles: { partyId: string | null; startDate: Date | null; endDate: Date | null; administrativeBody?: { type: AdministrativeBodyType } | null }[],
+  date?: Date
+): boolean {
+  const activeRoles = filterActiveRoles(roles, date);
+  return !activeRoles.some(role => role.partyId)
+    && activeRoles.some(role => role.administrativeBody?.type === 'council');
+}
+
+/**
+ * The text a document prints after a speaker's name: the short party name and
+ * the role, or the independent label for a council member without a party.
+ * A role without a name gives no role text.
+ */
+export function getSpeakerLabels(roles: SpeakerRole[], date?: Date): {
+  party: string | null;
+  isPartyHead: boolean;
+  role: string | null;
+} {
+  const { party, role, isPartyHead, isIndependent } = getSpeakerDisplayInfo(roles, date);
+  return {
+    party: party?.name_short ?? null,
+    isPartyHead,
+    role: simplifyRoleName(role?.name ?? null) ?? (isIndependent ? INDEPENDENT_COUNCIL_MEMBER_LABEL : null),
+  };
+}
+
+/** The party label after a name, with «Επικεφαλής» for the head of the party. */
+export function formatPartyLabel(party: string, isPartyHead: boolean): string {
+  return isPartyHead ? `${party}, Επικεφαλής` : party;
+}
+
 /**
  * Derives speaker display information from roles at a specific date.
  * Centralizes the logic for determining what to show for a person:
@@ -370,14 +414,14 @@ export function getPrimaryRole<T extends {
  * - Party affiliation is resolved separately
  * - isPartyHead indicates the person leads their party (suppressed for
  *   city-level heads like the mayor, where it's always implied)
- * - Independent if neither party nor prominent role
+ * - Independent per isIndependentCouncilMember
  *
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)
  * @returns Object with party, role, party head status, and independent status
  */
 export function getSpeakerDisplayInfo(
-  roles: (Role & { party?: Party | null; cityId?: string | null })[],
+  roles: SpeakerRole[],
   date?: Date
 ): {
   party: Party | null;
@@ -394,7 +438,7 @@ export function getSpeakerDisplayInfo(
   // Use primary role only if it's a non-party role
   // (party roles are shown separately via the party field)
   const role = primaryRole && !primaryRole.partyId ? primaryRole : null;
-  const isIndependent = !party && !role;
+  const isIndependent = isIndependentCouncilMember(roles, checkDate);
 
   // Party head status: true when the active party role has isHead,
   // but suppressed when the displayed role is already city-level head (mayor)

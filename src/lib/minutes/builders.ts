@@ -4,6 +4,7 @@ import { extractFirstName, formatSurnameFirst, getAbsentLabel, isFemaleName } fr
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
 import { compareAgendaPosition } from '@/lib/utils';
+import { formatPartyLabel } from '@/lib/utils/roles';
 import { isRecordSubject } from '@/lib/utils/subjects';
 import { phrasePermitsInference, phraseOutcome, type PhraseOutcome } from '@/lib/derivation/deriveVotes';
 import { decisionOrdinal, placeEvents, type PlaceableEvent } from '@/lib/derivation/placeEvents';
@@ -388,7 +389,7 @@ export function formatRollCallMemberLabel({ member, isSubstitute, office }: Minu
     const labels: string[] = [];
     if (isSubstitute) labels.push('αναπλ. μέλος');
     if (office) labels.push(formatRollCallOffice(office));
-    if (member.party) labels.push(member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party);
+    if (member.party) labels.push(formatPartyLabel(member.party, member.isPartyHead));
     return labels.length > 0 ? labels.join(', ') : null;
 }
 
