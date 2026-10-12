@@ -3,7 +3,7 @@
 // buildSearchQuery: which filters the search ran with, and whether the model
 // was consulted at all.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_URL: 'http://es.test', ELASTICSEARCH_API_KEY: 'k', ELASTICSEARCH_INDEX: 'subjects-test' } }));
-jest.mock('@elastic/elasticsearch', () => ({ Client: jest.fn().mockImplementation(() => ({ search: jest.fn() })) }));
+jest.mock('@elastic/elasticsearch', () => ({ Client: jest.fn().mockImplementation(() => ({ search: jest.fn(), indices: { getMapping: jest.fn() } })) }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: { subject: { findMany: jest.fn().mockResolvedValue([]) }, speakerSegment: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: jest.fn().mockResolvedValue([]) },
@@ -40,6 +40,7 @@ jest.mock('../related', () => ({
 }));
 
 import { Client } from '@elastic/elasticsearch';
+import { resetIndexProfileCache } from '../profile';
 import prisma from '@/lib/db/prisma';
 import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
@@ -67,6 +68,12 @@ const findManyMock = prisma.subject.findMany as jest.Mock;
 // The Elasticsearch client is constructed once at module scope, so the search
 // mock has to be read off that instance rather than re-mocked per test.
 const esSearchMock = (Client as unknown as jest.Mock).mock.results[0].value.search as jest.Mock;
+const esGetMappingMock = (Client as unknown as jest.Mock).mock.results[0].value.indices.getMapping as jest.Mock;
+
+/** The mapping the alias resolves to: one concrete index whose semantic fields name an endpoint. */
+const mappingOf = (index: string, inferenceId: string) => ({
+    [index]: { mappings: { properties: { name: { type: 'text', fields: { semantic: { type: 'semantic_text', inference_id: inferenceId } } } } } },
+});
 
 /** The SearchRequest that reached the query builder — what the search actually ran. */
 const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.mock.calls[0][0];
@@ -74,6 +81,8 @@ const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.moc
 beforeEach(() => {
     jest.clearAllMocks();
     cacheEntries.clear();
+    resetIndexProfileCache();
+    esGetMappingMock.mockResolvedValue(mappingOf('subjects-test', '.jina-embeddings-v3'));
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
@@ -414,7 +423,7 @@ describe('searchRelatedSubjectsInRealm', () => {
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
 
-        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES);
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES, 0.71);
         expect(esSearchMock).toHaveBeenCalled();
     });
 
@@ -428,9 +437,21 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'city', 'greece', '0.71', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
+    });
+
+    // The alias moves to a rebuilt index without a deploy. Until it moves, the
+    // old index embeds with the old model, so its floor applies and its name
+    // keys the entries; after the swap both change, and the old entries retire.
+    it('keys and gates by the index the alias serves, not by the build', async () => {
+        esGetMappingMock.mockResolvedValue(mappingOf('subjects-2026-08', 'opencouncil-multilingual-e5-small-elasticsearch'));
+
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'city', REALM_CITIES, 0.93);
+        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-2026-08']);
     });
 
     it('tags the other scope with the meetings of every other municipality of the realm', async () => {
@@ -438,7 +459,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'other', 'greece', '0.71', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,

@@ -2,6 +2,7 @@ import { estypes } from '@elastic/elasticsearch';
 import { env } from '@/env.mjs';
 import type { RelatedScope } from './types';
 import { subjectVisibilityFilters } from './query';
+import { DEFAULT_SCORE_PROFILE } from './profile';
 
 /** What the related-subjects query needs to know about the subject on screen. */
 export interface RelatedSubjectSeed {
@@ -15,17 +16,15 @@ export interface RelatedSubjectSeed {
 export const RELATED_SUBJECTS_SIZE = 5;
 
 /**
- * Similarity floor (normalized cosine, 0-1) for a related subject.
- *
- * Measured on the production index (Sep 2026) with the subject's name as the
- * query against name.semantic and description.semantic: on-topic neighbours
- * scored 0.936-0.954 and the drift into unrelated subjects of the same
- * municipality began at 0.919 ("Κυκλοφοριακές ρυθμίσεις" in Βριλήσσια pulled
- * a tree felling at 0.914). A subject with no neighbour above the floor gets
+ * Similarity floor (normalized cosine, 0-1) for a related subject, for the
+ * model the schema names. The floor belongs to the embedding model, so it is
+ * part of the ScoreProfile (./profile.ts, with the measurements); the runtime
+ * passes the live index's floor to buildRelatedSubjectsQuery, and this default
+ * serves callers without one. A subject with no neighbour above the floor gets
  * an empty list, and the page shows no section at all, which beats padding
  * one with whatever is least far away.
  */
-export const RELATED_MIN_SIMILARITY = 0.93;
+export const RELATED_MIN_SIMILARITY = DEFAULT_SCORE_PROFILE.relatedMinSimilarity;
 
 /** The municipalities one scope searches, out of the realm's `cityIds`. */
 export function relatedScopeCityIds(seed: RelatedSubjectSeed, scope: RelatedScope, cityIds: string[]): string[] {
@@ -55,7 +54,8 @@ export function relatedScopeCityIds(seed: RelatedSubjectSeed, scope: RelatedScop
 export function buildRelatedSubjectsQuery(
     seed: RelatedSubjectSeed,
     scope: RelatedScope,
-    cityIds: string[]
+    cityIds: string[],
+    minSimilarity: number = RELATED_MIN_SIMILARITY
 ): estypes.SearchRequest {
     const scopeCityIds = relatedScopeCityIds(seed, scope, cityIds);
 
@@ -64,7 +64,7 @@ export function buildRelatedSubjectsQuery(
         size: RELATED_SUBJECTS_SIZE,
         track_total_hits: false,
         _source: ['id'],
-        min_score: RELATED_MIN_SIMILARITY,
+        min_score: minSimilarity,
         query: {
             bool: {
                 must: [{

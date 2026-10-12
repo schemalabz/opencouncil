@@ -3,6 +3,7 @@ import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from '
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
+import { DEFAULT_SCORE_PROFILE, type ScoreProfile } from './profile';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
 // (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
@@ -11,76 +12,30 @@ import type { AdministrativeBodyType } from '@prisma/client';
 const LOCATION_BOOST = 2;
 
 /**
- * Similarity cutoff for the semantic fallback clause, measured against the
- * production index (scripts/search-eval.ts). The gate is the BEST of the two
- * sub-field similarities (see buildSemanticFallbackQuery), so the value is a
+ * The semantic fallback gates on a similarity cutoff and maps what passes into
+ * BM25 space (see buildSemanticFallbackQuery). The cutoff and the scale belong
+ * to the embedding model behind the index, so they live in ./profile.ts, one
+ * entry per model with the measurements that produced it. The runtime reads
+ * the model off the live index (resolveIndexProfile) and hands the profile in;
+ * a build-time default (DEFAULT_SCORE_PROFILE) covers callers without one.
+ *
+ * The gate is the BEST of the two sub-field similarities, so the cutoff is a
  * plain normalized cosine in [0, 1] and means what it says: "the closest thing
- * this document has to say scores at least this well".
- *
- * It replaces an earlier cutoff of 3.23 applied to the BOOSTED SUM of the two
- * sub-fields. That was unusable by construction: the sub-field boosts (2.0 and
- * 1.5) cap each field's contribution, so the sum could only reach 3.23 when
- * BOTH fields scored near their ceiling. It read as a quality bar and behaved
- * as an agreement bar — a perfect title match contributes at most ~1.95, so it
- * still needed the description to supply ~0.85 similarity to pass, whatever the
- * title said. Measured consequences on the live index (Aug 2026, 9.1k released
- * docs):
- *   - "ηλεκτρικά πατίνια" — a logged user query with the HIGHEST title
- *     similarity of any on-topic query measured (0.9546) — returned zero
- *     semantic hits, because its descriptions disagreed.
- *   - "χώροι για παρκάρισμα" admitted `Μίσθωση χώρου για Λούνα Παρκ` (leasing
- *     space for a funfair) while rejecting `Ανάκληση θέσης πάρκινγκ ΑμεΑ`,
- *     `Κόκκινα κολωνάκια και χώροι στάθμευσης` and `Ηλεκτρικά πατίνια -
- *     Παρκάρισμα σε πεζοδρόμια`. Their title scores differed by 0.5%;
- *     description agreement decided.
- *   - The whole arm admitted 1-10 documents per query out of 9,116.
- *
- * Calibration of the current value, over 12 on-topic, 11 paraphrase and 26
- * off-topic queries (the off-topic set drawn from the SearchQuery table):
- *   - on-topic best hit:    0.9399 - 0.9546
- *   - paraphrase best hit:  0.9314 - 0.9499
- *   - off-topic best hit:   0.8968 - 0.9300, plus one outlier at 0.9389
- * The bands touch, so no cutoff is perfectly separating. 0.930 sits just under
- * the paraphrase floor: it keeps 12/12 on-topic and 11/11 paraphrase queries,
- * and admits one off-topic query ("23ερ ε σ=", a keyboard mash whose digits
- * anchor to a street number in `Ανοιχτό σκάμμα Ευελπίδων 23`) with 2 documents.
- * The old sum cutoff scored 11/12 and 10/11 for 0 off-topic — it bought that
- * last junk query by throttling every real query's recall 3-5x.
- *
- * Re-measured Aug 2026 at 9,181 released docs, which is 65 more than the
- * calibration above saw. The bands have moved apart, and the value moved with
- * them, from 0.930 to 0.934:
- *   - The off-topic ceiling ROSE. "ηνκξκ", a logged keyboard mash, reaches
- *     0.9319 against one subject (`Μεταστέγαση ΕΝΕΓΙΛ`), so 0.930 stopped
- *     emptying it. The nearest neighbour of a mash is arbitrary, so expect this
- *     ceiling to keep moving as the index grows.
- *   - The paraphrase floor ROSE further, to somewhere in [0.936, 0.940): every
- *     paraphrase query still returns at 0.936, and "λεφτά για τον αθλητισμό"
- *     empties at 0.940.
- * That leaves a separating window where the calibration above had none. 0.934
- * sits in the middle of it: ~0.002 above the junk ceiling and ~0.002 below the
- * paraphrase floor, so neither side is one document away from crossing.
- *
- * The cost is paraphrase DEPTH, not paraphrase recall — no query goes empty,
- * but the thinnest one ("χώροι για παρκάρισμα") returns 9 documents at 0.930,
- * 6 at 0.932 and 2 at 0.936. That is why this sits mid-window instead of at the
- * top of it: the arm exists for recall, and the junk it admits is one document
- * on one query.
- *
- * Re-run the sweep when the eval suite starts to fail on either side:
- *
- *     SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --min-score 0.934
+ * this document has to say scores at least this well". It replaced a cutoff
+ * on the BOOSTED SUM of the two sub-fields, which read as a quality bar and
+ * behaved as an agreement bar: a perfect title match still needed the
+ * description to agree, so "ηλεκτρικά πατίνια", the on-topic query with the
+ * highest title similarity ever measured, returned zero semantic hits.
  *
  * Do not normalize before applying this: `minmax` maps the best hit to exactly
  * 1.0 for every query, which makes any fractional cutoff unable to empty the
  * results.
  */
-const DEFAULT_SEMANTIC_MIN_SCORE = 0.934;
 
 /**
  * Mapping of the similarity into BM25 space for the dis_max fallback
  * (see buildSemanticFallbackQuery): mapped = BASE + (raw - cutoff) * SCALE.
- * Calibrated against the flattened lexical tiers (FIELD_TIER):
+ * BASE is calibrated against the flattened lexical tiers (FIELD_TIER):
  *   - Weak stem-coincidence lexical matches (both stems of a 2-term query
  *     landing in one long description, e.g. bar licenses matching
  *     "ζώα χωρίς ιδιοκτήτη" via ζω/ιδιοκτητ) flatten to ~24-30
@@ -88,13 +43,12 @@ const DEFAULT_SEMANTIC_MIN_SCORE = 0.934;
  *     band, so a genuine paraphrase-only match competes with them.
  *   - A real name match flattens to ~58+ (nameTerm + namePhrase), so the
  *     mapped ceiling stays below any title match.
- * SCALE spreads the useful similarity band over ~8 points so semantic ordering
- * still matters among paraphrase-only hits. That band is ~0.025 wide (cutoff
- * to the observed 0.955 ceiling), where the old boosted-sum band was ~0.08 —
- * hence the 3.2x larger scale for the same mapped spread.
+ * SCALE spreads the model's useful similarity band, cutoff to observed
+ * ceiling, over ~8 points so semantic ordering still matters among
+ * paraphrase-only hits. The band width is a property of the model, so SCALE
+ * is part of the ScoreProfile (./profile.ts).
  */
 const SEMANTIC_MAPPED_BASE = 26;
-const SEMANTIC_MAPPED_SCALE = 320;
 
 /**
  * A single-term query matches on its term; a 2-term query requires both terms
@@ -1054,7 +1008,7 @@ function buildLexicalShouldClauses(
 //
 // The two sub-fields combine with dis_max (score = MAX of the two), not by
 // summing a boosted `bool.should`. The sum made the cutoff an agreement test
-// rather than a quality test — see DEFAULT_SEMANTIC_MIN_SCORE for the measured
+// rather than a quality test — see ./profile.ts for the measured
 // damage. Under max, each field is judged on its own: a document whose title
 // paraphrases the query passes on the title alone, and the score carries a
 // plain similarity that the cutoff can be reasoned about in.
@@ -1078,7 +1032,7 @@ function buildLexicalShouldClauses(
 //     20-40, so any bonus big enough to lift a paraphrase-only match over
 //     junk would also flip the strong matches.
 // Under dis_max the semantic path is mapped into the description-tier score
-// range (SEMANTIC_MAPPED_BASE + margin * SEMANTIC_MAPPED_SCALE) and max()
+// range (SEMANTIC_MAPPED_BASE + margin * the profile's scale) and max()
 // structurally caps its power: a document with a strong lexical score keeps
 // it unchanged, a paraphrase-only document enters at description strength —
 // above transcript-only mentions and weak stem-coincidence matches, below
@@ -1087,7 +1041,8 @@ function buildLexicalShouldClauses(
 // match, and the lexical side never matched in the first place.
 function buildSemanticFallbackQuery(
     queryText: string,
-    semanticMinScore: number
+    semanticMinScore: number,
+    semanticMappedScale: number
 ): QueryContainer {
     const semanticQuery: QueryContainer = {
         dis_max: {
@@ -1128,7 +1083,7 @@ function buildSemanticFallbackQuery(
                             params: {
                                 base: SEMANTIC_MAPPED_BASE,
                                 cutoff: semanticMinScore,
-                                scale: SEMANTIC_MAPPED_SCALE
+                                scale: semanticMappedScale
                             }
                         }
                     }
@@ -1147,7 +1102,8 @@ function buildSemanticFallbackQuery(
 export function buildSearchQuery(
     request: SearchRequest,
     extractedFilters: ExtractedFilters,
-    extractedLocations?: Location[]
+    extractedLocations?: Location[],
+    profile: ScoreProfile = DEFAULT_SCORE_PROFILE
 ): estypes.SearchRequest {
     // `request` already carries the AI-extracted city ids and date range: the
     // caller merges them (search() in ./index.ts). Merging them again here
@@ -1216,7 +1172,8 @@ export function buildSearchQuery(
                                 lexicalBool,
                                 buildSemanticFallbackQuery(
                                     queryText,
-                                    request.config.semanticMinScore ?? DEFAULT_SEMANTIC_MIN_SCORE
+                                    request.config.semanticMinScore ?? profile.semanticMinScore,
+                                    profile.semanticMappedScale
                                 )
                             ],
                             // Pure max: any tie_breaker share of the semantic score

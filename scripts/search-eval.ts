@@ -22,6 +22,7 @@ import { Client, estypes } from '@elastic/elasticsearch';
 import { buildSearchQuery, rankingMultiplierRatio, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
 import type { QueryContainer, SearchRequest } from '../src/lib/search/types';
 import { buildRelatedSubjectsQuery, type RelatedSubjectSeed } from '../src/lib/search/related';
+import { resolveIndexProfile } from '../src/lib/search/profile';
 import type { RelatedScope } from '../src/lib/search/types';
 import { NO_EXTRACTED_FILTERS } from '../src/lib/search/filters';
 
@@ -194,11 +195,11 @@ async function runQuery(
             size,
             enableSemanticSearch: mode !== 'lexical',
             // Left undefined unless --min-score was passed, so the default run
-            // measures DEFAULT_SEMANTIC_MIN_SCORE exactly as production applies it.
+            // measures the index's profile exactly as production applies it.
             semanticMinScore,
         },
     };
-    const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS);
+    const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS, undefined, await resolveIndexProfile(client));
 
     // Semantic-only mode: the semantic side is the second branch of the dis_max
     // under `must` (see buildSemanticFallbackQuery). Keep only that branch so
@@ -275,7 +276,7 @@ async function runRelated(subjectId: string, minScore?: number): Promise<void> {
 
     for (const scope of ['city', 'other'] as RelatedScope[]) {
         const q = {
-            ...buildRelatedSubjectsQuery(seed, scope, cityIds),
+            ...buildRelatedSubjectsQuery(seed, scope, cityIds, (await resolveIndexProfile(client)).relatedMinSimilarity),
             ...(minScore !== undefined && { min_score: minScore }),
         };
         const res = await client.search<EvalSource>({
@@ -468,7 +469,9 @@ type TierRun = 'live' | 'bare';
 async function runTierQuery(queryText: string, run: TierRun): Promise<TierHit[]> {
     const q = buildSearchQuery(
         { query: queryText, config: { size: 100, enableSemanticSearch: run === 'live' } },
-        NO_EXTRACTED_FILTERS
+        NO_EXTRACTED_FILTERS,
+        undefined,
+        await resolveIndexProfile(client)
     );
     stampTierNames(q.query);
     const query = run === 'live' ? q.query : rankedQueryOf(q.query);
@@ -604,7 +607,7 @@ async function main() {
     };
 
     const mode = (flagValue('--mode') ?? 'full') as 'full' | 'lexical' | 'semantic';
-    // Sweeps DEFAULT_SEMANTIC_MIN_SCORE without editing query.ts: run the suite
+    // Sweeps the index's semanticMinScore (profile.ts) without editing query.ts: run the suite
     // at several cutoffs and read where the on-topic and paraphrase cases start
     // to go empty and the junk ones stop. That sweep is what produced 0.930.
     const rawMinScore = flagValue('--min-score');
