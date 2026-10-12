@@ -25,7 +25,7 @@ interface BulkVoiceprintDialogProps {
 
 type BulkResult = Awaited<ReturnType<typeof requestGenerateVoiceprintsForCity>>;
 
-const VOICEPRINT_RULE = "A person needs a confirmed speaker segment of at least 30 seconds and no voiceprint yet.";
+const VOICEPRINT_RULE = "A person needs a voiceprint consent in force, a confirmed speaker segment of at least 30 seconds, and no voiceprint yet.";
 
 interface Alert {
     variant?: "default" | "destructive" | "warning" | "success";
@@ -129,7 +129,7 @@ export function BulkVoiceprintDialog({ cityId, currentCityName, personIds }: Bul
                 <DialogHeader>
                     <DialogTitle>Bulk Voiceprint Generation</DialogTitle>
                     <DialogDescription>
-                        Generate voiceprints for the people you chose in {currentCityName}
+                        Generate voiceprints for the eligible people you chose in {currentCityName}. {VOICEPRINT_RULE}
                     </DialogDescription>
                 </DialogHeader>
 
