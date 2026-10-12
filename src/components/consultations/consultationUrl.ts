@@ -1,6 +1,20 @@
 import { RegulationData } from "./types";
 
-export type ConsultationView = "map" | "document";
+/**
+ * The screens of a consultation. `home` asks for the reader's address, `street` answers for it,
+ * `map` shows every place (with `entity` the selected one), `comment` is the form for `entity`,
+ * `plan` is the two-minute summary (with `entity` a card to scroll to), `comments` lists what
+ * others said, and `document` is the full text (with `entity` a chapter or article).
+ */
+export type ConsultationView = "home" | "street" | "map" | "comment" | "plan" | "comments" | "document";
+
+const VIEWS: readonly ConsultationView[] = ["home", "street", "map", "comment", "plan", "comments", "document"];
+
+/** Views whose `entity` is not a place to open but the subject of the view: any entity type is valid. */
+const VIEWS_WITH_OWN_ENTITY = new Set<ConsultationView>(["comment", "plan"]);
+
+/** Views that take no entity. */
+const VIEWS_WITHOUT_ENTITY = new Set<ConsultationView>(["home", "street", "comments"]);
 export type ConsultationEntityType = "chapter" | "article" | "geoset" | "geometry";
 
 interface SearchParamsLike {
@@ -40,11 +54,7 @@ function normalizeBasePath(pathnameOrUrl: string): string {
 }
 
 function getValidConsultationView(value: string | null | undefined): ConsultationView | null {
-    if (value === "map" || value === "document") {
-        return value;
-    }
-
-    return null;
+    return VIEWS.find((view) => view === value) ?? null;
 }
 
 export function parseConsultationHash(hash: string | null | undefined): string | null {
@@ -59,6 +69,12 @@ export function isConsultationEntityCompatibleWithView(
     entityType: ConsultationEntityType | null,
     view: ConsultationView,
 ): boolean {
+    if (VIEWS_WITH_OWN_ENTITY.has(view)) {
+        return true;
+    }
+    if (VIEWS_WITHOUT_ENTITY.has(view)) {
+        return false;
+    }
     if (!entityType) {
         return true;
     }
@@ -126,14 +142,18 @@ export function resolveConsultationUrlState({
     const liveParams = new URLSearchParams(liveSearch ?? fallbackQuery);
     const fallbackEntityId = normalizeEntityId(searchParams?.get("entity"));
     const hashEntityId = parseConsultationHash(liveHash);
-    const entityId = normalizeEntityId(liveParams.get("entity")) ?? fallbackEntityId ?? hashEntityId;
-    const entityType = resolveConsultationEntityType(regulationData, entityId);
     const explicitView =
         getValidConsultationView(liveParams.get("view")) ??
         getValidConsultationView(searchParams?.get("view"));
-    const resolvedView = entityType
-        ? getConsultationViewForEntityType(entityType)
-        : explicitView ?? defaultView;
+    const requestedEntityId = normalizeEntityId(liveParams.get("entity")) ?? fallbackEntityId ?? hashEntityId;
+    const entityId = explicitView && VIEWS_WITHOUT_ENTITY.has(explicitView) ? null : requestedEntityId;
+    const entityType = resolveConsultationEntityType(regulationData, entityId);
+    // An entity decides the view, unless the view is about the entity (a comment on it, a card).
+    const resolvedView = explicitView && VIEWS_WITH_OWN_ENTITY.has(explicitView)
+        ? explicitView
+        : entityType
+            ? getConsultationViewForEntityType(entityType)
+            : explicitView ?? defaultView;
     const canonicalUrl = buildConsultationUrl(pathname, { view: resolvedView, entityId });
     const currentUrl = buildConsultationUrl(pathname, {
         view: explicitView ?? defaultView,

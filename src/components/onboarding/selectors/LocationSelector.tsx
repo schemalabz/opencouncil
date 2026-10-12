@@ -17,6 +17,8 @@ interface LocationSelectorProps {
     city: CityWithGeometry;
     onLocationClick?: (location: Location) => void;
     hideSelectedList?: boolean;
+    /** Id of the search input, so a label outside the component can name it. */
+    inputId?: string;
 }
 
 export function LocationSelector({
@@ -26,6 +28,7 @@ export function LocationSelector({
     city,
     onLocationClick,
     hideSelectedList = false,
+    inputId,
 }: LocationSelectorProps) {
     const t = useTranslations('Common');
     const search = useLocationSearch(city);
@@ -65,6 +68,7 @@ export function LocationSelector({
                     <div className="relative flex-1">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input
+                            id={inputId}
                             type="text"
                             inputMode="search"
                             autoComplete="off"

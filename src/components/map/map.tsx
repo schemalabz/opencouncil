@@ -28,6 +28,11 @@ export interface MapFeature {
         strokeColor?: string
         strokeWidth?: number
         strokeOpacity?: number
+        /** A second, wider line under the border (a halo), for the one feature that must stand out. Polygons and lines only. */
+        casingColor?: string
+        casingWidth?: number
+        /** The ring around a point, in px (default 2). */
+        ringWidth?: number
         label?: string
     }
 }
@@ -52,6 +57,11 @@ interface MapProps {
     renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
     editingMode?: boolean
     showStreetLabels?: boolean
+    /** Who wins a label collision: the features' own labels (default, for maps whose polygons name
+     * places) or the street names (for a map whose points sit on streets the reader must find). */
+    labelPriority?: 'features' | 'streets'
+    /** The zoom from which point labels show (default 12). Raise it on a map with many points. */
+    pointLabelMinZoom?: number
     drawingMode?: 'point' | 'polygon'
     /** Overlay POI / store labels (e.g. on the simple basemap, matching the satellite one). */
     showPois?: boolean
@@ -63,6 +73,7 @@ interface MapProps {
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
+const CLICK_TOLERANCE_PX = 6;
 
 const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
     if (features.length === 0) {
@@ -84,6 +95,8 @@ const Map = memo(function Map({
     renderPopup,
     editingMode = false,
     showStreetLabels = false,
+    labelPriority = 'features',
+    pointLabelMinZoom = 12,
     showPois = false,
     cooperativeGestures = false,
     drawingMode = 'point',
@@ -103,6 +116,11 @@ const Map = memo(function Map({
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
+    // The click listener is registered once on load, so it reads the latest handler through a ref.
+    const onFeatureClickRef = useRef(onFeatureClick)
+    useEffect(() => {
+        onFeatureClickRef.current = onFeatureClick
+    }, [onFeatureClick])
 
     // Store user-controlled states in refs to preserve them during rerenders
     const isUserInteracted = useRef(false)
@@ -123,6 +141,18 @@ const Map = memo(function Map({
         animationFrame.current = requestAnimationFrame(rotateCamera)
     }, [])
 
+    // Put every layer back to its data-driven paint and forget the hovered feature.
+    const resetHoverPaint = useCallback(() => {
+        if (!map.current) return;
+        currentHoveredFeature.current = null;
+        map.current.getCanvas().style.cursor = '';
+        map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
+        map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
+        map.current.setPaintProperty('feature-points', 'circle-radius', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-width', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-opacity', ['get', 'strokeOpacity']);
+    }, []);
+
     // Memoize event handlers
     const handleFeatureHover = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
         if (!map.current || !e.features || e.features.length === 0) return;
@@ -131,8 +161,16 @@ const Map = memo(function Map({
         // This prevents flickering when hovering over a point that sits on top of a polygon
         const feature = e.features.find(f => f.geometry.type === 'Point') || e.features[0];
         if (!feature.properties) return;
-        // Decorative features (e.g. the landing's city outlines) opt out of the built-in hover.
-        if (feature.properties.interactive === false) return;
+        // Decorative features (e.g. the landing's city outlines) opt out of the built-in hover, and so
+        // do clickable areas that sit under other features (`hover: false`). Moving from a highlighted
+        // feature onto one of these must still clear the highlight: mouseleave only fires when the
+        // cursor leaves every fill.
+        const decorative = feature.properties.interactive === false;
+        if (decorative || feature.properties.hover === false) {
+            if (currentHoveredFeature.current !== null) resetHoverPaint();
+            map.current.getCanvas().style.cursor = decorative ? '' : 'pointer';
+            return;
+        }
 
         const featureId = feature.properties.uniqueFeatureId;
         // If we're hovering the same feature, don't do anything to prevent flickering
@@ -184,18 +222,19 @@ const Map = memo(function Map({
                 ['get', 'fillOpacity']
             ]);
 
-            // Show blue BORDER - only for the hovered feature
+            // Show blue BORDER - only for the hovered feature. A feature drawn with a wider or
+            // stronger border than that (the selected one) keeps its own.
             map.current.setPaintProperty('feature-borders', 'line-width', [
                 'case',
                 featureFilter,
-                2,
+                ['max', 2, ['get', 'strokeWidth']],
                 ['get', 'strokeWidth']
             ]);
 
             map.current.setPaintProperty('feature-borders', 'line-opacity', [
                 'case',
                 featureFilter,
-                0.8,
+                ['max', 0.8, ['get', 'strokeOpacity']],
                 ['get', 'strokeOpacity']
             ]);
         }
@@ -232,7 +271,7 @@ const Map = memo(function Map({
                 .setDOMContent(container)
                 .addTo(map.current);
         }
-    }, [renderPopup]);
+    }, [renderPopup, resetHoverPaint]);
 
     const handleFeatureLeave = useCallback(() => {
         if (!map.current) return;
@@ -243,15 +282,7 @@ const Map = memo(function Map({
             hoverTimeout.current = null;
         }
 
-        // Reset current hovered feature
-        currentHoveredFeature.current = null;
-
-        map.current.getCanvas().style.cursor = '';
-        map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
-        map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
-        map.current.setPaintProperty('feature-points', 'circle-radius', ['get', 'strokeWidth']);
-        map.current.setPaintProperty('feature-borders', 'line-width', ['get', 'strokeWidth']);
-        map.current.setPaintProperty('feature-borders', 'line-opacity', ['get', 'strokeOpacity']);
+        resetHoverPaint();
 
         if (popupRoot.current) {
             popupRoot.current.unmount();
@@ -260,23 +291,44 @@ const Map = memo(function Map({
         if (popup.current) {
             popup.current.remove();
         }
-    }, []);
+    }, [resetHoverPaint]);
 
     const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent) => {
-        if (!map.current || !onFeatureClick) return;
+        const onClick = onFeatureClickRef.current;
+        if (!map.current || !onClick) return;
 
-        // Query both layers but prioritize points over polygons
-        const pointFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-points'] });
+        // A fingertip or a quick click misses a small circle or a thin strip by a few pixels.
+        const box: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+            [e.point.x - CLICK_TOLERANCE_PX, e.point.y - CLICK_TOLERANCE_PX],
+            [e.point.x + CLICK_TOLERANCE_PX, e.point.y + CLICK_TOLERANCE_PX]
+        ];
+
+        // Points win over polygons; among several points take the nearest to the click.
+        const pointFeatures = map.current.queryRenderedFeatures(box, { layers: ['feature-points'] });
         if (pointFeatures.length > 0) {
-            onFeatureClick(pointFeatures[0]);
+            const distanceSq = (feature: mapboxgl.MapboxGeoJSONFeature) => {
+                if (feature.geometry.type !== 'Point' || !map.current) return Infinity;
+                const screen = map.current.project(feature.geometry.coordinates as [number, number]);
+                return (screen.x - e.point.x) ** 2 + (screen.y - e.point.y) ** 2;
+            };
+            onClick(pointFeatures.reduce((best, f) => distanceSq(f) < distanceSq(best) ? f : best));
             return;
         }
 
-        const fillFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-fills'] });
-        if (fillFeatures.length > 0) {
-            onFeatureClick(fillFeatures[0]);
+        // An exact hit first, so a precise click stays precise; the box only rescues thin polygons.
+        // Both queries return the top-most feature first, so a strip drawn over an area wins. An area
+        // under other features (`hover: false`, e.g. a zone under street strips) is hit by almost every
+        // click, so a feature within the box beats it: otherwise a near miss on a strip opens the zone.
+        const underneath = (feature: mapboxgl.MapboxGeoJSONFeature) => feature.properties?.hover === false;
+        const exact = map.current.queryRenderedFeatures(e.point, { layers: ['feature-fills'] });
+        if (exact.length > 0 && !underneath(exact[0])) {
+            onClick(exact[0]);
+            return;
         }
-    }, [onFeatureClick]);
+        const nearby = map.current.queryRenderedFeatures(box, { layers: ['feature-fills'] }).filter(f => !underneath(f));
+        const target = nearby[0] ?? exact[0];
+        if (target) onClick(target);
+    }, []);
 
     // Handle drawing events
     const handleDrawCreate = useCallback((e: any) => {
@@ -431,6 +483,9 @@ const Map = memo(function Map({
                             strokeColor: feature.style?.strokeColor || '#627BBC',
                             strokeWidth: feature.style?.strokeWidth ?? 2,
                             strokeOpacity: feature.style?.strokeOpacity ?? 0.8,
+                            casingColor: feature.style?.casingColor || '#ffffff',
+                            casingWidth: feature.style?.casingWidth ?? 0,
+                            ringWidth: feature.style?.ringWidth ?? 2,
                             label: feature.style?.label || ''
                         }
                     }))
@@ -446,6 +501,20 @@ const Map = memo(function Map({
                 'paint': {
                     'fill-color': ['get', 'fillColor'],
                     'fill-opacity': ['get', 'fillOpacity']
+                }
+            });
+
+            // The casing draws under the border, so a wide light casing reads as a halo around it.
+            map.current?.addLayer({
+                'id': 'feature-casings',
+                'type': 'line',
+                'source': 'features',
+                'filter': ['all', ['!=', ['geometry-type'], 'Point'], ['>', ['get', 'casingWidth'], 0]],
+                'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                'paint': {
+                    'line-color': ['get', 'casingColor'],
+                    'line-width': ['get', 'casingWidth'],
+                    'line-opacity': 0.95
                 }
             });
 
@@ -495,7 +564,7 @@ const Map = memo(function Map({
                     'circle-color': ['get', 'fillColor'],
                     'circle-opacity': ['get', 'fillOpacity'],
                     'circle-radius': ['get', 'strokeWidth'],
-                    'circle-stroke-width': 2,
+                    'circle-stroke-width': ['get', 'ringWidth'],
                     'circle-stroke-color': ['get', 'strokeColor'],
                     'circle-stroke-opacity': ['get', 'strokeOpacity']
                 }
@@ -510,7 +579,7 @@ const Map = memo(function Map({
                     ['==', ['geometry-type'], 'Point'],
                     ['!=', ['get', 'alwaysShowLabel'], true]
                 ],
-                'minzoom': 12,
+                'minzoom': pointLabelMinZoom,
                 'layout': {
                     'text-field': ['get', 'label'],
                     'text-size': [
@@ -535,8 +604,8 @@ const Map = memo(function Map({
                     'text-halo-width': 1.5,
                     'text-opacity': [
                         'interpolate', ['linear'], ['zoom'],
-                        12, 0,
-                        13, 1
+                        pointLabelMinZoom, 0,
+                        pointLabelMinZoom + 1, 1
                     ]
                 }
             });
@@ -570,9 +639,7 @@ const Map = memo(function Map({
 
             // Add click listener on the whole map (not per-layer)
             // The handler queries features and prioritizes points over polygons
-            if (onFeatureClick) {
-                map.current?.on('click', handleMapFeatureClick);
-            }
+            map.current?.on('click', handleMapFeatureClick);
 
             map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
             map.current?.on('mouseleave', 'feature-fills', handleFeatureLeave);
@@ -652,6 +719,10 @@ const Map = memo(function Map({
         if (!map.current || !isInitialized.current) return;
 
         if (shouldShowStreetLabels) {
+            // Symbol layers higher in the stack win collisions. Below `feature-labels`, the features'
+            // own labels beat the street names; below the pinned labels only, the street names beat
+            // every feature label but the pinned ones.
+            const beforeId = labelPriority === 'streets' ? 'feature-pinned-labels' : 'feature-labels';
             // Add street data source if it doesn't exist
             if (!map.current.getSource('mapbox-streets')) {
                 map.current.addSource('mapbox-streets', {
@@ -660,7 +731,6 @@ const Map = memo(function Map({
                 });
             }
 
-            // Add major street names layer (inserted before feature-labels so our labels win collisions)
             if (!map.current.getLayer('major-street-labels')) {
                 map.current.addLayer({
                     'id': 'major-street-labels',
@@ -701,7 +771,7 @@ const Map = memo(function Map({
                         ['has', 'name'],
                         ['in', 'class', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary']
                     ]
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Add regular street names layer (including smaller roads)
@@ -748,7 +818,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'street', 'street_limited']
                     ],
                     'minzoom': 12
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Add small roads and paths layer
@@ -795,7 +865,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'service', 'path', 'pedestrian', 'track', 'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link']
                     ],
                     'minzoom': 14
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Note: place-labels and poi-labels intentionally omitted
@@ -820,7 +890,7 @@ const Map = memo(function Map({
                 map.current.removeSource('mapbox-streets');
             }
         }
-    }, [shouldShowStreetLabels, mapReady]);
+    }, [shouldShowStreetLabels, labelPriority, mapReady]);
 
     // POI / store labels — opt-in (the landing's simple basemap turns these on so it
     // shows the same shops/businesses the satellite basemap renders natively). Sourced
@@ -1039,12 +1109,15 @@ const Map = memo(function Map({
         prevProps.pitch === nextProps.pitch &&
         prevProps.editingMode === nextProps.editingMode &&
         prevProps.showStreetLabels === nextProps.showStreetLabels &&
+        prevProps.labelPriority === nextProps.labelPriority &&
+        prevProps.pointLabelMinZoom === nextProps.pointLabelMinZoom &&
         prevProps.showPois === nextProps.showPois &&
         prevProps.cooperativeGestures === nextProps.cooperativeGestures &&
         prevProps.drawingMode === nextProps.drawingMode &&
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
         prevProps.zoomPadding === nextProps.zoomPadding &&
+        prevProps.onFeatureClick === nextProps.onFeatureClick &&
         // Identity first: a caller that memoizes its features (a city boundary can run to 100KB)
         // would otherwise pay two serialisations of them on every parent render, e.g. per moveend.
         (prevProps.features === nextProps.features ||
