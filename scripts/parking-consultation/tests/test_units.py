@@ -2,7 +2,7 @@ import pytest
 from shapely.geometry import Point
 
 from ses.ids import assign_unit_ids, check_unique
-from ses.units import build_units, estimated_spots
+from ses.units import attach_counts, build_units, estimated_spots, mark_calm_traffic
 from tests.conftest import strip
 
 
@@ -76,3 +76,24 @@ def test_plot_fragments_that_share_an_edge_become_one_strip():
     joined = join_plot_fragments([lower, touching, upper])
     assert len(joined) == 2
     assert sorted(round(p.area) for p in joined) == [20, 40]
+
+
+def test_counts_written_next_to_strips_add_up_per_unit(streets, origin):
+    x0, y0 = origin
+    units, _ = build_units({"residents": [strip(x0 + 130, y0 + 4), strip(x0 + 170, y0 + 4)], "paid": [strip(x0 + 150, y0 - 4)]}, streets)
+    counts = [(3, Point(x0 + 130, y0 + 6)), (4, Point(x0 + 170, y0 + 6)), (9, Point(x0 + 150, y0 - 6)), (7, Point(x0 + 150, y0 + 30))]
+    unmatched = attach_counts(units, counts, ("residents",), snap_m=1.5)
+    north = next(u for u in units if u.category == "residents")
+    assert north.spots == 7
+    assert next(u for u in units if u.category == "paid").spots is None  # the layer does not count paid strips
+    assert [value for value, _ in unmatched] == [9, 7]
+
+
+def test_calm_traffic_from_the_drawn_street_areas(streets, origin):
+    from shapely.geometry import Polygon
+
+    x0, y0 = origin
+    units, _ = build_units({"residents": [strip(x0 + 130, y0 + 4), strip(x0 + 230, y0 + 4)]}, streets)
+    calm = [Polygon([(x0 + 100, y0 - 8), (x0 + 200, y0 - 8), (x0 + 200, y0 + 8), (x0 + 100, y0 + 8)])]
+    assert mark_calm_traffic(units, calm) == 1
+    assert [u.calm_traffic for u in sorted(units, key=lambda u: u.start)] == [True, False]

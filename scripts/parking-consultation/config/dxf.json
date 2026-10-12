@@ -1,0 +1,49 @@
+{
+  "_comment": "The DWG drawings, read as DXF (`dwg2dxf` from LibreDWG writes inputs/*.dxf). They are drawn in ΕΓΣΑ87 metres, so nothing is georeferenced. `frame` is the map in ΕΓΣΑ87; the title block and the 1977 plan blocks sit far outside it and are dropped. Categories are layers.",
+  "frame": [
+    480000,
+    4204000,
+    484000,
+    4208000
+  ],
+  "flattenM": 0.2,
+  "countSnapM": 1.5,
+  "sheets": {
+    "p1": {
+      "file": "inputs/p1.dxf",
+      "zones": {
+        "ΖΩΝΗ Α": "A",
+        "ΖΩΝΗ Β": "B"
+      },
+      "boundary": "PERIOXH MELETHS"
+    },
+    "p2": {
+      "file": "inputs/p2.dxf",
+      "layers": {
+        "ΕΛΕΓΧΟΜΕΝΗ ΣΤΑΘΜΕΥΣΗ_ΚΑΤΟΙΚΟΙ": "residents",
+        "ΕΛΕΓΧΟΜΕΝΗ ΣΤΑΘΜΕΥΣΗ_ΠΛΗΡΩΜΗ": "paid",
+        "ΜΟΤΟ": "motorcycles",
+        "ΕΚΤΟΣ ΣΕΣ": "excluded",
+        "ΣΤΑΘΜΕΥΣΗ ΑΜΕΑ": "amea_shared",
+        "ΣΤΑΘΜΕΥΣΗ ΑΜΕΑ_ΕΙΔΙΚΗ": "amea_dedicated",
+        "ΣΦΗΟ": "ev",
+        "ΕΙΔΙΚΕΣ ΘΕΣΕΙΣ ΣΤΑΘΜΕΥΣΗΣ": "special"
+      },
+      "calmLayer": "ΟΔΟΣ ΗΠΙΑΣ ΚΥΚΛΟΦΟΡΙΑΣ",
+      "countLayers": {
+        "ΠΡΟΣΦΟΡΑ ΣΤΑΘΜΕΥΣΗΣ_ΑΡΙΘΜΗΣΗ": [
+          "residents",
+          "paid",
+          "motorcycles"
+        ],
+        "ΠΡΟΣΦΟΡΑ ΣΤΑΘΜΕΥΣΗΣ ΠΛΗΡΩΜΗ": [
+          "paid"
+        ]
+      },
+      "houseNumberLayer": "ταχυδρομικη αριθμηση",
+      "spotLabels": {
+        "TAXI": "TAXI"
+      }
+    }
+  }
+}

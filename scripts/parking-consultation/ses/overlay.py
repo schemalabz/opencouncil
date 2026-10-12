@@ -11,6 +11,7 @@ from .osm import StreetIndex
 COLOURS = {
     "residents": (0, 64, 255, 210), "paid": (0, 222, 110, 210), "motorcycles": (0, 219, 219, 230), "excluded": (255, 222, 128, 230),
     "amea_shared": (255, 128, 0, 255), "amea_dedicated": (255, 0, 255, 255), "ev": (255, 0, 0, 255), "special": (230, 200, 0, 255),
+    "pharmacies": (0, 120, 60, 255),
     "zone_A": (102, 178, 255, 150), "zone_B": (128, 255, 191, 150), "zone_C": (222, 128, 255, 150), "zone_D": (255, 222, 128, 150),
 }
 

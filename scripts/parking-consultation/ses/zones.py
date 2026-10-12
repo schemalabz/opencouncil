@@ -23,10 +23,24 @@ GREEK_LETTER = {"A": "Α", "B": "Β", "C": "Γ", "D": "Δ"}
 BLOCK_MIN_STRIPS = 2
 BLOCK_MAX_AREA_M2 = 60_000  # a city block; a face at the edge of the street network can be square kilometres
 EDGE_BLOCK_REACH_M = 50.0  # how far past its strips an oversized edge block still counts as zone area
+SLIVER_M2 = 500.0  # a zone part smaller than this is a cut-off corner, not a block
+SHARED_MIN_OVERLAP = 0.4  # a unit that overlaps two zones' strips this much lies on a shared stretch
 
 
-def build_zone_polygons(streets: StreetIndex, zone_strips: dict[str, list[Polygon]]) -> tuple[dict[str, Polygon], dict]:
-    """Zone areas as unions of the street-network blocks that hold each zone's strips."""
+def build_zone_polygons(
+    streets: StreetIndex,
+    zone_strips: dict[str, list[Polygon]],
+    weight: str = "count",
+    min_weight: float = BLOCK_MIN_STRIPS,
+    boundary: Polygon | None = None,
+) -> tuple[dict[str, Polygon], dict]:
+    """Zone areas as unions of the street-network blocks that hold each zone's strips.
+
+    A block goes to the zone with the most strips in it (`weight="count"`), or with the largest
+    strip area (`weight="area"`, for a drawing whose zones are street corridors cut per block side).
+    `boundary` clips the result to the study area, so a corridor along a boundary street does not
+    pull in the block across it.
+    """
     # Snap to a 1 cm grid first: a street end that misses its cross-street by a hair leaves the block open.
     blocks = list(polygonize(unary_union(set_precision(unary_union(streets.lines), 0.01))))
     tree = STRtree(blocks)
@@ -37,7 +51,7 @@ def build_zone_polygons(streets: StreetIndex, zone_strips: dict[str, list[Polygo
             centroid = strip.centroid
             hits = [int(i) for i in tree.query(centroid) if blocks[int(i)].contains(centroid)]
             if hits:
-                counts[hits[0]][letter] += 1
+                counts[hits[0]][letter] += strip.area if weight == "area" else 1
             else:
                 unplaced[letter] += 1
 
@@ -47,19 +61,41 @@ def build_zone_polygons(streets: StreetIndex, zone_strips: dict[str, list[Polygo
     clipped = 0
     for index, letters in counts.items():
         (winner, top), *rest = letters.most_common()
-        if top < BLOCK_MIN_STRIPS:
+        if top < min_weight:
             continue
         if rest and rest[0][1] == top:
             contested += 1
         block = blocks[index]
         if block.area > BLOCK_MAX_AREA_M2:
-            # An edge face (hospital grounds, the far side of the avenue) is not a block: keep only
-            # the part near the strips that placed it here.
-            block = block.intersection(strip_reach[winner])
+            # An edge face (hospital grounds, the far side of the avenue) is not a block: keep the
+            # part inside the study area, or without a boundary the part near the strips that placed it here.
+            block = block.intersection(boundary) if boundary is not None else block.intersection(strip_reach[winner])
             clipped += 1
         assigned[winner].append(block)
-    zones = {letter: unary_union(faces).buffer(0.05).buffer(-0.05) for letter, faces in assigned.items()}
-    stats = {"blocks": len(blocks), "blocks_with_strips": len(counts), "contested_blocks": contested, "clipped_edge_blocks": clipped, "unplaced_strips": dict(unplaced)}
+    filled = 0
+    if boundary is not None and assigned:
+        # The zones partition the whole area: a block inside it whose streets hold no strips (a
+        # square, the hospital grounds, a block with paid parking only) belongs to the zone next to it.
+        placed = {index for index, letters in counts.items() if letters.most_common(1)[0][1] >= min_weight}
+        unions = {letter: unary_union(faces) for letter, faces in assigned.items()}
+        for index, block in enumerate(blocks):
+            if index in placed:
+                continue
+            inside = block.intersection(boundary)
+            if inside.area < SLIVER_M2:
+                continue
+            nearest = min(unions, key=lambda letter: unions[letter].distance(inside.centroid))
+            assigned[nearest].append(inside)
+            filled += 1
+    zones = {}
+    for letter, faces in assigned.items():
+        polygon = unary_union(faces).buffer(0.05).buffer(-0.05)
+        if boundary is not None:
+            polygon = polygon.intersection(boundary)
+        parts = [part for part in getattr(polygon, "geoms", [polygon]) if part.geom_type == "Polygon" and part.area >= SLIVER_M2]
+        if parts:
+            zones[letter] = unary_union(parts)
+    stats = {"blocks": len(blocks), "blocks_with_strips": len(counts), "contested_blocks": contested, "clipped_edge_blocks": clipped, "filled_blocks": filled, "unplaced_strips": dict(unplaced)}
     return zones, stats
 
 
@@ -92,7 +128,7 @@ def validate_zones(zones: dict[str, Polygon], zone_strips: dict[str, list[Polygo
 
 
 def assign_zones(units: list[Unit], zone_strips: dict[str, list[Polygon]], zones: dict[str, Polygon], min_overlap: float = 0.2) -> None:
-    """Zone from the Π1 strips the unit overlaps (handles the shared Α-Δ stretch), else from the polygon."""
+    """Zone from the Π1 strips the unit overlaps (a stretch shared by two zones names both), else from the polygon."""
     strip_geoms = {letter: unary_union(strips).buffer(1.0) for letter, strips in zone_strips.items() if strips}
     strip_prepared = {letter: prep(geom) for letter, geom in strip_geoms.items()}
     prepared_zones = {letter: prep(polygon) for letter, polygon in zones.items()}
@@ -106,7 +142,8 @@ def assign_zones(units: list[Unit], zone_strips: dict[str, list[Polygon]], zones
                     overlaps[letter] = fraction
         if overlaps:
             letters = sorted(overlaps, key=overlaps.get, reverse=True)
-            unit.zone = "Α-Δ" if set(letters) == {"A", "D"} else GREEK_LETTER[letters[0]]
+            shared = sorted(letter for letter in letters if overlaps[letter] >= SHARED_MIN_OVERLAP)
+            unit.zone = "-".join(GREEK_LETTER[letter] for letter in shared) if len(shared) > 1 else GREEK_LETTER[letters[0]]
             unit.zone_source = "p1-strips"
             continue
         centroid = unit.geometry.centroid

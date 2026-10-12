@@ -4,8 +4,9 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
+from shapely.prepared import prep
 from shapely.strtree import STRtree
 
 from .osm import StreetIndex
@@ -77,6 +78,7 @@ class Unit:
     zone_source: str | None = None
     calm_traffic: bool = False
     excluded_reason: str | None = None
+    spots: int | None = None  # from the drawing when it writes the count next to the strip
 
     @property
     def mid_station(self) -> float:
@@ -161,3 +163,36 @@ def estimated_spots(unit: Unit, spot_area_m2: dict[str, float]) -> int:
     if not area:
         return 0
     return max(1, round(unit.geometry.area / area))
+
+
+def attach_counts(units: list[Unit], counts: list[tuple[int, Point]], categories=("residents", "paid", "motorcycles"), snap_m: float = 1.5) -> list[tuple[int, Point]]:
+    """The spot counts the drawing writes next to its strips: each goes to the nearest unit within
+    `snap_m`, and a unit with several strips adds them up. Returns the counts that found no unit."""
+    candidates = [unit for unit in units if unit.category in categories]
+    if not candidates:
+        return list(counts)
+    tree = STRtree([unit.geometry for unit in candidates])
+    unmatched = []
+    for value, point in counts:
+        hits = [(candidates[int(i)].geometry.distance(point), int(i)) for i in tree.query(point.buffer(snap_m))]
+        hits = [hit for hit in hits if hit[0] <= snap_m]
+        if not hits:
+            unmatched.append((value, point))
+            continue
+        unit = candidates[min(hits)[1]]
+        unit.spots = (unit.spots or 0) + value
+    return unmatched
+
+
+def mark_calm_traffic(units: list[Unit], polygons: list[Polygon], min_fraction: float = 0.5) -> int:
+    """Units that lie mostly inside the drawn calm-traffic streets."""
+    if not polygons:
+        return 0
+    calm = unary_union(polygons)
+    prepared = prep(calm)
+    marked = 0
+    for unit in units:
+        if prepared.intersects(unit.geometry) and unit.geometry.intersection(calm).area >= min_fraction * (unit.geometry.area or 1.0):
+            unit.calm_traffic = True
+            marked += 1
+    return marked
