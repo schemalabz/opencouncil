@@ -209,7 +209,7 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                     <section aria-label="Και τώρα;" className={cn(cardClass, "flex flex-col gap-3 p-5")}>
                         <h2 className={cn(headingClass, "!text-xl")}>Και τώρα;</h2>
                         <p className="text-[17px] leading-relaxed text-stone-700">
-                            Όταν κλείσει η διαβούλευση, {municipality} θα συζητήσει το σχέδιο. Ο Νότης, ο ψηφιακός ενημερωμένος γείτονας του OpenCouncil, σας ειδοποιεί όταν συζητιέται ή αποφασίζεται κάτι για τα θέματα και τις περιοχές που διαλέγετε.
+                            Όταν κλείσει η διαβούλευση, {municipality} θα συζητήσει το σχέδιο. Ο Νότης, ο ψηφιακός ενημερωμένος γείτονας του OpenCouncil, σας ενημερώνει όταν συζητιέται ή αποφασίζεται κάτι για τα θέματα και τις περιοχές που διαλέγετε.
                         </p>
                         <Link href={notificationsHref} onClick={() => nextStep('notifications')} className={cn(primaryButtonClass, "no-underline hover:no-underline")}>
                             Θέλω ενημερώσεις
