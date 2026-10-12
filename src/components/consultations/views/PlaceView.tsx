@@ -31,7 +31,7 @@ export default function PlaceView({ display, commentCount, explainingCard, href,
                 <h2 className={cn(headingClass, "!text-xl")}>{display.what}</h2>
             </div>
             {display.where && (
-                <p className="text-base leading-snug text-stone-800">
+                <p className="text-[17px] leading-snug text-stone-800">
                     {display.where}{display.detail ? ` · ${display.detail}` : ''}
                 </p>
             )}
@@ -55,7 +55,7 @@ export default function PlaceView({ display, commentCount, explainingCard, href,
                 {active ? (
                     <ViewLink href={href('comment', display.id)} className={cn(primaryButtonClass, "flex-1")}>Σχολιάστε εδώ</ViewLink>
                 ) : (
-                    <p className="flex-1 text-sm text-stone-600">Η διαβούλευση έχει λήξει.</p>
+                    <p className="flex-1 text-[15px] text-stone-600">Η διαβούλευση έχει λήξει.</p>
                 )}
                 {commentCount > 0 && (
                     <ViewLink href={href('comment', display.id)} className={cn(secondaryButtonClass, "w-auto px-4")}>

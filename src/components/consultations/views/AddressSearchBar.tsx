@@ -22,16 +22,24 @@ function errorText(error: LocationSearchError): string {
     }
 }
 
-/** The map's search bar: type an address, pick a suggestion, and the reader's address is set. */
-export default function AddressSearchBar({ city, address, onAddress }: {
+/**
+ * The address search: type an address, pick a suggestion, and the reader's address is set.
+ * A `pill` floats over the map; a `field` sits in a card, under a label of its own.
+ */
+export default function AddressSearchBar({ city, address, onAddress, variant = 'pill', inputId, placeholder }: {
     city: CityWithGeometry;
     /** The reader's current address, shown until they type a new one. */
     address: Location | null;
     onAddress: (location: Location) => void;
+    variant?: 'pill' | 'field';
+    /** The id a `<label>` points at, for the field in a card. */
+    inputId?: string;
+    placeholder?: string;
 }) {
     const { inputValue, changeInput, suggestions, busy, isSelecting, error, clear, select } = useLocationSearch(city);
     const [active, setActive] = useState(0);
     const listId = useId();
+    const field = variant === 'field';
 
     const pick = async (suggestion: PlaceSuggestion) => {
         const location = await select(suggestion);
@@ -57,9 +65,15 @@ export default function AddressSearchBar({ city, address, onAddress }: {
 
     return (
         <div className="relative min-w-0 flex-1">
-            <div className="flex h-12 items-center gap-3 rounded-full bg-white px-4 shadow-md focus-within:ring-2 focus-within:ring-[#c2410c]">
+            <div className={cn(
+                "flex h-12 items-center gap-3 bg-white px-4",
+                field
+                    ? "rounded-xl border-[1.5px] border-stone-300 focus-within:border-[#c2410c]"
+                    : "rounded-full shadow-md focus-within:ring-2 focus-within:ring-[#c2410c]"
+            )}>
                 <Search className="h-5 w-5 shrink-0 text-stone-600" aria-hidden="true" />
                 <input
+                    id={inputId}
                     type="text"
                     inputMode="search"
                     autoComplete="off"
@@ -68,14 +82,14 @@ export default function AddressSearchBar({ city, address, onAddress }: {
                     role="combobox"
                     aria-expanded={suggestions.length > 0}
                     aria-controls={listId}
-                    aria-label={LABEL}
+                    aria-label={inputId ? undefined : LABEL}
                     value={inputValue}
                     onChange={(e) => { changeInput(e.target.value); setActive(0); }}
                     onKeyDown={onKeyDown}
                     disabled={isSelecting}
-                    placeholder={address?.text ?? LABEL}
+                    placeholder={address?.text ?? placeholder ?? LABEL}
                     className={cn(
-                        "min-w-0 flex-1 bg-transparent text-base text-stone-900 outline-none placeholder:text-stone-500",
+                        "min-w-0 flex-1 bg-transparent text-[17px] text-stone-900 outline-none placeholder:text-stone-500",
                         address && "placeholder:font-semibold placeholder:text-stone-900"
                     )}
                 />
@@ -88,10 +102,10 @@ export default function AddressSearchBar({ city, address, onAddress }: {
                 ) : null}
             </div>
             {error && (
-                <p role="alert" className="mt-2 rounded-2xl bg-white px-4 py-2.5 text-sm text-red-700 shadow-md">{errorText(error)}</p>
+                <p role="alert" className={cn("mt-2 text-[15px] text-red-700", !field && "rounded-2xl bg-white px-4 py-2.5 shadow-md")}>{errorText(error)}</p>
             )}
             {suggestions.length > 0 && (
-                <ul id={listId} role="listbox" aria-label="Διευθύνσεις" className="absolute inset-x-0 top-14 z-30 max-h-72 overflow-auto rounded-2xl bg-white py-1 shadow-lg">
+                <ul id={listId} role="listbox" aria-label="Διευθύνσεις" className={cn("absolute inset-x-0 top-14 z-30 max-h-72 overflow-auto rounded-2xl bg-white py-1 shadow-lg", field && "border border-stone-200")}>
                     {suggestions.map((suggestion, index) => (
                         <li key={suggestion.id} role="option" aria-selected={index === active}>
                             <button
@@ -100,7 +114,7 @@ export default function AddressSearchBar({ city, address, onAddress }: {
                                 onMouseEnter={() => setActive(index)}
                                 disabled={isSelecting}
                                 className={cn(
-                                    "flex w-full items-center gap-3 px-4 py-3 text-left text-base text-stone-900",
+                                    "flex w-full items-center gap-3 px-4 py-3 text-left text-[17px] text-stone-900",
                                     index === active && "bg-stone-100"
                                 )}
                             >

@@ -49,8 +49,8 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
             <div className="flex flex-col gap-3 px-4 pb-8 pt-4">
                 {comments.length === 0 ? (
                     <div className={cn(cardClass, "flex flex-col gap-2 p-5")}>
-                        <p className="text-base text-stone-700">Κανείς δεν έχει σχολιάσει ακόμα.</p>
-                        <ViewLink href={href('home')} className={cn(textLinkClass, "text-base")}>Ξεκινήστε από τον δρόμο σας</ViewLink>
+                        <p className="text-[17px] text-stone-700">Κανείς δεν έχει σχολιάσει ακόμα.</p>
+                        <ViewLink href={href('home')} className={cn(textLinkClass, "text-[17px]")}>Ξεκινήστε από τον δρόμο σας</ViewLink>
                     </div>
                 ) : (
                     <>
@@ -62,7 +62,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                                     aria-pressed={sort === option}
                                     onClick={() => setSort(option)}
                                     className={cn(
-                                        "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                                        "rounded-full px-4 py-2 text-[15px] font-semibold transition-colors",
                                         sort === option ? "bg-stone-900 text-white" : "bg-white text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"
                                     )}
                                 >
@@ -76,7 +76,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                 {commentHref && (
                     <ViewLink href={commentHref} className={cn(primaryButtonClass, "mt-2")}>Σχολιάστε κι εσείς</ViewLink>
                 )}
-                <Link href={printHref} className="self-start px-1 pt-2 text-sm text-stone-600 underline underline-offset-2">
+                <Link href={printHref} className="self-start px-1 pt-2 text-[15px] text-stone-600 underline underline-offset-2">
                     Όλα τα σχόλια σε μορφή για εκτύπωση
                 </Link>
             </div>

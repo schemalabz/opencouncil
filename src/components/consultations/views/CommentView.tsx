@@ -13,7 +13,7 @@ import type { EntityDisplay } from "../entityDisplay";
 import type { ConfirmedPendingComment, PendingCommentConfirmation } from "../types";
 import { buildConsultationUrl } from "../consultationUrl";
 import CommentList, { type CommentListProps } from "./CommentList";
-import { cardClass, Dot, headingClass, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
+import { cardClass, Dot, headingClass, inputClass, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
 
 export interface CommentViewProps {
     display: EntityDisplay;
@@ -42,8 +42,6 @@ const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'publishe
     'not-found': 'Δεν βρήκαμε το σχόλιο που επιβεβαιώνετε. Γράψτε το ξανά παρακάτω.',
     unavailable: 'Δεν μπορέσαμε να δημοσιεύσουμε το σχόλιο αυτή τη στιγμή.',
 };
-
-const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-white px-4 text-base text-stone-900 focus:border-[#c2410c] focus:outline-none";
 
 /**
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
@@ -126,13 +124,13 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 {result === 'published' && (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-green-50 p-4 text-green-900">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο. Ευχαριστούμε.</p>
+                        <p className="text-[17px]">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο. Ευχαριστούμε.</p>
                     </div>
                 )}
                 {confirmation && result && result !== 'published' && (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-[#fff7ed] p-4 text-[#431407]">
                         <Mail className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">
+                        <p className="text-[17px]">
                             {CONFIRMATION_PROBLEM[result]}
                             {result === 'unavailable' && (
                                 <>
@@ -156,16 +154,16 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 </div>
 
                 {!active ? (
-                    <p className={cn(cardClass, "p-4 text-base text-stone-700")}>Η διαβούλευση έχει λήξει. Δεν δεχόμαστε πια σχόλια.</p>
+                    <p className={cn(cardClass, "p-4 text-[17px] text-stone-700")}>Η διαβούλευση έχει λήξει. Δεν δεχόμαστε πια σχόλια.</p>
                 ) : outcome?.kind === 'published' ? (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-green-50 p-4 text-green-900">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο.</p>
+                        <p className="text-[17px]">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο.</p>
                     </div>
                 ) : outcome?.kind === 'pending' ? (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-[#fff7ed] p-4 text-[#431407]">
                         <Mail className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">Σχεδόν έτοιμο. Σας στείλαμε email στο <strong>{outcome.email}</strong>. Πατήστε τον σύνδεσμο μέσα σε 24 ώρες για να δημοσιευτεί το σχόλιο.</p>
+                        <p className="text-[17px]">Σχεδόν έτοιμο. Σας στείλαμε email στο <strong>{outcome.email}</strong>. Πατήστε τον σύνδεσμο μέσα σε 24 ώρες για να δημοσιευτεί το σχόλιο.</p>
                     </div>
                 ) : (
                     <form onSubmit={submit} className="flex flex-col gap-4">
@@ -183,7 +181,7 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                             />
                         </div>
                         {signedIn ? (
-                            <p className="text-sm text-stone-600">Σχολιάζετε ως <strong>{session?.user?.name || session?.user?.email}</strong>.</p>
+                            <p className="text-[15px] text-stone-600">Σχολιάζετε ως <strong>{session?.user?.name || session?.user?.email}</strong>.</p>
                         ) : (
                             <>
                                 <div className="flex flex-col gap-2">
@@ -193,11 +191,11 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                                 <div className="flex flex-col gap-2">
                                     <label htmlFor="comment-email" className="text-[15px] font-semibold">Το email σας</label>
                                     <input id="comment-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-                                    <p className="text-sm leading-snug text-stone-600">Θα σας στείλουμε έναν σύνδεσμο για να επιβεβαιώσετε το σχόλιο. Χωρίς κωδικούς, χωρίς εγγραφή.</p>
+                                    <p className="text-[15px] leading-snug text-stone-600">Θα σας στείλουμε έναν σύνδεσμο για να επιβεβαιώσετε το σχόλιο. Χωρίς κωδικούς, χωρίς εγγραφή.</p>
                                 </div>
                             </>
                         )}
-                        {outcome?.kind === 'error' && <p role="alert" className="text-sm font-semibold text-red-700">{outcome.message}</p>}
+                        {outcome?.kind === 'error' && <p role="alert" className="text-[15px] font-semibold text-red-700">{outcome.message}</p>}
                         <button type="submit" disabled={submitting || !text.trim()} className={primaryButtonClass}>
                             {submitting ? 'Αποστολή…' : 'Αποστολή στον Δήμο'}
                         </button>
@@ -210,14 +208,14 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 {commentIsIn && (
                     <section aria-label="Και τώρα;" className={cn(cardClass, "flex flex-col gap-3 p-5")}>
                         <h2 className={cn(headingClass, "!text-xl")}>Και τώρα;</h2>
-                        <p className="text-base leading-relaxed text-stone-700">
+                        <p className="text-[17px] leading-relaxed text-stone-700">
                             Όταν κλείσει η διαβούλευση, {municipality} θα συζητήσει το σχέδιο. Ο Νότης, ο ψηφιακός ενημερωμένος γείτονας του OpenCouncil, σας ειδοποιεί όταν συζητιέται ή αποφασίζεται κάτι για τα θέματα και τις περιοχές που διαλέγετε.
                         </p>
                         <Link href={notificationsHref} onClick={() => nextStep('notifications')} className={cn(primaryButtonClass, "no-underline hover:no-underline")}>
                             Θέλω ενημερώσεις
                         </Link>
                         <p className="-mt-1 text-[13px] leading-snug text-stone-600">Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα.</p>
-                        <div className="flex flex-col gap-2 pt-1 text-base">
+                        <div className="flex flex-col gap-2 pt-1 text-[17px]">
                             <Link href={cityHref} onClick={() => nextStep('city')} className={textLinkClass}>Τι άλλο συζητά {municipality}</Link>
                             <ViewLink href={backHref} onClick={() => nextStep('another_place')} className={textLinkClass}>Σχολιάστε και άλλο σημείο</ViewLink>
                         </div>
@@ -230,8 +228,6 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                         <CommentList comments={comments} currentUserId={session?.user?.id} onUpvoted={onUpvoted} onDeleted={onDeleted} />
                     </section>
                 )}
-
-                <ViewLink href={backHref} className={cn(textLinkClass, "self-start pt-2 text-base")}>Πίσω</ViewLink>
             </div>
         </div>
     );
