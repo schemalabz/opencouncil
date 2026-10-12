@@ -23,7 +23,9 @@ It emits, in `data/` (committed, WGS84):
 - `report.generated.json` — the report as chapters and articles of markdown, plus its tables.
 - `manifest.json` — id → summary, used to diff re-runs.
 
-`scripts/generate-parking-regulation.ts` then assembles the regulation JSON the app reads.
+`scripts/generate-parking-regulation.ts` then assembles the regulation JSON the app reads. The
+report's figures land in `out/figures/`; upload them to `figuresBaseUrl` (Spaces) by hand, as the
+repository holds no consultation files.
 
 ## Setup
 

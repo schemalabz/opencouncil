@@ -104,8 +104,9 @@ def cmd_fetch_osm(args) -> None:
 
 def cmd_docx(args) -> None:
     consultation = load_json("config/consultation.json")
-    figures_dir = REPO / "public" / consultation["publicDir"]
-    report = convert_docx(ROOT / "inputs/report.docx", figures_dir, "/" + consultation["publicDir"])
+    # The figures are uploaded by hand to `figuresBaseUrl`; the repository holds no consultation files.
+    figures_dir = ROOT / "out/figures"
+    report = convert_docx(ROOT / "inputs/report.docx", figures_dir, consultation["figuresBaseUrl"].rstrip("/"))
     write_docx_report(report, ROOT / "data/report.generated.json")
     print(f"report: {len(report['chapters'])} chapters, {sum(len(c['articles']) for c in report['chapters'])} articles, "
           f"{len(report['tables'])} tables, figures in {figures_dir}")

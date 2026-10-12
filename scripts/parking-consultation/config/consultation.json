@@ -1,6 +1,7 @@
 {
   "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. reportTotals are the report's own totals, printed next to the drawing's counts. spotAreaM2 estimates a unit's spots only when the drawing writes no count next to it. The report and the drawings are on Spaces until the municipality publishes them. contactEmail is the municipality's address for the comments; pass --contact-email to the generator for a copy that must not email them (local dev).",
   "publicDir": "consultations/papagou-ses",
+  "figuresBaseUrl": "https://townhalls-gr.fra1.digitaloceanspaces.com/consultations/papagou-ses",
   "reportTotals": {"residents": 1832, "paid": 550, "motorcycles": 516},
   "pharmacyNote": "Θέση φαρμακείου: μόνο για στάση έως 20 λεπτά των πελατών του, καθημερινά 08:00–20:30.",
   "specialSpots": [
