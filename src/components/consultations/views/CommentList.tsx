@@ -57,18 +57,18 @@ export default function CommentList({ comments, placeFor, currentUserId, onUpvot
                 const place = placeFor?.(comment);
                 return (
                     <li key={comment.id} className="rounded-2xl border border-stone-200 bg-white p-4">
-                        <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                        <div className="flex flex-wrap items-baseline gap-x-2 text-[15px]">
                             <span className="font-semibold text-stone-900">{comment.user.name || 'Δημότης'}</span>
                             <span className="text-stone-500"><RelativeTime date={comment.createdAt} /></span>
                         </div>
                         {place && (
-                            <ViewLink href={place.href} className="mt-0.5 block text-sm text-[#9a3412] underline-offset-2 hover:underline">{place.label}</ViewLink>
+                            <ViewLink href={place.href} className="mt-0.5 block text-[15px] text-[#9a3412] underline-offset-2 hover:underline">{place.label}</ViewLink>
                         )}
                         <div
-                            className="prose prose-sm mt-2 max-w-none text-[15px] text-stone-800 [overflow-wrap:anywhere]"
+                            className="prose prose-sm mt-2 max-w-none text-[17px] text-stone-800 [overflow-wrap:anywhere]"
                             dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
                         />
-                        <div className="mt-3 flex items-center gap-4 text-sm">
+                        <div className="mt-3 flex items-center gap-4 text-[15px]">
                             <button
                                 type="button"
                                 onClick={() => toggleUpvote(comment.id)}

@@ -5,7 +5,7 @@ import type { Realm } from "@prisma/client";
 import ConsultationDocument from "../ConsultationDocument";
 import type { ConsultationView } from "../consultationUrl";
 import type { RegulationData } from "../types";
-import { ViewHeader } from "./ui";
+import { navigateTo, pageClass, ViewHeader } from "./ui";
 
 export interface StudyViewProps {
     regulationData: RegulationData;
@@ -19,7 +19,6 @@ export interface StudyViewProps {
     consultationId: string;
     cityId: string;
     realm: Realm;
-    municipalityName?: string;
 }
 
 function toggle(set: Set<string>, id: string): Set<string> {
@@ -40,10 +39,19 @@ export default function StudyView({
     consultationId,
     cityId,
     realm,
-    municipalityName,
 }: StudyViewProps) {
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
+
+    // Opening a section names it in the URL, so the address bar is the link to it.
+    const toggleChapter = (id: string) => {
+        setExpandedChapters(prev => toggle(prev, id));
+        if (!expandedChapters.has(id)) navigateTo(href('document', id), { replace: true });
+    };
+    const toggleArticle = (id: string) => {
+        setExpandedArticles(prev => toggle(prev, id));
+        if (!expandedArticles.has(id)) navigateTo(href('document', id), { replace: true });
+    };
 
     // Open the linked chapter or article (and its chapter), then scroll to it once it has rendered.
     useEffect(() => {
@@ -74,9 +82,10 @@ export default function StudyView({
         [commentCounts]
     );
     const commentHref = useCallback((id: string) => href('comment', id), [href]);
+    const chapterHref = useCallback((id: string) => href('document', id), [href]);
 
     return (
-        <div className="min-h-full bg-white">
+        <div className={pageClass}>
             <div className="lg:hidden">
                 <ViewHeader backHref={backHref} title="Ολόκληρη η μελέτη" />
             </div>
@@ -85,14 +94,15 @@ export default function StudyView({
                 regulationData={regulationData}
                 expandedChapters={expandedChapters}
                 expandedArticles={expandedArticles}
-                onToggleChapter={id => setExpandedChapters(prev => toggle(prev, id))}
-                onToggleArticle={id => setExpandedArticles(prev => toggle(prev, id))}
+                onToggleChapter={toggleChapter}
+                onToggleArticle={toggleArticle}
                 onReferenceClick={onReferenceClick}
                 commentCount={commentCount}
                 commentHref={commentHref}
+                chapterHref={chapterHref}
+                currentEntityId={entityId}
                 consultationId={consultationId}
                 cityId={cityId}
-                municipalityName={municipalityName}
                 consultationIsActive={active}
             />
         </div>

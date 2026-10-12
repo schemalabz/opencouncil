@@ -8,7 +8,7 @@ import { formatDistance, type AddressLookupResult } from "../addressLookup";
 import type { ConsultationView } from "../consultationUrl";
 import { findExplainingCard } from "../entityDisplay";
 import type { OverviewCard, RegulationData } from "../types";
-import { cardClass, Dot, headingClass, pageClass, primaryButtonClass, secondaryButtonClass, SectionLabel, smallActionClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
+import { cardClass, Dot, headingClass, LinkRow, pageClass, primaryButtonClass, secondaryButtonClass, SectionLabel, textLinkClass, ViewHeader, ViewLink } from "./ui";
 
 export interface StreetViewProps {
     address: Location;
@@ -28,7 +28,8 @@ export default function StreetView({ address, lookup, overview, href, commentCou
     const references = { referenceFormat: regulationData.referenceFormat, onReferenceClick, regulationData };
     const { zone, zoneConfigured, street, nearby, config } = lookup;
     const zoneCard = zone ? findExplainingCard(overview, zone.geoSet.id) : undefined;
-    // The street's comment button speaks for the nearest side, or for the zone when no side is near.
+    // The screen's one comment button speaks for the nearest side, or for the zone when no side is near.
+    // A side of its own opens on the map, where it has its own button.
     const commentTarget = street[0]?.geometry.id ?? zone?.geometry.id;
 
     return (
@@ -40,20 +41,20 @@ export default function StreetView({ address, lookup, overview, href, commentCou
                     <div className={cn(cardClass, "flex flex-col gap-2 p-5")}>
                         <div className="flex items-center gap-2.5">
                             <Dot color={zone.geoSet.color} className="h-3.5 w-3.5" />
-                            <h2 className={cn(headingClass, "!text-2xl")}>Είστε στη {zone.geometry.name}</h2>
+                            <h2 className={cn(headingClass, "!text-xl")}>Είστε στη {zone.geometry.name}</h2>
                         </div>
                         {zone.geometry.description && (
-                            <MarkdownContent content={zone.geometry.description} className="text-base leading-relaxed text-stone-700" {...references} />
+                            <MarkdownContent content={zone.geometry.description} className="text-[17px] leading-relaxed text-stone-700" {...references} />
                         )}
                         {zoneCard && (
-                            <ViewLink href={href('plan', zoneCard.id)} className={cn(textLinkClass, "text-base")}>
+                            <ViewLink href={href('plan', zoneCard.id)} className={cn(textLinkClass, "text-[17px]")}>
                                 {zoneCard.linkLabel ?? zoneCard.title}
                             </ViewLink>
                         )}
                     </div>
                 ) : zoneConfigured ? (
                     <div className={cn(cardClass, "border-dashed p-5")}>
-                        <MarkdownContent content={config.noZoneText ?? 'Η διεύθυνση βρίσκεται έξω από τις περιοχές του σχεδίου.'} className="text-base leading-relaxed text-stone-700" {...references} />
+                        <MarkdownContent content={config.noZoneText ?? 'Η διεύθυνση βρίσκεται έξω από τις περιοχές του σχεδίου.'} className="text-[17px] leading-relaxed text-stone-700" {...references} />
                     </div>
                 ) : null}
 
@@ -63,24 +64,25 @@ export default function StreetView({ address, lookup, overview, href, commentCou
                         {street.map(({ geometry, geoSet }) => {
                             const count = commentCounts.get(geometry.id) ?? 0;
                             return (
-                                <li key={geometry.id} className="flex items-center gap-3 border-b border-stone-100 px-4 py-3.5 last:border-b-0">
-                                    <ViewLink href={href('map', geometry.id)} className="flex min-w-0 flex-1 items-center gap-3">
-                                        <Dot color={geoSet.color} />
-                                        <span className="flex min-w-0 flex-col gap-0.5">
-                                            <span className="font-semibold">{geoSet.name}</span>
-                                            <span className="text-sm leading-snug text-stone-600">
-                                                {geometry.name}{geometry.textualDefinition ? ` · ${geometry.textualDefinition}` : ''}
-                                                {count > 0 ? ` · ${count} ${count === 1 ? 'σχόλιο' : 'σχόλια'}` : ''}
+                                <li key={geometry.id}>
+                                    <LinkRow href={href('map', geometry.id)} className="py-3.5">
+                                        <span className="flex items-center gap-3">
+                                            <Dot color={geoSet.color} />
+                                            <span className="flex min-w-0 flex-col gap-0.5">
+                                                <span className="font-semibold">{geoSet.name}</span>
+                                                <span className="text-[15px] leading-snug text-stone-600">
+                                                    {geometry.name}{geometry.textualDefinition ? ` · ${geometry.textualDefinition}` : ''}
+                                                    {count > 0 ? ` · ${count} ${count === 1 ? 'σχόλιο' : 'σχόλια'}` : ''}
+                                                </span>
                                             </span>
                                         </span>
-                                    </ViewLink>
-                                    <ViewLink href={href('comment', geometry.id)} className={smallActionClass}>Σχολιάστε</ViewLink>
+                                    </LinkRow>
                                 </li>
                             );
                         })}
                     </ul>
                 ) : (
-                    <p className={cn(cardClass, "p-4 text-base text-stone-700")}>
+                    <p className={cn(cardClass, "p-4 text-[17px] text-stone-700")}>
                         Δεν βρήκαμε θέσεις στάθμευσης ακριβώς στη διεύθυνσή σας. Δείτε τον χάρτη για τους γύρω δρόμους.
                     </p>
                 )}
@@ -94,7 +96,7 @@ export default function StreetView({ address, lookup, overview, href, commentCou
                                     <ViewLink href={href('map', geometry.id)} className="flex items-center gap-3 px-4 py-3 text-[15px] hover:bg-stone-50">
                                         <Dot color={geoSet.color} />
                                         <span className="flex-1">{geoSet.name}: {geometry.name}</span>
-                                        <span className="text-sm tabular-nums text-stone-500">{formatDistance(distance)}</span>
+                                        <span className="tabular-nums text-stone-500">{formatDistance(distance)}</span>
                                     </ViewLink>
                                 </li>
                             ))}

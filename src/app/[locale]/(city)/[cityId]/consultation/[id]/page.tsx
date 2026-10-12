@@ -3,6 +3,7 @@ import { getCityCached } from "@/lib/cache";
 import { getConsultationById, getConsultationComments, fetchRegulationData } from "@/lib/db/consultations";
 import { confirmPendingConsultationComment } from "@/lib/db/consultationComments";
 import type { ConfirmedPendingComment, PendingCommentConfirmation } from "@/components/consultations/types";
+import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
@@ -160,7 +161,8 @@ export default async function ConsultationPage(props: PageProps) {
     const pathElements: PathElement[] = [
         { name: getLocalizedName(city, params.locale), link: `/${params.cityId}`, city },
         { name: "Διαβουλεύσεις", link: `/${params.cityId}/consultations` },
-        { name: localizeText(consultation.name, params.locale), link: baseUrl },
+        // The title the page itself uses, so the header and the page do not name one thing twice.
+        { name: localizeText(regulationData?.title || consultation.name, params.locale), link: baseUrl },
     ];
     // The header has no ground of its own until the page scrolls, and the consultation's page is grey
     // (on a computer only the panel scrolls, so it never would): give it the site's white. It spans the
@@ -213,6 +215,7 @@ export default async function ConsultationPage(props: PageProps) {
                     cityId={params.cityId}
                     municipalityName={city.name_municipality}
                     cityLogoUrl={city.logoImage || null}
+                    notificationsHref={notificationsSignupHref(city)}
                 />
             </Suspense>
         </>

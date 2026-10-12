@@ -43,7 +43,7 @@ export default function PlanView({ overview, regulationData, focusId, href, back
                             <h2 className={cn(headingClass, "!text-xl")}>{card.title}</h2>
                             <MarkdownContent
                                 content={card.body}
-                                className="text-base leading-relaxed text-stone-700"
+                                className="text-[17px] leading-relaxed text-stone-700"
                                 referenceFormat={regulationData.referenceFormat}
                                 onReferenceClick={onReferenceClick}
                                 regulationData={regulationData}
@@ -56,13 +56,13 @@ export default function PlanView({ overview, regulationData, focusId, href, back
                                         </ViewLink>
                                     )}
                                     {commentCount > 0 && (
-                                        <ViewLink href={href('comment', card.commentOn)} className="text-sm text-stone-600 underline-offset-2 hover:underline">
+                                        <ViewLink href={href('comment', card.commentOn)} className="text-[15px] text-stone-600 underline-offset-2 hover:underline">
                                             {commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}
                                         </ViewLink>
                                     )}
                                 </div>
                             ) : card.explains?.length ? (
-                                <ViewLink href={href('map', card.explains[0])} className={cn(textLinkClass, "pt-1 text-base")}>
+                                <ViewLink href={href('map', card.explains[0])} className={cn(textLinkClass, "pt-1 text-[17px]")}>
                                     Δείτε στον χάρτη
                                 </ViewLink>
                             ) : null}

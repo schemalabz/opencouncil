@@ -8,7 +8,7 @@ import type { ConsultationView } from "../consultationUrl";
 import { describeEntity, entityLabel } from "../entityDisplay";
 import type { GeoSetData, RegulationData } from "../types";
 import CommentList, { type CommentListProps } from "./CommentList";
-import { cardClass, pageClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
+import { cardClass, pageClass, primaryButtonClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
 
 export interface CommentsViewProps {
     comments: ConsultationCommentWithUpvotes[];
@@ -18,6 +18,8 @@ export interface CommentsViewProps {
     backHref: string;
     /** The printable list of every comment, for the municipality's staff. */
     printHref: string;
+    /** Where "Σχολιάστε κι εσείς" leads while the consultation is open. */
+    commentHref?: string;
     currentUserId?: string;
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
@@ -26,7 +28,7 @@ export interface CommentsViewProps {
 type Sort = 'newest' | 'popular';
 
 /** Every comment, newest or most agreed with first, each with the place it is about. */
-export default function CommentsView({ comments, regulationData, geoSets, href, backHref, printHref, currentUserId, onUpvoted, onDeleted }: CommentsViewProps) {
+export default function CommentsView({ comments, regulationData, geoSets, href, backHref, printHref, commentHref, currentUserId, onUpvoted, onDeleted }: CommentsViewProps) {
     const [sort, setSort] = useState<Sort>('newest');
 
     const sorted = useMemo(() => [...comments].sort((a, b) => sort === 'popular'
@@ -47,8 +49,8 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
             <div className="flex flex-col gap-3 px-4 pb-8 pt-4">
                 {comments.length === 0 ? (
                     <div className={cn(cardClass, "flex flex-col gap-2 p-5")}>
-                        <p className="text-base text-stone-700">Κανείς δεν έχει σχολιάσει ακόμα.</p>
-                        <ViewLink href={href('home')} className={cn(textLinkClass, "text-base")}>Ξεκινήστε από τον δρόμο σας</ViewLink>
+                        <p className="text-[17px] text-stone-700">Κανείς δεν έχει σχολιάσει ακόμα.</p>
+                        <ViewLink href={href('home')} className={cn(textLinkClass, "text-[17px]")}>Ξεκινήστε από τον δρόμο σας</ViewLink>
                     </div>
                 ) : (
                     <>
@@ -60,7 +62,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                                     aria-pressed={sort === option}
                                     onClick={() => setSort(option)}
                                     className={cn(
-                                        "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                                        "rounded-full px-4 py-2 text-[15px] font-semibold transition-colors",
                                         sort === option ? "bg-stone-900 text-white" : "bg-white text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"
                                     )}
                                 >
@@ -71,7 +73,10 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                         <CommentList comments={sorted} placeFor={placeFor} currentUserId={currentUserId} onUpvoted={onUpvoted} onDeleted={onDeleted} />
                     </>
                 )}
-                <Link href={printHref} className="self-start px-1 pt-2 text-sm text-stone-600 underline underline-offset-2">
+                {commentHref && (
+                    <ViewLink href={commentHref} className={cn(primaryButtonClass, "mt-2")}>Σχολιάστε κι εσείς</ViewLink>
+                )}
+                <Link href={printHref} className="self-start px-1 pt-2 text-[15px] text-stone-600 underline underline-offset-2">
                     Όλα τα σχόλια σε μορφή για εκτύπωση
                 </Link>
             </div>
