@@ -1,37 +1,40 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FileText, ChevronDown, ChevronUp } from "lucide-react";
+import type { Realm } from "@prisma/client";
+import { cn } from "@/lib/utils";
 import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
-import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
-import { RegulationData } from "./types";
-import type { Realm } from "@prisma/client";
+import type { RegulationData, RegulationItem } from "./types";
+import { cardClass, SectionLabel, textLinkClass, ViewLink } from "./views/ui";
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;
-    className?: string;
     expandedChapters?: Set<string>;
     expandedArticles?: Set<string>;
     onToggleChapter?: (chapterId: string) => void;
     onToggleArticle?: (articleId: string) => void;
-    onReferenceClick?: (referenceId: string) => void; // Navigation callback from parent
+    onReferenceClick?: (referenceId: string) => void;
     commentCount: (entityIds: string[]) => number;
     commentHref: (entityId: string) => string;
+    /** A link that opens a chapter and scrolls to it, for the contents column. */
+    chapterHref: (chapterId: string) => string;
+    /** The chapter or article the reader came for, marked in the contents. */
+    currentEntityId?: string | null;
     consultationId?: string;
     cityId?: string;
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
     consultationIsActive?: boolean;
-    /** "Δήμος Χ", for the sources footer */
-    municipalityName?: string;
 }
 
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+const tocButtonClass = "px-3.5 py-2 text-left text-[15px] font-semibold text-stone-900 hover:underline";
+
+/** The full study: the chapters as cards, each a list of its articles, then the sources and the contact. */
 export default function ConsultationDocument({
     regulationData,
-    className = "",
     expandedChapters = new Set(),
     expandedArticles = new Set(),
     onToggleChapter = () => { },
@@ -39,163 +42,113 @@ export default function ConsultationDocument({
     onReferenceClick,
     commentCount,
     commentHref,
+    chapterHref,
+    currentEntityId,
     consultationId,
     cityId,
     realm,
-    municipalityName,
-    consultationIsActive = true // Default to true for backward compatibility
+    consultationIsActive = true,
 }: ConsultationDocumentProps) {
-
-    // Use the passed-down reference click handler or fallback to console.log
-    const handleReferenceClick = onReferenceClick || ((referenceId: string) => {
-        console.log('Reference clicked:', referenceId);
-    });
     if (!regulationData) {
-        return (
-            <div className={`flex items-center justify-center min-h-96 ${className}`}>
-                <Card className="w-full max-w-lg">
-                    <CardContent className="p-6">
-                        <div className="text-center py-8">
-                            <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold mb-2">Δεν ήταν δυνατή η φόρτωση του κανονισμού</h3>
-                            <p className="text-muted-foreground">
-                                Υπάρχει πρόβλημα με τη φόρτωση του περιεχομένου.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        );
+        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>Δεν ήταν δυνατή η φόρτωση της μελέτης. Δοκιμάστε ξανά σε λίγο.</p>;
     }
 
-    const chapters = regulationData.regulation.filter(item => item.type === 'chapter');
+    const chapters = regulationData.regulation.filter(item => item.type === 'chapter' && item.articles);
+    if (chapters.length === 0) {
+        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>Η μελέτη δεν έχει κεφάλαια.</p>;
+    }
 
-    // Calculate if all chapters and articles are expanded
-    const allChapterIds = chapters.map(chapter => chapter.id);
-    const allArticleIds = chapters.flatMap(chapter => chapter.articles?.map(article => article.id) || []);
-
-    const allChaptersExpanded = allChapterIds.every(id => expandedChapters.has(id));
-    const allArticlesExpanded = allArticleIds.every(id => expandedArticles.has(id));
-    const allExpanded = allChaptersExpanded && allArticlesExpanded;
-
-    // Function to expand or collapse all
-    const handleExpandCollapseAll = () => {
-        if (allExpanded) {
-            // Collapse all
-            allChapterIds.forEach(chapterId => {
-                if (expandedChapters.has(chapterId)) {
-                    onToggleChapter(chapterId);
-                }
-            });
-            allArticleIds.forEach(articleId => {
-                if (expandedArticles.has(articleId)) {
-                    onToggleArticle(articleId);
-                }
-            });
-        } else {
-            // Expand all
-            allChapterIds.forEach(chapterId => {
-                if (!expandedChapters.has(chapterId)) {
-                    onToggleChapter(chapterId);
-                }
-            });
-            allArticleIds.forEach(articleId => {
-                if (!expandedArticles.has(articleId)) {
-                    onToggleArticle(articleId);
-                }
-            });
+    const articleIds = (chapter: RegulationItem) => chapter.articles?.map(article => article.id) ?? [];
+    const articleCount = chapters.reduce((sum, chapter) => sum + articleIds(chapter).length, 0);
+    const allExpanded = chapters.every(chapter =>
+        expandedChapters.has(chapter.id) && articleIds(chapter).every(id => expandedArticles.has(id))
+    );
+    const toggleAll = () => {
+        for (const chapter of chapters) {
+            if (expandedChapters.has(chapter.id) === allExpanded) onToggleChapter(chapter.id);
+            for (const id of articleIds(chapter)) {
+                if (expandedArticles.has(id) === allExpanded) onToggleArticle(id);
+            }
         }
     };
-
-    if (chapters.length === 0) {
-        return (
-            <div className={`flex items-center justify-center min-h-96 ${className}`}>
-                <Card className="w-full max-w-lg">
-                    <CardContent className="p-6">
-                        <div className="text-center py-8">
-                            <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                            <h3 className="text-lg font-semibold mb-2">Δεν βρέθηκε περιεχόμενο</h3>
-                            <p className="text-muted-foreground">
-                                Ο κανονισμός δεν περιέχει κεφάλαια προς εμφάνιση.
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    const isCurrent = (chapter: RegulationItem) =>
+        chapter.id === currentEntityId || articleIds(chapter).includes(currentEntityId ?? '');
+    const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     return (
-        <div className={className}>
-            {/* Document Navigation - only on large screens */}
-            <DocumentNavigation regulationData={regulationData} />
-
-            <div className="container mx-auto px-3 md:px-4 py-4 md:py-12 max-w-4xl">
-                {/* Expand/Collapse All Button */}
-                <div className="flex justify-center mb-6">
-                    <Button
-                        onClick={handleExpandCollapseAll}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2"
-                    >
-                        {allExpanded ? (
-                            <>
-                                <ChevronUp className="h-4 w-4" />
-                                Σύμπτυξη όλων
-                            </>
-                        ) : (
-                            <>
-                                <ChevronDown className="h-4 w-4" />
-                                Επέκταση όλων
-                            </>
-                        )}
-                    </Button>
-                </div>
-
-                <div>
-                    {chapters.map((chapter) => (
-                        <ChapterView
+        <div className="mx-auto flex w-full max-w-[1120px] gap-8 px-4 pb-8 pt-4 lg:pt-7">
+            {/* On a computer the contents stay beside the text; on a phone the cards are the contents. */}
+            <nav aria-label="Περιεχόμενα" className="hidden w-[280px] shrink-0 lg:block">
+                {/* The site's header stays on top while the page scrolls; the contents sit under it. */}
+                <div className="sticky top-24 flex flex-col gap-0.5">
+                    <SectionLabel>Περιεχόμενα</SectionLabel>
+                    {chapters.map(chapter => (
+                        <ViewLink
                             key={chapter.id}
-                            chapter={chapter}
-                            isExpanded={expandedChapters.has(chapter.id)}
-                            onToggle={() => onToggleChapter(chapter.id)}
-                            referenceFormat={regulationData.referenceFormat}
-                            onReferenceClick={handleReferenceClick}
-                            regulationData={regulationData}
-                            commentCount={commentCount([chapter.id, ...(chapter.articles ?? []).map(article => article.id)])}
-                            commentHref={commentHref(chapter.id)}
-                            active={consultationIsActive}
+                            href={chapterHref(chapter.id)}
+                            className={cn(
+                                "flex flex-col gap-0.5 rounded-r-xl border-l-[3px] border-transparent px-3.5 py-2.5 text-stone-900 hover:bg-white",
+                                isCurrent(chapter) && "border-[#c2410c] bg-white"
+                            )}
                         >
-                            {chapter.articles?.map((article) => (
-                                <ArticleView
-                                    key={article.id}
-                                    article={article}
-                                    isExpanded={expandedArticles.has(article.id)}
-                                    onToggle={() => onToggleArticle(article.id)}
-                                    referenceFormat={regulationData.referenceFormat}
-                                    onReferenceClick={handleReferenceClick}
-                                    regulationData={regulationData}
-                                    commentCount={commentCount([article.id])}
-                                    commentHref={commentHref(article.id)}
-                                    active={consultationIsActive}
-                                />
-                            ))}
-                        </ChapterView>
+                            <span className="text-[13px] text-stone-500">Κεφάλαιο {chapter.num}</span>
+                            <span className="text-[15px] font-semibold leading-snug">{chapter.title || chapter.name}</span>
+                        </ViewLink>
                     ))}
-
-                    {/* Sources and Contact Information */}
-                    <SourcesList
-                        sources={regulationData.sources}
-                        contactEmail={regulationData.contactEmail}
-                        ccEmails={regulationData.ccEmails}
-                        consultationId={consultationId}
-                        cityId={cityId}
-                        municipalityName={municipalityName}
-                        realm={realm}
-                    />
+                    {regulationData.sources.length > 0 && (
+                        <button type="button" onClick={() => scrollTo('consultation-sources')} className={cn(tocButtonClass, "mt-2")}>Πηγές</button>
+                    )}
+                    <button type="button" onClick={() => scrollTo('consultation-contact')} className={tocButtonClass}>Επικοινωνία</button>
                 </div>
+            </nav>
+
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+                <div className="flex items-baseline justify-between gap-3 px-1">
+                    <span className="text-[15px] text-stone-600">{count(chapters.length, 'κεφάλαιο', 'κεφάλαια')} · {count(articleCount, 'άρθρο', 'άρθρα')}</span>
+                    <button type="button" onClick={toggleAll} className={cn(textLinkClass, "text-[15px]")}>
+                        {allExpanded ? 'Κλείσιμο όλων' : 'Άνοιγμα όλων'}
+                    </button>
+                </div>
+
+                {chapters.map(chapter => (
+                    <ChapterView
+                        key={chapter.id}
+                        chapter={chapter}
+                        isExpanded={expandedChapters.has(chapter.id)}
+                        onToggle={() => onToggleChapter(chapter.id)}
+                        referenceFormat={regulationData.referenceFormat}
+                        onReferenceClick={onReferenceClick}
+                        regulationData={regulationData}
+                        commentCount={commentCount([chapter.id, ...articleIds(chapter)])}
+                        commentHref={commentHref(chapter.id)}
+                        active={consultationIsActive}
+                    >
+                        {chapter.articles?.map(article => (
+                            <ArticleView
+                                key={article.id}
+                                article={article}
+                                isExpanded={expandedArticles.has(article.id)}
+                                onToggle={() => onToggleArticle(article.id)}
+                                referenceFormat={regulationData.referenceFormat}
+                                onReferenceClick={onReferenceClick}
+                                regulationData={regulationData}
+                                commentCount={commentCount([article.id])}
+                                commentHref={commentHref(article.id)}
+                                active={consultationIsActive}
+                            />
+                        ))}
+                    </ChapterView>
+                ))}
+
+                <SourcesList
+                    sources={regulationData.sources}
+                    contactEmail={regulationData.contactEmail}
+                    ccEmails={regulationData.ccEmails}
+                    consultationId={consultationId}
+                    cityId={cityId}
+                    realm={realm}
+                />
             </div>
         </div>
     );
-} 
+}

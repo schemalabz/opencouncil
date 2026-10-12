@@ -454,7 +454,6 @@ export default function ConsultationViewer({
             consultationId={consultationId}
             cityId={cityId}
             realm={realm}
-            municipalityName={municipalityName}
         />
     );
 
@@ -529,7 +528,7 @@ export default function ConsultationViewer({
 
     if (view === 'document') {
         return (
-            <div className="min-h-dvh bg-white">
+            <div className="min-h-dvh bg-stone-100">
                 {header}
                 {bar}
                 {studyView}

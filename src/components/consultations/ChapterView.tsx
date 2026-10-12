@@ -1,8 +1,7 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, MessageCircle } from "lucide-react";
-import PermalinkButton from "./PermalinkButton";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { headingClass, ViewLink } from "./views/ui";
+import { cardClass, headingClass, textLinkClass, ViewLink } from "./views/ui";
 import MarkdownContent from "./MarkdownContent";
 import { RegulationItem, ReferenceFormat, RegulationData } from "./types";
 
@@ -20,6 +19,7 @@ interface ChapterViewProps {
     active: boolean;
 }
 
+/** A chapter as a card: its number and title open the list of its articles. */
 export default function ChapterView({
     chapter,
     children,
@@ -37,63 +37,44 @@ export default function ChapterView({
     const articleCount = chapter.articles.length;
 
     return (
-        <div id={chapter.id} className="border-b border-border pb-6 md:pb-8 mb-6 md:mb-8 last:border-b-0 last:pb-0 last:mb-0">
+        <section id={chapter.id} className={cn(cardClass, "scroll-mt-16 overflow-hidden sm:scroll-mt-24")}>
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
-                <div className="flex items-start justify-between w-full group">
-                    <CollapsibleTrigger className="flex items-start justify-between w-full text-left hover:opacity-80 transition-opacity">
-                        <div className="flex-1">
-                            <div className="text-xs md:text-sm text-muted-foreground font-medium mb-1 uppercase tracking-wider">
-                                ΚΕΦΑΛΑΙΟ {chapter.num}
-                            </div>
-                            <h2 className={cn(headingClass, "mb-2 !text-lg md:mb-3 md:!text-2xl")}>
-                                {chapter.title || chapter.name}
-                            </h2>
+                <h2 className={cn(headingClass, "!m-0")}>
+                    <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-stone-50">
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-normal text-stone-600">Κεφάλαιο {chapter.num}</span>
+                            <span className="block text-[17px] font-bold leading-snug lg:text-xl">{chapter.title || chapter.name}</span>
                             {commentCount > 0 && (
-                                <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground mb-2">
-                                    <MessageCircle className="h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
-                                    <span className="font-medium">{commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}</span>
-                                </div>
+                                <span className="block pt-0.5 text-[13px] font-normal text-stone-600">{commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}</span>
                             )}
-                        </div>
-                        <div className="flex items-center gap-1 md:gap-3 self-center shrink-0">
-                            <span className="text-xs md:text-sm text-muted-foreground font-medium">
-                                {articleCount} {articleCount === 1 ? 'άρθρο' : 'άρθρα'}
-                            </span>
-                            <ChevronDown className={`h-4 w-4 md:h-5 md:w-5 shrink-0 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} />
-                        </div>
+                        </span>
+                        <span className="shrink-0 text-[13px] font-normal text-stone-600">{articleCount} {articleCount === 1 ? 'άρθρο' : 'άρθρα'}</span>
+                        <ChevronDown className={cn("h-[18px] w-[18px] shrink-0 text-stone-500 transition-transform", isExpanded && "rotate-180")} aria-hidden="true" />
                     </CollapsibleTrigger>
-                    <div className="flex items-center self-center">
-                        <PermalinkButton entityId={chapter.id} view="document" />
-                    </div>
-                </div>
+                </h2>
 
                 <CollapsibleContent>
-                    <div className="pt-4 md:pt-6">
-                        {chapter.preludeBody && (
-                            <div className="mb-6 md:mb-8">
-                                <MarkdownContent
-                                    content={chapter.preludeBody}
-                                    variant="muted"
-                                    referenceFormat={referenceFormat}
-                                    onReferenceClick={onReferenceClick}
-                                    regulationData={regulationData}
-                                />
-                            </div>
-                        )}
-
-                        <div className="space-y-4 md:space-y-6">
-                            {children}
+                    {chapter.preludeBody && (
+                        <div className="border-t border-stone-100 px-5 py-4">
+                            <MarkdownContent
+                                content={chapter.preludeBody}
+                                className="text-[17px] text-stone-700"
+                                referenceFormat={referenceFormat}
+                                onReferenceClick={onReferenceClick}
+                                regulationData={regulationData}
+                            />
                         </div>
+                    )}
 
-                        {active && (
-                            <ViewLink href={commentHref} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[#9a3412] underline-offset-2 hover:underline">
-                                <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                                Σχολιάστε όλο το κεφάλαιο
-                            </ViewLink>
-                        )}
-                    </div>
+                    {children}
+
+                    {active && (
+                        <div className="border-t border-stone-100 px-5 py-3.5">
+                            <ViewLink href={commentHref} className={cn(textLinkClass, "text-[15px]")}>Σχολιάστε όλο το κεφάλαιο</ViewLink>
+                        </div>
+                    )}
                 </CollapsibleContent>
             </Collapsible>
-        </div>
+        </section>
     );
 }

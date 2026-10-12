@@ -1,8 +1,10 @@
-import { ExternalLink, FileText, Printer } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Source } from "./types";
+import { ExternalLink } from "lucide-react";
 import type { Realm } from "@prisma/client";
+import { Link } from "@/i18n/routing";
 import { getRealmContactPhone } from "@/lib/realm";
+import { cn } from "@/lib/utils";
+import { Source } from "./types";
+import { cardClass, SectionLabel, textLinkClass } from "./views/ui";
 
 interface SourcesListProps {
     sources: Source[];
@@ -12,133 +14,56 @@ interface SourcesListProps {
     ccEmails?: string[];
     consultationId?: string;
     cityId?: string;
-    /** "Δήμος Χ" as the city writes it; rendered in the accusative ("τον Δήμο Χ") */
-    municipalityName?: string;
 }
 
+/** The end of the study: the documents it comes from, and who gets the comments. */
 export default function SourcesList({
     sources,
     contactEmail,
     ccEmails,
     consultationId,
     cityId,
-    municipalityName,
     realm
 }: SourcesListProps) {
-    const municipalityAccusative = municipalityName ? municipalityName.replace(/^Δήμος(?=\s|$)/u, 'Δήμο') : 'δήμο';
-    if (sources.length === 0) return null;
-
     return (
-        <Card className="mt-8">
-            <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Πηγές & Επικοινωνία
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Consultation Summary */}
-                {consultationId && cityId && (
-                    <div className="pb-4 border-b">
-                        <h4 className="font-medium text-sm text-muted-foreground mb-3">Σύνοψη Διαβούλευσης</h4>
-                        <p className="text-xs text-muted-foreground mb-3">
-                            Μπορείτε να εκτυπώσετε μια συγκεντρωτική σύνοψη όλων των σχολίων που έχουν υποβληθεί στη διαβούλευση, ταξινομημένα κατά τη σειρά εμφάνισής τους στον κανονισμό.
-                        </p>
-                        <a
-                            href={`/${cityId}/consultation/${consultationId}/comments`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
-                        >
-                            <Printer className="h-4 w-4" />
-                            Εκτύπωση Σχολίων
-                        </a>
-                    </div>
-                )}
-
-                {/* Sources */}
-                <div>
-                    <h4 className="font-medium text-sm text-muted-foreground mb-3">Πηγές κανονισμού</h4>
-                    <p className="text-xs text-muted-foreground">
-                        Αυτή η εφαρμογή βασίζεται στις παρακάτω πρωτότυπες πηγές, επίσημα έγγραφα και αναρτήσεις του Δήμου, τα οποία παρουσιάζονται εδώ με διαδραστικό
-                        τρόπο, σε χάρτη και με δυνατότητες σχολιασμού.
-                    </p>
-                    <div className="space-y-2">
+        <>
+            {sources.length > 0 && (
+                <section id="consultation-sources" aria-label="Πηγές" className="flex scroll-mt-16 flex-col gap-3 sm:scroll-mt-24">
+                    <SectionLabel>Πηγές</SectionLabel>
+                    <ul className={cn(cardClass, "overflow-hidden")}>
                         {sources.map((source, index) => (
-                            <div key={index} className="flex items-center gap-3 p-3 rounded-md bg-muted/50">
-                                <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <a
-                                        href={source.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="font-medium text-sm hover:underline text-blue-600"
-                                    >
+                            <li key={`${source.url}-${index}`} className="border-b border-stone-100 last:border-b-0">
+                                <a href={source.url} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-0.5 px-4 py-3.5 hover:bg-stone-50">
+                                    <span className="flex items-center gap-2 text-[17px] font-semibold text-[#9a3412]">
                                         {source.title}
-                                    </a>
-                                    {source.description && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {source.description}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
+                                        <ExternalLink className="h-4 w-4 shrink-0 text-stone-500" aria-hidden="true" />
+                                    </span>
+                                    {source.description && <span className="text-[15px] leading-snug text-stone-600">{source.description}</span>}
+                                </a>
+                            </li>
                         ))}
-                    </div>
-                </div>
+                    </ul>
+                </section>
+            )}
 
-                {/* Contact Email */}
-                <div className="pt-3 border-t">
-                    <h4 className="font-medium text-sm text-muted-foreground mb-2">Επικοινωνία με τον δήμο</h4>
-                    <p className="text-xs text-muted-foreground">
-                        Μπορείτε να συμμετέχετε στη διαβούλευση είτε μέσω αυτής της εφαρμογής, είτε στέλνοντας απευθείας email στην παρακάτω διεύθυνση. Αυτή η εφαρμογή προωθεί αυτόματα όλα τα σχόλια που υποβάλλονται σε αυτό το email.
+            <section id="consultation-contact" aria-label="Επικοινωνία" className="flex scroll-mt-16 flex-col gap-3 sm:scroll-mt-24">
+                <SectionLabel>Επικοινωνία</SectionLabel>
+                <div className={cn(cardClass, "flex flex-col gap-2.5 p-5 text-[17px] leading-relaxed text-stone-700")}>
+                    <p>
+                        Τα σχόλια που αφήνετε εδώ φτάνουν στον Δήμο στο <a href={`mailto:${contactEmail}`} className={textLinkClass}>{contactEmail}</a>.
+                        {' '}Μπορείτε να γράψετε και απευθείας εκεί.
+                        {ccEmails && ccEmails.length > 0 && ` Κοινοποίηση: ${ccEmails.join(', ')}.`}
                     </p>
-                    <a
-                        href={`mailto:${contactEmail}`}
-                        className="text-sm text-blue-600 hover:underline"
-                    >
-                        {contactEmail}
-                    </a>
-                    {ccEmails && ccEmails.length > 0 && (
-                        <div className="mt-3">
-                            <p className="text-xs text-muted-foreground mb-1">
-                                Επιπρόσθετες διευθύνσεις που λαμβάνουν κοινοποίηση:
-                            </p>
-                            <div className="space-y-1">
-                                {ccEmails.map((email, index) => (
-                                    <a
-                                        key={index}
-                                        href={`mailto:${email}`}
-                                        className="text-sm text-blue-600 hover:underline block"
-                                    >
-                                        {email}
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
+                    <p>
+                        Για την εφαρμογή, η <Link href="/about" className={textLinkClass}>OpenCouncil</Link>: <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`} className={textLinkClass}>{process.env.NEXT_PUBLIC_CONTACT_EMAIL}</a> · {getRealmContactPhone(realm)}.
+                    </p>
+                    {consultationId && cityId && (
+                        <Link href={`/${cityId}/consultation/${consultationId}/comments`} className={cn(textLinkClass, "text-[15px]")}>
+                            Όλα τα σχόλια σε μορφή για εκτύπωση
+                        </Link>
                     )}
                 </div>
-                <div className="pt-3 border-t">
-                    <h4 className="font-medium text-sm text-muted-foreground mb-2">Σχετικά με την εφαρμογή</h4>
-                    <p className="text-xs text-muted-foreground">
-                        Αυτή η εφαρμογή αναπτύχθηκε από την <a href="/about" className="text-blue-600 hover:underline">OpenCouncil</a> και δεν σχετίζεται ούτε υποστηρίζεται από τον {municipalityAccusative}.
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        Για τεχνική υποστήριξη ή απορίες σχετικά με την εφαρμογή, μπορείτε να επικοινωνήσετε απευθείας μαζί μας:
-                    </p>
-                    <div className="mt-1 space-y-1">
-                        <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`} className="text-sm text-blue-600 hover:underline block">
-                            {process.env.NEXT_PUBLIC_CONTACT_EMAIL}
-                        </a>
-                        <p className="text-sm text-blue-600">
-                            {getRealmContactPhone(realm)}
-                        </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        Μπορείτε επίσης να μας βρείτε στο <a href="https://instagram.com/opencouncil_gr" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Instagram</a>, στο <a href="https://discord.gg/VdwtVG43WB" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Discord</a>, καθώς και να προτείνετε αλλαγές και να συνεισφέρετε στο <a href="https://github.com/schemalabz/opencouncil" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub</a>.
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
+            </section>
+        </>
     );
-} 
+}

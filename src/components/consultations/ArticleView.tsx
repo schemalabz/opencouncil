@@ -1,7 +1,7 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, MessageCircle } from "lucide-react";
-import PermalinkButton from "./PermalinkButton";
-import { ViewLink } from "./views/ui";
+import { ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { smallActionClass, ViewLink } from "./views/ui";
 import MarkdownContent from "./MarkdownContent";
 import { Article, ReferenceFormat, RegulationData } from "./types";
 
@@ -17,6 +17,7 @@ interface ArticleViewProps {
     active: boolean;
 }
 
+/** An article inside its chapter's card: its number and title open the text and its comment button. */
 export default function ArticleView({
     article,
     isExpanded,
@@ -29,40 +30,30 @@ export default function ArticleView({
     active
 }: ArticleViewProps) {
     return (
-        <div id={article.id} className="pl-3 md:pl-6 border-l-2 border-muted">
+        <div id={article.id} className="scroll-mt-16 border-t border-stone-100 sm:scroll-mt-24">
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
-                <div className="flex items-start justify-between w-full py-2 group">
-                    <CollapsibleTrigger className="flex items-start justify-between w-full text-left hover:opacity-80 transition-opacity mr-2">
-                        <div className="flex-1">
-                            <div className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">
-                                ΑΡΘΡΟ {article.num}
-                            </div>
-                            <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">{article.title}</h3>
-                        </div>
-                        <div className="flex items-center gap-2 self-center">
-                            {commentCount > 0 && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <MessageCircle className="h-3 w-3" aria-hidden="true" />
-                                    <span className="font-medium">{commentCount}</span>
-                                </div>
-                            )}
-                            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} />
-                        </div>
+                <h3 className="m-0">
+                    <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-stone-50">
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-normal text-stone-600">Άρθρο {article.num}</span>
+                            <span className="block text-[17px] font-semibold leading-snug">{article.title}</span>
+                        </span>
+                        {commentCount > 0 && (
+                            <span className="shrink-0 text-[13px] font-normal text-stone-600">{commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}</span>
+                        )}
+                        <ChevronDown className={cn("h-[18px] w-[18px] shrink-0 text-stone-500 transition-transform", isExpanded && "rotate-180")} aria-hidden="true" />
                     </CollapsibleTrigger>
-                    <div className="flex items-center self-center">
-                        <PermalinkButton entityId={article.id} view="document" />
-                    </div>
-                </div>
+                </h3>
 
-                <CollapsibleContent className="pt-3 md:pt-4 pb-2">
+                <CollapsibleContent className="px-5 pb-4">
                     <MarkdownContent
                         content={article.body}
+                        className="text-[17px] text-stone-700"
                         referenceFormat={referenceFormat}
                         onReferenceClick={onReferenceClick}
                         regulationData={regulationData}
                     />
-                    <ViewLink href={commentHref} className="mt-4 inline-flex items-center gap-2 rounded-lg border-[1.5px] border-[#c2410c] px-3 py-2 text-sm font-semibold text-[#9a3412] hover:bg-[#fff7ed]">
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    <ViewLink href={commentHref} className={cn(smallActionClass, "mt-3 inline-flex")}>
                         {active ? 'Σχολιάστε αυτό το άρθρο' : 'Τα σχόλια'}{commentCount > 0 ? ` (${commentCount})` : ''}
                     </ViewLink>
                 </CollapsibleContent>
