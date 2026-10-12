@@ -88,15 +88,5 @@ openapi.json
 # ~20 MB including a native engine binary, and easy to commit by accident).
 services/notis/generated/
 
-# Parking-consultation pipeline (scripts/parking-consultation): keep its committed inputs
-# and outputs despite the *.txt / *.geojson rules above; ignore its scratch folders.
-!scripts/parking-consultation/requirements.txt
-!scripts/parking-consultation/data/*.geojson
-!scripts/parking-consultation/config/*.geojson
-scripts/parking-consultation/.venv/
-scripts/parking-consultation/inputs/
-scripts/parking-consultation/cache/
-scripts/parking-consultation/out/
-scripts/parking-consultation/**/__pycache__/
-scripts/parking-consultation/.pytest_cache/
+# A consultation's regulation JSON copied under public/ for local dev
 public/consultations/*/regulation.json

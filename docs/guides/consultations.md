@@ -204,16 +204,14 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 | Step | Scooter Regulation | Cooking Oil Regulation | Papagou Parking (ΣΕΣ) |
 |------|-------------------|----------------------|----------------------|
 | 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) | `python -m ses docx` (report .docx → chapters, tables, figures) |
-| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | `python -m ses build` (the DWG drawings in ΕΓΣΑ87, read as DXF; or PDF plots georeferenced against OSM) |
+| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | external pipeline: the DWG drawings in ΕΓΣΑ87, read as DXF |
 | 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) | `config/street-aliases.json`, `config/id-aliases.json`, `out/diff-report.md` |
-| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload | `generate-parking-regulation.ts` then admin dashboard upload |
+| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload | external generator, then admin dashboard upload |
 | 5. Create DB record | Prisma seed | Admin consultations page | Admin consultations page |
 
 ### Parking Consultation Pipeline (Papagou-Cholargou)
 
-[`scripts/parking-consultation/`](../../scripts/parking-consultation/README.md) (Python) and [`scripts/generate-parking-regulation.ts`](../../scripts/generate-parking-regulation.ts)
-
-The source material is the two AutoCAD drawings (Π1 zones, Π2 parking organisation per street side), delivered as DWG and read as DXF, and a technical report. The drawings are in ΕΓΣΑ87, so the Python pipeline takes the parking strips, the spot bays, the zones and the spot count of each strip from their layers, groups the strips into block-side units with stable transliterated ids, clusters the spot bays, derives the zone areas from the street network's blocks inside the study boundary, and converts the report to markdown. The earlier PDF plots can still be georeferenced from their street labels against OpenStreetMap (`--source pdf`). The TypeScript generator assembles the regulation JSON from those outputs, names and links every unit, and validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) plus checks for duplicate ids and dangling `{REF:}` references. The README covers setup, the re-run procedure and the sanity numbers.
+The Papagou-Cholargou parking consultation is built by a pipeline that lives outside this repository (branch `papagou-ses-pipeline`, to become its own repository): a Python package reads the municipality's DWG drawings as DXF in ΕΓΣΑ87 and the technical report, and a TypeScript generator assembles the regulation JSON, validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) and the checks for duplicate ids and dangling `{REF:}` references. This repository holds no consultation files: the report, the drawings and the figures are on Spaces, and the JSON is uploaded through the admin dashboard.
 
 ## Hosting Regulation JSON Files
 
