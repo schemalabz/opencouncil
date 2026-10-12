@@ -1,5 +1,6 @@
 import { AdministrativeBodyType, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
+import { localizeText } from "@/lib/serbian";
 
 /**
  * Validation error type for role validation
@@ -311,6 +312,23 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
   return cityLevelRoles.length > 0 ? cityLevelRoles[0] : null;
 }
 
+/** What a role is attached to. A role carries at most one of a party and a body (validateRoles). */
+export type RoleKind = 'city' | 'body' | 'party';
+
+type RoleKindFields = { cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null };
+
+/**
+ * Whether a role is a party role, a role on an administrative body, or a
+ * city-level office (mayor, deputy mayor, general secretary). Null for a role
+ * attached to nothing.
+ */
+export function getRoleKind(role: RoleKindFields): RoleKind | null {
+  if (role.partyId) return 'party';
+  if (role.administrativeBodyId) return 'body';
+  if (role.cityId) return 'city';
+  return null;
+}
+
 /**
  * Returns a numeric priority for a role type (lower = higher priority).
  * City-level roles rank highest, then admin body heads (council president, committee chair),
@@ -321,13 +339,11 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
 export function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
-  if (isMayorRole(role)) return 0;             // mayor
-  const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
-  if (isCityLevel) return 1;                 // deputy mayor
-  if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
-  if (role.partyId && role.isHead) return 3;  // party leader
-  if (role.partyId) return 4;                 // party member
-  if (role.administrativeBodyId) return 5;    // regular admin body member
+  const kind = getRoleKind(role);
+  if (kind === 'city') return role.isHead ? 0 : 1; // mayor, deputy mayor
+  if (kind === 'body' && role.isHead) return 2;   // council president, committee chair
+  if (kind === 'party') return role.isHead ? 3 : 4; // party leader, party member
+  if (kind === 'body') return 5;                   // regular admin body member
   return 6;
 }
 
@@ -367,8 +383,6 @@ type SpeakerRole = Role & {
   administrativeBody?: { type: AdministrativeBodyType } | null;
 };
 
-export const INDEPENDENT_COUNCIL_MEMBER_LABEL = 'Ανεξάρτητος Δημοτικός Σύμβουλος';
-
 /**
  * A member of the Δημοτικό Συμβούλιο who holds no active party role.
  * Roles must carry their administrativeBody: without it no role counts as a council membership.
@@ -383,26 +397,23 @@ export function isIndependentCouncilMember(
 }
 
 /**
- * The text a document prints after a speaker's name: the short party name and
- * the role, or the independent label for a council member without a party.
- * A role without a name gives no role text.
+ * The text a document prints after a speaker's name: the short party name, the
+ * party label to print («ΝΔ, Επικεφαλής» for the head of the party), and the
+ * role title (getRoleTitle), or the independent label for a council member
+ * without a party.
  */
-export function getSpeakerLabels(roles: SpeakerRole[], date?: Date): {
+export function getSpeakerLabels(roles: SpeakerRole[], titles: RoleTitles, date?: Date): {
   party: string | null;
-  isPartyHead: boolean;
+  partyLabel: string | null;
   role: string | null;
 } {
   const { party, role, isPartyHead, isIndependent } = getSpeakerDisplayInfo(roles, date);
+  const shortName = party?.name_short ?? null;
   return {
-    party: party?.name_short ?? null,
-    isPartyHead,
-    role: simplifyRoleName(role?.name ?? null) ?? (isIndependent ? INDEPENDENT_COUNCIL_MEMBER_LABEL : null),
+    party: shortName,
+    partyLabel: shortName && isPartyHead ? `${shortName}, ${titles.t('partyLeader')}` : shortName,
+    role: simplifyRoleName(role ? getRoleTitle(role, titles) : null) ?? (isIndependent ? titles.t('independentCouncilMember') : null),
   };
-}
-
-/** The party label after a name, with «Επικεφαλής» for the head of the party. */
-export function formatPartyLabel(party: string, isPartyHead: boolean): string {
-  return isPartyHead ? `${party}, Επικεφαλής` : party;
 }
 
 /**
@@ -416,7 +427,9 @@ export function formatPartyLabel(party: string, isPartyHead: boolean): string {
  *   city-level heads like the mayor, where it's always implied)
  * - Independent per isIndependentCouncilMember
  *
- * @param roles Array of roles with party relations
+ * @param roles Array of roles with their party and administrativeBody relations.
+ *   Without `administrativeBody.type` no role counts as a council seat, and
+ *   isIndependent is always false.
  * @param date Date to check for active roles (defaults to current date)
  * @returns Object with party, role, party head status, and independent status
  */
@@ -454,8 +467,8 @@ export function getSpeakerDisplayInfo(
  * Checks if a single role is the city mayor role.
  * Mayor = city-level role (cityId set, no partyId or administrativeBodyId) with isHead.
  */
-export function isMayorRole(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): boolean {
-  return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
+export function isMayorRole(role: RoleKindFields & { isHead: boolean }): boolean {
+  return getRoleKind(role) === 'city' && role.isHead;
 }
 
 /**
@@ -480,11 +493,12 @@ export function mayorIsMemberOf(
  * (Πρόεδρος …). Plain members have neither. Pass active roles only.
  */
 export function getCouncilTitle(
-  roles: { name: string | null; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null; administrativeBody?: { type: string } | null }[],
+  roles: (TitleFields & { administrativeBody?: { type: string } | null })[],
+  titles: RoleTitles,
 ): string | null {
-  const cityRole = roles.find((r) => r.cityId && !r.partyId && !r.administrativeBodyId);
-  const councilRole = roles.find((r) => r.administrativeBody?.type === 'council');
-  return cityRole?.name ?? councilRole?.name ?? null;
+  const title = (role: TitleFields | undefined) => role ? getRoleTitle(role, titles) : null;
+  return title(roles.find((r) => getRoleKind(r) === 'city'))
+    ?? title(roles.find((r) => r.administrativeBody?.type === 'council'));
 }
 
 /** The fields a mayor test reads off a role. */
@@ -537,16 +551,7 @@ export function hasCityLevelRole(
   date?: Date
 ): boolean {
   const checkDate = date || new Date();
-  return roles.some(role => {
-    // Must be active at the check date
-    if (!isRoleActiveAt(role, checkDate)) return false;
-    
-    // City-level role: has cityId but no partyId or administrativeBodyId
-    return role.cityId !== null && 
-           role.cityId !== undefined && 
-           !role.partyId && 
-           !role.administrativeBodyId;
-  });
+  return roles.some(role => isRoleActiveAt(role, checkDate) && getRoleKind(role) === 'city');
 }
 
 /**
@@ -573,7 +578,9 @@ export function getActiveRoleCondition(date: Date = new Date()) {
 /**
  * Gets a display name for a person's role, using a fallback strategy.
  * Tries city-level roles (mayor) first, then falls back to administrative body roles (council member).
+ * Each role reads as its title (getRoleTitle), then its `name_en`.
  * @param roles Array of roles with relations (party, administrativeBody, city)
+ * @param titles The `Person` catalog and its locale, for the titles of heads
  * @param date Date to check for active roles (defaults to current date)
  * @param administrativeBodyId Optional administrative body ID to filter by
  * @returns Role name string (can be empty if no suitable role found)
@@ -584,6 +591,7 @@ export function getRoleNameForPerson(
     administrativeBody?: { name: string; name_en: string } | null;
     city?: any | null;
   })[],
+  titles: RoleTitles,
   date?: Date,
   administrativeBodyId?: string | null
 ): string {
@@ -591,8 +599,9 @@ export function getRoleNameForPerson(
 
   // 1. Try city-level role (mayor, deputy mayor) - has cityId set
   const cityRole = getSingleCityRole(roles, checkDate, administrativeBodyId || undefined);
-  if (cityRole?.name || cityRole?.name_en) {
-    return cityRole.name || cityRole.name_en || '';
+  const cityTitle = cityRole ? getRoleTitle(cityRole, titles) || cityRole.name_en : null;
+  if (cityTitle) {
+    return cityTitle;
   }
 
   // 2. If no city-level role, try administrative body roles (council member, committee member)
@@ -604,8 +613,8 @@ export function getRoleNameForPerson(
 
   if (adminBodyRoles.length > 0) {
     const firstRole = adminBodyRoles[0];
-    // Use role.name first, but fall back to administrativeBody name if role.name is null
-    return firstRole.name || firstRole.name_en || firstRole.administrativeBody?.name || firstRole.administrativeBody?.name_en || '';
+    // The role's title, then its name_en, then the body's name
+    return getRoleTitle(firstRole, titles) || firstRole.name_en || firstRole.administrativeBody?.name || firstRole.administrativeBody?.name_en || '';
   }
 
   return '';
@@ -613,46 +622,65 @@ export function getRoleNameForPerson(
 
 
 /**
- * The translation keys getRoleText needs. Satisfied by useTranslations('Person')
+ * The translation keys the role titles need. Satisfied by useTranslations('Person')
  * on the client and getTranslations({ namespace: 'Person' }) on the server.
  *
  * @translationNamespace Person
  */
-export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member') => string;
+export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member' | 'independentCouncilMember') => string;
 
 /**
- * Human-readable text for a single role — the label the site's badges render.
+ * What every role title needs: the `Person` catalog and the locale it is in.
+ * Server code gets one with getRoleTitles (src/i18n/roleTitles.ts), in the
+ * city's language for documents and task requests; components with useRoleTitles.
  */
-export function getRoleText(role: RoleWithRelations, t: RoleTextTranslator): string {
-  // Party roles (has partyId)
+export interface RoleTitles {
+  t: RoleTextTranslator;
+  locale: string;
+}
+
+type TitleFields = RoleKindFields & { isHead: boolean; name: string | null };
+
+/** The title each kind of head holds without a stored name. */
+const HEAD_TITLE_KEY = { city: 'mayor', body: 'president', party: 'partyLeader' } as const;
+
+/**
+ * The title of one role. A head's title follows from what it heads — a city
+ * head is the mayor, a body head the president, a party head its leader — and
+ * a stored name overrides it. `name_en` is not read: it holds machine
+ * translations of uneven quality.
+ *
+ * The stored name is written in the realm's language. Every locale but `en`
+ * belongs to a realm (see computeForeignLocales in src/lib/realm.ts), so `en`
+ * is the one locale where the stored name is foreign: there the translated head
+ * title wins, and a role that is not a head keeps its stored name.
+ */
+export function getRoleTitle(role: TitleFields, { t, locale }: RoleTitles): string | null {
+  const kind = getRoleKind(role);
+  const headTitle = role.isHead && kind ? t(HEAD_TITLE_KEY[kind]) : null;
+  const stored = role.name ? localizeText(role.name, locale) : null;
+  const storedNameIsForeign = locale === 'en';
+  return storedNameIsForeign ? headTitle ?? stored : stored ?? headTitle;
+}
+
+/**
+ * Human-readable text for a single role — the label the site's badges render:
+ * the title (getRoleTitle) with the party or the body it belongs to.
+ */
+export function getRoleText(role: RoleWithRelations, titles: RoleTitles): string {
+  const title = getRoleTitle(role, titles);
+
   if (role.partyId && role.party) {
     const text = role.party.name;
-    if (role.isHead) return `${text} (${t('partyLeader')})`;
-    if (role.name) return `${text} - ${role.name}`;
-    return text;
+    if (role.isHead) return `${text} (${title})`;
+    return title ? `${text} - ${title}` : text;
   }
 
-  // Administrative body roles (has administrativeBodyId)
   if (role.administrativeBodyId && role.administrativeBody) {
-    // For administrative body roles, show role name first (e.g., "President"), then body name
-    if (role.name) {
-      return `${role.name} - ${role.administrativeBody.name}`;
-    }
-    // If no role name but is head, use the localized "president" label
-    if (role.isHead) {
-      return `${t('president')} - ${role.administrativeBody.name}`;
-    }
-    // Otherwise just show the administrative body name
-    return role.administrativeBody.name;
+    return title ? `${title} - ${role.administrativeBody.name}` : role.administrativeBody.name;
   }
 
-  // City-level roles (has cityId but no partyId or administrativeBodyId, e.g., mayor)
-  if (role.cityId && !role.partyId && !role.administrativeBodyId) {
-    if (role.isHead) return t('mayor');
-    return role.name || t('member');
-  }
-
-  return role.name || t('member');
+  return title ?? titles.t('member');
 }
 
 /**
@@ -662,9 +690,9 @@ export function getRoleText(role: RoleWithRelations, t: RoleTextTranslator): str
  */
 export function getRoleLabelAt(
   roles: RoleWithRelations[] | undefined,
-  t: RoleTextTranslator,
+  titles: RoleTitles,
   at: Date
 ): string | null {
   const primary = getPrimaryRole(filterActiveRoles(roles ?? [], at));
-  return primary ? getRoleText(primary, t) : null;
+  return primary ? getRoleText(primary, titles) : null;
 }

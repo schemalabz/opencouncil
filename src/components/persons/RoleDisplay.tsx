@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { cn, sortRolesByPriority, getPrimaryRole, getRoleText } from '@/lib/utils';
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';
 const BADGE_MAX_CHARS_SMALL = 40;
@@ -59,6 +60,7 @@ export function RoleDisplay({
     className
 }: RoleDisplayProps) {
     const t = useTranslations('Person');
+    const roleTitles = useRoleTitles();
 
     if (!roles.length) return null;
 
@@ -123,7 +125,7 @@ export function RoleDisplay({
                             "text-muted-foreground truncate min-w-0",
                             borderless && "text-sm"
                         )}>
-                            {getRoleText(primaryRole, t)}
+                            {getRoleText(primaryRole, roleTitles)}
                         </span>
                     </div>
                 )}
@@ -135,7 +137,7 @@ export function RoleDisplay({
         <div className={cn(layoutClasses[layout], sizeClasses[size], className)}>
             {displayRoles.map((role, index) => {
                 const RoleIcon = showIcons ? getRoleIcon(role) : null;
-                const roleText = getRoleText(role, t);
+                const roleText = getRoleText(role, roleTitles);
                 const textSmall = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_SMALL);
                 const textLg = truncateWithEllipsis(roleText, BADGE_MAX_CHARS_LG);
                 const displayText = fullText ? (
@@ -182,7 +184,7 @@ export function RoleDisplay({
                                                 <div className="w-3 h-3" />
                                             )}
                                         </div>
-                                        {getRoleText(role, t)}
+                                        {getRoleText(role, roleTitles)}
                                     </span>
                                 </Badge>
                             </Link>

@@ -9,7 +9,6 @@ import {
     TabStopPosition,
 } from 'docx';
 import { compareAgendaPosition, formatTimestamp } from '@/lib/utils';
-import { formatPartyLabel } from '@/lib/utils/roles';
 
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { buildRollCall, formatRollCallMemberLabel, formatRollCallSentenceName, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek, minutesVoteLists } from '@/lib/minutes/builders';
@@ -608,7 +607,7 @@ function createTranscriptParagraphs(entries: MinutesTranscriptEntry[]): Paragrap
             continue;
         }
 
-        const partyLabel = entry.party ? `(${formatPartyLabel(entry.party, entry.isPartyHead)}) ` : '';
+        const partyLabel = entry.partyLabel ? `(${entry.partyLabel}) ` : '';
         const nameWithParty = `${entry.speakerName} ${partyLabel}`;
         const children: TextRun[] = [
             new TextRun({ text: nameWithParty, bold: true, size: FONT_SIZE.BODY }),

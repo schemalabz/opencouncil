@@ -18,7 +18,7 @@ export interface TranscriptUtterance {
 export interface SpeakerInfo {
     speakerName: string;
     party: string | null;
-    isPartyHead: boolean;
+    partyLabel: string | null;
     role: string | null;
 }
 
@@ -54,7 +54,7 @@ export function buildTranscriptEntriesFromUtterances(
                 type: 'speaker',
                 speakerName: info.speakerName,
                 party: info.party,
-                isPartyHead: info.isPartyHead,
+                partyLabel: info.partyLabel,
                 role: info.role,
                 text: currentTexts.join(' '),
                 timestamp: currentTimestamp,

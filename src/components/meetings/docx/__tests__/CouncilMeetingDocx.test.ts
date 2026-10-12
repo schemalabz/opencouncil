@@ -1,6 +1,9 @@
 import JSZip from 'jszip';
 import { renderDocx } from '../CouncilMeetingDocx';
 import { MeetingDataForExport } from '@/lib/export/meetings';
+import { roleTitlesFor } from '../../../../../tests/helpers/catalog';
+
+const roleText = roleTitlesFor('el');
 
 const meetingDate = new Date('2024-06-15T18:00:00.000Z');
 
@@ -52,7 +55,7 @@ function makeData(roles: Record<string, unknown>[]): MeetingDataForExport {
 }
 
 async function documentXml(data: MeetingDataForExport): Promise<string> {
-    const blob = await (await renderDocx(data)).save();
+    const blob = await (await renderDocx(data, roleText)).save();
     const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
     return zip.file('word/document.xml')!.async('string');
 }
@@ -62,7 +65,7 @@ describe('renderDocx speaker line', () => {
         const xml = await documentXml(makeData([councilRole({})]));
 
         expect(xml).toContain('Γ. Παπαδόπουλος');
-        expect(xml).toContain('Ανεξάρτητος Δημοτικός Σύμβουλος');
+        expect(xml).toContain('>Ανεξάρτητος Δημοτικός Σύμβουλος </w:t>');
         expect(xml).not.toContain('null');
     });
 
@@ -75,6 +78,18 @@ describe('renderDocx speaker line', () => {
 
         expect(xml).toContain('(ΔΚ, Επικεφαλής)');
         expect(xml).not.toContain('Ανεξάρτητος');
+        expect(xml).not.toContain('null');
+    });
+
+    it('titles a president whose head role has no name', async () => {
+        const party = { id: 'party-1', name: 'Νέα Πορεία', name_short: 'ΝΠ' };
+        const xml = await documentXml(makeData([
+            councilRole({ isHead: true }),
+            councilRole({ id: 'role-party', administrativeBodyId: null, administrativeBody: null, partyId: party.id, party }),
+        ]));
+
+        expect(xml).toContain('>Γ. Παπαδόπουλος (ΝΠ) </w:t>');
+        expect(xml).toContain('>Πρόεδρος </w:t>');
         expect(xml).not.toContain('null');
     });
 

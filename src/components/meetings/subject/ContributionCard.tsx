@@ -14,6 +14,8 @@ import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 import { formatDate, formatTimestamp } from "@/lib/formatters/time";
 import { PersonWithRelations } from "@/lib/db/people";
 import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
+import { getRoleKind, getRoleTitle } from "@/lib/utils/roles";
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import useSWR from "swr";
 import { TopicIcon } from '@/components/TopicIcon';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
@@ -82,6 +84,7 @@ export const ContributionCard = memo(function ContributionCard({
     sourcePage = 'subject',
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
+    const roleTitles = useRoleTitles();
     const locale = useLocale();
     const sharing = useTranslations('sharing');
     const articleRef = useRef<HTMLElement>(null);
@@ -128,9 +131,8 @@ export const ContributionCard = memo(function ContributionCard({
         });
 
     // "Εντεταλμένος Νεολαίας · Αθήνα Τώρα": the speaker's city-level role, then their party.
-    const cityRoleName = speaker
-        ? filterActiveRoles(speaker.roles).find(r => r.cityId && !r.partyId && !r.administrativeBodyId)?.name ?? null
-        : null;
+    const cityRole = speaker ? filterActiveRoles(speaker.roles).find(r => getRoleKind(r) === 'city') : undefined;
+    const cityRoleName = cityRole ? getRoleTitle(cityRole, roleTitles) : null;
     const speakerLine = [cityRoleName, party?.name].filter(Boolean).join(' · ');
 
     const chips = utteranceInfo ? (

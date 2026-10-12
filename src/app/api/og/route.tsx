@@ -3,6 +3,7 @@ import type { Realm } from '@prisma/client';
 import type { ReactElement, ReactNode } from 'react';
 import { icons, type IconNode } from 'lucide';
 import { getTranslations } from 'next-intl/server';
+import { getRoleTitles } from '@/i18n/roleTitles';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
@@ -280,8 +281,7 @@ const PersonOGImage = async (cityId: string, personId: string, locale: string, t
 
     const party = getPartyFromRoles(person.roles);
     // The label the site's badges give the role, so the mayor reads as the mayor here too.
-    const tPerson = await getTranslations({ locale, namespace: 'Person' });
-    const roleName = getRoleLabelAt(person.roles, tPerson, new Date()) ?? t('person.council');
+    const roleName = getRoleLabelAt(person.roles, await getRoleTitles(locale), new Date()) ?? t('person.council');
     // Released meetings only: this image is public and cached, whoever asked for it.
     const [portrait, seal, subjects] = await Promise.all([
         getPortraitData(person.image),

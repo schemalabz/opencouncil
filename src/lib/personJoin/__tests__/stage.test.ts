@@ -10,13 +10,19 @@ jest.mock('@/lib/notis/reader', () => ({ readerSubscribedToCity: (...args: unkno
 import { generatePersonClaimToken } from '@/lib/auth/personClaim';
 import { getJoinStage } from '../stage';
 
+// The real catalog of the locale the code asks for.
+jest.mock('next-intl/server', () => ({
+    getTranslations: (o: { locale: string; namespace: string }) =>
+        jest.requireActual('../../../../tests/helpers/catalog').getTranslationsFromCatalog(o),
+}));
+
 const row = (administrators: { userId: string }[], supportsNotifications = true) => ({
     id: 'person-1',
     name: 'Αδάμ Μπούτζουκας',
     image: null,
     cityId: 'chania',
-    city: { name: 'Χανιά', supportsNotifications },
-    roles: [{ name: 'Αντιδήμαρχος Πολιτισμού', cityId: 'chania', partyId: null, administrativeBodyId: null, administrativeBody: null }],
+    city: { name: 'Χανιά', language: 'el', supportsNotifications },
+    roles: [{ name: 'Αντιδήμαρχος Πολιτισμού', isHead: false, cityId: 'chania', partyId: null, administrativeBodyId: null, administrativeBody: null }],
     administrators,
 });
 const token = () => generatePersonClaimToken('person-1');
@@ -47,6 +53,15 @@ describe('getJoinStage', () => {
             person: { id: 'person-1', name: 'Αδάμ Μπούτζουκας', image: null, title: 'Αντιδήμαρχος Πολιτισμού', cityId: 'chania', cityName: 'Χανιά' },
         });
         expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'confirm', signedIn: true });
+    });
+
+    it('titles a mayor without a stored role name in the city language', async () => {
+        mockGetJoinPerson.mockResolvedValue({
+            ...row([]),
+            city: { name: 'Rouen', language: 'fr', supportsNotifications: true },
+            roles: [{ name: null, isHead: true, cityId: 'rouen', partyId: null, administrativeBodyId: null, administrativeBody: null }],
+        });
+        expect(await getJoinStage(token(), null)).toMatchObject({ person: { title: 'Maire' } });
     });
 
     it('offers the city\'s notifications to a reader who does not get them, and asks nothing without an account', async () => {

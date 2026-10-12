@@ -21,7 +21,8 @@ import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
 import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
-import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
+import { getRoleLabelAt } from '@/lib/utils/roles';
+import { getRoleTitles } from '@/i18n/roleTitles';
 import { roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
 import {
@@ -57,14 +58,15 @@ const urls = {
 };
 
 
+const ROLE_LOCALE = 'el';
+
 /**
  * Speaker role labels ride along with quoted speech so consumers copy titles
  * instead of guessing them. The label is the site's own (getRoleLabelAt),
  * resolved as of the meeting date; MCP serves the Greek public record, so it
  * is always rendered from the Greek messages.
  */
-const getRoleTranslations = (): Promise<RoleTextTranslator> =>
-    getTranslations({ locale: 'el', namespace: 'Person' });
+const getRoleTranslations = () => getRoleTitles(ROLE_LOCALE);
 
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
 function stripRefLinks(text: string): string {

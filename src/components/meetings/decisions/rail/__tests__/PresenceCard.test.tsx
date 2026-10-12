@@ -50,7 +50,7 @@ describe('PresenceCard', () => {
     it('prints the absent mark in the gender of the person on the line', () => {
         const data = councilWithAbsentPresident();
         data.councilComposition!.mayor!.note = null;
-        data.absentMembers = [...data.absentMembers!, { personId: 'mayor', name: 'Ρούσσος Σίμος', party: null, isPartyHead: false }];
+        data.absentMembers = [...data.absentMembers!, { personId: 'mayor', name: 'Ρούσσος Σίμος', party: null, partyLabel: null }];
         renderCard(data);
         expect(lineOf('Δήμαρχος:')).toBe('Δήμαρχος: Ρούσσος Σίμος — απών');
         expect(lineOf('Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');

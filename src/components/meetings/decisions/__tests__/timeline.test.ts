@@ -4,7 +4,7 @@ import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 import type { TimelineItem } from '../timeline';
 
-const member = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false });
+const member = (name: string): MinutesMember => ({ personId: name, name, party: null, partyLabel: null });
 const members = (n: number): MinutesMember[] => Array.from({ length: n }, (_, i) => member(`m${i}`));
 
 function subject(o: Partial<MinutesSubject> & { subjectId: string }): MinutesSubject {

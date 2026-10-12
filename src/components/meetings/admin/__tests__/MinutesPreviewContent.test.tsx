@@ -28,7 +28,7 @@ describe('MinutesPreviewContent roll call', () => {
 
 describe('MinutesPreviewContent vote result from the phrase', () => {
     const member = (personId: string, name: string): MinutesMember =>
-        ({ personId, name, party: null, isPartyHead: false });
+        ({ personId, name, party: null, partyLabel: null });
 
     it('prints the phrase and still names the dissenters and the absent members', () => {
         const data = councilWithAbsentPresident();

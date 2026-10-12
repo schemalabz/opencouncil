@@ -31,7 +31,7 @@ function makeUtterance(overrides: {
 const simpleSpeakerResolver: SpeakerResolver = (_personId, label) => ({
     speakerName: label || 'Unknown',
     party: null,
-    isPartyHead: false,
+    partyLabel: null,
     role: null,
 });
 

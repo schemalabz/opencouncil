@@ -1,6 +1,7 @@
 import { AdministrativeBodyType, Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getSpeakerLabels, formatPartyLabel, isIndependentCouncilMember, INDEPENDENT_COUNCIL_MEMBER_LABEL, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
+import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getRoleNameForPerson, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
+import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
 type TestRole = Role & { party?: Party | null; cityId?: string | null; administrativeBody?: { type: AdministrativeBodyType } | null };
 
@@ -568,8 +569,10 @@ describe('simplifyRoleName', () => {
 
 // --- getRoleText / getRoleLabelAt (the label MCP and the badges share) ---
 
-const roleT = (key: 'mayor' | 'president' | 'partyLeader' | 'member') =>
-  ({ mayor: 'Δήμαρχος', president: 'Πρόεδρος', partyLeader: 'Επικεφαλής', member: 'Μέλος' }[key]);
+// The real catalogs: a renamed or missing key fails these tests.
+const roleT = roleTitlesFor('el');
+const roleTEn = roleTitlesFor('en');
+const roleTSr = roleTitlesFor('sr');
 
 function makeAdminBody(name: string) {
   return {
@@ -628,6 +631,26 @@ describe('getRoleText', () => {
       isHead: true,
     });
     expect(getRoleText(role, roleT)).toBe('Αντιπρόεδρος - Δημοτική Επιτροπή');
+  });
+});
+
+describe('getRoleText on an English page', () => {
+  it('shows the translated title of a head over its stored name', () => {
+    const party = makeParty({ name: 'Αθήνα Ψηλά' });
+    expect(getRoleText(makeFullRole({ cityId: 'city-1', isHead: true, name: 'Δήμαρχος' }), roleTEn)).toBe('Mayor');
+    expect(getRoleText(makeFullRole({ partyId: party.id, party, isHead: true, name: 'Επικεφαλής' }), roleTEn)).toBe('Αθήνα Ψηλά (Party Leader)');
+    expect(getRoleText(makeFullRole({
+      name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'body-1', administrativeBody: makeAdminBody('Δημοτικό Συμβούλιο'),
+    }), roleTEn)).toBe('President - Δημοτικό Συμβούλιο');
+  });
+});
+
+describe('getRoleText in Serbian', () => {
+  it('shows a party head\'s stored name over the catalog title, in the script of the page', () => {
+    const party = makeParty({ name: 'ДР ДРАГАН МИЛИЋ' });
+    const role = makeFullRole({ partyId: party.id, party, isHead: true, name: 'Шеф' });
+    expect(getRoleText(role, roleTSr)).toBe('ДР ДРАГАН МИЛИЋ (Шеф)');
+    expect(getRoleText(role, roleTitlesFor('sr-Latn'))).toBe('ДР ДРАГАН МИЛИЋ (Šef)');
   });
 });
 
@@ -726,12 +749,17 @@ describe('getCouncilTitle', () => {
   const council = { type: 'council' };
   it('prefers the city-level role, then the council role, and is null for a plain member', () => {
     expect(getCouncilTitle([
-      { name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council },
-      { name: 'Αντιδήμαρχος Πολιτισμού', cityId: 'c' },
-    ])).toBe('Αντιδήμαρχος Πολιτισμού');
-    expect(getCouncilTitle([{ name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council }])).toBe('Πρόεδρος');
-    expect(getCouncilTitle([{ name: null, administrativeBodyId: 'b', administrativeBody: council }])).toBeNull();
-    expect(getCouncilTitle([{ name: 'Μέλος', partyId: 'p', cityId: 'c' }])).toBeNull();
+      { name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council },
+      { name: 'Αντιδήμαρχος Πολιτισμού', isHead: false, cityId: 'c' },
+    ], roleT)).toBe('Αντιδήμαρχος Πολιτισμού');
+    expect(getCouncilTitle([{ name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBe('Πρόεδρος');
+    expect(getCouncilTitle([{ name: null, isHead: false, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBeNull();
+    expect(getCouncilTitle([{ name: 'Μέλος', isHead: false, partyId: 'p', cityId: 'c' }], roleT)).toBeNull();
+  });
+
+  it('titles a head that has no stored name', () => {
+    expect(getCouncilTitle([{ name: null, isHead: true, cityId: 'c' }], roleT)).toBe('Δήμαρχος');
+    expect(getCouncilTitle([{ name: null, isHead: true, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBe('Πρόεδρος');
   });
 });
 
@@ -785,10 +813,10 @@ describe('getSpeakerLabels', () => {
   it('labels an independent council member whose role has no name', () => {
     const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } })];
 
-    expect(getSpeakerLabels(roles, meetingDate)).toEqual({
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({
       party: null,
-      isPartyHead: false,
-      role: INDEPENDENT_COUNCIL_MEMBER_LABEL,
+      partyLabel: null,
+      role: 'Ανεξάρτητος Δημοτικός Σύμβουλος',
     });
   });
 
@@ -800,7 +828,7 @@ describe('getSpeakerLabels', () => {
       name: 'Πρόεδρος Δημοτικού Συμβουλίου',
     })];
 
-    expect(getSpeakerLabels(roles, meetingDate).role).toBe('Πρόεδρος Δημοτικού Συμβουλίου');
+    expect(getSpeakerLabels(roles, roleT, meetingDate).role).toBe('Πρόεδρος Δημοτικού Συμβουλίου');
   });
 
   it('returns the short party name and no role for a party member', () => {
@@ -810,26 +838,76 @@ describe('getSpeakerLabels', () => {
       makeRole({ id: 'party-role', partyId: party.id, party, isHead: true }),
     ];
 
-    expect(getSpeakerLabels(roles, meetingDate)).toEqual({ party: 'TP', isPartyHead: true, role: null });
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({ party: 'TP', partyLabel: 'TP, Επικεφαλής', role: null });
   });
 
   it('simplifies a deputy mayor title', () => {
     const roles = [makeRole({ cityId: 'city-1', name: 'Αντιδήμαρχος Οικονομικών' })];
 
-    expect(getSpeakerLabels(roles, meetingDate).role).toBe('Αντιδήμαρχος');
+    expect(getSpeakerLabels(roles, roleT, meetingDate).role).toBe('Αντιδήμαρχος');
   });
 
   it('returns no labels for a person with no roles', () => {
-    expect(getSpeakerLabels([], meetingDate)).toEqual({ party: null, isPartyHead: false, role: null });
+    expect(getSpeakerLabels([], roleT, meetingDate)).toEqual({ party: null, partyLabel: null, role: null });
+  });
+
+  it('titles a president whose head role has no name', () => {
+    const party = makeParty();
+    const roles = [
+      makeRole({ id: 'chair', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' }, isHead: true }),
+      makeRole({ id: 'party-role', partyId: party.id, party }),
+    ];
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({ party: 'TP', partyLabel: 'TP', role: 'Πρόεδρος' });
+  });
+
+  it('takes the party head word from the catalog it is given', () => {
+    const party = makeParty({ name_short: 'TP' });
+    const roles = [makeRole({ id: 'party-role', partyId: party.id, party, isHead: true })];
+    expect(getSpeakerLabels(roles, roleTSr, meetingDate).partyLabel).toBe('TP, Шеф одборничке групе');
+    expect(getSpeakerLabels(roles, roleT, meetingDate).partyLabel).toBe('TP, Επικεφαλής');
+  });
+
+  it('titles a mayor whose city role has no name', () => {
+    expect(getSpeakerLabels([makeRole({ cityId: 'city-1', isHead: true })], roleT, meetingDate).role).toBe('Δήμαρχος');
   });
 });
 
-describe('formatPartyLabel', () => {
-  it('returns the party for a member', () => {
-    expect(formatPartyLabel('ΠΑΣΟΚ', false)).toBe('ΠΑΣΟΚ');
+describe('getRoleKind', () => {
+  it('names what a role is attached to', () => {
+    expect(getRoleKind({ partyId: 'p', cityId: 'c' })).toBe('party');
+    expect(getRoleKind({ administrativeBodyId: 'b', cityId: 'c' })).toBe('body');
+    expect(getRoleKind({ cityId: 'c' })).toBe('city');
+    expect(getRoleKind({})).toBeNull();
+  });
+});
+
+describe('getRoleTitle', () => {
+  it('gives a head with no stored name the title of what it heads', () => {
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, roleT)).toBe('Δήμαρχος');
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: null }, roleT)).toBe('Πρόεδρος');
+    expect(getRoleTitle({ partyId: 'p', isHead: true, name: null }, roleT)).toBe('Επικεφαλής');
   });
 
-  it('marks the head of the party', () => {
-    expect(formatPartyLabel('ΠΑΣΟΚ', true)).toBe('ΠΑΣΟΚ, Επικεφαλής');
+  it('lets a stored name override the title of a head', () => {
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: 'Πρόεδρος Δημοτικού Συμβουλίου' }, roleT)).toBe('Πρόεδρος Δημοτικού Συμβουλίου');
+  });
+
+  it('returns the stored name of a role that is not a head, and null when it has none', () => {
+    expect(getRoleTitle({ cityId: 'c', isHead: false, name: 'Αντιδήμαρχος Πολιτισμού' }, roleT)).toBe('Αντιδήμαρχος Πολιτισμού');
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: false, name: null }, roleT)).toBeNull();
+  });
+
+  it('prefers the translated head title on an English page', () => {
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: 'Πρόεδρος' }, roleTEn)).toBe('President');
+    expect(getRoleTitle({ cityId: 'c', isHead: false, name: 'Αντιδήμαρχος Πολιτισμού' }, roleTEn)).toBe('Αντιδήμαρχος Πολιτισμού');
+  });
+});
+
+describe('getRoleNameForPerson', () => {
+  it('titles a head with no stored name, and falls back to the body name for a plain member', () => {
+    const body = { name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const };
+    expect(getRoleNameForPerson([{ ...makeRole({ cityId: 'city-1', isHead: true }), administrativeBody: null }], roleT, meetingDate)).toBe('Δήμαρχος');
+    expect(getRoleNameForPerson([{ ...makeRole({ administrativeBodyId: 'council-1', isHead: true }), administrativeBody: body }], roleT, meetingDate, 'council-1')).toBe('Πρόεδρος');
+    expect(getRoleNameForPerson([{ ...makeRole({ administrativeBodyId: 'council-1' }), administrativeBody: body }], roleT, meetingDate, 'council-1')).toBe('Δημοτικό Συμβούλιο');
   });
 });

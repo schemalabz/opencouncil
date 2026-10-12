@@ -8,6 +8,7 @@ import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
 import { readingStatesFacts } from '@/lib/derivation/load';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
+import { getRoleTitles } from '@/i18n/roleTitles';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerLabels, isRoleActiveAt, isMayorRole, mayorIsMemberOf } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
@@ -132,9 +133,9 @@ export async function getMinutesData(
     // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
     const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
 
-    const speakerLabels = (person: (typeof people)[number] | null | undefined) => person
-        ? getSpeakerLabels(person.roles || [], meetingDate)
-        : { party: null, role: null, isPartyHead: false };
+    const roleTitles = await getRoleTitles(city.language);
+    const speakerLabels = (person: (typeof people)[number] | null | undefined) =>
+        getSpeakerLabels(person?.roles ?? [], roleTitles, meetingDate);
 
     const resolveSpeaker: SpeakerResolver = (personId, label) => {
         const person = personId ? peopleMap.get(personId) : null;
@@ -146,8 +147,8 @@ export async function getMinutesData(
 
     // Shared member resolver: looks up person in peopleMap, resolves display info
     const resolveMember: MemberResolver = (personId, fallbackName) => {
-        const { party, isPartyHead } = speakerLabels(peopleMap.get(personId));
-        return { personId, name: formatSurnameFirst(fallbackName), party, isPartyHead };
+        const { party, partyLabel } = speakerLabels(peopleMap.get(personId));
+        return { personId, name: formatSurnameFirst(fallbackName), party, partyLabel };
     };
 
     const adminBodyId = meeting.administrativeBody?.id ?? null;

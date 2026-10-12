@@ -1344,7 +1344,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const subjectRollCall = minutes?.councilComposition && minutesSubject?.attendance
             ? buildSubjectRollCall(minutes.councilComposition, minutesSubject.attendance, minutes.administrativeBody?.type ?? null, minutesSubject.presidedBy)
             : extracted && extracted.attendance.length > 0
-                ? buildSubjectRollCall(null, buildAttendance(extracted.attendance, null, (personId, name) => ({ personId, name, party: null, isPartyHead: false }), () => null), null, null)
+                ? buildSubjectRollCall(null, buildAttendance(extracted.attendance, null, (personId, name) => ({ personId, name, party: null, partyLabel: null }), () => null), null, null)
                 : null;
         return (
             <div className="space-y-3">

@@ -1,5 +1,8 @@
 import { buildSpeakerRoster } from '../speakerRoster';
 import { PersonWithRelations } from '@/lib/db/people';
+import { roleTitlesFor } from '../../../../tests/helpers/catalog';
+
+const roleTitles = roleTitlesFor('el');
 
 type Role = PersonWithRelations['roles'][number];
 
@@ -26,7 +29,7 @@ describe('buildSpeakerRoster', () => {
             bodyRole('council', 'Δημοτικό Συμβούλιο'),
             bodyRole('committee', 'Δημοτική Επιτροπή', { name: 'Πρόεδρος', isHead: true }),
             partyRole('Αθήνα Τώρα'),
-        ])], MEETING_DATE, 'committee');
+        ])], MEETING_DATE, 'committee', roleTitles);
 
         expect(chair).toEqual({
             id: 'p1',
@@ -41,9 +44,9 @@ describe('buildSpeakerRoster', () => {
         const [head] = buildSpeakerRoster([person('p1', 'Κ. Ζαχαριάδης', [
             bodyRole('council', 'Δημοτικό Συμβούλιο', { isHead: true }),
             partyRole('Ανοιχτή Πόλη', { isHead: true }),
-        ])], MEETING_DATE, 'council');
+        ])], MEETING_DATE, 'council', roleTitles);
 
-        expect(head.role).toBe('head, Δημοτικό Συμβούλιο');
+        expect(head.role).toBe('Πρόεδρος, Δημοτικό Συμβούλιο');
         expect(head.party).toBe('Ανοιχτή Πόλη');
         expect(head.partyHead).toBe(true);
     });
@@ -52,19 +55,19 @@ describe('buildSpeakerRoster', () => {
         const [former] = buildSpeakerRoster([person('p1', 'Παλιός Σύμβουλος', [
             bodyRole('council', 'Δημοτικό Συμβούλιο', { endDate: new Date('2023-12-31') }),
             partyRole('Παλιά Παράταξη', { startDate: new Date('2027-01-01') }),
-        ])], MEETING_DATE, 'council');
+        ])], MEETING_DATE, 'council', roleTitles);
 
         expect(former).toEqual({ id: 'p1', name: 'Παλιός Σύμβουλος', role: null, party: null, memberOfMeetingBody: false });
     });
 
     it('counts nobody as a member when the meeting has no body', () => {
-        const [member] = buildSpeakerRoster([person('p1', 'Α. Β.', [bodyRole('council', 'Δημοτικό Συμβούλιο')])], MEETING_DATE, null);
+        const [member] = buildSpeakerRoster([person('p1', 'Α. Β.', [bodyRole('council', 'Δημοτικό Συμβούλιο')])], MEETING_DATE, null, roleTitles);
         expect(member.memberOfMeetingBody).toBe(false);
         expect(member.role).toBe('Δημοτικό Συμβούλιο');
     });
 
     it('returns people in a stable order', () => {
-        const roster = buildSpeakerRoster([person('p2', 'Βασίλης', []), person('p1', 'Άννα', []), person('p3', 'Άννα', [])], MEETING_DATE, null);
+        const roster = buildSpeakerRoster([person('p2', 'Βασίλης', []), person('p1', 'Άννα', []), person('p3', 'Άννα', [])], MEETING_DATE, null, roleTitles);
         expect(roster.map(p => p.id)).toEqual(['p1', 'p3', 'p2']);
     });
 });

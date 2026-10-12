@@ -462,7 +462,7 @@ describe('the sections of Chalandri jul29_2026', () => {
 
         const entries = buildTranscriptEntriesFromUtterances(
             assignment.utterancesBySubject.get('s7') ?? [],
-            () => ({ speakerName: 'Ομιλητής', party: null, isPartyHead: false, role: null }),
+            () => ({ speakerName: 'Ομιλητής', party: null, partyLabel: null, role: null }),
             { crossSubjectUtterances: assignment.crossSubjectMap.get('s7')!, subjectNames: new Map([['s8', 'Τραπεζοκαθίσματα MAMAS LAB'], ['s4', 'Θέμα 4']]) },
         );
         expect(entries.map(e => (e.type === 'cross-subject' ? `${e.direction} ${e.subject.name}` : e.text))).toEqual([

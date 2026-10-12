@@ -5,6 +5,7 @@ import { getTranscript } from '@/lib/db/transcript';
 import { getCity } from '@/lib/db/cities';
 import { getPeopleForCity } from '@/lib/db/people';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
+import { getRoleTitles } from '@/i18n/roleTitles';
 import { NotFoundError } from '@/lib/api/errors';
 
 /**
@@ -39,7 +40,7 @@ export async function generateMeetingDocxBuffer(
         meeting,
         transcript,
         people,
-    });
+    }, await getRoleTitles(city.language));
 
     const blob = await doc.save();
     const arrayBuffer = await blob.arrayBuffer();
