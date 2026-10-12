@@ -107,6 +107,11 @@ describe('pollDecisionsForMeeting — subject text sent to the matcher', () => {
         expect(sent[0].name).toBe('Αποζημίωση ακινήτου Κόκκινο Μετόχι');
     });
 
+    it('lists the people of the meeting date, not of today', async () => {
+        await requestSubjects([{ id: 's1', name: 'Θέμα', agendaItemTitle: null, agendaItemIndex: 1, nonAgendaReason: null }]);
+        expect(mockGetPeopleForMeeting).toHaveBeenCalledWith(CITY_ID, 'body-1', new Date('2026-03-04T18:00:00Z'));
+    });
+
     it('chooses per subject, and never sends the description field', async () => {
         const sent = await requestSubjects([
             { id: 's1', name: 'Summary one', agendaItemTitle: 'ΤΙΤΛΟΣ ΕΝΑ', agendaItemIndex: 1, nonAgendaReason: null },

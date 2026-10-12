@@ -56,7 +56,7 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
     }
 
     // Get relevant people for the meeting (filtered by administrative body)
-    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
     // Realm-scoped taxonomy: a French commune gets French topics, not the Greek set.
     const topicLabels = await getTopics(councilMeeting.city.realm);
 

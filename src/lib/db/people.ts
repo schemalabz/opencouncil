@@ -206,7 +206,7 @@ export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<P
  * and on 53 reviewed meetings a date check would have dropped about one person
  * from a list and left out two who spoke.
  */
-function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: string, date?: Date): boolean {
+function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: string, date: Date): boolean {
     if (hasCityLevelRole(person.roles, date)) {
         return true;
     }
@@ -223,9 +223,9 @@ function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: st
  * voiceprints transcribe matches against, and who the transcript tasks are told
  * about. A meeting with no administrative body gets all people in the city.
  *
- * `date` is the day city-level roles are read on; today when left out.
+ * `date` is the meeting date: city-level roles are read on it.
  */
-export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId: string | null, date?: Date): Promise<PersonWithRelations[]> {
+export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId: string | null, date: Date): Promise<PersonWithRelations[]> {
     const allPeople = await getPeopleForCity(cityId);
     if (!administrativeBodyId) {
         return allPeople;
@@ -244,8 +244,10 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
  * - Committee meetings (type=committee): Only members of that specific committee
  * - Community meetings (type=community): Only members of that specific community
  * - No admin body: All people in the city
+ *
+ * `date` is the meeting date: city-level roles are read on it, as in getPeopleWhoMaySpeak.
  */
-export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null): Promise<PersonWithRelations[]> {
+export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null, date: Date): Promise<PersonWithRelations[]> {
     const allPeople = await getPeopleForCity(cityId);
 
     // If no administrative body, return all people
@@ -268,7 +270,7 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
     if (adminBody.type === 'council') {
         // Council meetings: Include council members, people with no admin body, community heads, and mayors
         // Sort by role priority so the most important members come first
-        const filtered = allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId));
+        const filtered = allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId, date));
 
         return filtered.sort((a, b) => {
             const bestRoleA = Math.min(...a.roles.map(getRoleTypePriority));

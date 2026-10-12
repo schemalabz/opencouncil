@@ -82,6 +82,16 @@ describe('getPeopleWhoMaySpeak', () => {
     const prisma = jest.requireMock('../prisma').default;
     prisma.administrativeBody = { findUnique: jest.fn().mockResolvedValue({ id: 'committee', type: 'committee' }) };
 
-    expect(idsOf(await getPeopleForMeeting('city-1', 'committee'))).toEqual(['committee-only-member', 'councillor-on-committee']);
+    expect(idsOf(await getPeopleForMeeting('city-1', 'committee', MEETING_DATE))).toEqual(['committee-only-member', 'councillor-on-committee']);
+  });
+});
+
+describe('getPeopleForMeeting', () => {
+  it('reads city-level roles on the meeting date, so a past council meeting lists the officials of its day', async () => {
+    const prisma = jest.requireMock('../prisma').default;
+    prisma.administrativeBody = { findUnique: jest.fn().mockResolvedValue({ id: 'council', type: 'council' }) };
+
+    expect(idsOf(await getPeopleForMeeting('city-1', 'council', new Date('2025-06-01T00:00:00Z')))).toContain('former-deputy-mayor');
+    expect(idsOf(await getPeopleForMeeting('city-1', 'council', MEETING_DATE))).not.toContain('former-deputy-mayor');
   });
 });

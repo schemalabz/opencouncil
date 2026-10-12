@@ -116,6 +116,22 @@ describe('getRequestOnTranscriptRequestBody', () => {
         expect(result.topicLabels).toEqual([{ name: 'Environment', description: '' }]);
     });
 
+    it('sends the party a speaker held on the meeting date, not the party they hold today', async () => {
+        const person = makePersonWithRoles({ id: 'person-1', name: 'Maria K.', partyId: 'party-a', partyName: 'Party A' });
+        // Party A until after the meeting, Party B since then.
+        person.roles[0].endDate = new Date('2025-01-01T00:00:00Z');
+        const later = makePersonWithRoles({ id: 'person-1', name: 'Maria K.', partyId: 'party-b', partyName: 'Party B' });
+        person.roles.push({ ...later.roles[0], id: 'role-later', startDate: new Date('2025-01-01T00:00:00Z') });
+
+        mockGetTranscript.mockResolvedValue([makeTranscriptSegment({ id: 'seg-1', personId: 'person-1' })] as any);
+        mockPrismaPersonFindMany.mockResolvedValue([person]);
+        mockGetPeopleWhoMaySpeak.mockResolvedValue([person]);
+
+        const result = await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(result.transcript[0].speakerParty).toBe('Party A');
+    });
+
     it('sends the country of the city realm, so locations geocode in the right country', async () => {
         mockGetTranscript.mockResolvedValue([]);
         mockGetPeopleWhoMaySpeak.mockResolvedValue([]);

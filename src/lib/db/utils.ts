@@ -75,7 +75,7 @@ export async function getRequestOnTranscriptRequestBody(
         transcript: transcript.map(segment => {
             const speakerTag = segment.speakerTag;
             const person = identifiedPeople.find(p => p.id === speakerTag.personId);
-            const party = person ? getPartyFromRoles(person.roles) : null;
+            const party = person ? getPartyFromRoles(person.roles, councilMeeting.dateTime) : null;
 
             return {
                 speakerName: person?.name || speakerTag.label,
