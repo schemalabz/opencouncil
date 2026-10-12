@@ -57,6 +57,11 @@ interface MapProps {
     renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
     editingMode?: boolean
     showStreetLabels?: boolean
+    /** Who wins a label collision: the features' own labels (default, for maps whose polygons name
+     * places) or the street names (for a map whose points sit on streets the reader must find). */
+    labelPriority?: 'features' | 'streets'
+    /** The zoom from which point labels show (default 12). Raise it on a map with many points. */
+    pointLabelMinZoom?: number
     drawingMode?: 'point' | 'polygon'
     /** Overlay POI / store labels (e.g. on the simple basemap, matching the satellite one). */
     showPois?: boolean
@@ -90,6 +95,8 @@ const Map = memo(function Map({
     renderPopup,
     editingMode = false,
     showStreetLabels = false,
+    labelPriority = 'features',
+    pointLabelMinZoom = 12,
     showPois = false,
     cooperativeGestures = false,
     drawingMode = 'point',
@@ -572,7 +579,7 @@ const Map = memo(function Map({
                     ['==', ['geometry-type'], 'Point'],
                     ['!=', ['get', 'alwaysShowLabel'], true]
                 ],
-                'minzoom': 12,
+                'minzoom': pointLabelMinZoom,
                 'layout': {
                     'text-field': ['get', 'label'],
                     'text-size': [
@@ -597,8 +604,8 @@ const Map = memo(function Map({
                     'text-halo-width': 1.5,
                     'text-opacity': [
                         'interpolate', ['linear'], ['zoom'],
-                        12, 0,
-                        13, 1
+                        pointLabelMinZoom, 0,
+                        pointLabelMinZoom + 1, 1
                     ]
                 }
             });
@@ -712,6 +719,10 @@ const Map = memo(function Map({
         if (!map.current || !isInitialized.current) return;
 
         if (shouldShowStreetLabels) {
+            // Symbol layers higher in the stack win collisions. Below `feature-labels`, the features'
+            // own labels beat the street names; below the pinned labels only, the street names beat
+            // every feature label but the pinned ones.
+            const beforeId = labelPriority === 'streets' ? 'feature-pinned-labels' : 'feature-labels';
             // Add street data source if it doesn't exist
             if (!map.current.getSource('mapbox-streets')) {
                 map.current.addSource('mapbox-streets', {
@@ -720,7 +731,6 @@ const Map = memo(function Map({
                 });
             }
 
-            // Add major street names layer (inserted before feature-labels so our labels win collisions)
             if (!map.current.getLayer('major-street-labels')) {
                 map.current.addLayer({
                     'id': 'major-street-labels',
@@ -761,7 +771,7 @@ const Map = memo(function Map({
                         ['has', 'name'],
                         ['in', 'class', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary']
                     ]
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Add regular street names layer (including smaller roads)
@@ -808,7 +818,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'street', 'street_limited']
                     ],
                     'minzoom': 12
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Add small roads and paths layer
@@ -855,7 +865,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'service', 'path', 'pedestrian', 'track', 'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link']
                     ],
                     'minzoom': 14
-                }, 'feature-labels');
+                }, beforeId);
             }
 
             // Note: place-labels and poi-labels intentionally omitted
@@ -880,7 +890,7 @@ const Map = memo(function Map({
                 map.current.removeSource('mapbox-streets');
             }
         }
-    }, [shouldShowStreetLabels, mapReady]);
+    }, [shouldShowStreetLabels, labelPriority, mapReady]);
 
     // POI / store labels — opt-in (the landing's simple basemap turns these on so it
     // shows the same shops/businesses the satellite basemap renders natively). Sourced
@@ -1099,6 +1109,8 @@ const Map = memo(function Map({
         prevProps.pitch === nextProps.pitch &&
         prevProps.editingMode === nextProps.editingMode &&
         prevProps.showStreetLabels === nextProps.showStreetLabels &&
+        prevProps.labelPriority === nextProps.labelPriority &&
+        prevProps.pointLabelMinZoom === nextProps.pointLabelMinZoom &&
         prevProps.showPois === nextProps.showPois &&
         prevProps.cooperativeGestures === nextProps.cooperativeGestures &&
         prevProps.drawingMode === nextProps.drawingMode &&

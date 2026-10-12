@@ -466,6 +466,9 @@ export default function ConsultationMap({
                 className="w-full h-full"
                 editingMode={isEditingMode}
                 showStreetLabels={true}
+                // The reader looks for their street; the corner labels of the spots can wait for a close zoom.
+                labelPriority="streets"
+                pointLabelMinZoom={16}
                 drawingMode={drawingMode}
                 selectedGeometryForEdit={selectedGeometryForEdit}
                 zoomToGeometry={zoomGeometry}
