@@ -348,8 +348,10 @@ export async function confirmPhoneCode(
             select: { id: true },
         });
         if (verifiedHolder) return { ok: false as const, code: PHONE_IN_USE_CODE };
-        // Taking the row is the claim on this confirmation: a second, parallel
-        // one with the same code finds it gone and moves nothing twice.
+        // Taking the row is the claim on this confirmation, so a code proves
+        // the number once. A second one with the same code that read the row
+        // before it went finds it gone here and answers from the account; one
+        // that reads after the commit hears `no_pending` above.
         const taken = await tx.phoneVerification.deleteMany({ where: { id: pending.id, codeHash: pending.codeHash } });
         if (taken.count === 0) {
             const user = await tx.user.findUnique({ where: { id: userId }, select: { phone: true, phoneVerifiedAt: true } });

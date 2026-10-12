@@ -145,13 +145,28 @@ describe('phone verification', () => {
         expect(holders[0].phoneVerifiedAt).not.toBeNull()
     })
 
-    test('parallel right codes all succeed and move the number once', async () => {
+    test('parallel right codes: one proves the number, the others succeed or find the code used', async () => {
+        // Which ones read the row before the winner took it depends on the
+        // pool, so the split between ok and no_pending varies from run to run.
         const user = await createUser('twice@test.local')
         await requestPhoneCode(user.id, '+306900000107')
         const code = lastCodeFor('+306900000107')!
         const results = await Promise.all(Array.from({ length: 5 }, () => confirmPhoneCode(user.id, code)))
-        expect(results.every((r) => r.ok)).toBe(true)
-        expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({ phone: '+306900000107' })
+        expect(results.some((r) => r.ok)).toBe(true)
+        for (const r of results) expect(r.ok || r.code === 'no_pending').toBe(true)
+        expect(await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).toMatchObject({
+            phone: '+306900000107',
+            phoneVerifiedAt: expect.any(Date),
+        })
+        expect(await prisma.phoneVerification.count({ where: { userId: user.id } })).toBe(0)
+    })
+
+    test('a code proves a number once', async () => {
+        const user = await createUser('once@test.local')
+        await requestPhoneCode(user.id, '+306900000110')
+        const code = lastCodeFor('+306900000110')!
+        expect(await confirmPhoneCode(user.id, code)).toEqual({ ok: true, phone: '+306900000110' })
+        expect(await confirmPhoneCode(user.id, code)).toEqual({ ok: false, code: 'no_pending' })
     })
 
     test('an unverified claim gives way to the reader who proves the number', async () => {
