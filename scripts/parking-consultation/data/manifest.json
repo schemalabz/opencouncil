@@ -3419,8 +3419,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-anastaseos-voutsina": {
-  "category": "pharmacies",
+ "special-anastaseos-voutsina": {
+  "category": "special",
   "street": "Αναστάσεως",
   "centroid": [
    481407.2,
@@ -3428,8 +3428,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-elevtheriou-venizelou-ymittou": {
-  "category": "pharmacies",
+ "special-elevtheriou-venizelou-ymittou": {
+  "category": "special",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
    481746.6,
@@ -3437,8 +3437,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-aspasias-sarantaporou": {
-  "category": "pharmacies",
+ "special-aspasias-sarantaporou": {
+  "category": "special",
   "street": "Ασπασίας",
   "centroid": [
    481658.3,
@@ -3446,8 +3446,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-sarantaporou-voutsina": {
-  "category": "pharmacies",
+ "special-sarantaporou-voutsina": {
+  "category": "special",
   "street": "Σαρανταπόρου",
   "centroid": [
    481604.5,
@@ -3464,8 +3464,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-mesogeion-ymittou": {
-  "category": "pharmacies",
+ "special-mesogeion-ymittou": {
+  "category": "special",
   "street": "Μεσογείων",
   "centroid": [
    481561.8,
@@ -3473,8 +3473,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-aetideon-metonos": {
-  "category": "pharmacies",
+ "special-aetideon-metonos": {
+  "category": "special",
   "street": "Αετιδέων",
   "centroid": [
    481677.9,
@@ -3482,8 +3482,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-ventouri-voutsina": {
-  "category": "pharmacies",
+ "special-ventouri-voutsina": {
+  "category": "special",
   "street": "Βεντούρη",
   "centroid": [
    481913.7,
@@ -3491,8 +3491,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-mesogeion-ventouri": {
-  "category": "pharmacies",
+ "special-mesogeion-ventouri": {
+  "category": "special",
   "street": "Μεσογείων",
   "centroid": [
    481789.4,
@@ -3500,8 +3500,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-faneromenis-agamemnonos": {
-  "category": "pharmacies",
+ "special-faneromenis-agamemnonos": {
+  "category": "special",
   "street": "Φανερωμένης",
   "centroid": [
    481930.0,
@@ -3509,8 +3509,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-pythagora-chiou": {
-  "category": "pharmacies",
+ "special-pythagora-chiou": {
+  "category": "special",
   "street": "Πυθαγόρα",
   "centroid": [
    482224.3,
@@ -3527,8 +3527,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-17is-noemvriou-levkados": {
-  "category": "pharmacies",
+ "special-17is-noemvriou-levkados": {
+  "category": "special",
   "street": "17ης Νοεμβρίου",
   "centroid": [
    482469.4,
@@ -3536,8 +3536,8 @@
   ],
   "lengthM": 0
  },
- "pharmacy-arkadiou-menippou": {
-  "category": "pharmacies",
+ "special-arkadiou-menippou": {
+  "category": "special",
   "street": "Αρκαδίου",
   "centroid": [
    482856.1,

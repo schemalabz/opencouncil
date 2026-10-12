@@ -2,6 +2,7 @@
   "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. reportTotals are the report's own totals, printed next to the drawing's counts. spotAreaM2 estimates a unit's spots only when the drawing writes no count next to it. The report and the drawings are on Spaces until the municipality publishes them. contactEmail is the municipality's address for the comments; pass --contact-email to the generator for a copy that must not email them (local dev).",
   "publicDir": "consultations/papagou-ses",
   "reportTotals": {"residents": 1832, "paid": 550, "motorcycles": 516},
+  "pharmacyNote": "Θέση φαρμακείου: μόνο για στάση έως 20 λεπτά των πελατών του, καθημερινά 08:00–20:30.",
   "specialSpots": [
     {"address": "ΒΟΥΤΣΙΝΑ 76", "count": 1, "note": "Για τη σχολική εγκατάσταση."},
     {"label": "TAXI", "count": 3, "note": "Θέσεις ΤΑΧΙ."}
@@ -48,7 +49,6 @@
     "amea_shared",
     "amea_dedicated",
     "ev",
-    "pharmacies",
     "special"
   ],
   "geosets": {
@@ -116,16 +116,11 @@
       "legend": "Θέση φόρτισης",
       "color": "#D40000"
     },
-    "pharmacies": {
-      "id": "pharmacies",
-      "name": "Θέσεις φαρμακείων",
-      "legend": "Φαρμακεία",
-      "color": "#7C3AED"
-    },
     "special": {
       "id": "special",
       "name": "Ειδικές θέσεις",
-      "color": "#6B6860"
+      "legend": "Ειδικές θέσεις",
+      "color": "#7C3AED"
     }
   },
   "zoneDescription": "Με κάρτα κατοίκου Ζώνης {letter} παρκάρετε δωρεάν σε όλες τις θέσεις κατοίκων της ζώνης. Η κάρτα κοστίζει 10 € τον χρόνο, έως δύο ανά κατοικία.",
@@ -147,7 +142,7 @@
       "amea-shared",
       "amea-dedicated",
       "ev-spots",
-      "pharmacies",
+      "special",
       "motorcycles"
     ],
     "nearbyRadiusMeters": 400,
@@ -157,12 +152,12 @@
     {
       "id": "who-parks-where",
       "title": "Ποιος παρκάρει πού",
-      "body": "- **Θέσεις κατοίκων:** μόνο κάτοικοι με κάρτα, δωρεάν, όλο το 24ωρο.\n- **Θέσεις με πληρωμή:** επισκέπτες, το πολύ 3 ώρες.\n- **Θέσεις δικύκλων:** δωρεάν.\n- **Θέσεις φαρμακείων:** στάση έως 20 λεπτά για τους πελάτες τους.\n- **Χωρίς στάθμευση:** δρόμοι πολύ στενοί, ιδιωτικοί ή με ειδικό καθεστώς.",
+      "body": "- **Θέσεις κατοίκων:** μόνο κάτοικοι με κάρτα, δωρεάν, όλο το 24ωρο.\n- **Θέσεις με πληρωμή:** επισκέπτες, το πολύ 3 ώρες.\n- **Θέσεις δικύκλων:** δωρεάν.\n- **Ειδικές θέσεις:** φαρμακεία (στάση έως 20 λεπτά για τους πελάτες τους), ΤΑΧΙ, σχολείο.\n- **Χωρίς στάθμευση:** δρόμοι πολύ στενοί, ιδιωτικοί ή με ειδικό καθεστώς.",
       "explains": [
         "residents",
         "paid",
         "motorcycles",
-        "pharmacies",
+        "special",
         "excluded"
       ],
       "linkLabel": "Τι σημαίνει;"
@@ -204,7 +199,6 @@
         "amea-shared",
         "amea-dedicated",
         "ev-spots",
-        "pharmacies",
         "special"
       ],
       "linkLabel": "Τι σημαίνει;"

@@ -11,7 +11,7 @@ from shapely.ops import unary_union
 from .osm import StreetIndex
 from .text import normalize
 
-CATEGORY_PREFIX = {"amea_shared": "amea", "amea_dedicated": "amea-ix", "ev": "ev", "pharmacies": "pharmacy", "special": "special"}
+CATEGORY_PREFIX = {"amea_shared": "amea", "amea_dedicated": "amea-ix", "ev": "ev", "special": "special"}
 BAY_AREA_M2 = (6.0, 20.0)  # a drawn 5.5 × 2.25 m bay is 12.4 m²
 HOUSE_NUMBER_STREET_M = 30.0  # a house number belongs to the street it is drawn next to
 HOUSE_NUMBER_SPOT_M = 20.0  # a spot "at" an address is drawn within this of the number

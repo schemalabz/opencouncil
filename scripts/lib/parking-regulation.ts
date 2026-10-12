@@ -140,7 +140,7 @@ export interface AssemblyResult {
 
 const SIDE_LABEL: Record<'l' | 'r', string> = { l: 'αριστερή πλευρά', r: 'δεξιά πλευρά' };
 export const UNIT_CATEGORIES = ['residents', 'paid', 'motorcycles', 'excluded'];
-export const SPOT_CATEGORIES = ['amea_shared', 'amea_dedicated', 'ev', 'pharmacies', 'special'];
+export const SPOT_CATEGORIES = ['amea_shared', 'amea_dedicated', 'ev', 'special'];
 const REF_PATTERN = /\{REF:([a-zA-Z][a-zA-Z0-9_-]*)\}/g;
 const ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
@@ -209,8 +209,6 @@ export function spotDescription(p: SpotProperties): string {
             return 'Για ένα συγκεκριμένο όχημα ΑΜΕΑ, με παλαιότερη απόφαση του Δήμου. Μένει όπως είναι.';
         case 'ev':
             return 'Μόνο όσο φορτίζει ένα ηλεκτρικό όχημα.';
-        case 'pharmacies':
-            return 'Θέση φαρμακείου: μόνο για στάση έως 20 λεπτά των πελατών του, καθημερινά 08:00–20:30.';
         case 'special':
             return p.note ?? 'Ειδική θέση που μένει όπως είναι σήμερα.';
         default:

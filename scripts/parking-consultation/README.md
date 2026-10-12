@@ -16,8 +16,8 @@ It emits, in `data/` (committed, WGS84):
   `street`, `from`, `to`, `side` (`l`/`r` when travelling from `from` to `to`), `zone`, `lengthM`,
   `spots` with `spotsSource` (`drawing` when the plan writes the count next to the strip, else
   `estimate`), `calmTraffic`, `excludedReason`.
-- `spots.geojson` — ΑΜΕΑ, charging, pharmacy and special spots as points, with the report's
-  wording when a table row matched (`address`, `nSpots`, `note`).
+- `spots.geojson` — ΑΜΕΑ, charging and special spots (pharmacies, TAXI, the school) as points,
+  with the report's wording when a table row matched (`address`, `nSpots`, `note`).
 - `zones.geojson` — the resident zones as areas: the street-network blocks inside the study
   boundary, each assigned to the zone drawn along its streets.
 - `report.generated.json` — the report as chapters and articles of markdown, plus its tables.
@@ -76,8 +76,8 @@ flattened. Entities far outside `frame` (the title block, the 1977 plan blocks) 
   to the boundary.
 - The report's address tables give the spots their counts and wording. A row with a house number
   is placed by the house numbers drawn on Π2 (nearest row-spot pair first); other rows match by
-  cross-street. The pharmacies table turns the special spots it names into the `pharmacies`
-  category; `specialSpots` in `config/consultation.json` describes the rest (TAXI, the school).
+  cross-street. The pharmacies table gives the special spots it names the `pharmacyNote` of
+  `config/consultation.json`; `specialSpots` there describes the rest (TAXI, the school).
 
 ## The PDF source
 
@@ -95,7 +95,7 @@ A comment references an id, so ids must survive a re-run:
 - unit: `{res|paid|moto|excl}-{street}-{from}-{to}-{l|r}`, street names transliterated
   deterministically (`ses/text.py`, locked by `tests/test_text.py`), `from`/`to` in a canonical
   direction (eastward; northward on near-ties), collisions suffixed `-2`, `-3` by position.
-- spot: `{amea|amea-ix|ev|pharmacy|special}-{street}-{nearest cross-street}`.
+- spot: `{amea|amea-ix|ev|special}-{street}-{nearest cross-street}`.
 - `config/id-aliases.json` maps a new id to the old one when a unit is renamed (a re-drawn block,
   a changed OSM street name). `out/diff-report.md` lists likely renames ready to paste.
 - After launch, copy `data/manifest.json` to `data/manifest.launched.json` and run with `--strict`.

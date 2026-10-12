@@ -110,11 +110,10 @@ describe('unit naming', () => {
         expect(spotName({ ...spot, cross: null })).toBe('Κύπρου');
     });
 
-    it('describes a special spot by the report\'s note, and a pharmacy spot by its rule', () => {
+    it('describes a special spot by the report\'s note', () => {
         const spot = { id: 'x', category: 'special', street: 'Μεσογείων', cross: null, address: null, note: 'Θέσεις ΤΑΧΙ.', nSpots: 3, parts: 1 };
         expect(spotDescription(spot)).toBe('Θέσεις ΤΑΧΙ.');
         expect(spotDescription({ ...spot, note: null })).toBe('Ειδική θέση που μένει όπως είναι σήμερα.');
-        expect(spotDescription({ ...spot, category: 'pharmacies' })).toMatch(/20 λεπτά/);
     });
 });
 

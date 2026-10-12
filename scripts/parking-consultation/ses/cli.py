@@ -30,8 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent.parent
 UNIT_CATEGORIES = ("residents", "paid", "motorcycles", "excluded")
 COUNTED_CATEGORIES = ("residents", "paid", "motorcycles")
-SPOT_INPUT_CATEGORIES = ("amea_shared", "amea_dedicated", "ev", "special")  # as drawn
-SPOT_CATEGORIES = ("amea_shared", "amea_dedicated", "ev", "pharmacies", "special")  # as published: the report's tables split the special ones
+SPOT_CATEGORIES = ("amea_shared", "amea_dedicated", "ev", "special")
 MIN_SHAPE_AREA_M2 = 0.5
 
 
@@ -124,7 +123,7 @@ def extract_pdf(args, streets: StreetIndex) -> Extraction:
     print("strips:", {c: len(p2.get(c, [])) for c in UNIT_CATEGORIES}, "zone strips:", {k: len(v) for k, v in zone_strips.items()})
     strips = {c: join_plot_fragments(p2.get(c, [])) for c in UNIT_CATEGORIES}
     print("strips joined from plot fragments:", {c: len(v) for c, v in strips.items()})
-    return Extraction(strips, {c: p2.get(c, []) for c in SPOT_INPUT_CATEGORIES}, zone_strips, letters, "pdf")
+    return Extraction(strips, {c: p2.get(c, []) for c in SPOT_CATEGORIES}, zone_strips, letters, "pdf")
 
 
 def extract_dxf(streets: StreetIndex) -> Extraction:
@@ -150,7 +149,7 @@ def extract_dxf(streets: StreetIndex) -> Extraction:
     for sheet, name in ((p1, "p1"), (p2, "p2")):
         if sheet.stats:
             print(f"  {name} skipped:", dict(sheet.stats))
-    return Extraction({c: shapes.get(c, []) for c in UNIT_CATEGORIES}, {c: shapes.get(c, []) for c in SPOT_INPUT_CATEGORIES}, zone_strips, sorted(zone_shapes), "dxf",
+    return Extraction({c: shapes.get(c, []) for c in UNIT_CATEGORIES}, {c: shapes.get(c, []) for c in SPOT_CATEGORIES}, zone_strips, sorted(zone_shapes), "dxf",
                       boundary, calm, counts, config.get("countSnapM", 1.5), house_numbers, labels)
 
 
@@ -181,7 +180,7 @@ def cmd_build(args) -> None:
         print("calm-traffic units from the drawing:", mark_calm_traffic(units, extracted.calm))
 
     spots = []
-    for category in SPOT_INPUT_CATEGORIES:
+    for category in SPOT_CATEGORIES:
         spots.extend(cluster_spots(category, extracted.spot_shapes.get(category, [])))
     name_spots(spots, streets)
     label_spots(spots, extracted.labels)
@@ -214,21 +213,17 @@ def cmd_build(args) -> None:
         report = json.loads(report_path.read_text(encoding="utf-8"))
         # Spot counts and wording from the report's address tables: the shared ΑΜΕΑ table (§4.4) names
         # locations by cross-street, the dedicated one (§3.3) and the pharmacies (§3.4) by house number.
-        # A pharmacy is drawn as a special spot; the table is what tells it apart.
+        # A pharmacy stays a special spot, as the municipality counts it; the table gives it its note.
         for table in report["tables"]:
             title = table.get("title") or ""
             if "ΦΑΡΜΑΚΕΙ" in title:
-                category = "special"
+                category, note = "special", consultation.get("pharmacyNote")
             elif "ΑΜΕΑ" in title:
-                category = "amea_dedicated" if "ΕΙΔΙΚΕΣ" in title else "amea_shared"
+                category, note = ("amea_dedicated" if "ΕΙΔΙΚΕΣ" in title else "amea_shared"), None
             else:
                 continue
-            candidates = [s for s in spots if s.category == category]
-            unmatched = apply_table_counts(candidates, table["rows"], streets, house_numbers)
-            if category == "special":
-                for spot in candidates:
-                    if spot.address:
-                        spot.category = "pharmacies"
+            rows = [[*row[:2], note] if note and len(row) >= 2 else row for row in table["rows"]]
+            unmatched = apply_table_counts([s for s in spots if s.category == category], rows, streets, house_numbers)
             print(f"table '{title}': {len(table['rows']) - len(unmatched)} rows matched a {category} spot; unmatched: {unmatched}")
         for table in report["tables"]:
             title = (table.get("title") or "") + " " + " ".join(table.get("header", []))
