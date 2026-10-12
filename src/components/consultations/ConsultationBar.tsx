@@ -12,6 +12,8 @@ export interface ConsultationBarProps {
     commentsHref: string;
     commentCount: number;
     studyHref: string;
+    /** Where "Σχολιάστε" leads while the consultation is open. */
+    commentHref?: string;
     className?: string;
 }
 
@@ -27,6 +29,7 @@ export default function ConsultationBar({
     commentsHref,
     commentCount,
     studyHref,
+    commentHref,
     className,
 }: ConsultationBarProps) {
     return (
@@ -43,6 +46,11 @@ export default function ConsultationBar({
                     Τι λένε οι δημότες{commentCount > 0 ? ` (${commentCount})` : ''}
                 </ViewLink>
                 <ViewLink href={studyHref} className={linkClass}>Η μελέτη</ViewLink>
+                {commentHref && (
+                    <ViewLink href={commentHref} className="rounded-full bg-[#c2410c] px-4 py-2 text-[15px] font-bold text-white transition-colors hover:bg-[#9a3412] hover:no-underline">
+                        Σχολιάστε
+                    </ViewLink>
+                )}
             </nav>
         </header>
     );
