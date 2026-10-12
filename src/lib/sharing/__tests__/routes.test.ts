@@ -19,6 +19,7 @@ jest.mock('@/components/analytics/SubjectReadTracker', () => ({ __esModule: true
 jest.mock('@/components/meetings/subject/RelatedSubjectsSection', () => ({ RelatedSubjectsSection: jest.fn() }));
 jest.mock('@/components/meetings/subject/RelatedRecurrenceStrip', () => ({ RelatedRecurrenceStrip: jest.fn() }));
 jest.mock('@/lib/getMeetingData', () => ({ getMeetingDataCached: jest.fn(), getSubjectFromMeetingCached: jest.fn() }));
+jest.mock('@/lib/crawler.server', () => ({ isCrawlerRequest: jest.fn().mockResolvedValue(false) }));
 jest.mock('@/lib/utils/hreflang', () => ({ buildCanonicalAlternates: jest.fn(async (path: string) => ({ canonical: `https://opencouncil.gr${path}` })) }));
 jest.mock('@/lib/seo/subjectStructuredData', () => ({ buildSubjectStructuredData: jest.fn(() => ({})), serializeStructuredData: jest.fn(() => '{}') }));
 
@@ -181,6 +182,18 @@ describe('server-rendered social preview contracts', () => {
         expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/city/meeting/subjects/subject');
         const page = await SubjectPage(props);
         expect(page.props.children.find((child: React.ReactElement) => child.type === Subject).props.highlightedContributionId).toBe('c1');
+    });
+
+    it('hands a crawler the subject without the related sections', async () => {
+        const { isCrawlerRequest } = jest.requireMock('@/lib/crawler.server') as { isCrawlerRequest: jest.Mock };
+        const props = { params: Promise.resolve({ locale: 'en', cityId: 'city', meetingId: 'meeting', subjectId: 'subject' }), searchParams: Promise.resolve({}) };
+        const subjectProps = async () => (await SubjectPage(props)).props.children.find((child: React.ReactElement) => child.type === Subject).props;
+        expect((await subjectProps()).related).toBeDefined();
+        expect((await subjectProps()).relatedStrip).toBeDefined();
+        isCrawlerRequest.mockResolvedValueOnce(true);
+        const crawled = await subjectProps();
+        expect(crawled.related).toBeUndefined();
+        expect(crawled.relatedStrip).toBeUndefined();
     });
 
     it.each(['subject', 'meeting', 'city'])('ignores a contribution from another %s in subject metadata and highlighting', async (mismatch) => {
