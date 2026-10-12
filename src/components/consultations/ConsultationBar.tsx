@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ViewLink } from "./views/ui";
+import { primaryButtonClass, ViewLink } from "./views/ui";
 
 export interface ConsultationBarProps {
     title: string;
@@ -47,7 +47,7 @@ export default function ConsultationBar({
                 </ViewLink>
                 <ViewLink href={studyHref} className={linkClass}>Η μελέτη</ViewLink>
                 {commentHref && (
-                    <ViewLink href={commentHref} className="rounded-full bg-[#c2410c] px-4 py-2 text-[15px] font-bold text-white transition-colors hover:bg-[#9a3412] hover:no-underline">
+                    <ViewLink href={commentHref} className={cn(primaryButtonClass, "min-h-0 w-auto px-4 py-2 text-[15px] hover:no-underline")}>
                         Σχολιάστε
                     </ViewLink>
                 )}
