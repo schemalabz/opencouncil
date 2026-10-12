@@ -43,6 +43,10 @@ jest.mock('../fixTranscript', () => ({
 jest.mock('../../discord', () => ({
   sendTaskAdminAlert: (...args: unknown[]) => mockSendAutoFixAlert(...args),
 }));
+const mockGetConsentedPersonIds = jest.fn();
+jest.mock('../../db/personConsent', () => ({
+  getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args),
+}));
 
 import { handleTranscribeResult } from '../transcribe';
 
@@ -81,6 +85,8 @@ beforeEach(() => {
   mockMeetingUpdate.mockResolvedValue({ id: MEETING_ID });
   mockSpeakerTagCreate.mockResolvedValue({ id: 'tag-1' });
   mockPersonFindUnique.mockResolvedValue(undefined);
+  // Every matched person consents unless a test says otherwise.
+  mockGetConsentedPersonIds.mockImplementation(async (ids: string[]) => new Set(ids));
   mockSpeakerSegmentCreate.mockResolvedValue({ id: 'segment-1' });
   mockRequestFixTranscriptInternal.mockResolvedValue({ id: 'fix-task-1' });
   mockSendAutoFixAlert.mockResolvedValue(undefined);
@@ -229,5 +235,18 @@ describe('handleTranscribeResult — voiceprint identifications', () => {
 
     const { data } = mockSpeakerTagCreate.mock.calls[0][0];
     expect(Object.keys(data)).toEqual(['label']);
+  });
+
+  it('drops a match for a person whose voiceprint consent is no longer in force', async () => {
+    mockPersonFindUnique.mockResolvedValue({ id: 'anna' });
+    mockGetConsentedPersonIds.mockResolvedValue(new Set());
+
+    await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: 'anna', confidence: { anna: 87.5 } }]) as never);
+
+    expect(mockGetConsentedPersonIds).toHaveBeenCalledWith(['anna']);
+    expect(mockPersonFindUnique).not.toHaveBeenCalled();
+    const { data } = mockSpeakerTagCreate.mock.calls[0][0];
+    expect(Object.keys(data)).toEqual(['label']);
+    expect(data.label).not.toBe('SPEAKER_0');
   });
 });

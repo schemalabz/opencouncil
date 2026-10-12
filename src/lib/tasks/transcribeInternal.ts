@@ -4,6 +4,7 @@ import { startTask } from "./tasks";
 import { Prisma } from "@prisma/client";
 import prisma from "../db/prisma";
 import { getPeopleWhoMaySpeak } from "@/lib/db/people";
+import { getConsentedPersonIds } from "@/lib/db/personConsent";
 import { getRoleTypePriority } from "../utils";
 import { voiceprintPriorityGroup } from "./voiceprintPriority";
 import { getStatisticsFor } from "../statistics";
@@ -93,10 +94,13 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     const city = councilMeeting.city;
 
-    // Voiceprints of the people who may speak at this meeting
+    // Voiceprints of the people who may speak at this meeting, and whose
+    // consent is in force today: a voiceprint stored for a person without one
+    // stays stored and is not matched against.
     const people = await getPeopleWhoMaySpeak(cityId, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
+    const consented = await getConsentedPersonIds(people.map(person => person.id));
     const voicePrintRows = await prisma.voicePrint.findMany({
-        where: { personId: { in: people.map(person => person.id) } },
+        where: { personId: { in: [...consented] } },
         orderBy: { createdAt: 'desc' },
         select: { personId: true, embedding: true },
     });
@@ -108,6 +112,7 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
     }
     const peopleWithVoiceprints = people
         .filter(person => embeddingByPerson.has(person.id));
+    console.log(`${people.length} people may speak, ${consented.size} with a voiceprint consent in force, ${peopleWithVoiceprints.length} of them with a voiceprint`);
 
     // Pyannote.ai supports max 50 voiceprints per request.
     // When over the limit: the mayor and the other city-level roles first, then the

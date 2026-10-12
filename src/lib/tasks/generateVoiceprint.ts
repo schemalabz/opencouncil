@@ -4,9 +4,11 @@ import prisma from "@/lib/db/prisma";
 import { getCouncilMeeting } from "@/lib/db/meetings";
 import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
-import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
+import { GenerateVoiceprintRequest } from "../apiTypes";
 import { Prisma, SpeakerSegment } from "@prisma/client";
-import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
+import { ForbiddenError, NotFoundError } from "@/lib/api/errors";
+import { voicePrintConsentInForce } from "@/lib/db/personConsent";
+import { hasVoicePrintConsent } from "./generateVoiceprintInternal";
 
 const VOICEPRINT_DURATION = 30;
 
@@ -59,8 +61,9 @@ function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegmen
 
 /**
  * Find all people in a city who are eligible for voiceprint generation
- * Eligible means: they have at least one speaker segment longer than VOICEPRINT_DURATION
- * and they don't already have a voiceprint
+ * Eligible means: their voiceprint consent is in force, they have at least one
+ * speaker segment longer than VOICEPRINT_DURATION, and they don't already have
+ * a voiceprint
  */
 export async function findEligiblePeopleForVoiceprintGeneration(cityId: string): Promise<{
     eligiblePeople: Array<{ id: string; name: string }>;
@@ -68,10 +71,11 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
 }> {
     await withUserAuthorizedToEdit({ cityId });
 
-    // First, get all people in this city who don't have voiceprints
+    // First, get all people in this city who don't have voiceprints and whose consent is in force
     const peopleWithoutVoiceprints = await prisma.person.findMany({
         where: {
             cityId,
+            ...voicePrintConsentInForce,
             voicePrints: {
                 none: {}
             }
@@ -113,10 +117,11 @@ export async function requestGenerateVoiceprintsForCity(cityId: string) {
     const results = [];
     const errors = [];
 
-    // Process each eligible person
+    // Process each eligible person. The list above already holds only people
+    // of this city with a consent in force, so each one starts directly.
     for (const person of eligiblePeople) {
         try {
-            const task = await requestGenerateVoiceprint(person.id);
+            const task = await startVoiceprintGeneration(person.id);
             results.push({
                 personId: person.id,
                 personName: person.name,
@@ -142,9 +147,29 @@ export async function requestGenerateVoiceprintsForCity(cityId: string) {
 }
 
 /**
- * Request to generate a voiceprint for a person
+ * Request to generate a voiceprint for a person. Authorizes on the person's
+ * city before it reads anything else: consent is not public, and the refusal
+ * below would otherwise tell any caller whether the person consented.
  */
 export async function requestGenerateVoiceprint(personId: string) {
+    const person = await prisma.person.findUnique({ where: { id: personId }, select: { cityId: true } });
+    if (!person) {
+        throw new NotFoundError("Person not found");
+    }
+    await withUserAuthorizedToEdit({ cityId: person.cityId });
+
+    if (!await hasVoicePrintConsent(personId)) {
+        throw new ForbiddenError("This person has no voiceprint consent in force. No voiceprint is generated or used without one.");
+    }
+
+    return startVoiceprintGeneration(personId);
+}
+
+/**
+ * Start the voiceprint task for a person. The caller has authorized on the
+ * person's city and checked the consent.
+ */
+async function startVoiceprintGeneration(personId: string) {
     // Find the longest speaker segment for this person
     const segment = await findLongestSpeakerSegmentForPerson(personId);
 
@@ -166,8 +191,6 @@ export async function requestGenerateVoiceprint(personId: string) {
     if (!meeting) {
         throw new Error("Meeting not found");
     }
-
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
 
     const mediaUrl = meeting.audioUrl || meeting.videoUrl;
     if (!mediaUrl) {
@@ -231,33 +254,5 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
     } catch (error) {
         console.error("Error finding longest speaker segment:", error);
         return null;
-    }
-}
-
-/**
- * Handle the result of a generate voiceprint task
- */
-export async function handleGenerateVoiceprintResult(taskId: string, result: GenerateVoiceprintResult): Promise<void> {
-    const taskStatus = await prisma.taskStatus.findUnique({
-        where: { id: taskId },
-    });
-
-    if (!taskStatus) {
-        throw new Error("Task status not found");
-    }
-
-    const requestBody = JSON.parse(taskStatus.requestBody);
-
-    try {
-        await createVoicePrintDirect({
-            personId: requestBody.personId,
-            sourceSegmentId: requestBody.segmentId,
-            startTimestamp: requestBody.startTimestamp,
-            endTimestamp: requestBody.endTimestamp,
-            sourceAudioUrl: result.audioUrl,
-            embedding: result.voiceprint,
-        });
-    } catch (error) {
-        console.error("Error creating voiceprint:", error);
     }
 }

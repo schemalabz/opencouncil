@@ -315,7 +315,12 @@ enum VoicePrintConsentSource {
 /// carries the whole row, and consent is not public. A deleted person drops
 /// its periods with its voiceprints. A deleted account keeps the periods,
 /// with the user set to null: the proof outlives the account.
-/// Recorded only for now: nothing reads it before generation or transcription.
+/// An open period is what lets the platform process the person's voice: the
+/// transcribe request sends only the voiceprints of people with one, the
+/// transcribe result accepts a match only for them, and the voiceprint task
+/// starts and stores an embedding only for them (voicePrintConsentInForce in
+/// src/lib/db/personConsent.ts). A stored voiceprint outlives its period and
+/// is not used while no period is open.
 model VoicePrintConsent {
   id          String                  @id @default(cuid())
   personId    String
