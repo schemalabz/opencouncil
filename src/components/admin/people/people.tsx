@@ -231,6 +231,7 @@ export default function People({ cityLanguage, people, consents, currentCityName
                                                     personId={person.id}
                                                     personName={person.name}
                                                     voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
+                                                    consentGiven={person.id in consents}
                                                 />
                                             </div>
                                         </TableCell>
