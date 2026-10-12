@@ -3,7 +3,7 @@
 // buildSearchQuery: which filters the search ran with, and whether the model
 // was consulted at all.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_URL: 'http://es.test', ELASTICSEARCH_API_KEY: 'k', ELASTICSEARCH_INDEX: 'subjects-test' } }));
-jest.mock('@elastic/elasticsearch', () => ({ Client: jest.fn().mockImplementation(() => ({ search: jest.fn() })) }));
+jest.mock('@elastic/elasticsearch', () => ({ Client: jest.fn().mockImplementation(() => ({ search: jest.fn(), indices: { getMapping: jest.fn() } })) }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: { subject: { findMany: jest.fn().mockResolvedValue([]) }, speakerSegment: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: jest.fn().mockResolvedValue([]) },
@@ -41,6 +41,7 @@ jest.mock('../related', () => ({
 }));
 
 import { Client } from '@elastic/elasticsearch';
+import { resetIndexProfileCache } from '../profile';
 import prisma from '@/lib/db/prisma';
 import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
@@ -69,6 +70,12 @@ const findManyMock = prisma.subject.findMany as jest.Mock;
 // The Elasticsearch client is constructed once at module scope, so the search
 // mock has to be read off that instance rather than re-mocked per test.
 const esSearchMock = (Client as unknown as jest.Mock).mock.results[0].value.search as jest.Mock;
+const esGetMappingMock = (Client as unknown as jest.Mock).mock.results[0].value.indices.getMapping as jest.Mock;
+
+/** The mapping the alias resolves to: one concrete index whose semantic fields name an endpoint. */
+const mappingOf = (index: string, inferenceId: string) => ({
+    [index]: { mappings: { properties: { name: { type: 'text', fields: { semantic: { type: 'semantic_text', inference_id: inferenceId } } } } } },
+});
 
 /** The SearchRequest that reached the query builder — what the search actually ran. */
 const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.mock.calls[0][0];
@@ -76,6 +83,8 @@ const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.moc
 beforeEach(() => {
     jest.clearAllMocks();
     cacheEntries.clear();
+    resetIndexProfileCache();
+    esGetMappingMock.mockResolvedValue(mappingOf('subjects-test', '.jina-embeddings-v5-text-small'));
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
@@ -389,6 +398,26 @@ describe('search matches cross the retrieval/hydration seam', () => {
     });
 });
 
+describe('searchSubjectsInRealm — the resolved index is gone', () => {
+    it('re-reads the alias and searches again, and alerts on any other failure', async () => {
+        esGetMappingMock
+            .mockResolvedValueOnce(mappingOf('subjects-2026-08', 'opencouncil-multilingual-e5-small-elasticsearch'))
+            .mockResolvedValueOnce(mappingOf('subjects-2026-10', '.jina-embeddings-v5-text-small'));
+        esSearchMock
+            .mockRejectedValueOnce({ meta: { body: { error: { type: 'index_not_found_exception' } } } })
+            .mockResolvedValueOnce({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
+
+        await searchSubjectsInRealm({ query: 'πάρκα' }, 'greece');
+
+        expect(buildSearchQueryMock.mock.calls.map(call => call[3]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(sendErrorAdminAlertMock).not.toHaveBeenCalled();
+
+        esSearchMock.mockRejectedValueOnce({ meta: { body: { error: { type: 'search_phase_execution_exception' } } } });
+        await expect(searchSubjectsInRealm({ query: 'πάρκα' }, 'greece')).rejects.toBeDefined();
+        expect(sendErrorAdminAlertMock).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('searchSubjectsInRealm — failure alert', () => {
     // A filter the alert leaves out is a filter the person on call cannot see
     // when that filter is what Elasticsearch rejected.
@@ -416,7 +445,7 @@ describe('searchRelatedSubjectsInRealm', () => {
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
 
-        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES);
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES, expect.objectContaining({ index: 'subjects-test', relatedMinSimilarity: 0.75 }));
         expect(esSearchMock).toHaveBeenCalled();
     });
 
@@ -430,9 +459,40 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'city', 'greece', '0.75', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
+    });
+
+    // The alias moves to a rebuilt index without a deploy. Until it moves, the
+    // old index embeds with the old model, so its floor applies, the query
+    // names it, and its name keys the entries; after the swap all three
+    // change together, and the old entries retire.
+    it('queries, keys and gates by the index the alias serves, not by the build', async () => {
+        esGetMappingMock.mockResolvedValue(mappingOf('subjects-2026-08', 'opencouncil-multilingual-e5-small-elasticsearch'));
+
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'city', REALM_CITIES, expect.objectContaining({ index: 'subjects-2026-08', relatedMinSimilarity: 0.93 }));
+        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-2026-08']);
+    });
+
+    // The index a profile names can be deleted before the next refresh. The
+    // answer from Elasticsearch names the condition; the stale profile goes
+    // and the request runs once more under what the alias serves now.
+    it('re-reads the alias and runs again when the resolved index is gone', async () => {
+        esGetMappingMock
+            .mockResolvedValueOnce(mappingOf('subjects-2026-08', 'opencouncil-multilingual-e5-small-elasticsearch'))
+            .mockResolvedValueOnce(mappingOf('subjects-2026-10', '.jina-embeddings-v5-text-small'));
+        esSearchMock
+            .mockRejectedValueOnce({ meta: { body: { error: { type: 'index_not_found_exception' } } } })
+            .mockResolvedValueOnce({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
+
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(buildRelatedSubjectsQueryMock.mock.calls.map(call => call[3]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(createCacheMock.mock.calls.map(call => call[1][7])).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(sendErrorAdminAlertMock).not.toHaveBeenCalled();
     });
 
     it('tags the other scope with the meetings of every other municipality of the realm', async () => {
@@ -440,7 +500,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'other', 'greece', '0.75', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,

@@ -1,7 +1,7 @@
 [
   {
     "database": "production",
-    "index": "subjects-2026-08",
+    "index": "subjects-2026-10",
     "pipeline": "strip-refs",
     "mapping": {
       "id": { "type": "keyword" },
@@ -12,7 +12,7 @@
           "keyword": { "type": "keyword", "ignore_above": 256 },
           "semantic": {
             "type": "semantic_text",
-            "inference_id": "opencouncil-multilingual-e5-small-elasticsearch"
+            "inference_id": ".jina-embeddings-v5-text-small"
           }
         }
       },
@@ -22,7 +22,7 @@
         "fields": {
           "semantic": {
             "type": "semantic_text",
-            "inference_id": "opencouncil-multilingual-e5-small-elasticsearch"
+            "inference_id": ".jina-embeddings-v5-text-small"
           }
         }
       },
