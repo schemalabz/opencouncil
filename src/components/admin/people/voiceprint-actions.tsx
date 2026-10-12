@@ -24,11 +24,13 @@ interface VoiceprintActionsProps {
     personId: string;
     personName: string;
     voicePrint: VoicePrint | null;
+    /** The person's voiceprint consent is in force: without it no voiceprint is generated or used. */
+    consentGiven: boolean;
 }
 
 const POLLING_INTERVAL = 3000;
 
-export function VoiceprintActions({ personId, personName, voicePrint }: VoiceprintActionsProps) {
+export function VoiceprintActions({ personId, personName, voicePrint, consentGiven }: VoiceprintActionsProps) {
     const router = useRouter();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [tasks, setTasks] = useState<TaskStatus[]>([]);
@@ -166,7 +168,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
         }
     };
 
-    const canGenerateVoiceprint = !voicePrint && !latestPendingTask;
+    const canGenerateVoiceprint = consentGiven && !voicePrint && !latestPendingTask;
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -194,6 +196,14 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                         </div>
                     ) : (
                         <>
+                            {!consentGiven && (
+                                <p className='text-sm text-amber-700'>
+                                    No voiceprint consent is in force for this person.{" "}
+                                    {voicePrint
+                                        ? "The stored voiceprint is not used until they consent."
+                                        : "No voiceprint can be generated until they consent."}
+                                </p>
+                            )}
                             {voicePrint ? (
                                 // Has voiceprint - show details
                                 <div className='text-sm space-y-2'>
@@ -211,12 +221,12 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                                 <p className='text-sm text-slate-600'>
                                     Currently generating a voiceprint for this person. This may take a few minutes.
                                 </p>
-                            ) : (
+                            ) : consentGiven ? (
                                 <p className='text-sm text-slate-600'>
                                     No voiceprint has been created for this person yet. Generate a voiceprint to enable
                                     speaker identification.
                                 </p>
-                            )}
+                            ) : null}
 
                             <div className='flex flex-col space-y-2 mt-4'>
                                 {canGenerateVoiceprint && (

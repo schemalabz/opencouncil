@@ -125,7 +125,8 @@ export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprint
                 <DialogHeader>
                     <DialogTitle>Bulk Voiceprint Generation</DialogTitle>
                     <DialogDescription>
-                        Generate voiceprints for all eligible people in {currentCityName}
+                        Generate voiceprints for all eligible people in {currentCityName}: those with a voiceprint
+                        consent in force, enough recorded speech, and no voiceprint yet.
                     </DialogDescription>
                 </DialogHeader>
 

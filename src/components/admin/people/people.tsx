@@ -140,6 +140,7 @@ export default function People({ people, consents, currentCityName, administrati
                                             personId={person.id}
                                             personName={person.name}
                                             voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
+                                            consentGiven={person.id in consents}
                                         />
                                     </div>
                                 </div>
