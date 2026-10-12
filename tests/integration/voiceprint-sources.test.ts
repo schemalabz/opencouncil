@@ -29,6 +29,8 @@ describe('voiceprint source tags', () => {
         meetingId = meeting.id
         const person = await createPerson(cityId, { name: 'Speaker' })
         personId = person.id
+        // Eligibility needs a consent in force; which audio may be used is what is under test.
+        await prisma.voicePrintConsent.create({ data: { personId } })
     })
 
     /** A segment of the person's, on a tag whose person was set by `personSetBy`. */
@@ -74,6 +76,13 @@ describe('voiceprint source tags', () => {
         expect((await findLongestSpeakerSegmentForPerson(personId))?.id).toBe(segment.id)
     })
 
+    test('a person whose consent is withdrawn is not eligible, whatever the tag says', async () => {
+        await speaks('user', 120)
+        await prisma.voicePrintConsent.updateMany({ where: { personId }, data: { withdrawnAt: new Date() } })
+
+        expect(await findEligiblePeopleForVoiceprintGeneration(cityId)).toEqual({ eligiblePeople: [], count: 0 })
+    })
+
     test('the source is the longest segment that is not the transcript\'s alone', async () => {
         await speaks('transcript', 300)
         const chosen = await speaks('user', 45)
@@ -113,6 +122,7 @@ describe('voiceprint source tags', () => {
     test('with personIds, only those people are checked; an empty list checks nobody', async () => {
         await speaks('user', 120)
         const other = await createPerson(cityId, { name: 'Other' })
+        await prisma.voicePrintConsent.create({ data: { personId: other.id } })
         const tag = await prisma.speakerTag.create({ data: { label: 'SPEAKER_2', personId: other.id, personSetBy: 'user' } })
         await createSpeakerSegment(meetingId, cityId, { speakerTagId: tag.id, startTimestamp: 0, endTimestamp: 120 })
 

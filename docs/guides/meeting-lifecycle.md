@@ -51,7 +51,7 @@ The system includes comprehensive status tracking that provides real-time visibi
 Meetings progress through defined stages based on completed tasks. The stages are dynamically derived from the centralized task configuration:
 
 1. **Scheduled** - Initial state when meeting is created
-2. **Transcribe** - Audio/video has been transcribed to text
+2. **Transcribe** - Audio/video has been transcribed to text. The request carries the voiceprints of the people who may speak and whose voiceprint consent is in force; the transcript pass of Fix Transcript names the others.
 3. **Fix Transcript** - Automatic transcript correction has been applied
 4. **Human Review** - Manual review and correction completed by human
 5. **Transcript Sent** - The corrected transcript has been sent

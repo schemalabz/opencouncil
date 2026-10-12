@@ -5,7 +5,9 @@ import { serializableOnce } from "@/lib/db/serializable";
 import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
 
-const openPeriod = (personId: string) => ({ personId, withdrawnAt: null });
+/** A consent period that is in force: given and not withdrawn. The one spelling of the rule. */
+const openPeriodWhere = { withdrawnAt: null } satisfies Prisma.VoicePrintConsentWhereInput;
+const openPeriod = (personId: string) => ({ personId, ...openPeriodWhere });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
 type OpenPeriod = Prisma.VoicePrintConsentGetPayload<{ select: typeof openPeriodSelect }>;
 
@@ -125,6 +127,23 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
 }
 
 /**
+ * The people whose voice the platform may process: those with an open consent
+ * period, whoever recorded it. The three places that process a voice read
+ * this rule, each at its own time: the transcribe request, which selects the
+ * voiceprints to match against; the transcribe result, which accepts a match;
+ * and voiceprint generation, on request and on result. A voiceprint stored
+ * for a person whose period has closed stays stored and is not used.
+ */
+export const voicePrintConsentInForce = {
+    voicePrintConsents: { some: openPeriodWhere },
+} satisfies Prisma.PersonWhereInput;
+
+/** The ids among `personIds` with a consent in force (see voicePrintConsentInForce). */
+export async function getConsentedPersonIds(personIds: string[]): Promise<Set<string>> {
+    return new Set((await getVoicePrintConsents(personIds)).keys());
+}
+
+/**
  * The consent in force for each of `personIds`: PERSON for a period that an
  * account of the person opened, ADMIN for a period that a superadmin
  * recorded. A person with no open period has no entry.
@@ -132,7 +151,7 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
 export async function getVoicePrintConsents(personIds: string[]): Promise<Map<string, VoicePrintConsentSource>> {
     if (personIds.length === 0) return new Map();
     const rows = await prisma.voicePrintConsent.findMany({
-        where: { personId: { in: personIds }, withdrawnAt: null },
+        where: { personId: { in: personIds }, ...openPeriodWhere },
         select: { personId: true, source: true },
     });
     return new Map(rows.map((r) => [r.personId, r.source]));
@@ -156,7 +175,7 @@ export type VoicePrintConsentStatus = Prisma.VoicePrintConsentGetPayload<{ selec
 export async function getVoicePrintConsentStatuses(personIds: string[]): Promise<Map<string, VoicePrintConsentStatus>> {
     if (personIds.length === 0) return new Map();
     const rows = await prisma.voicePrintConsent.findMany({
-        where: { personId: { in: personIds }, withdrawnAt: null },
+        where: { personId: { in: personIds }, ...openPeriodWhere },
         select: consentStatusSelect,
     });
     return new Map(rows.map((r) => [r.personId, r]));
