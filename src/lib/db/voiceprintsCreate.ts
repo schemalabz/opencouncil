@@ -1,6 +1,7 @@
 // Server-only (NOT a "use server" action). createVoicePrintDirect has no user
-// gate because its sole caller, handleGenerateVoiceprintResult, runs on the
-// task-server callback path where there is no session. Living off the Server
+// gate because its sole caller, handleGenerateVoiceprintResult in
+// src/lib/tasks/generateVoiceprintInternal.ts, runs on the task-server
+// callback path where there is no session. Living off the Server
 // Action surface keeps it unreachable from client calls; the session-gated
 // deleteVoicePrint stays in voiceprints.ts.
 import "server-only";
