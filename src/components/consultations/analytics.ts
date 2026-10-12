@@ -14,6 +14,15 @@ export function captureConsultationAddressSearched(props: {
     captureEvent('consultation_address_searched', props);
 }
 
+/** What a reader chose after their comment went in. */
+export function captureConsultationNextStep(props: {
+    consultation_id?: string;
+    city_id?: string;
+    target: 'notifications' | 'city' | 'another_place';
+}): void {
+    captureEvent('consultation_next_step_clicked', props);
+}
+
 export function captureConsultationEntityOpened(props: {
     consultation_id?: string;
     city_id?: string;

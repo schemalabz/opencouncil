@@ -4,14 +4,16 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Mail } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { captureEvent } from "@/lib/analytics/capture";
+import { captureConsultationNextStep } from "../analytics";
 import { cn } from "@/lib/utils";
 import type { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import type { EntityDisplay } from "../entityDisplay";
 import type { ConfirmedPendingComment, PendingCommentConfirmation } from "../types";
 import { buildConsultationUrl } from "../consultationUrl";
 import CommentList, { type CommentListProps } from "./CommentList";
-import { cardClass, Dot, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
+import { cardClass, Dot, headingClass, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
 
 export interface CommentViewProps {
     display: EntityDisplay;
@@ -21,6 +23,10 @@ export interface CommentViewProps {
     active: boolean;
     /** What opening the comment's confirmation link did, when the reader arrived from it. */
     confirmation: ConfirmedPendingComment | null;
+    /** Where the municipality's notifications signup is, offered once the comment is in. */
+    notificationsHref: string;
+    cityHref: string;
+    municipalityName?: string;
     comments: ConsultationCommentWithUpvotes[];
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
@@ -43,7 +49,7 @@ const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-wh
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
  * anyone else leaves a name and an email, and the comment goes live when they open the link we send.
  */
-export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, comments, onUpvoted, onDeleted }: CommentViewProps) {
+export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, comments, onUpvoted, onDeleted }: CommentViewProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
     const signedIn = status === 'authenticated' && !!session?.user;
@@ -60,6 +66,13 @@ export default function CommentView({ display, backHref, consultationId, cityId,
             navigateTo(buildConsultationUrl('', { view: 'comment', entityId: display.id }), { replace: true });
         }
     }, [result, display.id]);
+
+    // The comment is in (published now, or waiting for its email): the reader's next step.
+    const commentIsIn = outcome?.kind === 'published' || outcome?.kind === 'pending' || result === 'published';
+    const nextStep = (target: 'notifications' | 'city' | 'another_place') =>
+        captureConsultationNextStep({ consultation_id: consultationId, city_id: cityId, target });
+    // `municipalityName` is the full name, "Δήμος Παπάγου - Χολαργού".
+    const municipality = municipalityName ? `ο ${municipalityName}` : 'ο Δήμος';
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -192,6 +205,23 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                             Το σχόλιο δημοσιεύεται εδώ με το όνομά σας και στέλνεται στον Δήμο μαζί με το email σας. Μπορείτε να το διαγράψετε όποτε θέλετε.
                         </p>
                     </form>
+                )}
+
+                {commentIsIn && (
+                    <section aria-label="Και τώρα;" className={cn(cardClass, "flex flex-col gap-3 p-5")}>
+                        <h2 className={cn(headingClass, "!text-xl")}>Και τώρα;</h2>
+                        <p className="text-base leading-relaxed text-stone-700">
+                            Όταν κλείσει η διαβούλευση, {municipality} θα συζητήσει το σχέδιο. Ο Νότης, ο ψηφιακός ενημερωμένος γείτονας του OpenCouncil, σας ειδοποιεί όταν συζητιέται ή αποφασίζεται κάτι για τα θέματα και τις περιοχές που διαλέγετε.
+                        </p>
+                        <Link href={notificationsHref} onClick={() => nextStep('notifications')} className={cn(primaryButtonClass, "no-underline hover:no-underline")}>
+                            Θέλω ενημερώσεις
+                        </Link>
+                        <p className="-mt-1 text-[13px] leading-snug text-stone-600">Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα.</p>
+                        <div className="flex flex-col gap-2 pt-1 text-base">
+                            <Link href={cityHref} onClick={() => nextStep('city')} className={textLinkClass}>Τι άλλο συζητά {municipality}</Link>
+                            <ViewLink href={backHref} onClick={() => nextStep('another_place')} className={textLinkClass}>Σχολιάστε και άλλο σημείο</ViewLink>
+                        </div>
+                    </section>
                 )}
 
                 {comments.length > 0 && (

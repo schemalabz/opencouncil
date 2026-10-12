@@ -9,7 +9,7 @@ import type { Location } from "@/lib/types/onboarding";
 import { cn } from "@/lib/utils";
 import MarkdownContent from "../MarkdownContent";
 import type { RegulationData } from "../types";
-import { cardClass, LinkRow, OpenCouncilCredit, pageClass, secondaryButtonClass, ViewLink } from "./ui";
+import { cardClass, LinkRow, OpenCouncilCredit, pageClass, primaryButtonClass, secondaryButtonClass, ViewLink } from "./ui";
 
 export interface HomeViewProps {
     title: string;
@@ -114,6 +114,11 @@ export default function HomeView({
                 </div>
             ) : (
                 <ViewLink href={mapHref} className={cn(secondaryButtonClass, "lg:hidden")}>Δείτε τον χάρτη</ViewLink>
+            )}
+
+            {/* The direct way in, for a reader who skips the address: every part of the plan has its own comment button. */}
+            {deadline.active && (
+                <ViewLink href={planHref ?? mapHref} className={primaryButtonClass}>Σχολιάστε το σχέδιο</ViewLink>
             )}
 
             <nav aria-label="Η διαβούλευση" className={cn(cardClass, "overflow-hidden")}>

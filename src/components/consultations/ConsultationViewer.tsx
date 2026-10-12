@@ -47,6 +47,8 @@ interface ConsultationViewerProps {
     /** "Δήμος Χ" as written by the city */
     municipalityName?: string;
     cityLogoUrl?: string | null;
+    /** The municipality's notifications signup, offered after a comment. */
+    notificationsHref: string;
 }
 
 interface Place {
@@ -119,6 +121,7 @@ export default function ConsultationViewer({
     realm,
     municipalityName,
     cityLogoUrl,
+    notificationsHref,
 }: ConsultationViewerProps) {
     const searchParams = useSearchParams();
     const isDesktop = useIsDesktop();
@@ -320,6 +323,8 @@ export default function ConsultationViewer({
     const title = regulationData.title || consultation.name;
     const cityHref = `/${cityId}`;
     const planHref = hasOverview ? href('plan') : undefined;
+    // "Σχολιάστε": the plan's cards each carry a comment button; without a plan, the map does.
+    const commentHref = active ? (planHref ?? href('map')) : undefined;
     const homeOrStreet = lookup ? href('street') : href('home');
     const selectedId = entityDisplay && (entityDisplay.type === 'geometry' || entityDisplay.type === 'geoset') && (view === 'map' || view === 'comment')
         ? entityDisplay.id
@@ -378,6 +383,9 @@ export default function ConsultationViewer({
                         cityId={cityId}
                         active={active}
                         confirmation={confirmation?.entityId === entityDisplay.id ? confirmation : null}
+                        notificationsHref={notificationsHref}
+                        cityHref={cityHref}
+                        municipalityName={municipalityName}
                         comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}
@@ -404,6 +412,7 @@ export default function ConsultationViewer({
                         geoSets={geoSets}
                         href={href}
                         backHref={href('home')}
+                        commentHref={commentHref}
                         printHref={`/${cityId}/consultation/${consultationId}/comments`}
                         currentUserId={currentUser?.id}
                         onUpvoted={onUpvoted}
@@ -514,6 +523,7 @@ export default function ConsultationViewer({
             commentsHref={href('comments')}
             commentCount={liveComments.length}
             studyHref={href('document')}
+            commentHref={commentHref}
         />
     );
 
