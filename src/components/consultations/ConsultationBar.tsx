@@ -4,9 +4,10 @@ import { cn } from "@/lib/utils";
 import { primaryButtonClass, ViewLink } from "./views/ui";
 
 export interface ConsultationBarProps {
-    title: string;
     municipalityName?: string;
     deadlineLabel: string;
+    /** Whether comments are still open; an ended consultation's date is not coloured. */
+    deadlineActive: boolean;
     homeHref: string;
     planHref?: string;
     commentsHref: string;
@@ -19,11 +20,14 @@ export interface ConsultationBarProps {
 
 const linkClass = "text-[15px] font-semibold text-[#9a3412] underline-offset-2 hover:underline";
 
-/** The computer's consultation bar, under the site's header: what this is, until when, and the three ways to read it. */
+/**
+ * The computer's consultation bar, under the site's header: who asks, until when, and the three
+ * ways to read it. The site's header above it carries the consultation's title.
+ */
 export default function ConsultationBar({
-    title,
     municipalityName,
     deadlineLabel,
+    deadlineActive,
     homeHref,
     planHref,
     commentsHref,
@@ -34,12 +38,9 @@ export default function ConsultationBar({
 }: ConsultationBarProps) {
     return (
         <header className={cn("h-14 shrink-0 items-center gap-4 border-b border-stone-200 bg-white px-4 text-stone-900", className)}>
-            <div className="flex min-w-0 flex-col">
-                <ViewLink href={homeHref} className="truncate text-base font-bold leading-tight hover:underline">{title}</ViewLink>
-                <span className="truncate text-[13px] leading-tight text-stone-600">
-                    {municipalityName ? `${municipalityName} · ` : ''}{deadlineLabel}
-                </span>
-            </div>
+            <ViewLink href={homeHref} className="truncate text-[15px] text-stone-600 hover:underline">
+                {municipalityName ? `${municipalityName} · ` : ''}<span className={cn(deadlineActive && "font-semibold text-[#7c2d12]")}>{deadlineLabel}</span>
+            </ViewLink>
             <nav aria-label="Η διαβούλευση" className="ml-auto flex shrink-0 items-center gap-5">
                 {planHref && <ViewLink href={planHref} className={linkClass}>Το σχέδιο σε 2 λεπτά</ViewLink>}
                 <ViewLink href={commentsHref} className={linkClass}>

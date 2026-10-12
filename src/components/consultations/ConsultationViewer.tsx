@@ -514,9 +514,9 @@ export default function ConsultationViewer({
     const bar = (
         <ConsultationBar
             className="hidden lg:flex"
-            title={title}
             municipalityName={municipalityName}
             deadlineLabel={deadlineLabel}
+            deadlineActive={active}
             homeHref={href('home')}
             planHref={planHref}
             commentsHref={href('comments')}
