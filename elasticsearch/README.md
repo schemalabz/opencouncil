@@ -120,39 +120,43 @@ We use Elastic Cloud's serverless project for our Elasticsearch instance.
 
 ### 2. Configure Inference Endpoints
 
-Before creating our index, we need to set up the inference endpoints for semantic search. Elasticsearch automatically creates a preconfigured `.multilingual-e5-small-elasticsearch` endpoint that can be used with the `semantic_text` field type. However, this endpoint comes with `adaptive_allocations` preconfigured with a maximum of 32 allocations, which can lead to unexpected costs during scaling when using the connector.
+The `semantic_text` fields in `schema.json` use `.jina-embeddings-v5-text-small`. This is a preconfigured endpoint of the
+Elastic Inference Service (EIS). Elastic runs the model outside the project and bills per million input
+tokens. The endpoint uses no ML VCUs, so it has no hourly cost.
 
-You can verify the existing inference endpoints using:
-
-```json
-GET _inference/
-```
-
-While Elasticsearch provides a default `.multilingual-e5-small-elasticsearch` endpoint, we create our own custom endpoint to have better control over resource allocation and costs. If you need to make changes to our custom endpoint, you must first delete it using:
+You can list the endpoints of the project with:
 
 ```json
-DELETE /_inference/text_embedding/opencouncil-multilingual-e5-small-elasticsearch?force=true
+GET _inference/_all
 ```
 
-Then create our custom inference endpoint with controlled allocation settings:
+Do not use an endpoint with `"service": "elasticsearch"` in the mapping. Such an endpoint deploys the model
+on ML VCUs inside the project. A started allocation bills 4 VCUs per hour, and the allocation scales to zero
+only after 24 hours without a request. A public site never gives it 24 quiet hours. The index used
+`opencouncil-multilingual-e5-small-elasticsearch` until October 2026. That one allocation was 60% of the
+Elastic bill.
+
+The inference endpoint of a `semantic_text` field cannot change on an existing index. A change of model is a
+rebuild. See [Deploying a Schema Change](#deploying-a-schema-change). The app reads the endpoint off the live
+index and picks the matching score thresholds (`src/lib/search/profile.ts`), so from this version on the deploy
+and the alias swap can happen in either order. The first swap away from e5 is the exception: an app built before this
+version carries the e5 thresholds as constants, so deploy the app before that swap, or semantic matches go
+empty until the deploy lands. A new model needs a new entry in the profile table, measured before the swap.
+
+#### Removing the in-project model
+
+After the alias swap, the e5 endpoint still holds its ML allocation and bills until it is deleted. Delete
+the old index first (the endpoint refuses to go while a mapping references it), then the endpoint. Wait at
+least five minutes after the swap: the app searches the concrete index it last resolved behind the alias
+and re-reads the alias every five minutes. An earlier deletion is not an outage, since a request that hits
+the deleted index re-reads the alias and runs again, but it costs that request a round trip.
 
 ```json
-PUT _inference/text_embedding/opencouncil-multilingual-e5-small-elasticsearch
-{
-  "service": "elasticsearch",
-  "service_settings": {
-    "num_threads": 1,
-    "model_id": ".multilingual-e5-small_linux-x86_64",
-    "adaptive_allocations": {
-      "enabled": true,
-      "min_number_of_allocations": 0,
-      "max_number_of_allocations": 1
-    }
-  }
-}
+DELETE /subjects-2026-08
+DELETE /_inference/text_embedding/opencouncil-multilingual-e5-small-elasticsearch
 ```
 
-This custom endpoint will be used in our index mapping to ensure predictable resource allocation and cost management.
+Confirm with `GET _ml/trained_models/_stats` that no deployment keeps an allocation.
 
 ### 3. Schema Configuration
 
@@ -355,8 +359,9 @@ index creation.
 
 **Every schema change therefore deploys as a rebuild**: bump the versioned index name in `schema.json`
 and follow the rebuild procedure above. A full rebuild of the corpus takes minutes, search stays
-available throughout (the alias serves the old index until the swap), and re-writing unchanged text is
-absorbed by the inference cache. There is no cheaper deploy path worth maintaining.
+available throughout (the alias serves the old index until the swap), and a full re-embedding of the
+corpus costs under a dollar on the Elastic Inference Service. There is no cheaper deploy path worth
+maintaining.
 
 #### Verify (after the bootstrap, before the alias swap)
 
@@ -376,16 +381,29 @@ usual results.
 
 `_cat/indices` reports `docs.count` including nested documents. Use `_count` for the number of subjects.
 
+#### Choosing a model
+
+Measure a candidate model before a rebuild, on a copy of the index embedded with it, with the same cases:
+
+```bash
+ELASTICSEARCH_INDEX=<copy> npx tsx scripts/search-eval.ts --bands        # the cutoff window
+ELASTICSEARCH_INDEX=<copy> npx tsx scripts/search-eval.ts --min-score <x> # the suite at a cutoff
+ELASTICSEARCH_INDEX=<copy> npx tsx scripts/search-eval.ts --related <id>  # the neighbours of a subject
+```
+
+Compare the models on the tolerance of the cutoff (the range of cutoffs that costs at most one more miss, as
+a share of the band), on which typos and paraphrases clear the cutoff, on the neighbours of ten specific
+titles, and on the `took` of a semantic query. The October 2026 comparison of `.jina-embeddings-v3`,
+`.jina-embeddings-v5-text-small` and `.jina-embeddings-v5-text-nano` is in the docblock of `PROFILES` in
+`src/lib/search/profile.ts`.
+
 #### Measuring inference
 
-When sizing or verifying a re-index, measure real embedding work, not cache hits:
-
-- `inference_count` from `GET _ml/trained_models/<inference_id>/_stats` **includes cache hits**. Compute
-  Δ`inference_count` − Δ`cache_hits`.
-- The cache is per-allocation and resets when the allocation recycles, so a repeat write of unchanged
-  text that looks free in a measurement still costs inference in a real migration.
-- Record `node.start_time` on both sides of a measurement and discard the delta if it changed — the
-  counters are scoped to the current allocation and restart at zero.
+The Elastic Inference Service bills per million input tokens. The usage page of the Elastic Cloud console
+reports the tokens under "Elastic Inference Service". A full rebuild of the corpus (14k subjects, name
+and description) is an estimated 1.5 to 2 million tokens, from the character count of the fields at about 2
+to 3 characters per token; read the actual figure off the usage page after a rebuild. The
+`_ml/trained_models/_stats` counters do not apply: no model runs inside the project.
 
 ### Deployment and Sync Operations
 
@@ -973,7 +991,7 @@ A: PGSync automatically detects changes to related tables (Utterance, SpeakerSeg
 A: Yes, you can use the nested query on `speaker_contributions` to find the contributions within a subject that matched semantically. The search implementation supports both approaches.
 
 **Q: How do I optimize semantic search performance?**  
-A: Use dedicated inference endpoints for ingestion and search, and configure appropriate chunking settings for your text. The current implementation uses the `opencouncil-multilingual-e5-small-elasticsearch` model.
+A: Use dedicated inference endpoints for ingestion and search, and configure appropriate chunking settings for your text. The current implementation uses the `.jina-embeddings-v5-text-small` endpoint of the Elastic Inference Service.
 
 **Q: How does PGSync know when data changes?**  
 A: PGSync uses PostgreSQL's logical decoding feature (Write-Ahead Log - WAL) to capture all data changes in real-time. It creates triggers on your tables and listens to the replication stream.

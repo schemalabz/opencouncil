@@ -631,16 +631,16 @@ describe('buildSearchQuery semantic fallback (dis_max)', () => {
         const params = script.params as Record<string, number>;
         // A raw similarity, not a normalized one: minmax maps the best hit of
         // every query to 1.0, so a cutoff on it could never empty the results.
-        // 0.934 sits mid-way between the measured off-topic ceiling (0.9319, a
-        // keyboard mash) and the measured paraphrase floor ([0.936, 0.940)) —
-        // see DEFAULT_SEMANTIC_MIN_SCORE.
-        expect(params.cutoff).toBe(0.934);
+        // 0.78 admits no junk query and loses one paraphrase on the measured
+        // bands of jina-embeddings-v5-text-small — see DEFAULT_SCORE_PROFILE
+        // in profile.ts.
+        expect(params.cutoff).toBe(0.78);
         // base sits inside the flattened description band (~24-30, where weak
         // stem-coincidence matches like bar licenses matching "ζώα χωρίς
         // ιδιοκτήτη" via ζω/ιδιοκτητ land) and the mapped ceiling (~34) stays
         // below the flattened name band (~58+) — see SEMANTIC_MAPPED_BASE.
         expect(params.base).toBe(26);
-        expect(params.scale).toBe(320);
+        expect(params.scale).toBe(66);
         expect(clause.boost_mode).toBe('replace');
         // min_score sees the mapped score: raw below the cutoff maps below
         // base and is dropped, keeping zero results for off-topic queries.
