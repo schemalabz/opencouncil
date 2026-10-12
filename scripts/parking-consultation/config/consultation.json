@@ -1,6 +1,11 @@
 {
-  "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. spotAreaM2 is calibrated so the estimated totals match Table 4.4 of the report (1910 / 491 / 519). contactEmail and the source URLs are placeholders until the municipality confirms them; the generator warns while they contain REPLACE.",
+  "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. reportTotals are the report's own totals, printed next to the drawing's counts. spotAreaM2 estimates a unit's spots only when the drawing writes no count next to it. The report and the drawings are on Spaces until the municipality publishes them. contactEmail is a placeholder until the municipality confirms it; the generator warns while it contains REPLACE.",
   "publicDir": "consultations/papagou-ses",
+  "reportTotals": {"residents": 1832, "paid": 550, "motorcycles": 516},
+  "specialSpots": [
+    {"address": "ΒΟΥΤΣΙΝΑ 76", "count": 1, "note": "Για τη σχολική εγκατάσταση."},
+    {"label": "TAXI", "count": 3, "note": "Θέσεις ΤΑΧΙ."}
+  ],
   "spotAreaM2": {
     "residents": 18.7,
     "paid": 14.8,
@@ -12,19 +17,24 @@
   "ccEmails": [],
   "sources": [
     {
-      "title": "Τεχνική Έκθεση – Τελικό Σχέδιο Ελεγχόμενης Στάθμευσης (ΙΡΙΣ ΟΕ, Σεπτέμβριος 2026)",
-      "url": "https://www.dpapxol.gov.gr/REPLACE",
-      "description": "Το πλήρες κείμενο της μελέτης, όπως θα δημοσιευθεί από τον Δήμο."
+      "title": "Τεχνική Έκθεση – Τελικό Σχέδιο Ελεγχόμενης Στάθμευσης, έκδοση 2 (ΙΡΙΣ ΟΕ, Οκτώβριος 2026)",
+      "url": "https://townhalls-gr.fra1.digitaloceanspaces.com/consultations/papagou-ses/texniki-ekthesi-2026-10-v2.pdf",
+      "description": "Το πλήρες κείμενο της μελέτης."
     },
     {
       "title": "Σχέδιο Π1 – Ζώνες στάθμευσης κατοίκων",
-      "url": "https://www.dpapxol.gov.gr/REPLACE",
-      "description": "Το σχέδιο των τεσσάρων ζωνών κατοίκων."
+      "url": "https://townhalls-gr.fra1.digitaloceanspaces.com/consultations/papagou-ses/p1-zones-v2.pdf",
+      "description": "Το σχέδιο των δύο ζωνών κατοίκων."
     },
     {
       "title": "Σχέδιο Π2 – Οργάνωση Συστήματος Ελεγχόμενης Στάθμευσης",
-      "url": "https://www.dpapxol.gov.gr/REPLACE",
-      "description": "Το σχέδιο με τις θέσεις κατοίκων, επισκεπτών, δικύκλων, ΑΜΕΑ και φόρτισης ανά οδό."
+      "url": "https://townhalls-gr.fra1.digitaloceanspaces.com/consultations/papagou-ses/p2-ses-v2.pdf",
+      "description": "Το σχέδιο με τις θέσεις κατοίκων, επισκεπτών, δικύκλων, ΑΜΕΑ, φόρτισης και φαρμακείων ανά οδό."
+    },
+    {
+      "title": "Απόφαση 320/2026 Δημοτικής Επιτροπής – Θέσεις στάθμευσης φαρμακείων",
+      "url": "https://diavgeia.gov.gr/decision/view/%CE%A8%CE%A5%CE%A0%CE%95%CE%A9%CE%9E1-%CE%A6%CE%A1%CE%96",
+      "description": "Η απόφαση για τις θέσεις ολιγόλεπτης στάσης μπροστά στα φαρμακεία (ΑΔΑ ΨΥΠΕΩΞ1-ΦΡΖ)."
     }
   ],
   "defaultView": "map",
@@ -38,6 +48,7 @@
     "amea_shared",
     "amea_dedicated",
     "ev",
+    "pharmacies",
     "special"
   ],
   "geosets": {
@@ -105,16 +116,22 @@
       "legend": "Θέση φόρτισης",
       "color": "#D40000"
     },
+    "pharmacies": {
+      "id": "pharmacies",
+      "name": "Θέσεις φαρμακείων",
+      "legend": "Φαρμακεία",
+      "color": "#7C3AED"
+    },
     "special": {
       "id": "special",
       "name": "Ειδικές θέσεις",
       "color": "#6B6860"
     }
   },
-  "zoneDescription": "Με κάρτα κατοίκου Ζώνης {letter} παρκάρετε δωρεάν σε όλες τις θέσεις κατοίκων της ζώνης. Η κάρτα κοστίζει 10 € τον χρόνο, μία ανά κατοικία.",
+  "zoneDescription": "Με κάρτα κατοίκου Ζώνης {letter} παρκάρετε δωρεάν σε όλες τις θέσεις κατοίκων της ζώνης. Η κάρτα κοστίζει 10 € τον χρόνο, έως δύο ανά κατοικία.",
   "zoneNotes": {
-    "Α": "Στην Αναστάσεως παρκάρουν και οι κάτοικοι της Ζώνης Δ.",
-    "Δ": "Στην Αναστάσεως παρκάρουν και οι κάτοικοι της Ζώνης Α."
+    "Α": "Από την Υγείας και την Κύπρου έως τη Λ. Περικλέους.",
+    "Β": "Από τη Λ. Περικλέους έως την Αρκαδίου και την Ψαρών."
   },
   "addressLookup": {
     "zoneGeoSetId": "zones",
@@ -130,6 +147,7 @@
       "amea-shared",
       "amea-dedicated",
       "ev-spots",
+      "pharmacies",
       "motorcycles"
     ],
     "nearbyRadiusMeters": 400,
@@ -139,19 +157,20 @@
     {
       "id": "who-parks-where",
       "title": "Ποιος παρκάρει πού",
-      "body": "- **Θέσεις κατοίκων:** μόνο κάτοικοι με κάρτα, δωρεάν, όλο το 24ωρο.\n- **Θέσεις με πληρωμή:** επισκέπτες, το πολύ 3 ώρες.\n- **Θέσεις δικύκλων:** δωρεάν.\n- **Χωρίς στάθμευση:** δρόμοι πολύ στενοί, ιδιωτικοί ή με ειδικό καθεστώς.",
+      "body": "- **Θέσεις κατοίκων:** μόνο κάτοικοι με κάρτα, δωρεάν, όλο το 24ωρο.\n- **Θέσεις με πληρωμή:** επισκέπτες, το πολύ 3 ώρες.\n- **Θέσεις δικύκλων:** δωρεάν.\n- **Θέσεις φαρμακείων:** στάση έως 20 λεπτά για τους πελάτες τους.\n- **Χωρίς στάθμευση:** δρόμοι πολύ στενοί, ιδιωτικοί ή με ειδικό καθεστώς.",
       "explains": [
         "residents",
         "paid",
         "motorcycles",
+        "pharmacies",
         "excluded"
       ],
       "linkLabel": "Τι σημαίνει;"
     },
     {
       "id": "zones-card",
-      "title": "Τέσσερις ζώνες κατοίκων",
-      "body": "Η κάρτα κατοίκου ισχύει μόνο στη ζώνη του σπιτιού σας: Α, Β, Γ ή Δ. Στην Αναστάσεως ισχύει και για τη Ζώνη Α και για τη Ζώνη Δ.",
+      "title": "Δύο ζώνες κατοίκων",
+      "body": "Η κάρτα κατοίκου ισχύει μόνο στη ζώνη του σπιτιού σας. Ζώνη Α: από την Υγείας και την Κύπρου έως τη Λ. Περικλέους. Ζώνη Β: από τη Λ. Περικλέους έως την Αρκαδίου και την Ψαρών.",
       "commentOn": "zones",
       "commentLabel": "Σχολιάστε τις ζώνες",
       "explains": [],
@@ -167,7 +186,7 @@
     {
       "id": "resident-card",
       "title": "Κάρτα κατοίκου",
-      "body": "10 € τον χρόνο, μία ανά κατοικία, για ένα συγκεκριμένο αυτοκίνητο, αν το σπίτι έχει έως μία ιδιωτική θέση στάθμευσης. Χρειάζεστε αίτηση, μισθωτήριο ή τίτλο ιδιοκτησίας και την άδεια κυκλοφορίας.",
+      "body": "10 € τον χρόνο η κάθε κάρτα, έως δύο ανά κατοικία, για συγκεκριμένα αυτοκίνητα που δεν έχουν ιδιωτική θέση στάθμευσης. Χρειάζεστε αίτηση, μισθωτήριο ή τίτλο ιδιοκτησίας, την άδεια κυκλοφορίας και υπεύθυνη δήλωση για τα οχήματα και τις ιδιωτικές θέσεις του σπιτιού.",
       "commentOn": "resident-cards",
       "commentLabel": "Σχολιάστε την κάρτα",
       "linkLabel": "Πώς βγάζω κάρτα κατοίκου",
@@ -177,14 +196,15 @@
     },
     {
       "id": "amea-ev-deliveries",
-      "title": "ΑΜΕΑ, φόρτιση, τροφοδοσία",
-      "body": "27 θέσεις ΑΜΕΑ, δωρεάν με την ευρωπαϊκή κάρτα ΑΜΕΑ. Στις θέσεις φόρτισης παρκάρετε μόνο όσο φορτίζετε. Η τροφοδοσία των καταστημάτων γίνεται 6:00–10:00, έως 15 λεπτά, δωρεάν.",
+      "title": "ΑΜΕΑ, φόρτιση, φαρμακεία, τροφοδοσία",
+      "body": "30 θέσεις ΑΜΕΑ, δωρεάν με την ευρωπαϊκή κάρτα ΑΜΕΑ. Στις θέσεις φόρτισης παρκάρετε μόνο όσο φορτίζετε. Μπροστά σε 12 φαρμακεία, στάση έως 20 λεπτά για τους πελάτες τους, 08:00–20:30. Η τροφοδοσία των καταστημάτων γίνεται 6:00–10:00, έως 15 λεπτά, δωρεάν.",
       "commentOn": "amea-parking",
       "commentLabel": "Σχολιάστε",
       "explains": [
         "amea-shared",
         "amea-dedicated",
         "ev-spots",
+        "pharmacies",
         "special"
       ],
       "linkLabel": "Τι σημαίνει;"

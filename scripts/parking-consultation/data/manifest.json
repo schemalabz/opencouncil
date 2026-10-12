@@ -1,199 +1,127 @@
 {
- "excl-aristofanous-agiou-ioanni-theologou-sarantaporou-r": {
+ "excl-aristofanous-agiou-ioanni-theologou-sarantaporou-l": {
   "category": "excluded",
   "street": "Αριστοφάνους",
   "centroid": [
-   481421.8,
-   4205666.0
+   481423.6,
+   4205679.8
   ],
-  "lengthM": 113.2
+  "lengthM": 112.5
  },
- "excl-aristofanous-xanthippou-agiou-ioanni-theologou-r": {
+ "excl-aristofanous-xanthippou-agiou-ioanni-theologou-l": {
   "category": "excluded",
   "street": "Αριστοφάνους",
   "centroid": [
-   481346.4,
-   4205586.3
+   481348.2,
+   4205600.3
   ],
-  "lengthM": 90.9
+  "lengthM": 90.8
  },
  "excl-aristofanous-anastaseos-xanthippou-r": {
   "category": "excluded",
   "street": "Αριστοφάνους",
   "centroid": [
-   481280.8,
-   4205508.5
+   481282.3,
+   4205522.5
   ],
-  "lengthM": 89.2
+  "lengthM": 94.6
  },
- "excl-aspasias-ygeias-kyprou-r": {
+ "excl-aspasias-ygeias-kyprou-l": {
   "category": "excluded",
   "street": "Ασπασίας",
   "centroid": [
-   481196.0,
-   4205063.3
+   481196.7,
+   4205077.6
   ],
-  "lengthM": 77.0
+  "lengthM": 87.5
  },
  "excl-aidiniou-nikomideias-efesou-r": {
   "category": "excluded",
   "street": "Αϊδινίου",
   "centroid": [
-   481376.1,
-   4205088.1
+   481373.7,
+   4205088.0
   ],
-  "lengthM": 100.8
+  "lengthM": 111.7
  },
  "excl-efesou-aidiniou-artemidos-r": {
   "category": "excluded",
   "street": "Εφέσου",
   "centroid": [
-   481442.8,
-   4205118.4
+   481443.4,
+   4205132.1
   ],
-  "lengthM": 51.3
- },
- "excl-efesou-magnisias-kydonion-r": {
-  "category": "excluded",
-  "street": "Εφέσου",
-  "centroid": [
-   481504.8,
-   4205063.6
-  ],
-  "lengthM": 29.2
- },
- "excl-kydonion-nikomideias-efesou-l": {
-  "category": "excluded",
-  "street": "Κυδωνίων",
-  "centroid": [
-   481520.9,
-   4205050.9
-  ],
-  "lengthM": 7.8
- },
- "excl-magnisias-nikomideias-efesou-l": {
-  "category": "excluded",
-  "street": "Μαγνησίας",
-  "centroid": [
-   481486.4,
-   4205081.0
-  ],
-  "lengthM": 6.4
+  "lengthM": 51.2
  },
  "excl-magnisias-nikomideias-efesou-r": {
   "category": "excluded",
   "street": "Μαγνησίας",
   "centroid": [
-   481460.5,
-   4205019.8
+   481463.5,
+   4205036.4
   ],
-  "lengthM": 122.2
- },
- "excl-magnisias-kyprou-nikomideias-l": {
-  "category": "excluded",
-  "street": "Μαγνησίας",
-  "centroid": [
-   481403.6,
-   4204992.0
-  ],
-  "lengthM": 7.6
+  "lengthM": 135.1
  },
  "excl-mesogeion-kyprou-anastaseos-r": {
   "category": "excluded",
   "street": "Μεσογείων",
   "centroid": [
-   481023.4,
-   4205507.3
+   481024.7,
+   4205521.7
   ],
-  "lengthM": 229.4
+  "lengthM": 227.6
  },
  "excl-nikomideias-fokaias-smyrnis-r": {
   "category": "excluded",
   "street": "Νικομήδειας",
   "centroid": [
-   481473.1,
-   4204894.5
+   481473.3,
+   4204908.1
   ],
-  "lengthM": 90.2
- },
- "excl-nikomideias-magnisias-kydonion-r": {
-  "category": "excluded",
-  "street": "Νικομήδειας",
-  "centroid": [
-   481428.6,
-   4204954.8
-  ],
-  "lengthM": 53.7
- },
- "excl-nikomideias-aidiniou-artemidos-r": {
-  "category": "excluded",
-  "street": "Νικομήδειας",
-  "centroid": [
-   481363.4,
-   4205030.2
-  ],
-  "lengthM": 61.1
- },
- "excl-smyrnis-nikomideias-efesou-l": {
-  "category": "excluded",
-  "street": "Σμύρνης",
-  "centroid": [
-   481588.4,
-   4204993.4
-  ],
-  "lengthM": 9.4
- },
- "excl-fokaias-nikomideias-efesou-l": {
-  "category": "excluded",
-  "street": "Φώκαιας",
-  "centroid": [
-   481557.2,
-   4205020.2
-  ],
-  "lengthM": 9.5
+  "lengthM": 97.0
  },
  "excl-fokaias-nikomideias-efesou-r": {
   "category": "excluded",
   "street": "Φώκαιας",
   "centroid": [
-   481528.6,
-   4204957.8
+   481554.6,
+   4205003.0
   ],
-  "lengthM": 150.9
+  "lengthM": 151.5
  },
- "moto-agiou-ioanni-theologou-thoukydidou-aristofanous-r": {
+ "moto-agiou-ioanni-theologou-thoukydidou-aristofanous-l": {
   "category": "motorcycles",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481337.9,
-   4205656.7
+   481339.6,
+   4205670.6
   ],
   "lengthM": 9.5
  },
- "moto-aetideon-mesogeion-metonos-r": {
+ "moto-aetideon-mesogeion-metonos-l": {
   "category": "motorcycles",
   "street": "Αετιδέων",
   "centroid": [
-   481641.7,
-   4205855.0
+   481643.9,
+   4205868.3
   ],
-  "lengthM": 6.1
+  "lengthM": 6.2
  },
- "moto-aristotelous-menippou-psaron-r": {
+ "moto-aristotelous-menippou-psaron-l": {
   "category": "motorcycles",
   "street": "Αριστοτέλους",
   "centroid": [
-   482751.8,
-   4206218.0
+   482754.7,
+   4206229.0
   ],
-  "lengthM": 10.1
+  "lengthM": 10.0
  },
- "moto-aristotelous-mesogeion-chrysanthemon-r": {
+ "moto-aristotelous-mesogeion-chrysanthemon-l": {
   "category": "motorcycles",
   "street": "Αριστοτέλους",
   "centroid": [
-   482648.4,
-   4206417.7
+   482651.6,
+   4206428.9
   ],
   "lengthM": 12.5
  },
@@ -201,8 +129,8 @@
   "category": "motorcycles",
   "street": "Αρκαδίου",
   "centroid": [
-   482870.0,
-   4206278.4
+   482873.0,
+   4206289.3
   ],
   "lengthM": 8.9
  },
@@ -210,26 +138,26 @@
   "category": "motorcycles",
   "street": "Αρκαδίου",
   "centroid": [
-   482923.4,
-   4206174.8
+   482926.1,
+   4206185.5
   ],
-  "lengthM": 4.7
+  "lengthM": 4.6
  },
- "moto-artemidos-kyprou-nikomideias-r": {
+ "moto-artemidos-kyprou-nikomideias-l": {
   "category": "motorcycles",
   "street": "Αρτέμιδος",
   "centroid": [
-   481376.6,
-   4205002.0
+   481377.0,
+   4205015.8
   ],
-  "lengthM": 9.6
+  "lengthM": 9.5
  },
  "moto-artemidos-nikomideias-efesou-r": {
   "category": "motorcycles",
   "street": "Αρτέμιδος",
   "centroid": [
-   481454.4,
-   4205090.2
+   481455.0,
+   4205104.0
   ],
   "lengthM": 8.0
  },
@@ -237,8 +165,8 @@
   "category": "motorcycles",
   "street": "Αρτέμιδος",
   "centroid": [
-   481535.6,
-   4205188.9
+   481536.5,
+   4205202.5
   ],
   "lengthM": 5.1
  },
@@ -246,17 +174,17 @@
   "category": "motorcycles",
   "street": "Αρτέμιδος",
   "centroid": [
-   481579.6,
-   4205238.6
+   481580.4,
+   4205252.1
   ],
-  "lengthM": 7.1
+  "lengthM": 7.2
  },
  "moto-artemidos-agiou-ioanni-theologou-sarantaporou-r": {
   "category": "motorcycles",
   "street": "Αρτέμιδος",
   "centroid": [
-   481726.7,
-   4205403.8
+   481727.8,
+   4205417.2
   ],
   "lengthM": 7.7
  },
@@ -264,8 +192,8 @@
   "category": "motorcycles",
   "street": "Ασπασίας",
   "centroid": [
-   481740.4,
-   4205631.9
+   481742.1,
+   4205645.0
   ],
   "lengthM": 15.7
  },
@@ -273,170 +201,170 @@
   "category": "motorcycles",
   "street": "Ασπασίας",
   "centroid": [
-   482022.1,
-   4205898.8
+   482024.3,
+   4205911.4
   ],
-  "lengthM": 8.5
+  "lengthM": 8.6
  },
- "moto-aidiniou-nikomideias-efesou-l": {
-  "category": "motorcycles",
-  "street": "Αϊδινίου",
-  "centroid": [
-   481401.9,
-   4205149.8
-  ],
-  "lengthM": 3.2
- },
- "moto-ventouri-mesogeion-agamemnonos-l": {
+ "moto-ventouri-aspasias-elevtheriou-venizelou-l": {
   "category": "motorcycles",
   "street": "Βεντούρη",
   "centroid": [
-   481780.0,
-   4206011.0
+   481973.8,
+   4205789.7
   ],
-  "lengthM": 3.4
+  "lengthM": 5.0
  },
- "moto-voutsina-ventouri-faneromenis-l": {
+ "moto-voutsina-perikleous-ventouri-l": {
   "category": "motorcycles",
   "street": "Βουτσινά",
   "centroid": [
-   481991.0,
-   4205987.5
-  ],
-  "lengthM": 9.2
- },
- "moto-voutsina-perikleous-ventouri-r": {
-  "category": "motorcycles",
-  "street": "Βουτσινά",
-  "centroid": [
-   481831.9,
-   4205822.8
+   481834.0,
+   4205835.6
   ],
   "lengthM": 21.8
  },
- "moto-voutsina-aetideon-perikleous-r": {
+ "moto-voutsina-aetideon-perikleous-l": {
   "category": "motorcycles",
   "street": "Βουτσινά",
   "centroid": [
-   481764.2,
-   4205758.1
+   481766.2,
+   4205771.1
   ],
   "lengthM": 8.3
  },
- "moto-voutsina-agiou-ioanni-theologou-sarantaporou-r": {
+ "moto-voutsina-sarantaporou-ymittou-l": {
   "category": "motorcycles",
   "street": "Βουτσινά",
   "centroid": [
-   481538.8,
-   4205539.4
+   481599.6,
+   4205608.8
   ],
-  "lengthM": 16.5
+  "lengthM": 17.1
  },
- "moto-doridos-chiou-menippou-r": {
+ "moto-voutsina-agiou-ioanni-theologou-sarantaporou-l": {
+  "category": "motorcycles",
+  "street": "Βουτσινά",
+  "centroid": [
+   481540.4,
+   4205553.0
+  ],
+  "lengthM": 16.4
+ },
+ "moto-doridos-chiou-menippou-l": {
   "category": "motorcycles",
   "street": "Δωρίδος",
   "centroid": [
-   482433.3,
-   4206205.1
+   482436.1,
+   4206216.7
   ],
   "lengthM": 8.8
  },
- "moto-doridos-menippou-psaron-r": {
+ "moto-doridos-menippou-psaron-l": {
   "category": "motorcycles",
   "street": "Δωρίδος",
   "centroid": [
-   482473.3,
-   4206100.1
+   482476.0,
+   4206111.7
   ],
   "lengthM": 6.9
  },
- "moto-elevtheriou-venizelou-anastaseos-xanthippou-l": {
+ "moto-elevtheriou-venizelou-sarantaporou-ymittou-l": {
   "category": "motorcycles",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481536.5,
-   4205360.4
-  ],
-  "lengthM": 3.1
- },
- "moto-elevtheriou-venizelou-sarantaporou-ymittou-r": {
-  "category": "motorcycles",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481750.3,
-   4205550.6
+   481751.8,
+   4205563.7
   ],
   "lengthM": 7.1
  },
- "moto-elevtheriou-venizelou-ymittou-aetideon-r": {
+ "moto-elevtheriou-venizelou-ymittou-aetideon-l": {
   "category": "motorcycles",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481836.1,
-   4205633.3
+   481837.8,
+   4205646.3
   ],
   "lengthM": 8.7
  },
- "moto-elevtheriou-venizelou-perikleous-ventouri-l": {
+ "moto-elevtheriou-venizelou-perikleous-ventouri-r": {
   "category": "motorcycles",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481971.8,
-   4205777.1
+   481929.4,
+   4205729.6
   ],
-  "lengthM": 3.1
+  "lengthM": 6.2
+ },
+ "moto-efesou-elevtheriou-venizelou-aidiniou-r": {
+  "category": "motorcycles",
+  "street": "Εφέσου",
+  "centroid": [
+   481402.6,
+   4205163.5
+  ],
+  "lengthM": 5.6
  },
  "moto-thoukydidou-anastaseos-xanthippou-r": {
   "category": "motorcycles",
   "street": "Θουκυδίδου",
   "centroid": [
-   481245.6,
-   4205569.8
+   481247.2,
+   4205583.9
   ],
-  "lengthM": 9.7
+  "lengthM": 9.6
  },
  "moto-korytsas-artemidos-kydonion-r": {
   "category": "motorcycles",
   "street": "Κορυτσάς",
   "centroid": [
-   481523.4,
-   4205123.1
+   481524.1,
+   4205136.7
   ],
   "lengthM": 5.0
+ },
+ "moto-korytsas-kydonion-smyrnis-r": {
+  "category": "motorcycles",
+  "street": "Κορυτσάς",
+  "centroid": [
+   481628.5,
+   4205046.9
+  ],
+  "lengthM": 8.2
  },
  "moto-kydonion-kyprou-nikomideias-r": {
   "category": "motorcycles",
   "street": "Κυδωνίων",
   "centroid": [
-   481433.3,
-   4204924.0
+   481433.5,
+   4204937.8
   ],
-  "lengthM": 6.6
+  "lengthM": 6.5
  },
  "moto-kyprou-mesogeion-tsigante-r": {
   "category": "motorcycles",
   "street": "Κύπρου",
   "centroid": [
-   480941.6,
-   4205395.0
+   480942.9,
+   4205409.7
   ],
   "lengthM": 17.0
  },
- "moto-kyprou-kydonion-end-r": {
+ "moto-kyprou-kydonion-smyrnis-r": {
   "category": "motorcycles",
   "street": "Κύπρου",
   "centroid": [
-   481420.2,
-   4204856.0
+   481420.3,
+   4204869.8
   ],
-  "lengthM": 17.0
+  "lengthM": 17.1
  },
  "moto-kyprou-tsigante-tsiaka-l": {
   "category": "motorcycles",
   "street": "Κύπρου",
   "centroid": [
-   481128.7,
-   4205220.2
+   481129.6,
+   4205234.5
   ],
   "lengthM": 12.5
  },
@@ -444,8 +372,8 @@
   "category": "motorcycles",
   "street": "Λοχαγού Δεδούση",
   "centroid": [
-   482809.4,
-   4206249.9
+   482812.3,
+   4206260.9
   ],
   "lengthM": 4.9
  },
@@ -453,8 +381,8 @@
   "category": "motorcycles",
   "street": "Μενίππου",
   "centroid": [
-   482498.9,
-   4206122.8
+   482501.5,
+   4206134.4
   ],
   "lengthM": 9.6
  },
@@ -462,98 +390,98 @@
   "category": "motorcycles",
   "street": "Μενίππου",
   "centroid": [
-   482773.7,
-   4206243.9
+   482776.6,
+   4206254.9
   ],
   "lengthM": 13.7
+ },
+ "moto-mesogeion-ymittou-aetideon-r": {
+  "category": "motorcycles",
+  "street": "Μεσογείων",
+  "centroid": [
+   481553.0,
+   4205813.3
+  ],
+  "lengthM": 6.5
  },
  "moto-mesogeion-ventouri-faneromenis-r": {
   "category": "motorcycles",
   "street": "Μεσογείων",
   "centroid": [
-   481815.7,
-   4206044.5
+   481822.0,
+   4206061.0
   ],
-  "lengthM": 44.1
+  "lengthM": 35.5
  },
  "moto-miltiadou-ikarias-agiou-gerasimou-r": {
   "category": "motorcycles",
   "street": "Μιλτιάδου",
   "centroid": [
-   482213.4,
-   4205964.3
+   482215.7,
+   4205976.5
   ],
   "lengthM": 8.0
  },
- "moto-miltiadou-mesogeion-agamemnonos-r": {
+ "moto-miltiadou-mesogeion-agamemnonos-l": {
   "category": "motorcycles",
   "street": "Μιλτιάδου",
   "centroid": [
-   482122.0,
-   4206193.2
+   482124.9,
+   4206205.5
   ],
   "lengthM": 17.0
  },
- "moto-nik-vitali-menippou-psaron-r": {
+ "moto-nik-vitali-menippou-psaron-l": {
   "category": "motorcycles",
   "street": "Νικ. Βιτάλη",
   "centroid": [
-   482408.6,
-   4206072.7
+   482411.1,
+   4206084.4
   ],
-  "lengthM": 7.1
+  "lengthM": 7.0
  },
  "moto-xanthippou-aspasias-elevtheriou-venizelou-r": {
   "category": "motorcycles",
   "street": "Ξανθίππου",
   "centroid": [
-   481508.5,
-   4205383.8
+   481522.4,
+   4205386.7
   ],
-  "lengthM": 5.0
+  "lengthM": 9.1
  },
  "moto-xanthippou-metonos-voutsina-r": {
   "category": "motorcycles",
   "street": "Ξανθίππου",
   "centroid": [
-   481393.6,
-   4205481.0
+   481395.1,
+   4205494.8
   ],
-  "lengthM": 12.7
+  "lengthM": 12.8
  },
  "moto-xanthippou-mesogeion-thoukydidou-r": {
   "category": "motorcycles",
   "street": "Ξανθίππου",
   "centroid": [
-   481216.7,
-   4205630.1
+   481218.5,
+   4205644.2
   ],
   "lengthM": 5.8
  },
- "moto-panagi-tsaldari-menippou-psaron-r": {
+ "moto-panagi-tsaldari-menippou-psaron-l": {
   "category": "motorcycles",
   "street": "Παναγή Τσαλδάρη",
   "centroid": [
-   482645.7,
-   4206171.9
+   482648.4,
+   4206183.2
   ],
   "lengthM": 6.9
- },
- "moto-perikleous-elevtheriou-venizelou-katsibiri-l": {
-  "category": "motorcycles",
-  "street": "Περικλέους",
-  "centroid": [
-   481927.6,
-   4205716.8
-  ],
-  "lengthM": 3.0
  },
  "moto-pythagora-mesogeion-chiou-r": {
   "category": "motorcycles",
   "street": "Πυθαγόρα",
   "centroid": [
-   482177.6,
-   4206241.8
+   482180.6,
+   4206254.0
   ],
   "lengthM": 8.1
  },
@@ -561,8 +489,8 @@
   "category": "motorcycles",
   "street": "Πυθαγόρα",
   "centroid": [
-   482229.7,
-   4206124.3
+   482232.4,
+   4206136.4
   ],
   "lengthM": 17.1
  },
@@ -570,44 +498,26 @@
   "category": "motorcycles",
   "street": "Πυθαγόρα",
   "centroid": [
-   482279.8,
-   4206000.5
+   482282.3,
+   4206012.5
   ],
-  "lengthM": 4.2
+  "lengthM": 4.1
  },
  "moto-sarantaporou-mesogeion-aristofanous-r": {
   "category": "motorcycles",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481450.3,
-   4205727.2
+   481452.2,
+   4205740.9
   ],
   "lengthM": 18.3
  },
- "moto-sarantaporou-voutsina-aspasias-l": {
-  "category": "motorcycles",
-  "street": "Σαρανταπόρου",
-  "centroid": [
-   481597.9,
-   4205595.4
-  ],
-  "lengthM": 3.4
- },
- "moto-smyrnis-efesou-korytsas-l": {
-  "category": "motorcycles",
-  "street": "Σμύρνης",
-  "centroid": [
-   481628.0,
-   4205033.5
-  ],
-  "lengthM": 3.1
- },
- "moto-sokratous-ikarias-psaron-r": {
+ "moto-sokratous-ikarias-psaron-l": {
   "category": "motorcycles",
   "street": "Σωκράτους",
   "centroid": [
-   482347.4,
-   4206031.6
+   482349.9,
+   4206043.5
   ],
   "lengthM": 7.9
  },
@@ -615,44 +525,44 @@
   "category": "motorcycles",
   "street": "Σωκράτους",
   "centroid": [
-   482253.0,
-   4206262.2
+   482255.9,
+   4206274.3
   ],
-  "lengthM": 14.4
+  "lengthM": 14.5
  },
  "moto-ygeias-mesogeion-aspasias-r": {
   "category": "motorcycles",
   "street": "Υγείας",
   "centroid": [
-   481079.6,
-   4205122.5
+   481080.3,
+   4205136.9
   ],
   "lengthM": 17.2
- },
- "moto-ymittou-mesogeion-metonos-l": {
-  "category": "motorcycles",
-  "street": "Υμηττού",
-  "centroid": [
-   481550.9,
-   4205799.8
-  ],
-  "lengthM": 8.3
  },
  "moto-ymittou-mesogeion-metonos-r": {
   "category": "motorcycles",
   "street": "Υμηττού",
   "centroid": [
-   481550.6,
-   4205775.0
+   481552.6,
+   4205788.5
   ],
-  "lengthM": 14.4
+  "lengthM": 14.3
+ },
+ "moto-faneromenis-voutsina-end-l": {
+  "category": "motorcycles",
+  "street": "Φανερωμένης",
+  "centroid": [
+   481993.4,
+   4206000.1
+  ],
+  "lengthM": 19.0
  },
  "moto-chiou-panagi-tsaldari-aristotelous-r": {
   "category": "motorcycles",
   "street": "Χίου",
   "centroid": [
-   482614.1,
-   4206288.4
+   482617.1,
+   4206299.7
   ],
   "lengthM": 12.6
  },
@@ -660,80 +570,80 @@
   "category": "motorcycles",
   "street": "Ψαρών",
   "centroid": [
-   482551.5,
-   4205945.2
+   482553.7,
+   4205956.7
   ],
   "lengthM": 6.5
  },
- "moto-psaron-themistokleous-pythagora-r": {
+ "moto-psaron-themistokleous-pythagora-l": {
   "category": "motorcycles",
   "street": "Ψαρών",
   "centroid": [
-   482315.7,
-   4205856.4
+   482317.9,
+   4205868.3
   ],
-  "lengthM": 5.1
+  "lengthM": 5.0
+ },
+ "paid-17is-noemvriou-mesogeion-levkados-l": {
+  "category": "paid",
+  "street": "17ης Νοεμβρίου",
+  "centroid": [
+   482481.9,
+   4206305.0
+  ],
+  "lengthM": 16.7
  },
  "paid-17is-noemvriou-mesogeion-levkados-r": {
   "category": "paid",
   "street": "17ης Νοεμβρίου",
   "centroid": [
-   482474.0,
-   4206295.9
+   482470.5,
+   4206308.6
   ],
-  "lengthM": 27.9
+  "lengthM": 5.6
  },
- "paid-agamemnonos-ventouri-faneromenis-l": {
-  "category": "paid",
-  "street": "Αγαμέμνονος",
-  "centroid": [
-   481934.7,
-   4206060.2
-  ],
-  "lengthM": 3.1
- },
- "paid-anastaseos-aristofanous-tsigante-r": {
+ "paid-anastaseos-metonos-voutsina-l": {
   "category": "paid",
   "street": "Αναστάσεως",
   "centroid": [
-   481261.8,
-   4205459.6
+   481363.6,
+   4205388.6
+  ],
+  "lengthM": 31.0
+ },
+ "paid-anastaseos-aristofanous-tsigante-l": {
+  "category": "paid",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481263.2,
+   4205473.6
   ],
   "lengthM": 18.7
  },
- "paid-anastaseos-thoukydidou-aristofanous-r": {
+ "paid-anastaseos-thoukydidou-aristofanous-l": {
   "category": "paid",
   "street": "Αναστάσεως",
   "centroid": [
-   481223.2,
-   4205491.5
+   481224.6,
+   4205505.7
   ],
   "lengthM": 50.1
- },
- "paid-aristofanous-agiou-ioanni-theologou-sarantaporou-l": {
-  "category": "paid",
-  "street": "Αριστοφάνους",
-  "centroid": [
-   481451.9,
-   4205719.1
-  ],
-  "lengthM": 3.2
  },
  "paid-arkadiou-mesogeion-chiou-r": {
   "category": "paid",
   "street": "Αρκαδίου",
   "centroid": [
-   482790.7,
-   4206435.0
+   482794.0,
+   4206446.0
   ],
-  "lengthM": 52.5
+  "lengthM": 52.7
  },
  "paid-aspasias-sarantaporou-end-l": {
   "category": "paid",
   "street": "Ασπασίας",
   "centroid": [
-   481674.9,
-   4205608.2
+   481679.1,
+   4205619.1
   ],
   "lengthM": 0.0
  },
@@ -741,161 +651,197 @@
   "category": "paid",
   "street": "Ασπασίας",
   "centroid": [
-   481736.0,
-   4205642.7
+   481736.2,
+   4205650.4
   ],
-  "lengthM": 45.6
+  "lengthM": 42.8
  },
- "paid-aspasias-ymittou-aetideon-r": {
+ "paid-aspasias-ventouri-faneromenis-l": {
   "category": "paid",
   "street": "Ασπασίας",
   "centroid": [
-   481733.3,
-   4205633.8
+   482022.5,
+   4205921.9
   ],
-  "lengthM": 44.1
+  "lengthM": 16.0
  },
- "paid-aspasias-ventouri-faneromenis-r": {
+ "paid-ventouri-voutsina-aspasias-l": {
   "category": "paid",
-  "street": "Ασπασίας",
+  "street": "Βεντούρη",
   "centroid": [
-   482025.3,
-   4205913.4
+   481911.9,
+   4205859.4
   ],
-  "lengthM": 33.4
+  "lengthM": 39.2
+ },
+ "paid-voutsina-faneromenis-miltiadou-r": {
+  "category": "paid",
+  "street": "Βουτσινά",
+  "centroid": [
+   482053.2,
+   4206026.7
+  ],
+  "lengthM": 32.0
  },
  "paid-voutsina-sarantaporou-ymittou-r": {
   "category": "paid",
   "street": "Βουτσινά",
   "centroid": [
-   481660.8,
-   4205625.0
+   481665.8,
+   4205632.6
   ],
-  "lengthM": 38.8
+  "lengthM": 47.1
  },
- "paid-elevtheriou-venizelou-ventouri-faneromenis-l": {
+ "paid-elevtheriou-venizelou-nikomideias-efesou-r": {
   "category": "paid",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   482090.1,
-   4205898.5
+   481380.9,
+   4205155.6
   ],
-  "lengthM": 2.2
- },
- "paid-thoukydidou-anastaseos-xanthippou-l": {
-  "category": "paid",
-  "street": "Θουκυδίδου",
-  "centroid": [
-   481252.3,
-   4205600.6
-  ],
-  "lengthM": 3.1
+  "lengthM": 24.9
  },
  "paid-kyprou-mesogeion-tsigante-r": {
   "category": "paid",
   "street": "Κύπρου",
   "centroid": [
-   481044.0,
-   4205297.8
+   481057.8,
+   4205290.5
   ],
-  "lengthM": 383.4
+  "lengthM": 193.7
+ },
+ "paid-kyprou-aspasias-ionias-l": {
+  "category": "paid",
+  "street": "Κύπρου",
+  "centroid": [
+   481360.7,
+   4204933.3
+  ],
+  "lengthM": 303.2
  },
  "paid-kyprou-aspasias-ionias-r": {
   "category": "paid",
   "street": "Κύπρου",
   "centroid": [
-   481344.7,
-   4204941.1
+   481302.5,
+   4205014.0
   ],
-  "lengthM": 290.3
+  "lengthM": 76.9
  },
- "paid-metonos-agiou-ioanni-theologou-sarantaporou-l": {
+ "paid-kyprou-mesogeion-tsigante-l": {
   "category": "paid",
-  "street": "Μέτωνος",
+  "street": "Κύπρου",
   "centroid": [
-   481513.0,
-   4205655.7
+   481032.5,
+   4205333.8
   ],
-  "lengthM": 3.0
+  "lengthM": 189.5
  },
- "paid-mesogeion-xanthippou-agiou-ioanni-theologou-r": {
+ "paid-menippou-sokratous-end-l": {
   "category": "paid",
-  "street": "Μεσογείων",
+  "street": "Μενίππου",
   "centroid": [
-   481239.1,
-   4205659.3
+   482353.6,
+   4206074.0
   ],
-  "lengthM": 43.9
+  "lengthM": 11.8
  },
- "paid-mesogeion-agiou-ioanni-theologou-sarantaporou-r": {
+ "paid-menippou-end-nik-vitali-l": {
   "category": "paid",
-  "street": "Μεσογείων",
+  "street": "Μενίππου",
   "centroid": [
-   481377.6,
-   4205718.5
+   482376.5,
+   4206083.5
   ],
-  "lengthM": 63.6
+  "lengthM": 26.0
  },
- "paid-mesogeion-sarantaporou-ymittou-r": {
+ "paid-menippou-lochagou-dedousi-arkadiou-r": {
   "category": "paid",
-  "street": "Μεσογείων",
+  "street": "Μενίππου",
   "centroid": [
-   481478.6,
-   4205762.1
+   482835.9,
+   4206284.4
   ],
-  "lengthM": 36.8
+  "lengthM": 32.5
  },
- "paid-mesogeion-ymittou-aetideon-r": {
-  "category": "paid",
-  "street": "Μεσογείων",
-  "centroid": [
-   481602.6,
-   4205847.4
-  ],
-  "lengthM": 81.7
- },
- "paid-mesogeion-aetideon-perikleous-r": {
+ "paid-mesogeion-xanthippou-agiou-ioanni-theologou-l": {
   "category": "paid",
   "street": "Μεσογείων",
   "centroid": [
-   481654.9,
-   4205896.1
+   481240.8,
+   4205673.4
+  ],
+  "lengthM": 43.7
+ },
+ "paid-mesogeion-agiou-ioanni-theologou-sarantaporou-l": {
+  "category": "paid",
+  "street": "Μεσογείων",
+  "centroid": [
+   481379.6,
+   4205732.3
+  ],
+  "lengthM": 63.5
+ },
+ "paid-mesogeion-sarantaporou-ymittou-l": {
+  "category": "paid",
+  "street": "Μεσογείων",
+  "centroid": [
+   481480.5,
+   4205775.7
+  ],
+  "lengthM": 37.1
+ },
+ "paid-mesogeion-ymittou-aetideon-l": {
+  "category": "paid",
+  "street": "Μεσογείων",
+  "centroid": [
+   481605.0,
+   4205860.9
+  ],
+  "lengthM": 82.3
+ },
+ "paid-mesogeion-aetideon-perikleous-l": {
+  "category": "paid",
+  "street": "Μεσογείων",
+  "centroid": [
+   481657.2,
+   4205909.4
   ],
   "lengthM": 35.7
  },
- "paid-mesogeion-faneromenis-miltiadou-r": {
+ "paid-mesogeion-faneromenis-miltiadou-l": {
   "category": "paid",
   "street": "Μεσογείων",
   "centroid": [
-   482007.6,
-   4206186.4
+   482010.4,
+   4206198.9
   ],
-  "lengthM": 163.0
+  "lengthM": 161.9
  },
- "paid-mesogeion-miltiadou-pythagora-r": {
+ "paid-mesogeion-miltiadou-pythagora-l": {
   "category": "paid",
   "street": "Μεσογείων",
   "centroid": [
-   482146.5,
-   4206248.5
+   482149.4,
+   4206260.8
   ],
   "lengthM": 48.7
  },
- "paid-mesogeion-nik-vitali-17is-noemvriou-r": {
+ "paid-mesogeion-nik-vitali-17is-noemvriou-l": {
   "category": "paid",
   "street": "Μεσογείων",
   "centroid": [
-   482337.7,
-   4206307.9
+   482341.1,
+   4206319.9
   ],
-  "lengthM": 166.4
+  "lengthM": 168.4
  },
- "paid-mesogeion-17is-noemvriou-aristotelous-r": {
+ "paid-mesogeion-17is-noemvriou-aristotelous-l": {
   "category": "paid",
   "street": "Μεσογείων",
   "centroid": [
-   482550.0,
-   4206394.9
+   482552.7,
+   4206406.1
   ],
   "lengthM": 103.9
  },
@@ -903,17 +849,17 @@
   "category": "paid",
   "street": "Ξανθίππου",
   "centroid": [
-   481235.2,
-   4205614.6
+   481242.1,
+   4205624.6
   ],
-  "lengthM": 21.6
+  "lengthM": 30.6
  },
- "paid-perikleous-mesogeion-voutsina-r": {
+ "paid-perikleous-mesogeion-voutsina-l": {
   "category": "paid",
   "street": "Περικλέους",
   "centroid": [
-   481782.7,
-   4205847.8
+   481784.8,
+   4205860.9
   ],
   "lengthM": 67.6
  },
@@ -921,35 +867,71 @@
   "category": "paid",
   "street": "Πυθαγόρα",
   "centroid": [
-   482204.4,
-   4206181.8
+   482209.0,
+   4206189.8
   ],
-  "lengthM": 51.9
+  "lengthM": 44.6
+ },
+ "paid-pythagora-agiou-gerasimou-psaron-r": {
+  "category": "paid",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482316.7,
+   4205908.1
+  ],
+  "lengthM": 36.0
+ },
+ "paid-sarantaporou-mesogeion-aristofanous-r": {
+  "category": "paid",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481453.9,
+   4205732.7
+  ],
+  "lengthM": 19.1
  },
  "paid-sarantaporou-aristofanous-metonos-r": {
   "category": "paid",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481496.9,
-   4205672.6
+   481504.4,
+   4205680.1
   ],
-  "lengthM": 26.2
+  "lengthM": 40.8
+ },
+ "paid-sarantaporou-aspasias-elevtheriou-venizelou-r": {
+  "category": "paid",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481658.2,
+   4205518.6
+  ],
+  "lengthM": 44.8
+ },
+ "paid-ygeias-mesogeion-aspasias-l": {
+  "category": "paid",
+  "street": "Υγείας",
+  "centroid": [
+   481016.1,
+   4205222.2
+  ],
+  "lengthM": 367.7
  },
  "paid-ygeias-mesogeion-aspasias-r": {
   "category": "paid",
   "street": "Υγείας",
   "centroid": [
-   481020.2,
-   4205201.2
+   481104.8,
+   4205108.1
   ],
-  "lengthM": 388.5
+  "lengthM": 20.7
  },
  "paid-ymittou-mesogeion-metonos-r": {
   "category": "paid",
   "street": "Υμηττού",
   "centroid": [
-   481577.6,
-   4205746.7
+   481579.6,
+   4205760.1
   ],
   "lengthM": 57.0
  },
@@ -957,215 +939,251 @@
   "category": "paid",
   "street": "Υμηττού",
   "centroid": [
-   481724.0,
-   4205588.8
+   481719.9,
+   4205604.2
   ],
-  "lengthM": 31.6
+  "lengthM": 46.6
  },
  "paid-faneromenis-end-aspasias-l": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482069.6,
-   4205943.9
+   482072.0,
+   4205956.4
   ],
-  "lengthM": 15.4
+  "lengthM": 20.8
  },
  "paid-faneromenis-voutsina-end-r": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482012.5,
-   4205997.4
+   482000.9,
+   4205989.9
   ],
-  "lengthM": 4.9
+  "lengthM": 21.6
+ },
+ "paid-faneromenis-end-elevtheriou-venizelou-l": {
+  "category": "paid",
+  "street": "Φανερωμένης",
+  "centroid": [
+   482098.7,
+   4205917.5
+  ],
+  "lengthM": 14.3
  },
  "paid-faneromenis-end-elevtheriou-venizelou-r": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482096.6,
-   4205905.0
+   482092.4,
+   4205910.9
   ],
-  "lengthM": 14.5
+  "lengthM": 13.0
  },
  "paid-faneromenis-voutsina-aspasias-r": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482065.4,
-   4205979.6
+   482067.7,
+   4205992.1
   ],
-  "lengthM": 46.4
+  "lengthM": 33.6
+ },
+ "paid-faneromenis-mesogeion-agamemnonos-l": {
+  "category": "paid",
+  "street": "Φανερωμένης",
+  "centroid": [
+   481942.3,
+   4206083.2
+  ],
+  "lengthM": 20.5
  },
  "paid-faneromenis-mesogeion-agamemnonos-r": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   481923.0,
-   4206079.1
+   481915.4,
+   4206095.9
   ],
-  "lengthM": 51.1
+  "lengthM": 30.1
  },
  "paid-faneromenis-voutsina-aspasias-l": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   481998.5,
-   4205977.0
+   482008.6,
+   4205953.9
   ],
-  "lengthM": 20.3
- },
- "paid-faneromenis-voutsina-aspasias-r-2": {
-  "category": "paid",
-  "street": "Φανερωμένης",
-  "centroid": [
-   482006.2,
-   4205941.3
-  ],
-  "lengthM": 28.6
+  "lengthM": 30.8
  },
  "paid-faneromenis-end-voutsina-r": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482026.4,
-   4206000.2
+   482025.7,
+   4206012.3
   ],
-  "lengthM": 62.6
+  "lengthM": 29.2
  },
- "paid-faneromenis-aspasias-end-r": {
+ "paid-faneromenis-aspasias-end-l": {
   "category": "paid",
   "street": "Φανερωμένης",
   "centroid": [
-   482048.8,
-   4205926.9
+   482050.4,
+   4205939.6
   ],
-  "lengthM": 57.4
+  "lengthM": 30.5
  },
- "res-17is-noemvriou-psaron-amfissis-l": {
-  "category": "residents",
-  "street": "17ης Νοεμβρίου",
+ "paid-chiou-17is-noemvriou-panagi-tsaldari-r": {
+  "category": "paid",
+  "street": "Χίου",
   "centroid": [
-   482613.8,
-   4205970.7
+   482545.2,
+   4206272.3
   ],
-  "lengthM": 3.5
+  "lengthM": 59.0
  },
- "res-agiou-gerasimou-miltiadou-pythagora-l": {
-  "category": "residents",
-  "street": "Αγίου Γερασίμου",
+ "paid-psaron-17is-noemvriou-panagi-tsaldari-r": {
+  "category": "paid",
+  "street": "Ψαρών",
   "centroid": [
-   482297.5,
-   4205946.9
+   482621.7,
+   4205984.5
   ],
-  "lengthM": 4.2
- },
- "res-agiou-gerasimou-faneromenis-miltiadou-l": {
-  "category": "residents",
-  "street": "Αγίου Γερασίμου",
-  "centroid": [
-   482236.3,
-   4205908.5
-  ],
-  "lengthM": 5.9
+  "lengthM": 21.3
  },
  "res-agiou-ioanni-theologou-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481642.9,
-   4205396.8
+   481653.2,
+   4205402.4
   ],
-  "lengthM": 47.9
+  "lengthM": 63.2
  },
  "res-agiou-ioanni-theologou-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481583.9,
-   4205447.0
+   481589.6,
+   4205456.9
   ],
-  "lengthM": 43.3
+  "lengthM": 49.3
  },
  "res-agiou-ioanni-theologou-voutsina-aspasias-l": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481518.8,
-   4205520.2
+   481527.0,
+   4205510.1
   ],
-  "lengthM": 3.8
+  "lengthM": 21.6
  },
  "res-agiou-ioanni-theologou-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481536.3,
-   4205487.4
+   481548.7,
+   4205491.5
   ],
-  "lengthM": 43.3
+  "lengthM": 21.6
+ },
+ "res-agiou-ioanni-theologou-metonos-voutsina-l": {
+  "category": "residents",
+  "street": "Αγίου Ιωάννη Θεολόγου",
+  "centroid": [
+   481493.3,
+   4205539.3
+  ],
+  "lengthM": 28.1
  },
  "res-agiou-ioanni-theologou-metonos-voutsina-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481472.2,
-   4205542.2
+   481465.8,
+   4205562.5
   ],
-  "lengthM": 45.1
+  "lengthM": 28.9
  },
  "res-agiou-ioanni-theologou-aristofanous-metonos-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481400.9,
-   4205602.9
+   481410.5,
+   4205609.9
   ],
-  "lengthM": 36.9
+  "lengthM": 49.4
+ },
+ "res-agiou-ioanni-theologou-thoukydidou-aristofanous-l": {
+  "category": "residents",
+  "street": "Αγίου Ιωάννη Θεολόγου",
+  "centroid": [
+   481352.7,
+   4205659.3
+  ],
+  "lengthM": 12.9
  },
  "res-agiou-ioanni-theologou-thoukydidou-aristofanous-r": {
   "category": "residents",
   "street": "Αγίου Ιωάννη Θεολόγου",
   "centroid": [
-   481350.9,
-   4205645.4
+   481366.5,
+   4205647.4
   ],
-  "lengthM": 12.8
+  "lengthM": 16.7
+ },
+ "res-agamemnonos-ventouri-faneromenis-l": {
+  "category": "residents",
+  "street": "Αγαμέμνονος",
+  "centroid": [
+   481878.6,
+   4205994.3
+  ],
+  "lengthM": 54.6
  },
  "res-agamemnonos-ventouri-faneromenis-r": {
   "category": "residents",
   "street": "Αγαμέμνονος",
   "centroid": [
-   481895.9,
-   4206000.2
+   481928.4,
+   4206041.4
   ],
-  "lengthM": 90.5
+  "lengthM": 35.7
+ },
+ "res-agamemnonos-faneromenis-miltiadou-l": {
+  "category": "residents",
+  "street": "Αγαμέμνονος",
+  "centroid": [
+   482106.4,
+   4206140.4
+  ],
+  "lengthM": 37.7
  },
  "res-agamemnonos-faneromenis-miltiadou-r": {
   "category": "residents",
   "street": "Αγαμέμνονος",
   "centroid": [
-   482054.5,
-   4206102.7
+   482015.5,
+   4206094.1
   ],
-  "lengthM": 103.5
+  "lengthM": 88.0
  },
- "res-aetideon-mesogeion-metonos-r": {
+ "res-aetideon-mesogeion-metonos-l": {
   "category": "residents",
   "street": "Αετιδέων",
   "centroid": [
-   481664.4,
-   4205831.2
+   481665.5,
+   4205845.8
   ],
-  "lengthM": 60.2
+  "lengthM": 54.0
  },
- "res-aetideon-metonos-voutsina-r": {
+ "res-aetideon-metonos-voutsina-l": {
   "category": "residents",
   "street": "Αετιδέων",
   "centroid": [
-   481720.4,
-   4205772.6
+   481722.4,
+   4205785.8
   ],
   "lengthM": 65.4
  },
@@ -1173,125 +1191,125 @@
   "category": "residents",
   "street": "Αετιδέων",
   "centroid": [
-   481763.0,
-   4205748.4
-  ],
-  "lengthM": 3.0
- },
- "res-aetideon-voutsina-aspasias-r": {
-  "category": "residents",
-  "street": "Αετιδέων",
-  "centroid": [
-   481776.6,
-   4205714.1
+   481778.4,
+   4205727.1
   ],
   "lengthM": 44.6
  },
- "res-aetideon-aspasias-elevtheriou-venizelou-r": {
+ "res-aetideon-aspasias-elevtheriou-venizelou-l": {
   "category": "residents",
   "street": "Αετιδέων",
   "centroid": [
-   481824.6,
-   4205667.8
+   481826.4,
+   4205680.6
   ],
-  "lengthM": 48.5
+  "lengthM": 48.4
  },
  "res-aetideon-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Αετιδέων",
   "centroid": [
-   481869.0,
-   4205617.3
+   481870.6,
+   4205630.3
   ],
   "lengthM": 40.5
- },
- "res-anastaseos-artemidos-katsibiri-l": {
-  "category": "residents",
-  "street": "Αναστάσεως",
-  "centroid": [
-   481566.4,
-   4205222.9
-  ],
-  "lengthM": 3.3
- },
- "res-anastaseos-elevtheriou-venizelou-artemidos-l": {
-  "category": "residents",
-  "street": "Αναστάσεως",
-  "centroid": [
-   481498.1,
-   4205281.7
-  ],
-  "lengthM": 3.0
  },
  "res-anastaseos-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481510.0,
-   4205239.1
+   481517.2,
+   4205247.5
   ],
-  "lengthM": 41.5
+  "lengthM": 52.9
+ },
+ "res-anastaseos-aspasias-elevtheriou-venizelou-l": {
+  "category": "residents",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481455.8,
+   4205310.2
+  ],
+  "lengthM": 33.4
  },
  "res-anastaseos-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481451.3,
-   4205295.2
+   481458.7,
+   4205297.3
   ],
-  "lengthM": 55.4
+  "lengthM": 43.1
+ },
+ "res-anastaseos-voutsina-aspasias-l": {
+  "category": "residents",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481420.6,
+   4205340.7
+  ],
+  "lengthM": 21.9
  },
  "res-anastaseos-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481407.4,
-   4205333.4
+   481407.2,
+   4205340.5
   ],
-  "lengthM": 50.6
+  "lengthM": 40.9
  },
  "res-anastaseos-metonos-voutsina-r": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481362.3,
-   4205374.8
+   481366.3,
+   4205375.2
   ],
-  "lengthM": 31.0
+  "lengthM": 21.7
  },
  "res-anastaseos-metonos-metonos-l": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481321.9,
-   4205424.8
+   481335.7,
+   4205412.5
   ],
-  "lengthM": 3.3
+  "lengthM": 31.9
+ },
+ "res-anastaseos-metonos-metonos-r": {
+  "category": "residents",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481324.3,
+   4205410.7
+  ],
+  "lengthM": 18.0
+ },
+ "res-anastaseos-tsigante-tsiaka-l": {
+  "category": "residents",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481304.5,
+   4205438.3
+  ],
+  "lengthM": 12.6
  },
  "res-anastaseos-tsigante-tsiaka-r": {
   "category": "residents",
   "street": "Αναστάσεως",
   "centroid": [
-   481303.3,
-   4205424.3
+   481299.2,
+   4205432.0
   ],
-  "lengthM": 12.6
+  "lengthM": 14.2
  },
  "res-aristotelous-menippou-psaron-l": {
   "category": "residents",
   "street": "Αριστοτέλους",
   "centroid": [
-   482757.3,
-   4206235.7
-  ],
-  "lengthM": 3.2
- },
- "res-aristotelous-menippou-psaron-r": {
-  "category": "residents",
-  "street": "Αριστοτέλους",
-  "centroid": [
-   482786.2,
-   4206152.1
+   482789.0,
+   4206162.9
   ],
   "lengthM": 114.7
  },
@@ -1299,314 +1317,251 @@
   "category": "residents",
   "street": "Αριστοτέλους",
   "centroid": [
-   482709.9,
-   4206328.9
+   482723.5,
+   4206288.7
   ],
-  "lengthM": 3.4
+  "lengthM": 74.2
  },
- "res-aristotelous-chiou-thivon-r": {
+ "res-aristotelous-levkados-chiou-l": {
   "category": "residents",
   "street": "Αριστοτέλους",
   "centroid": [
-   482712.1,
-   4206293.8
+   482684.0,
+   4206365.1
   ],
-  "lengthM": 43.6
+  "lengthM": 42.5
  },
- "res-aristotelous-levkados-chiou-r": {
+ "res-aristotelous-mesogeion-chrysanthemon-l": {
   "category": "residents",
   "street": "Αριστοτέλους",
   "centroid": [
-   482681.0,
-   4206353.8
+   482662.3,
+   4206407.6
   ],
-  "lengthM": 43.0
- },
- "res-aristotelous-mesogeion-chrysanthemon-r": {
-  "category": "residents",
-  "street": "Αριστοτέλους",
-  "centroid": [
-   482659.1,
-   4206396.4
-  ],
-  "lengthM": 35.0
- },
- "res-aristofanous-agiou-ioanni-theologou-sarantaporou-r": {
-  "category": "residents",
-  "street": "Αριστοφάνους",
-  "centroid": [
-   481465.2,
-   4205711.6
-  ],
-  "lengthM": 3.2
- },
- "res-aristofanous-xanthippou-agiou-ioanni-theologou-l": {
-  "category": "residents",
-  "street": "Αριστοφάνους",
-  "centroid": [
-   481364.7,
-   4205633.5
-  ],
-  "lengthM": 3.1
- },
- "res-aristofanous-anastaseos-xanthippou-l": {
-  "category": "residents",
-  "street": "Αριστοφάνους",
-  "centroid": [
-   481299.9,
-   4205559.2
-  ],
-  "lengthM": 3.0
+  "lengthM": 35.3
  },
  "res-arkadiou-chiou-menippou-r": {
   "category": "residents",
   "street": "Αρκαδίου",
   "centroid": [
-   482836.4,
-   4206344.9
+   482837.0,
+   4206360.6
   ],
-  "lengthM": 49.8
+  "lengthM": 43.4
  },
  "res-arkadiou-menippou-zacharia-papantoniou-r": {
   "category": "residents",
   "street": "Αρκαδίου",
   "centroid": [
-   482879.6,
-   4206259.9
+   482887.9,
+   4206260.2
   ],
-  "lengthM": 23.5
+  "lengthM": 43.1
  },
  "res-arkadiou-zacharia-papantoniou-psaron-r": {
   "category": "residents",
   "street": "Αρκαδίου",
   "centroid": [
-   482911.5,
-   4206197.9
+   482924.1,
+   4206189.5
   ],
-  "lengthM": 81.5
+  "lengthM": 71.4
  },
- "res-artemidos-kyprou-nikomideias-r": {
+ "res-artemidos-kyprou-nikomideias-l": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481364.7,
-   4204988.9
+   481359.5,
+   4204996.6
   ],
-  "lengthM": 17.2
+  "lengthM": 31.5
  },
  "res-artemidos-nikomideias-efesou-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481425.5,
-   4205057.6
+   481421.6,
+   4205066.4
   ],
-  "lengthM": 61.8
- },
- "res-artemidos-efesou-korytsas-l": {
-  "category": "residents",
-  "street": "Αρτέμιδος",
-  "centroid": [
-   481484.9,
-   4205157.3
-  ],
-  "lengthM": 9.6
+  "lengthM": 71.9
  },
  "res-artemidos-efesou-korytsas-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481487.1,
-   4205130.8
+   481482.0,
+   4205137.6
   ],
-  "lengthM": 20.5
- },
- "res-artemidos-korytsas-anastaseos-l": {
-  "category": "residents",
-  "street": "Αρτέμιδος",
-  "centroid": [
-   481539.4,
-   4205214.4
-  ],
-  "lengthM": 3.0
+  "lengthM": 34.5
  },
  "res-artemidos-korytsas-anastaseos-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481523.0,
-   4205173.6
+   481519.6,
+   4205182.1
   ],
-  "lengthM": 26.4
- },
- "res-artemidos-anastaseos-xanthippou-l": {
-  "category": "residents",
-  "street": "Αρτέμιδος",
-  "centroid": [
-   481609.2,
-   4205298.8
-  ],
-  "lengthM": 3.1
+  "lengthM": 38.0
  },
  "res-artemidos-anastaseos-xanthippou-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481600.8,
-   4205264.2
+   481590.0,
+   4205263.6
   ],
-  "lengthM": 28.9
- },
- "res-artemidos-xanthippou-agiou-ioanni-theologou-l": {
-  "category": "residents",
-  "street": "Αρτέμιδος",
-  "centroid": [
-   481668.7,
-   4205374.8
-  ],
-  "lengthM": 3.3
+  "lengthM": 43.8
  },
  "res-artemidos-xanthippou-agiou-ioanni-theologou-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481657.2,
-   4205331.3
+   481652.7,
+   4205338.0
   ],
-  "lengthM": 29.3
- },
- "res-artemidos-agiou-ioanni-theologou-sarantaporou-l": {
-  "category": "residents",
-  "street": "Αρτέμιδος",
-  "centroid": [
-   481729.2,
-   4205429.4
-  ],
-  "lengthM": 3.5
+  "lengthM": 37.4
  },
  "res-artemidos-agiou-ioanni-theologou-sarantaporou-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481713.6,
-   4205391.1
+   481714.9,
+   4205404.4
   ],
-  "lengthM": 21.8
+  "lengthM": 20.8
  },
  "res-artemidos-sarantaporou-ymittou-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481772.9,
-   4205448.5
+   481774.3,
+   4205461.7
   ],
-  "lengthM": 59.1
+  "lengthM": 58.4
+ },
+ "res-artemidos-ymittou-aetideon-l": {
+  "category": "residents",
+  "street": "Αρτέμιδος",
+  "centroid": [
+   481873.7,
+   4205559.9
+  ],
+  "lengthM": 48.7
  },
  "res-artemidos-ymittou-aetideon-r": {
   "category": "residents",
   "street": "Αρτέμιδος",
   "centroid": [
-   481861.2,
-   4205535.3
+   481839.0,
+   4205523.2
   ],
-  "lengthM": 71.1
+  "lengthM": 22.3
  },
  "res-aspasias-sarantaporou-end-l": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481683.5,
-   4205594.3
+   481671.4,
+   4205584.4
   ],
-  "lengthM": 0.0
- },
- "res-aspasias-sarantaporou-end-r": {
-  "category": "residents",
-  "street": "Ασπασίας",
-  "centroid": [
-   481670.8,
-   4205570.8
-  ],
-  "lengthM": 32.4
+  "lengthM": 23.3
  },
  "res-aspasias-ymittou-aetideon-l": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481719.9,
-   4205654.5
+   481760.5,
+   4205680.0
   ],
-  "lengthM": 24.4
+  "lengthM": 45.7
  },
  "res-aspasias-ymittou-aetideon-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481771.3,
-   4205663.9
+   481761.0,
+   4205663.2
   ],
-  "lengthM": 51.4
+  "lengthM": 21.9
+ },
+ "res-aspasias-faneromenis-miltiadou-l": {
+  "category": "residents",
+  "street": "Ασπασίας",
+  "centroid": [
+   482089.6,
+   4205985.4
+  ],
+  "lengthM": 30.0
  },
  "res-aspasias-faneromenis-miltiadou-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   482122.1,
-   4205999.4
+   482131.4,
+   4206016.9
   ],
-  "lengthM": 126.8
+  "lengthM": 108.1
+ },
+ "res-aspasias-agiou-ioanni-theologou-sarantaporou-l": {
+  "category": "residents",
+  "street": "Ασπασίας",
+  "centroid": [
+   481612.3,
+   4205522.6
+  ],
+  "lengthM": 35.3
  },
  "res-aspasias-agiou-ioanni-theologou-sarantaporou-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481598.2,
-   4205497.0
+   481583.3,
+   4205494.8
   ],
-  "lengthM": 62.5
+  "lengthM": 27.1
+ },
+ "res-aspasias-aetideon-perikleous-l": {
+  "category": "residents",
+  "street": "Ασπασίας",
+  "centroid": [
+   481851.7,
+   4205752.6
+  ],
+  "lengthM": 12.0
  },
  "res-aspasias-aetideon-perikleous-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481827.5,
-   4205716.5
+   481820.2,
+   4205719.9
   ],
-  "lengthM": 41.0
+  "lengthM": 28.9
  },
- "res-aspasias-xanthippou-agiou-ioanni-theologou-r": {
+ "res-aspasias-xanthippou-agiou-ioanni-theologou-l": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481536.6,
-   4205436.4
+   481538.0,
+   4205450.0
   ],
-  "lengthM": 46.9
+  "lengthM": 46.7
  },
  "res-aspasias-perikleous-ventouri-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481899.9,
-   4205784.7
+   481901.9,
+   4205797.5
   ],
   "lengthM": 56.9
- },
- "res-aspasias-anastaseos-xanthippou-l": {
-  "category": "residents",
-  "street": "Ασπασίας",
-  "centroid": [
-   481486.9,
-   4205402.3
-  ],
-  "lengthM": 3.2
  },
  "res-aspasias-anastaseos-xanthippou-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481470.8,
-   4205355.0
+   481472.0,
+   4205368.7
   ],
   "lengthM": 54.0
  },
@@ -1614,206 +1569,188 @@
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   482023.0,
-   4205918.4
+   482021.3,
+   4205920.5
   ],
-  "lengthM": 5.8
+  "lengthM": 27.5
  },
  "res-aspasias-ventouri-faneromenis-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481984.0,
-   4205867.3
+   481977.8,
+   4205870.2
   ],
-  "lengthM": 101.0
- },
- "res-aspasias-korytsas-anastaseos-l": {
-  "category": "residents",
-  "street": "Ασπασίας",
-  "centroid": [
-   481414.0,
-   4205320.2
-  ],
-  "lengthM": 3.3
+  "lengthM": 72.6
  },
  "res-aspasias-korytsas-anastaseos-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481406.1,
-   4205276.8
+   481407.0,
+   4205290.5
   ],
-  "lengthM": 71.6
+  "lengthM": 71.4
  },
  "res-aspasias-efesou-korytsas-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481362.2,
-   4205223.9
+   481363.3,
+   4205237.9
   ],
-  "lengthM": 51.2
+  "lengthM": 51.8
  },
  "res-aspasias-kyprou-efesou-r": {
   "category": "residents",
   "street": "Ασπασίας",
   "centroid": [
-   481296.4,
-   4205151.5
+   481297.0,
+   4205165.4
   ],
-  "lengthM": 137.7
- },
- "res-aidiniou-nikomideias-efesou-l": {
-  "category": "residents",
-  "street": "Αϊδινίου",
-  "centroid": [
-   481409.6,
-   4205146.9
-  ],
-  "lengthM": 6.3
- },
- "res-aidiniou-nikomideias-efesou-r": {
-  "category": "residents",
-  "street": "Αϊδινίου",
-  "centroid": [
-   481420.6,
-   4205139.8
-  ],
-  "lengthM": 2.9
+  "lengthM": 139.1
  },
  "res-ventouri-mesogeion-agamemnonos-r": {
   "category": "residents",
   "street": "Βεντούρη",
   "centroid": [
-   481789.3,
-   4205968.2
+   481791.6,
+   4205981.3
   ],
-  "lengthM": 40.7
+  "lengthM": 40.6
  },
  "res-ventouri-agamemnonos-voutsina-r": {
   "category": "residents",
   "street": "Βεντούρη",
   "centroid": [
-   481842.3,
-   4205912.9
+   481844.4,
+   4205925.9
   ],
-  "lengthM": 95.0
+  "lengthM": 95.1
  },
- "res-ventouri-voutsina-aspasias-r": {
+ "res-ventouri-aspasias-elevtheriou-venizelou-l": {
   "category": "residents",
   "street": "Βεντούρη",
   "centroid": [
-   481909.9,
-   4205846.5
+   481954.3,
+   4205810.3
   ],
-  "lengthM": 44.8
+  "lengthM": 34.2
  },
- "res-ventouri-aspasias-elevtheriou-venizelou-r": {
+ "res-voutsina-ventouri-faneromenis-l": {
   "category": "residents",
-  "street": "Βεντούρη",
+  "street": "Βουτσινά",
   "centroid": [
-   481952.2,
-   4205797.7
+   481936.3,
+   4205933.1
   ],
-  "lengthM": 34.3
+  "lengthM": 84.5
  },
  "res-voutsina-ventouri-faneromenis-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481936.9,
-   4205918.4
+   481946.2,
+   4205933.8
   ],
-  "lengthM": 172.7
+  "lengthM": 108.4
  },
  "res-voutsina-faneromenis-miltiadou-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   482102.8,
-   4206065.3
+   482105.3,
+   4206077.5
   ],
-  "lengthM": 72.1
+  "lengthM": 71.9
+ },
+ "res-voutsina-perikleous-ventouri-l": {
+  "category": "residents",
+  "street": "Βουτσινά",
+  "centroid": [
+   481862.9,
+   4205862.9
+  ],
+  "lengthM": 29.6
  },
  "res-voutsina-perikleous-ventouri-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481855.7,
-   4205839.7
+   481855.6,
+   4205848.0
   ],
-  "lengthM": 94.3
+  "lengthM": 64.8
+ },
+ "res-voutsina-aetideon-perikleous-l": {
+  "category": "residents",
+  "street": "Βουτσινά",
+  "centroid": [
+   481787.7,
+   4205791.5
+  ],
+  "lengthM": 43.5
  },
  "res-voutsina-aetideon-perikleous-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481789.9,
-   4205778.3
+   481792.5,
+   4205787.7
   ],
-  "lengthM": 86.4
+  "lengthM": 48.7
+ },
+ "res-voutsina-ymittou-aetideon-l": {
+  "category": "residents",
+  "street": "Βουτσινά",
+  "centroid": [
+   481720.1,
+   4205727.9
+  ],
+  "lengthM": 52.0
  },
  "res-voutsina-ymittou-aetideon-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481715.2,
-   4205698.1
+   481714.9,
+   4205699.0
   ],
-  "lengthM": 114.3
+  "lengthM": 69.5
  },
  "res-voutsina-sarantaporou-ymittou-l": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481665.6,
-   4205674.0
+   481640.0,
+   4205649.4
   ],
-  "lengthM": 13.6
+  "lengthM": 63.7
  },
  "res-voutsina-sarantaporou-ymittou-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481642.9,
-   4205636.5
+   481649.8,
+   4205638.3
   ],
-  "lengthM": 93.8
+  "lengthM": 28.3
  },
  "res-voutsina-agiou-ioanni-theologou-sarantaporou-l": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481573.0,
-   4205594.1
+   481559.8,
+   4205571.3
   ],
-  "lengthM": 6.1
- },
- "res-voutsina-agiou-ioanni-theologou-sarantaporou-r": {
-  "category": "residents",
-  "street": "Βουτσινά",
-  "centroid": [
-   481566.5,
-   4205565.7
-  ],
-  "lengthM": 32.8
+  "lengthM": 39.7
  },
  "res-voutsina-xanthippou-agiou-ioanni-theologou-l": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481499.6,
-   4205519.2
-  ],
-  "lengthM": 3.1
- },
- "res-voutsina-xanthippou-agiou-ioanni-theologou-r": {
-  "category": "residents",
-  "street": "Βουτσινά",
-  "centroid": [
-   481478.4,
-   4205474.7
+   481479.9,
+   4205488.3
   ],
   "lengthM": 49.2
  },
@@ -1821,206 +1758,143 @@
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481437.3,
-   4205444.3
-  ],
-  "lengthM": 3.1
- },
- "res-voutsina-anastaseos-xanthippou-r": {
-  "category": "residents",
-  "street": "Βουτσινά",
-  "centroid": [
-   481414.9,
-   4205399.9
+   481416.2,
+   4205413.8
   ],
   "lengthM": 54.4
- },
- "res-voutsina-efesou-anastaseos-l": {
-  "category": "residents",
-  "street": "Βουτσινά",
-  "centroid": [
-   481365.0,
-   4205361.3
-  ],
-  "lengthM": 3.4
  },
  "res-voutsina-efesou-anastaseos-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481336.5,
-   4205296.9
+   481337.6,
+   4205310.8
   ],
-  "lengthM": 129.3
+  "lengthM": 129.2
  },
  "res-voutsina-kyprou-efesou-r": {
   "category": "residents",
   "street": "Βουτσινά",
   "centroid": [
-   481243.5,
-   4205194.8
+   481244.3,
+   4205208.9
   ],
-  "lengthM": 126.0
+  "lengthM": 126.3
  },
  "res-doridos-chiou-menippou-l": {
   "category": "residents",
   "street": "Δωρίδος",
   "centroid": [
-   482438.7,
-   4206223.8
-  ],
-  "lengthM": 3.3
- },
- "res-doridos-chiou-menippou-r": {
-  "category": "residents",
-  "street": "Δωρίδος",
-  "centroid": [
-   482449.3,
-   4206162.7
+   482452.2,
+   4206174.2
   ],
   "lengthM": 71.8
  },
- "res-doridos-menippou-psaron-r": {
+ "res-doridos-menippou-psaron-l": {
   "category": "residents",
   "street": "Δωρίδος",
   "centroid": [
-   482501.0,
-   4206022.8
+   482503.5,
+   4206034.4
   ],
-  "lengthM": 133.7
- },
- "res-elevtheriou-venizelou-kyprou-nikomideias-r": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481311.3,
-   4205056.4
-  ],
-  "lengthM": 13.0
- },
- "res-elevtheriou-venizelou-nikomideias-efesou-l": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481376.2,
-   4205171.6
-  ],
-  "lengthM": 6.7
+  "lengthM": 133.9
  },
  "res-elevtheriou-venizelou-nikomideias-efesou-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481350.3,
-   4205103.4
+   481332.0,
+   4205100.4
   ],
-  "lengthM": 76.6
+  "lengthM": 110.1
  },
  "res-elevtheriou-venizelou-efesou-korytsas-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481415.4,
-   4205179.4
+   481416.2,
+   4205193.1
   ],
-  "lengthM": 49.8
- },
- "res-elevtheriou-venizelou-korytsas-anastaseos-l": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481469.7,
-   4205273.5
-  ],
-  "lengthM": 3.1
+  "lengthM": 50.2
  },
  "res-elevtheriou-venizelou-korytsas-anastaseos-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481460.3,
-   4205230.8
+   481461.3,
+   4205244.6
   ],
-  "lengthM": 71.3
- },
- "res-elevtheriou-venizelou-anastaseos-xanthippou-l": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481542.8,
-   4205355.1
-  ],
-  "lengthM": 3.1
+  "lengthM": 71.1
  },
  "res-elevtheriou-venizelou-anastaseos-xanthippou-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481522.1,
-   4205310.4
+   481519.2,
+   4205319.7
   ],
-  "lengthM": 42.0
+  "lengthM": 49.9
  },
  "res-elevtheriou-venizelou-xanthippou-agiou-ioanni-theologou-l": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481602.6,
-   4205431.1
+   481600.7,
+   4205418.8
   ],
-  "lengthM": 3.3
+  "lengthM": 27.1
  },
  "res-elevtheriou-venizelou-xanthippou-agiou-ioanni-theologou-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481593.3,
-   4205396.8
+   481575.2,
+   4205385.3
   ],
-  "lengthM": 43.4
- },
- "res-elevtheriou-venizelou-agiou-ioanni-theologou-sarantaporou-l": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   481672.4,
-   4205495.2
-  ],
-  "lengthM": 3.1
+  "lengthM": 34.5
  },
  "res-elevtheriou-venizelou-agiou-ioanni-theologou-sarantaporou-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481647.9,
-   4205450.1
+   481649.2,
+   4205463.4
   ],
   "lengthM": 56.5
  },
- "res-elevtheriou-venizelou-sarantaporou-ymittou-r": {
+ "res-elevtheriou-venizelou-sarantaporou-ymittou-l": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481709.6,
-   4205512.6
+   481710.3,
+   4205525.1
   ],
-  "lengthM": 56.6
+  "lengthM": 55.4
+ },
+ "res-elevtheriou-venizelou-ymittou-aetideon-l": {
+  "category": "residents",
+  "street": "Ελευθερίου Βενιζέλου",
+  "centroid": [
+   481827.0,
+   4205636.1
+  ],
+  "lengthM": 16.1
  },
  "res-elevtheriou-venizelou-ymittou-aetideon-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481798.4,
-   4205594.7
+   481792.5,
+   4205599.9
   ],
-  "lengthM": 74.5
+  "lengthM": 58.4
  },
- "res-elevtheriou-venizelou-aetideon-perikleous-r": {
+ "res-elevtheriou-venizelou-aetideon-perikleous-l": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481876.8,
-   4205672.3
+   481878.6,
+   4205685.2
   ],
   "lengthM": 65.0
  },
@@ -2028,8 +1902,8 @@
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481951.8,
-   4205740.3
+   481953.7,
+   4205752.9
   ],
   "lengthM": 46.2
  },
@@ -2037,494 +1911,368 @@
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   482041.7,
-   4205826.7
+   482043.9,
+   4205839.2
   ],
-  "lengthM": 115.6
- },
- "res-elevtheriou-venizelou-faneromenis-ikarias-l": {
-  "category": "residents",
-  "street": "Ελευθερίου Βενιζέλου",
-  "centroid": [
-   482199.2,
-   4205999.1
-  ],
-  "lengthM": 5.1
+  "lengthM": 115.5
  },
  "res-elevtheriou-venizelou-faneromenis-ikarias-r": {
   "category": "residents",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   482152.0,
-   4205931.6
+   482154.3,
+   4205943.9
   ],
-  "lengthM": 81.1
+  "lengthM": 81.0
  },
  "res-efesou-metonos-voutsina-r": {
   "category": "residents",
   "street": "Εφέσου",
   "centroid": [
-   481270.3,
-   4205262.4
+   481271.5,
+   4205276.2
   ],
-  "lengthM": 181.2
+  "lengthM": 181.1
  },
  "res-efesou-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Εφέσου",
   "centroid": [
-   481361.6,
-   4205186.3
+   481368.0,
+   4205194.6
   ],
-  "lengthM": 50.5
+  "lengthM": 81.0
  },
- "res-efesou-artemidos-magnisias-l": {
+ "res-efesou-elevtheriou-venizelou-aidiniou-r": {
   "category": "residents",
   "street": "Εφέσου",
   "centroid": [
-   481472.9,
-   4205113.9
+   481410.4,
+   4205160.7
   ],
-  "lengthM": 3.1
+  "lengthM": 19.2
  },
- "res-efesou-kydonion-fokaias-l": {
+ "res-efesou-aidiniou-artemidos-r": {
   "category": "residents",
   "street": "Εφέσου",
   "centroid": [
-   481550.0,
-   4205053.9
+   481421.3,
+   4205153.6
   ],
-  "lengthM": 3.2
- },
- "res-efesou-kydonion-fokaias-r": {
-  "category": "residents",
-  "street": "Εφέσου",
-  "centroid": [
-   481544.6,
-   4205047.0
-  ],
-  "lengthM": 6.2
- },
- "res-thivon-panagi-tsaldari-aristotelous-r": {
-  "category": "residents",
-  "street": "Θηβών",
-  "centroid": [
-   482732.4,
-   4206254.7
-  ],
-  "lengthM": 4.8
+  "lengthM": 9.9
  },
  "res-thoukydidou-anastaseos-xanthippou-r": {
   "category": "residents",
   "street": "Θουκυδίδου",
   "centroid": [
-   481220.6,
-   4205539.5
+   481222.2,
+   4205553.7
   ],
-  "lengthM": 49.5
+  "lengthM": 51.1
  },
  "res-thoukydidou-xanthippou-agiou-ioanni-theologou-r": {
   "category": "residents",
   "street": "Θουκυδίδου",
   "centroid": [
-   481296.9,
-   4205629.9
+   481296.1,
+   4205640.9
   ],
-  "lengthM": 50.4
- },
- "res-ikarias-miltiadou-pythagora-l": {
-  "category": "residents",
-  "street": "Ικαρίας",
-  "centroid": [
-   482269.4,
-   4206027.6
-  ],
-  "lengthM": 3.1
+  "lengthM": 56.6
  },
  "res-ikarias-miltiadou-pythagora-r": {
   "category": "residents",
   "street": "Ικαρίας",
   "centroid": [
-   482239.6,
-   4205997.6
+   482242.0,
+   4206009.7
   ],
   "lengthM": 18.8
+ },
+ "res-ikarias-pythagora-menippou-l": {
+  "category": "residents",
+  "street": "Ικαρίας",
+  "centroid": [
+   482302.3,
+   4206036.5
+  ],
+  "lengthM": 28.7
  },
  "res-ikarias-pythagora-menippou-r": {
   "category": "residents",
   "street": "Ικαρίας",
   "centroid": [
-   482304.7,
-   4206026.5
+   482324.2,
+   4206045.4
   ],
-  "lengthM": 36.8
+  "lengthM": 8.2
  },
  "res-korytsas-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Κορυτσάς",
   "centroid": [
-   481407.7,
-   4205223.9
+   481408.5,
+   4205237.7
   ],
-  "lengthM": 61.2
+  "lengthM": 122.4
  },
  "res-korytsas-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Κορυτσάς",
   "centroid": [
-   481457.6,
-   4205181.8
+   481467.7,
+   4205187.2
   ],
-  "lengthM": 68.5
+  "lengthM": 108.2
  },
  "res-korytsas-artemidos-kydonion-r": {
   "category": "residents",
   "street": "Κορυτσάς",
   "centroid": [
-   481511.8,
-   4205143.5
+   481543.1,
+   4205120.2
   ],
-  "lengthM": 15.4
+  "lengthM": 39.1
  },
  "res-korytsas-kydonion-smyrnis-r": {
   "category": "residents",
   "street": "Κορυτσάς",
   "centroid": [
-   481596.3,
-   4205060.6
+   481600.1,
+   4205071.3
   ],
-  "lengthM": 42.2
+  "lengthM": 48.2
  },
  "res-kydonion-kyprou-nikomideias-r": {
   "category": "residents",
   "street": "Κυδωνίων",
   "centroid": [
-   481420.5,
-   4204915.5
+   481413.4,
+   4204924.4
   ],
-  "lengthM": 17.5
+  "lengthM": 32.4
  },
  "res-kydonion-nikomideias-efesou-r": {
   "category": "residents",
   "street": "Κυδωνίων",
   "centroid": [
-   481499.2,
-   4204991.1
+   481488.4,
+   4204992.3
   ],
-  "lengthM": 72.4
- },
- "res-kydonion-efesou-korytsas-l": {
-  "category": "residents",
-  "street": "Κυδωνίων",
-  "centroid": [
-   481555.6,
-   4205095.4
-  ],
-  "lengthM": 3.1
+  "lengthM": 99.4
  },
  "res-kydonion-efesou-korytsas-r": {
   "category": "residents",
   "street": "Κυδωνίων",
   "centroid": [
-   481556.8,
-   4205062.5
+   481551.5,
+   4205068.9
   ],
-  "lengthM": 6.9
- },
- "res-kyprou-end-kydonion-r": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481367.6,
-   4204930.8
-  ],
-  "lengthM": 34.4
- },
- "res-kyprou-aspasias-elevtheriou-venizelou-r": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481265.2,
-   4205071.3
-  ],
-  "lengthM": 54.5
+  "lengthM": 17.8
  },
  "res-kyprou-elevtheriou-venizelou-artemidos-l": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
    481300.9,
-   4205044.9
+   4205039.0
   ],
-  "lengthM": 4.9
+  "lengthM": 13.2
  },
- "res-kyprou-elevtheriou-venizelou-end-r": {
+ "res-kyprou-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
-   481315.4,
-   4205003.0
+   481321.4,
+   4205008.9
   ],
-  "lengthM": 49.7
+  "lengthM": 36.7
  },
- "res-kyprou-kydonion-smyrnis-l": {
+ "res-kyprou-aspasias-elevtheriou-venizelou-l": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
-   481404.3,
-   4204904.8
+   481265.8,
+   4205085.4
   ],
-  "lengthM": 3.6
+  "lengthM": 54.5
  },
- "res-kyprou-kydonion-end-r": {
+ "res-kyprou-kydonion-smyrnis-r": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
-   481415.9,
-   4204862.1
+   481416.3,
+   4204875.7
   ],
-  "lengthM": 45.5
- },
- "res-kyprou-magnisias-kydonion-l": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481380.6,
-   4204942.4
-  ],
-  "lengthM": 3.9
- },
- "res-kyprou-artemidos-magnisias-l": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481351.6,
-   4204974.4
-  ],
-  "lengthM": 5.6
- },
- "res-kyprou-tsigante-tsiaka-l": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481119.3,
-   4205236.0
-  ],
-  "lengthM": 3.2
- },
- "res-kyprou-tsigante-tsiaka-l-2": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481125.3,
-   4205243.3
-  ],
-  "lengthM": 6.6
- },
- "res-kyprou-metonos-voutsina-l": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481183.9,
-   4205162.7
-  ],
-  "lengthM": 22.9
- },
- "res-kyprou-metonos-voutsina-r": {
-  "category": "residents",
-  "street": "Κύπρου",
-  "centroid": [
-   481172.0,
-   4205156.9
-  ],
-  "lengthM": 38.1
+  "lengthM": 45.7
  },
  "res-kyprou-voutsina-aspasias-l": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
-   481220.6,
-   4205124.6
+   481221.4,
+   4205138.7
   ],
-  "lengthM": 38.4
+  "lengthM": 44.5
+ },
+ "res-kyprou-magnisias-kydonion-r": {
+  "category": "residents",
+  "street": "Κύπρου",
+  "centroid": [
+   481377.8,
+   4204930.9
+  ],
+  "lengthM": 19.1
+ },
+ "res-kyprou-metonos-voutsina-l": {
+  "category": "residents",
+  "street": "Κύπρου",
+  "centroid": [
+   481184.7,
+   4205176.9
+  ],
+  "lengthM": 23.0
+ },
+ "res-kyprou-metonos-voutsina-r": {
+  "category": "residents",
+  "street": "Κύπρου",
+  "centroid": [
+   481172.8,
+   4205171.2
+  ],
+  "lengthM": 38.0
  },
  "res-kyprou-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Κύπρου",
   "centroid": [
-   481210.5,
-   4205117.2
+   481211.2,
+   4205131.4
   ],
-  "lengthM": 41.7
+  "lengthM": 45.2
  },
  "res-lochagou-dedousi-mesogeion-chiou-r": {
   "category": "residents",
   "street": "Λοχαγού Δεδούση",
   "centroid": [
-   482731.8,
-   4206402.9
+   482735.0,
+   4206414.0
   ],
-  "lengthM": 65.3
+  "lengthM": 65.2
  },
- "res-lochagou-dedousi-chiou-menippou-r": {
+ "res-lochagou-dedousi-chiou-menippou-l": {
   "category": "residents",
   "street": "Λοχαγού Δεδούση",
   "centroid": [
-   482783.9,
-   4206307.8
+   482786.8,
+   4206319.0
   ],
-  "lengthM": 71.3
- },
- "res-lochagou-dedousi-menippou-psaron-l": {
-  "category": "residents",
-  "street": "Λοχαγού Δεδούση",
-  "centroid": [
-   482816.1,
-   4206267.6
-  ],
-  "lengthM": 6.3
+  "lengthM": 71.5
  },
  "res-lochagou-dedousi-menippou-psaron-r": {
   "category": "residents",
   "street": "Λοχαγού Δεδούση",
   "centroid": [
-   482848.6,
-   4206169.2
+   482851.3,
+   4206180.3
   ],
-  "lengthM": 121.3
+  "lengthM": 121.1
  },
- "res-metonos-tsiaka-xanthippou-r": {
+ "res-metonos-tsiaka-xanthippou-l": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481348.0,
-   4205455.6
+   481346.0,
+   4205465.4
   ],
-  "lengthM": 59.8
+  "lengthM": 68.6
  },
  "res-metonos-kyprou-efesou-r": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481203.8,
-   4205231.7
+   481204.7,
+   4205245.8
   ],
-  "lengthM": 119.0
+  "lengthM": 119.9
  },
  "res-metonos-xanthippou-agiou-ioanni-theologou-l": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481432.2,
-   4205576.3
+   481420.5,
+   4205550.3
   ],
-  "lengthM": 3.2
+  "lengthM": 52.8
  },
  "res-metonos-xanthippou-agiou-ioanni-theologou-r": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481419.0,
-   4205536.6
+   481395.4,
+   4205519.4
   ],
-  "lengthM": 52.8
- },
- "res-metonos-efesou-anastaseos-l": {
-  "category": "residents",
-  "street": "Μέτωνος",
-  "centroid": [
-   481323.1,
-   4205396.7
-  ],
-  "lengthM": 3.5
+  "lengthM": 16.0
  },
  "res-metonos-efesou-anastaseos-r": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481301.8,
-   4205346.8
+   481295.0,
+   4205348.0
   ],
-  "lengthM": 130.9
+  "lengthM": 127.9
  },
- "res-metonos-agiou-ioanni-theologou-sarantaporou-r": {
+ "res-metonos-agiou-ioanni-theologou-sarantaporou-l": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481483.8,
-   4205606.8
+   481485.5,
+   4205620.4
   ],
-  "lengthM": 79.0
+  "lengthM": 78.6
  },
- "res-metonos-sarantaporou-ymittou-r": {
+ "res-metonos-sarantaporou-ymittou-l": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481565.4,
-   4205683.5
+   481567.3,
+   4205697.0
   ],
   "lengthM": 99.7
  },
- "res-metonos-ymittou-aetideon-r": {
+ "res-metonos-ymittou-aetideon-l": {
   "category": "residents",
   "street": "Μέτωνος",
   "centroid": [
-   481649.1,
-   4205762.7
+   481651.0,
+   4205776.0
   ],
-  "lengthM": 110.2
+  "lengthM": 110.1
  },
  "res-magnisias-kyprou-nikomideias-r": {
   "category": "residents",
   "street": "Μαγνησίας",
   "centroid": [
-   481403.8,
-   4204959.5
+   481392.3,
+   4204964.6
   ],
-  "lengthM": 19.6
+  "lengthM": 40.6
  },
- "res-menippou-sokratous-end-l": {
+ "res-menippou-nik-vitali-doridos-l": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482351.1,
-   4206062.2
+   482438.9,
+   4206110.7
   ],
-  "lengthM": 14.9
- },
- "res-menippou-sokratous-end-r": {
-  "category": "residents",
-  "street": "Μενίππου",
-  "centroid": [
-   482365.7,
-   4206068.3
-  ],
-  "lengthM": 10.2
- },
- "res-menippou-end-nik-vitali-r": {
-  "category": "residents",
-  "street": "Μενίππου",
-  "centroid": [
-   482381.6,
-   4206074.9
-  ],
-  "lengthM": 14.9
- },
- "res-menippou-nik-vitali-doridos-r": {
-  "category": "residents",
-  "street": "Μενίππου",
-  "centroid": [
-   482436.4,
-   4206099.1
-  ],
-  "lengthM": 44.2
+  "lengthM": 44.1
  },
  "res-menippou-doridos-17is-noemvriou-r": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482495.0,
-   4206121.2
+   482497.6,
+   4206132.8
   ],
   "lengthM": 26.5
  },
@@ -2532,476 +2280,485 @@
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482632.7,
-   4206192.9
+   482595.0,
+   4206175.8
   ],
-  "lengthM": 3.1
+  "lengthM": 65.1
  },
- "res-menippou-17is-noemvriou-panagi-tsaldari-r": {
+ "res-menippou-panagi-tsaldari-aristotelous-l": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482583.4,
-   4206158.1
+   482697.4,
+   4206220.7
   ],
-  "lengthM": 72.3
+  "lengthM": 32.8
  },
  "res-menippou-panagi-tsaldari-aristotelous-r": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482681.7,
-   4206202.6
+   482659.0,
+   4206200.1
   ],
-  "lengthM": 49.4
+  "lengthM": 16.4
+ },
+ "res-menippou-aristotelous-lochagou-dedousi-l": {
+  "category": "residents",
+  "street": "Μενίππου",
+  "centroid": [
+   482774.3,
+   4206258.7
+  ],
+  "lengthM": 31.0
  },
  "res-menippou-aristotelous-lochagou-dedousi-r": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482768.3,
-   4206246.2
+   482760.2,
+   4206246.8
   ],
-  "lengthM": 25.9
+  "lengthM": 9.7
  },
- "res-menippou-lochagou-dedousi-arkadiou-r": {
+ "res-menippou-lochagou-dedousi-arkadiou-l": {
   "category": "residents",
   "street": "Μενίππου",
   "centroid": [
-   482835.7,
-   4206277.0
+   482832.0,
+   4206287.0
   ],
-  "lengthM": 47.7
+  "lengthM": 29.9
  },
  "res-miltiadou-agiou-gerasimou-psaron-r": {
   "category": "residents",
   "street": "Μιλτιάδου",
   "centroid": [
-   482255.4,
-   4205861.9
+   482257.5,
+   4205874.1
   ],
-  "lengthM": 45.9
+  "lengthM": 45.5
  },
  "res-miltiadou-ikarias-agiou-gerasimou-r": {
   "category": "residents",
   "street": "Μιλτιάδου",
   "centroid": [
-   482224.0,
-   4205938.5
+   482228.2,
+   4205945.8
   ],
-  "lengthM": 45.3
+  "lengthM": 53.9
  },
  "res-miltiadou-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Μιλτιάδου",
   "centroid": [
-   482188.3,
-   4206025.9
+   482194.4,
+   4206029.1
   ],
-  "lengthM": 34.4
+  "lengthM": 51.7
  },
  "res-miltiadou-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Μιλτιάδου",
   "centroid": [
-   482164.9,
-   4206082.4
+   482167.5,
+   4206094.6
   ],
   "lengthM": 42.6
  },
- "res-miltiadou-agamemnonos-chiou-r": {
+ "res-miltiadou-mesogeion-agamemnonos-l": {
   "category": "residents",
   "street": "Μιλτιάδου",
   "centroid": [
-   482141.4,
-   4206146.2
+   482143.0,
+   4206161.3
   ],
-  "lengthM": 49.6
+  "lengthM": 55.0
  },
- "res-miltiadou-mesogeion-agamemnonos-r": {
-  "category": "residents",
-  "street": "Μιλτιάδου",
-  "centroid": [
-   482129.7,
-   4206174.7
-  ],
-  "lengthM": 5.4
- },
- "res-nik-vitali-mesogeion-chiou-r": {
+ "res-nik-vitali-mesogeion-chiou-l": {
   "category": "residents",
   "street": "Νικ. Βιτάλη",
   "centroid": [
-   482337.2,
-   4206246.3
+   482340.1,
+   4206258.1
   ],
   "lengthM": 80.8
  },
- "res-nik-vitali-chiou-menippou-r": {
+ "res-nik-vitali-chiou-menippou-l": {
   "category": "residents",
   "street": "Νικ. Βιτάλη",
   "centroid": [
-   482380.2,
-   4206144.8
+   482382.8,
+   4206156.7
   ],
   "lengthM": 69.7
+ },
+ "res-nik-vitali-menippou-psaron-l": {
+  "category": "residents",
+  "street": "Νικ. Βιτάλη",
+  "centroid": [
+   482431.2,
+   4206023.2
+  ],
+  "lengthM": 113.7
  },
  "res-nik-vitali-menippou-psaron-r": {
   "category": "residents",
   "street": "Νικ. Βιτάλη",
   "centroid": [
-   482432.0,
-   4205999.9
+   482452.3,
+   4205947.9
   ],
-  "lengthM": 135.3
- },
- "res-nikomideias-kydonion-fokaias-l": {
-  "category": "residents",
-  "street": "Νικομήδειας",
-  "centroid": [
-   481458.8,
-   4204945.9
-  ],
-  "lengthM": 9.2
- },
- "res-nikomideias-artemidos-magnisias-r": {
-  "category": "residents",
-  "street": "Νικομήδειας",
-  "centroid": [
-   481393.3,
-   4205021.3
-  ],
-  "lengthM": 3.2
- },
- "res-xanthippou-artemidos-katsibiri-l": {
-  "category": "residents",
-  "street": "Ξανθίππου",
-  "centroid": [
-   481631.3,
-   4205300.6
-  ],
-  "lengthM": 3.1
- },
- "res-xanthippou-elevtheriou-venizelou-artemidos-l": {
-  "category": "residents",
-  "street": "Ξανθίππου",
-  "centroid": [
-   481565.8,
-   4205362.3
-  ],
-  "lengthM": 3.1
+  "lengthM": 21.5
  },
  "res-xanthippou-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Ξανθίππου",
   "centroid": [
-   481582.9,
-   4205321.2
+   481588.5,
+   4205330.9
   ],
-  "lengthM": 47.9
+  "lengthM": 58.2
+ },
+ "res-xanthippou-aspasias-elevtheriou-venizelou-r": {
+  "category": "residents",
+  "street": "Ξανθίππου",
+  "centroid": [
+   481544.0,
+   4205368.7
+  ],
+  "lengthM": 5.5
  },
  "res-xanthippou-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Ξανθίππου",
   "centroid": [
-   481464.1,
-   4205421.6
+   481475.8,
+   4205426.5
   ],
-  "lengthM": 18.5
- },
- "res-xanthippou-metonos-voutsina-l": {
-  "category": "residents",
-  "street": "Ξανθίππου",
-  "centroid": [
-   481393.9,
-   4205505.6
-  ],
-  "lengthM": 3.2
+  "lengthM": 33.9
  },
  "res-xanthippou-metonos-voutsina-r": {
   "category": "residents",
   "street": "Ξανθίππου",
   "centroid": [
-   481419.4,
-   4205459.2
+   481426.0,
+   4205468.7
   ],
-  "lengthM": 21.9
+  "lengthM": 30.8
  },
  "res-xanthippou-aristofanous-metonos-r": {
   "category": "residents",
   "street": "Ξανθίππου",
   "centroid": [
-   481347.4,
-   4205519.5
+   481348.7,
+   4205533.5
   ],
   "lengthM": 62.9
- },
- "res-xanthippou-thoukydidou-aristofanous-l": {
-  "category": "residents",
-  "street": "Ξανθίππου",
-  "centroid": [
-   481272.9,
-   4205601.4
-  ],
-  "lengthM": 3.0
  },
  "res-xanthippou-thoukydidou-aristofanous-r": {
   "category": "residents",
   "street": "Ξανθίππου",
   "centroid": [
-   481277.9,
-   4205577.9
+   481289.6,
+   4205583.4
   ],
-  "lengthM": 22.5
+  "lengthM": 41.1
  },
- "res-panagi-tsaldari-chiou-thivon-r": {
+ "res-panagi-tsaldari-chiou-thivon-l": {
   "category": "residents",
   "street": "Παναγή Τσαλδάρη",
   "centroid": [
-   482610.6,
-   4206247.4
+   482616.9,
+   4206251.4
   ],
-  "lengthM": 49.3
+  "lengthM": 61.3
  },
  "res-panagi-tsaldari-thivon-menippou-r": {
   "category": "residents",
   "street": "Παναγή Τσαλδάρη",
   "centroid": [
-   482628.0,
-   4206209.8
+   482635.5,
+   4206204.2
   ],
-  "lengthM": 11.9
+  "lengthM": 6.2
  },
- "res-panagi-tsaldari-menippou-psaron-r": {
+ "res-panagi-tsaldari-menippou-psaron-l": {
   "category": "residents",
   "street": "Παναγή Τσαλδάρη",
   "centroid": [
-   482680.4,
-   4206095.1
+   482683.0,
+   4206106.2
   ],
-  "lengthM": 110.0
- },
- "res-perikleous-mesogeion-voutsina-r": {
-  "category": "residents",
-  "street": "Περικλέους",
-  "centroid": [
-   481768.2,
-   4205847.1
-  ],
-  "lengthM": 76.3
- },
- "res-perikleous-voutsina-aspasias-l": {
-  "category": "residents",
-  "street": "Περικλέους",
-  "centroid": [
-   481853.3,
-   4205774.1
-  ],
-  "lengthM": 18.5
- },
- "res-perikleous-voutsina-aspasias-r": {
-  "category": "residents",
-  "street": "Περικλέους",
-  "centroid": [
-   481835.6,
-   4205781.4
-  ],
-  "lengthM": 46.0
+  "lengthM": 109.6
  },
  "res-perikleous-aspasias-elevtheriou-venizelou-l": {
   "category": "residents",
   "street": "Περικλέους",
   "centroid": [
-   481894.8,
-   4205731.8
+   481896.7,
+   4205744.6
   ],
   "lengthM": 42.1
+ },
+ "res-perikleous-voutsina-aspasias-l": {
+  "category": "residents",
+  "street": "Περικλέους",
+  "centroid": [
+   481846.6,
+   4205795.9
+  ],
+  "lengthM": 33.4
+ },
+ "res-perikleous-mesogeion-voutsina-r": {
+  "category": "residents",
+  "street": "Περικλέους",
+  "centroid": [
+   481770.3,
+   4205860.2
+  ],
+  "lengthM": 76.3
+ },
+ "res-perikleous-voutsina-aspasias-r": {
+  "category": "residents",
+  "street": "Περικλέους",
+  "centroid": [
+   481838.4,
+   4205788.3
+  ],
+  "lengthM": 31.1
  },
  "res-perikleous-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Περικλέους",
   "centroid": [
-   481885.8,
-   4205723.4
+   481887.7,
+   4205736.2
   ],
   "lengthM": 36.3
+ },
+ "res-pythagora-mesogeion-chiou-l": {
+  "category": "residents",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482218.8,
+   4206177.6
+  ],
+  "lengthM": 19.0
  },
  "res-pythagora-mesogeion-chiou-r": {
   "category": "residents",
   "street": "Πυθαγόρα",
   "centroid": [
-   482200.8,
-   4206199.6
+   482194.3,
+   4206232.8
   ],
-  "lengthM": 68.3
+  "lengthM": 43.6
+ },
+ "res-pythagora-chiou-ikarias-l": {
+  "category": "residents",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482256.8,
+   4206087.4
+  ],
+  "lengthM": 83.4
  },
  "res-pythagora-chiou-ikarias-r": {
   "category": "residents",
   "street": "Πυθαγόρα",
   "centroid": [
-   482252.5,
-   4206076.1
+   482256.3,
+   4206078.5
   ],
-  "lengthM": 151.3
+  "lengthM": 58.8
+ },
+ "res-pythagora-ikarias-agiou-gerasimou-l": {
+  "category": "residents",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482293.6,
+   4205989.8
+  ],
+  "lengthM": 59.3
  },
  "res-pythagora-ikarias-agiou-gerasimou-r": {
   "category": "residents",
   "street": "Πυθαγόρα",
   "centroid": [
-   482289.6,
-   4205978.3
+   482293.1,
+   4205979.3
   ],
-  "lengthM": 92.3
+  "lengthM": 51.8
  },
- "res-pythagora-agiou-gerasimou-psaron-r": {
+ "res-pythagora-agiou-gerasimou-psaron-l": {
   "category": "residents",
   "street": "Πυθαγόρα",
   "centroid": [
-   482314.1,
-   4205904.9
+   482315.9,
+   4205922.5
   ],
-  "lengthM": 98.6
+  "lengthM": 66.5
  },
- "res-sarantaporou-aristofanous-metonos-r": {
+ "res-sarantaporou-mesogeion-aristofanous-l": {
   "category": "residents",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481507.2,
-   4205667.5
+   481467.1,
+   4205725.2
+  ],
+  "lengthM": 25.0
+ },
+ "res-sarantaporou-aristofanous-metonos-l": {
+  "category": "residents",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481509.0,
+   4205681.0
   ],
   "lengthM": 37.0
+ },
+ "res-sarantaporou-metonos-voutsina-l": {
+  "category": "residents",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481558.4,
+   4205629.3
+  ],
+  "lengthM": 66.9
  },
  "res-sarantaporou-metonos-voutsina-r": {
   "category": "residents",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481550.3,
-   4205620.8
+   481558.3,
+   4205622.8
   ],
-  "lengthM": 79.2
+  "lengthM": 43.2
+ },
+ "res-sarantaporou-voutsina-aspasias-l": {
+  "category": "residents",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481613.8,
+   4205571.6
+  ],
+  "lengthM": 43.3
  },
  "res-sarantaporou-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481610.2,
-   4205556.9
+   481610.7,
+   4205568.3
   ],
-  "lengthM": 89.9
+  "lengthM": 40.1
  },
- "res-sarantaporou-aspasias-elevtheriou-venizelou-r": {
+ "res-sarantaporou-aspasias-elevtheriou-venizelou-l": {
   "category": "residents",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481655.6,
-   4205508.9
+   481659.6,
+   4205523.3
   ],
-  "lengthM": 75.8
+  "lengthM": 40.9
+ },
+ "res-sarantaporou-elevtheriou-venizelou-artemidos-l": {
+  "category": "residents",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481713.5,
+   4205466.9
+  ],
+  "lengthM": 58.8
  },
  "res-sarantaporou-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481711.3,
-   4205452.7
+   481718.2,
+   4205455.5
   ],
-  "lengthM": 82.9
+  "lengthM": 38.8
  },
  "res-smyrnis-efesou-korytsas-l": {
   "category": "residents",
   "street": "Σμύρνης",
   "centroid": [
-   481622.7,
-   4205038.0
+   481621.5,
+   4205018.4
   ],
-  "lengthM": 3.1
+  "lengthM": 34.5
  },
- "res-smyrnis-efesou-korytsas-r": {
+ "res-smyrnis-nikomideias-efesou-l": {
   "category": "residents",
   "street": "Σμύρνης",
   "centroid": [
-   481626.4,
-   4205012.0
+   481524.2,
+   4204883.0
   ],
-  "lengthM": 19.6
+  "lengthM": 25.0
  },
  "res-smyrnis-nikomideias-efesou-r": {
   "category": "residents",
   "street": "Σμύρνης",
   "centroid": [
-   481569.4,
-   4204929.2
+   481568.3,
+   4204939.9
   ],
-  "lengthM": 129.0
- },
- "res-smyrnis-nikomideias-nikomideias-r": {
-  "category": "residents",
-  "street": "Σμύρνης",
-  "centroid": [
-   481518.2,
-   4204863.3
-  ],
-  "lengthM": 10.3
+  "lengthM": 98.1
  },
  "res-smyrnis-kyprou-nikomideias-r": {
   "category": "residents",
   "street": "Σμύρνης",
   "centroid": [
-   481482.5,
-   4204835.0
+   481482.7,
+   4204848.8
   ],
-  "lengthM": 53.4
+  "lengthM": 44.6
  },
- "res-sokratous-ikarias-psaron-r": {
+ "res-sokratous-ikarias-psaron-l": {
   "category": "residents",
   "street": "Σωκράτους",
   "centroid": [
-   482377.9,
-   4205954.8
+   482380.2,
+   4205966.6
   ],
-  "lengthM": 103.9
+  "lengthM": 103.7
  },
  "res-sokratous-chiou-menippou-r": {
   "category": "residents",
   "street": "Σωκράτους",
   "centroid": [
-   482316.2,
-   4206102.5
+   482318.8,
+   4206114.5
   ],
-  "lengthM": 92.4
+  "lengthM": 92.2
  },
  "res-sokratous-mesogeion-chiou-r": {
   "category": "residents",
   "street": "Σωκράτους",
   "centroid": [
-   482271.7,
-   4206214.8
+   482274.6,
+   4206226.8
   ],
-  "lengthM": 69.6
+  "lengthM": 69.5
  },
  "res-tsiaka-kyprou-efesou-r": {
   "category": "residents",
   "street": "Τσιάκα",
   "centroid": [
-   481178.8,
-   4205254.6
+   481179.8,
+   4205268.9
   ],
-  "lengthM": 116.2
- },
- "res-tsiaka-efesou-anastaseos-l": {
-  "category": "residents",
-  "street": "Τσιάκα",
-  "centroid": [
-   481297.9,
-   4205418.0
-  ],
-  "lengthM": 3.2
+  "lengthM": 116.8
  },
  "res-tsiaka-efesou-anastaseos-r": {
   "category": "residents",
   "street": "Τσιάκα",
   "centroid": [
-   481267.1,
-   4205357.5
+   481268.1,
+   4205371.3
   ],
   "lengthM": 127.0
  },
@@ -3009,233 +2766,242 @@
   "category": "residents",
   "street": "Τσιγάντε",
   "centroid": [
-   481162.2,
-   4205285.6
+   481159.8,
+   4205295.9
   ],
-  "lengthM": 90.0
+  "lengthM": 99.8
  },
  "res-tsigante-efesou-anastaseos-r": {
   "category": "residents",
   "street": "Τσιγάντε",
   "centroid": [
-   481239.1,
-   4205374.4
+   481240.1,
+   4205388.3
   ],
   "lengthM": 115.3
+ },
+ "res-ymittou-metonos-voutsina-l": {
+  "category": "residents",
+  "street": "Υμηττού",
+  "centroid": [
+   481667.4,
+   4205687.3
+  ],
+  "lengthM": 18.0
  },
  "res-ymittou-metonos-voutsina-r": {
   "category": "residents",
   "street": "Υμηττού",
   "centroid": [
-   481627.2,
-   4205694.6
+   481634.5,
+   4205702.3
   ],
-  "lengthM": 49.8
+  "lengthM": 60.9
+ },
+ "res-ymittou-elevtheriou-venizelou-artemidos-l": {
+  "category": "residents",
+  "street": "Υμηττού",
+  "centroid": [
+   481798.3,
+   4205532.5
+  ],
+  "lengthM": 46.8
  },
  "res-ymittou-elevtheriou-venizelou-artemidos-r": {
   "category": "residents",
   "street": "Υμηττού",
   "centroid": [
-   481790.7,
-   4205526.0
+   481772.9,
+   4205559.3
   ],
-  "lengthM": 61.8
+  "lengthM": 15.0
  },
  "res-ymittou-aspasias-elevtheriou-venizelou-r": {
   "category": "residents",
   "street": "Υμηττού",
   "centroid": [
-   481708.4,
-   4205598.6
+   481707.0,
+   4205610.7
   ],
-  "lengthM": 37.5
+  "lengthM": 32.1
  },
- "res-faneromenis-voutsina-end-l": {
+ "res-faneromenis-end-aspasias-r": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   481982.9,
-   4206010.1
+   482078.4,
+   4205951.2
   ],
-  "lengthM": 2.4
- },
- "res-faneromenis-end-elevtheriou-venizelou-l": {
-  "category": "residents",
-  "street": "Φανερωμένης",
-  "centroid": [
-   482076.1,
-   4205938.7
-  ],
-  "lengthM": 7.6
+  "lengthM": 18.2
  },
  "res-faneromenis-voutsina-aspasias-l": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   482070.5,
-   4205985.1
+   482070.9,
+   4205998.6
   ],
-  "lengthM": 39.3
+  "lengthM": 58.4
  },
  "res-faneromenis-voutsina-aspasias-r": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   482056.4,
-   4206003.3
-  ],
-  "lengthM": 60.1
- },
- "res-faneromenis-voutsina-aspasias-r-2": {
-  "category": "residents",
-  "street": "Φανερωμένης",
-  "centroid": [
-   481990.1,
+   482002.0,
    4205947.9
   ],
-  "lengthM": 24.1
+  "lengthM": 22.8
  },
- "res-faneromenis-end-voutsina-r": {
+ "res-faneromenis-end-voutsina-l": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   482015.2,
-   4206008.5
+   482017.5,
+   4206021.0
   ],
-  "lengthM": 83.9
+  "lengthM": 28.5
  },
  "res-faneromenis-aspasias-end-r": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   482051.9,
-   4205917.9
+   482054.2,
+   4205930.4
   ],
-  "lengthM": 18.7
+  "lengthM": 18.8
  },
  "res-faneromenis-agamemnonos-end-l": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   481972.7,
-   4206062.1
+   481980.0,
+   4206043.7
   ],
-  "lengthM": 9.8
+  "lengthM": 38.1
  },
  "res-faneromenis-agamemnonos-end-r": {
   "category": "residents",
   "street": "Φανερωμένης",
   "centroid": [
-   481971.3,
-   4206030.5
+   481969.8,
+   4206038.9
   ],
-  "lengthM": 69.6
+  "lengthM": 38.2
+ },
+ "res-chiou-lochagou-dedousi-arkadiou-l": {
+  "category": "residents",
+  "street": "Χίου",
+  "centroid": [
+   482795.5,
+   4206388.9
+  ],
+  "lengthM": 28.3
  },
  "res-chiou-lochagou-dedousi-arkadiou-r": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482792.9,
-   4206375.7
+   482796.4,
+   4206384.4
   ],
-  "lengthM": 58.4
+  "lengthM": 30.0
+ },
+ "res-chiou-aristotelous-lochagou-dedousi-l": {
+  "category": "residents",
+  "street": "Χίου",
+  "centroid": [
+   482733.0,
+   4206354.2
+  ],
+  "lengthM": 24.2
  },
  "res-chiou-aristotelous-lochagou-dedousi-r": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482733.9,
-   4206342.6
+   482733.1,
+   4206349.9
   ],
-  "lengthM": 55.8
+  "lengthM": 42.7
  },
  "res-chiou-panagi-tsaldari-aristotelous-r": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482654.6,
-   4206304.4
+   482658.8,
+   4206316.2
   ],
-  "lengthM": 54.9
+  "lengthM": 56.9
  },
- "res-chiou-17is-noemvriou-panagi-tsaldari-r": {
+ "res-chiou-doridos-17is-noemvriou-l": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482542.2,
-   4206260.8
+   482459.9,
+   4206242.6
   ],
-  "lengthM": 59.1
+  "lengthM": 30.9
  },
- "res-chiou-doridos-17is-noemvriou-r": {
+ "res-chiou-nik-vitali-doridos-l": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482473.9,
-   4206237.4
-  ],
-  "lengthM": 16.2
- },
- "res-chiou-nik-vitali-doridos-r": {
-  "category": "residents",
-  "street": "Χίου",
-  "centroid": [
-   482394.0,
-   4206206.5
+   482396.8,
+   4206218.3
   ],
   "lengthM": 58.7
  },
- "res-chiou-sokratous-nik-vitali-r": {
+ "res-chiou-sokratous-nik-vitali-l": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482329.2,
-   4206183.1
+   482331.9,
+   4206195.0
   ],
-  "lengthM": 29.9
+  "lengthM": 30.0
  },
- "res-chiou-pythagora-sokratous-r": {
+ "res-chiou-pythagora-sokratous-l": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482263.0,
-   4206155.0
+   482265.8,
+   4206167.0
   ],
-  "lengthM": 40.4
+  "lengthM": 40.5
+ },
+ "res-chiou-voutsina-pythagora-l": {
+  "category": "residents",
+  "street": "Χίου",
+  "centroid": [
+   482212.5,
+   4206146.2
+  ],
+  "lengthM": 10.8
  },
  "res-chiou-voutsina-pythagora-r": {
   "category": "residents",
   "street": "Χίου",
   "centroid": [
-   482187.7,
-   4206124.9
+   482180.6,
+   4206132.9
   ],
-  "lengthM": 34.4
- },
- "res-psaron-lochagou-dedousi-arkadiou-l": {
-  "category": "residents",
-  "street": "Ψαρών",
-  "centroid": [
-   482944.5,
-   4206133.7
-  ],
-  "lengthM": 3.7
+  "lengthM": 23.7
  },
  "res-psaron-lochagou-dedousi-arkadiou-r": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482922.4,
-   4206108.4
+   482925.0,
+   4206119.1
   ],
   "lengthM": 44.5
  },
- "res-psaron-aristotelous-lochagou-dedousi-r": {
+ "res-psaron-aristotelous-lochagou-dedousi-l": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482862.5,
-   4206087.5
+   482865.0,
+   4206098.3
   ],
   "lengthM": 23.5
  },
@@ -3243,116 +3009,80 @@
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482772.9,
-   4206042.2
+   482764.7,
+   4206048.5
   ],
-  "lengthM": 98.0
+  "lengthM": 120.2
  },
  "res-psaron-17is-noemvriou-panagi-tsaldari-r": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482680.0,
-   4206000.5
+   482678.6,
+   4206010.1
   ],
-  "lengthM": 89.0
+  "lengthM": 56.4
  },
  "res-psaron-doridos-17is-noemvriou-r": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482573.5,
-   4205954.2
+   482563.6,
+   4205960.7
   ],
-  "lengthM": 33.6
+  "lengthM": 49.3
  },
- "res-psaron-nik-vitali-doridos-r": {
+ "res-psaron-nik-vitali-doridos-l": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482504.9,
-   4205928.7
+   482497.9,
+   4205937.2
   ],
-  "lengthM": 66.5
+  "lengthM": 50.7
  },
- "res-psaron-sokratous-nik-vitali-r": {
+ "res-psaron-sokratous-nik-vitali-l": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482430.0,
-   4205898.9
+   482432.2,
+   4205910.7
   ],
   "lengthM": 39.1
  },
- "res-psaron-pythagora-sokratous-r": {
+ "res-psaron-pythagora-sokratous-l": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482364.0,
-   4205874.2
+   482366.1,
+   4205886.0
   ],
-  "lengthM": 53.1
+  "lengthM": 53.0
  },
- "res-psaron-themistokleous-pythagora-r": {
+ "res-psaron-themistokleous-pythagora-l": {
   "category": "residents",
   "street": "Ψαρών",
   "centroid": [
-   482294.4,
-   4205848.2
+   482296.5,
+   4205860.2
   ],
-  "lengthM": 21.3
- },
- "amea-ygeias-aspasias-2": {
-  "category": "amea_shared",
-  "street": "Υγείας",
-  "centroid": [
-   481157.5,
-   4205041.3
-  ],
-  "lengthM": 0
- },
- "amea-ygeias-aspasias": {
-  "category": "amea_shared",
-  "street": "Υγείας",
-  "centroid": [
-   481093.9,
-   4205105.7
-  ],
-  "lengthM": 0
- },
- "amea-ygeias-mesogeion": {
-  "category": "amea_shared",
-  "street": "Υγείας",
-  "centroid": [
-   481003.3,
-   4205221.2
-  ],
-  "lengthM": 0
- },
- "amea-kyprou-tsigante": {
-  "category": "amea_shared",
-  "street": "Κύπρου",
-  "centroid": [
-   481101.6,
-   4205247.8
-  ],
-  "lengthM": 0
- },
- "amea-kyprou-mesogeion": {
-  "category": "amea_shared",
-  "street": "Κύπρου",
-  "centroid": [
-   480959.6,
-   4205393.2
-  ],
-  "lengthM": 0
+  "lengthM": 21.2
  },
  "amea-kyprou-ionias": {
   "category": "amea_shared",
   "street": "Κύπρου",
   "centroid": [
-   481440.4,
-   4204809.2
+   481440.5,
+   4204823.0
+  ],
+  "lengthM": 0
+ },
+ "amea-ygeias-aspasias-2": {
+  "category": "amea_shared",
+  "street": "Υγείας",
+  "centroid": [
+   481158.0,
+   4205055.7
   ],
   "lengthM": 0
  },
@@ -3360,26 +3090,89 @@
   "category": "amea_shared",
   "street": "Κύπρου",
   "centroid": [
-   481241.4,
-   4205079.6
+   481242.0,
+   4205093.8
   ],
   "lengthM": 0
  },
- "amea-voutsina-sarantaporou": {
+ "amea-ygeias-aspasias": {
+  "category": "amea_shared",
+  "street": "Υγείας",
+  "centroid": [
+   481094.6,
+   4205120.1
+  ],
+  "lengthM": 0
+ },
+ "amea-elevtheriou-venizelou-efesou": {
+  "category": "amea_shared",
+  "street": "Ελευθερίου Βενιζέλου",
+  "centroid": [
+   481370.4,
+   4205144.2
+  ],
+  "lengthM": 0
+ },
+ "amea-ygeias-mesogeion": {
+  "category": "amea_shared",
+  "street": "Υγείας",
+  "centroid": [
+   481004.2,
+   4205235.8
+  ],
+  "lengthM": 0
+ },
+ "amea-kyprou-tsigante": {
+  "category": "amea_shared",
+  "street": "Κύπρου",
+  "centroid": [
+   481102.6,
+   4205262.2
+  ],
+  "lengthM": 0
+ },
+ "amea-kyprou-mesogeion": {
+  "category": "amea_shared",
+  "street": "Κύπρου",
+  "centroid": [
+   480960.9,
+   4205407.9
+  ],
+  "lengthM": 0
+ },
+ "amea-voutsina-ymittou": {
   "category": "amea_shared",
   "street": "Βουτσινά",
   "centroid": [
-   481635.8,
-   4205622.3
+   481637.5,
+   4205635.6
   ],
   "lengthM": 0
  },
- "amea-mesogeion-sarantaporou": {
+ "amea-voutsina-ymittou-2": {
+  "category": "amea_shared",
+  "street": "Βουτσινά",
+  "centroid": [
+   481707.4,
+   4205702.1
+  ],
+  "lengthM": 0
+ },
+ "amea-mesogeion-ymittou": {
   "category": "amea_shared",
   "street": "Μεσογείων",
   "centroid": [
-   481495.0,
-   4205769.6
+   481497.1,
+   4205783.2
+  ],
+  "lengthM": 0
+ },
+ "amea-faneromenis-aspasias": {
+  "category": "amea_shared",
+  "street": "Φανερωμένης",
+  "centroid": [
+   482019.3,
+   4205931.0
   ],
   "lengthM": 0
  },
@@ -3387,17 +3180,8 @@
   "category": "amea_shared",
   "street": "Μεσογείων",
   "centroid": [
-   481715.0,
-   4205947.9
-  ],
-  "lengthM": 0
- },
- "amea-aspasias-faneromenis": {
-  "category": "amea_shared",
-  "street": "Ασπασίας",
-  "centroid": [
-   482017.1,
-   4205918.3
+   481717.3,
+   4205961.0
   ],
   "lengthM": 0
  },
@@ -3405,8 +3189,8 @@
   "category": "amea_shared",
   "street": "Μεσογείων",
   "centroid": [
-   481820.8,
-   4206049.1
+   481823.4,
+   4206061.9
   ],
   "lengthM": 0
  },
@@ -3414,8 +3198,17 @@
   "category": "amea_shared",
   "street": "Μεσογείων",
   "centroid": [
-   481864.1,
-   4206090.1
+   481866.7,
+   4206102.9
+  ],
+  "lengthM": 0
+ },
+ "amea-pythagora-mesogeion-2": {
+  "category": "amea_shared",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482195.7,
+   4206219.0
   ],
   "lengthM": 0
  },
@@ -3423,8 +3216,8 @@
   "category": "amea_shared",
   "street": "Πυθαγόρα",
   "centroid": [
-   482188.0,
-   4206217.6
+   482190.9,
+   4206229.8
   ],
   "lengthM": 0
  },
@@ -3432,8 +3225,8 @@
   "category": "amea_shared",
   "street": "Μεσογείων",
   "centroid": [
-   482578.3,
-   4206408.1
+   482581.5,
+   4206419.4
   ],
   "lengthM": 0
  },
@@ -3441,8 +3234,8 @@
   "category": "amea_dedicated",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481576.4,
-   4205374.1
+   481577.6,
+   4205387.6
   ],
   "lengthM": 0
  },
@@ -3450,8 +3243,8 @@
   "category": "amea_dedicated",
   "street": "Ξανθίππου",
   "centroid": [
-   481512.6,
-   4205379.8
+   481513.8,
+   4205393.4
   ],
   "lengthM": 0
  },
@@ -3459,8 +3252,8 @@
   "category": "amea_dedicated",
   "street": "Ασπασίας",
   "centroid": [
-   481526.7,
-   4205425.1
+   481528.0,
+   4205438.7
   ],
   "lengthM": 0
  },
@@ -3468,8 +3261,8 @@
   "category": "amea_dedicated",
   "street": "Σαρανταπόρου",
   "centroid": [
-   481489.4,
-   4205686.5
+   481491.3,
+   4205700.1
   ],
   "lengthM": 0
  },
@@ -3477,8 +3270,8 @@
   "category": "amea_dedicated",
   "street": "Βουτσινά",
   "centroid": [
-   481704.1,
-   4205687.7
+   481704.5,
+   4205699.6
   ],
   "lengthM": 0
  },
@@ -3486,17 +3279,17 @@
   "category": "amea_dedicated",
   "street": "Αγαμέμνονος",
   "centroid": [
-   481842.4,
-   4205949.6
+   481844.8,
+   4205962.5
   ],
   "lengthM": 0
  },
- "amea-ix-pythagora-psaron": {
+ "amea-ix-pythagora-ikarias": {
   "category": "amea_dedicated",
   "street": "Πυθαγόρα",
   "centroid": [
-   482317.5,
-   4205900.4
+   482261.1,
+   4206078.3
   ],
   "lengthM": 0
  },
@@ -3504,26 +3297,8 @@
   "category": "amea_dedicated",
   "street": "Πυθαγόρα",
   "centroid": [
-   482237.7,
-   4206110.3
-  ],
-  "lengthM": 0
- },
- "amea-ix-nik-vitali-chiou": {
-  "category": "amea_dedicated",
-  "street": "Νικ. Βιτάλη",
-  "centroid": [
-   482349.7,
-   4206217.0
-  ],
-  "lengthM": 0
- },
- "amea-ix-chiou-doridos": {
-  "category": "amea_dedicated",
-  "street": "Χίου",
-  "centroid": [
-   482456.1,
-   4206230.9
+   482239.4,
+   4206126.8
   ],
   "lengthM": 0
  },
@@ -3531,8 +3306,8 @@
   "category": "amea_dedicated",
   "street": "Ψαρών",
   "centroid": [
-   482545.5,
-   4205942.5
+   482547.9,
+   4205954.0
   ],
   "lengthM": 0
  },
@@ -3540,8 +3315,8 @@
   "category": "amea_dedicated",
   "street": "Δωρίδος",
   "centroid": [
-   482502.5,
-   4206019.8
+   482505.0,
+   4206031.4
   ],
   "lengthM": 0
  },
@@ -3549,8 +3324,17 @@
   "category": "amea_dedicated",
   "street": "Παναγή Τσαλδάρη",
   "centroid": [
-   482670.3,
-   4206118.4
+   482672.9,
+   4206129.6
+  ],
+  "lengthM": 0
+ },
+ "amea-ix-nik-vitali-chiou": {
+  "category": "amea_dedicated",
+  "street": "Νικ. Βιτάλη",
+  "centroid": [
+   482352.5,
+   4206228.9
   ],
   "lengthM": 0
  },
@@ -3558,8 +3342,17 @@
   "category": "amea_dedicated",
   "street": "Λοχαγού Δεδούση",
   "centroid": [
-   482820.6,
-   4206226.0
+   482823.5,
+   4206236.9
+  ],
+  "lengthM": 0
+ },
+ "amea-ix-chiou-doridos": {
+  "category": "amea_dedicated",
+  "street": "Χίου",
+  "centroid": [
+   482459.1,
+   4206242.5
   ],
   "lengthM": 0
  },
@@ -3567,8 +3360,8 @@
   "category": "amea_dedicated",
   "street": "Χίου",
   "centroid": [
-   482563.1,
-   4206268.5
+   482566.0,
+   4206279.9
   ],
   "lengthM": 0
  },
@@ -3576,8 +3369,8 @@
   "category": "ev",
   "street": "Βουτσινά",
   "centroid": [
-   481699.7,
-   4205684.0
+   481701.5,
+   4205697.2
   ],
   "lengthM": 0
  },
@@ -3585,8 +3378,8 @@
   "category": "ev",
   "street": "Μεσογείων",
   "centroid": [
-   481557.8,
-   4205804.6
+   481557.5,
+   4205816.7
   ],
   "lengthM": 0
  },
@@ -3594,17 +3387,8 @@
   "category": "ev",
   "street": "Μεσογείων",
   "centroid": [
-   481651.5,
-   4205884.7
-  ],
-  "lengthM": 0
- },
- "ev-mesogeion-perikleous": {
-  "category": "ev",
-  "street": "Μεσογείων",
-  "centroid": [
-   481723.5,
-   4205956.8
+   481653.7,
+   4205898.0
   ],
   "lengthM": 0
  },
@@ -3612,8 +3396,17 @@
   "category": "ev",
   "street": "Ασπασίας",
   "centroid": [
-   482020.2,
-   4205909.3
+   482022.5,
+   4205921.9
+  ],
+  "lengthM": 0
+ },
+ "ev-mesogeion-perikleous": {
+  "category": "ev",
+  "street": "Μεσογείων",
+  "centroid": [
+   481725.9,
+   4205969.9
   ],
   "lengthM": 0
  },
@@ -3621,26 +3414,107 @@
   "category": "ev",
   "street": "Μεσογείων",
   "centroid": [
-   481854.3,
-   4206081.5
+   481857.0,
+   4206094.4
   ],
   "lengthM": 0
  },
- "special-elevtheriou-venizelou-xanthippou": {
-  "category": "special",
+ "pharmacy-anastaseos-voutsina": {
+  "category": "pharmacies",
+  "street": "Αναστάσεως",
+  "centroid": [
+   481407.2,
+   4205352.0
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-elevtheriou-venizelou-ymittou": {
+  "category": "pharmacies",
   "street": "Ελευθερίου Βενιζέλου",
   "centroid": [
-   481536.9,
-   4205327.9
+   481746.6,
+   4205559.5
   ],
   "lengthM": 0
  },
- "special-aetideon-voutsina": {
+ "pharmacy-aspasias-sarantaporou": {
+  "category": "pharmacies",
+  "street": "Ασπασίας",
+  "centroid": [
+   481658.3,
+   4205570.5
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-sarantaporou-voutsina": {
+  "category": "pharmacies",
+  "street": "Σαρανταπόρου",
+  "centroid": [
+   481604.5,
+   4205574.1
+  ],
+  "lengthM": 0
+ },
+ "special-voutsina-aetideon": {
   "category": "special",
+  "street": "Βουτσινά",
+  "centroid": [
+   481769.8,
+   4205766.1
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-mesogeion-ymittou": {
+  "category": "pharmacies",
+  "street": "Μεσογείων",
+  "centroid": [
+   481561.8,
+   4205819.3
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-aetideon-metonos": {
+  "category": "pharmacies",
   "street": "Αετιδέων",
   "centroid": [
-   481767.8,
-   4205753.0
+   481677.9,
+   4205832.1
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-ventouri-voutsina": {
+  "category": "pharmacies",
+  "street": "Βεντούρη",
+  "centroid": [
+   481913.7,
+   4205858.4
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-mesogeion-ventouri": {
+  "category": "pharmacies",
+  "street": "Μεσογείων",
+  "centroid": [
+   481789.4,
+   4206029.8
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-faneromenis-agamemnonos": {
+  "category": "pharmacies",
+  "street": "Φανερωμένης",
+  "centroid": [
+   481930.0,
+   4206080.5
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-pythagora-chiou": {
+  "category": "pharmacies",
+  "street": "Πυθαγόρα",
+  "centroid": [
+   482224.3,
+   4206166.5
   ],
   "lengthM": 0
  },
@@ -3648,8 +3522,26 @@
   "category": "special",
   "street": "Μεσογείων",
   "centroid": [
-   482153.9,
-   4206245.3
+   482156.8,
+   4206257.5
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-17is-noemvriou-levkados": {
+  "category": "pharmacies",
+  "street": "17ης Νοεμβρίου",
+  "centroid": [
+   482469.4,
+   4206311.8
+  ],
+  "lengthM": 0
+ },
+ "pharmacy-arkadiou-menippou": {
+  "category": "pharmacies",
+  "street": "Αρκαδίου",
+  "centroid": [
+   482856.1,
+   4206322.7
   ],
   "lengthM": 0
  }
