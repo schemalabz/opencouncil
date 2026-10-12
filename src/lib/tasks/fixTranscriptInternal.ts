@@ -34,11 +34,14 @@ async function isSuperseded(taskId: string): Promise<boolean> {
     if (!task) {
         throw new Error('Task not found');
     }
+    // A later run supersedes this one as soon as its result has arrived: its
+    // handler may still be writing, and the status flips to succeeded only
+    // after that.
     const laterRun = await prisma.taskStatus.findFirst({
         where: {
             cityId: task.cityId,
             councilMeetingId: task.councilMeetingId,
-            status: 'succeeded',
+            OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
             type: { in: ['transcribe', 'fixTranscript'] },
             createdAt: { gt: task.createdAt },
         },

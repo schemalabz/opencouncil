@@ -460,11 +460,9 @@ describe('handleTaskUpdate — terminal hooks', () => {
 
   it('calls terminal hook after processing failure', async () => {
     mockFindUnique.mockResolvedValue(pollDecisionsTask);
-    // First update sets status to 'succeeded' (before processResult runs),
-    // second update sets status to 'failed' (in the catch block after processResult throws).
-    mockUpdate
-      .mockResolvedValueOnce({ ...pollDecisionsTask, status: 'succeeded' })
-      .mockResolvedValueOnce({ ...pollDecisionsTask, status: 'failed' });
+    // The claim leaves the status alone; the one update sets 'failed' in the
+    // catch block after processResult throws.
+    mockUpdate.mockResolvedValueOnce({ ...pollDecisionsTask, status: 'failed' });
     mockProcessResult.mockRejectedValue(new Error('DB transaction failed'));
 
     await handleTaskUpdate(
@@ -551,7 +549,7 @@ describe('handleTaskUpdate — duplicate terminal callbacks', () => {
     mockUpdateMany.mockResolvedValue({ count: 1 });
   });
 
-  it('claims success only from a status other than succeeded', async () => {
+  it('claims success with the payload, from a status other than succeeded', async () => {
     mockFindUnique.mockResolvedValue({ ...task, type: 'summarize', status: 'pending' });
 
     await handleTaskUpdate(
@@ -561,7 +559,7 @@ describe('handleTaskUpdate — duplicate terminal callbacks', () => {
     );
 
     expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'task-1', status: { not: 'succeeded' } },
+      where: { id: 'task-1', status: { not: 'succeeded' }, responseBody: null },
     }));
     expect(mockProcessResult).toHaveBeenCalledTimes(1);
     expect(sendTaskAdminAlert).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
@@ -593,7 +591,7 @@ describe('handleTaskUpdate — duplicate terminal callbacks', () => {
     );
 
     expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'task-1', status: { notIn: ['succeeded', 'failed'] } },
+      where: { id: 'task-1', status: { notIn: ['succeeded', 'failed'] }, responseBody: null },
     }));
     expect(sendTaskAdminAlert).not.toHaveBeenCalled();
     expect(mockTerminalHook).not.toHaveBeenCalled();

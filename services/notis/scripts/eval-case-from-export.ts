@@ -13,7 +13,10 @@
  * replaces the reader's name everywhere it appears — the state field, the
  * profile text and every message body, since the agent greets people by name —
  * but a learned profile can still carry a street number, a workplace or a role
- * that identifies someone. Read the output before you commit it.
+ * that identifies someone. Read the output before you commit it. Then
+ * paraphrase the reader's messages, move the neighbourhood to a nearby one,
+ * and drop turns that hold an opinion rather than a question: the words a
+ * person typed identify them as surely as a name does.
  *
  * Expectations are left empty on purpose — write them by hand after reading
  * what the case is actually testing.

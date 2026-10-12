@@ -227,8 +227,12 @@ To add a new cron-triggered task:
 
 4.  **Update Handling:**
     -   The Next.js application's callback endpoint receives the update.
-    -   The `handleTaskUpdate` function updates the corresponding `TaskStatus` record in the database.
-    -   If the task was successful, a task-specific result handler (e.g., `handleTranscribeResult`) is called to process the results.
+    -   On success, `handleTaskUpdate` claims the callback first: it stores the result in `responseBody` and sets `stage` to `persisting results`. `responseBody` is null until this write, so a retried callback finds it set and does nothing. The status does not change yet.
+    -   The task-specific result handler (e.g., `handleTranscribeResult`) then writes the results.
+    -   Only after the handler returns does the task become `succeeded`, and `stage` returns to the task server's last report. A reader of `succeeded` outside this app, such as the Notis event feed, therefore sees complete results. If the handler throws, the task becomes `failed`, keeps the payload, and keeps the stage `persisting results`, which says where it failed.
+    -   A `processing` callback that arrives after the claim is ignored.
+    -   A success callback without a result has nothing to write. The status flip is the whole claim for it.
+    -   A late error callback does not fail a task whose result has arrived.
 
 ## 5. Task Handler Registry Pattern
 
@@ -271,9 +275,10 @@ The `failureReason` column starts with migration `20261006120000_task_status_fai
 
 The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results. It calls the handler of the task type with the stored `responseBody` directly. The rules:
 
--   The task must be terminal (`succeeded` or `failed`) and `responseBody` must not be null. Otherwise `processTaskResponse` throws before the handler runs and writes nothing. A pending task can still receive its callback. A failed task without a payload has nothing to replay.
--   Only a failed task changes. If the handler succeeds, the task becomes `succeeded` and `failureReason` becomes null. If the handler throws, `failureReason` gets the new error and `processTaskResponse` rethrows the error.
--   A replay never changes a `succeeded` task. Both writes use `updateMany` with `status: 'failed'` in the `where` clause.
+-   `responseBody` must not be null. Otherwise `processTaskResponse` throws before the handler runs and writes nothing. A pending task without a payload can still receive its callback. A failed task without a payload has nothing to replay.
+-   A pending task with a payload is a claim whose handler never finished, for example because the request was cut mid-write. The replay is how it finishes. The replay refuses such a task for 15 minutes after the claim (`CLAIM_REPLAY_AFTER_MS`), because the handler may still be running.
+-   If the handler succeeds, the task becomes `succeeded` and `failureReason` becomes null. If the handler throws, the task becomes `failed`, `failureReason` gets the new error, and `processTaskResponse` rethrows the error.
+-   A replay never changes a `succeeded` task. Both writes use `updateMany` with `status: { not: 'succeeded' }` in the `where` clause.
 
 Two concurrent replays of the same task can both run the handler. This race is known and accepted.
 
