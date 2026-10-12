@@ -28,6 +28,11 @@ export interface MapFeature {
         strokeColor?: string
         strokeWidth?: number
         strokeOpacity?: number
+        /** A second, wider line under the border (a halo), for the one feature that must stand out. Polygons and lines only. */
+        casingColor?: string
+        casingWidth?: number
+        /** The ring around a point, in px (default 2). */
+        ringWidth?: number
         label?: string
     }
 }
@@ -210,18 +215,19 @@ const Map = memo(function Map({
                 ['get', 'fillOpacity']
             ]);
 
-            // Show blue BORDER - only for the hovered feature
+            // Show blue BORDER - only for the hovered feature. A feature drawn with a wider or
+            // stronger border than that (the selected one) keeps its own.
             map.current.setPaintProperty('feature-borders', 'line-width', [
                 'case',
                 featureFilter,
-                2,
+                ['max', 2, ['get', 'strokeWidth']],
                 ['get', 'strokeWidth']
             ]);
 
             map.current.setPaintProperty('feature-borders', 'line-opacity', [
                 'case',
                 featureFilter,
-                0.8,
+                ['max', 0.8, ['get', 'strokeOpacity']],
                 ['get', 'strokeOpacity']
             ]);
         }
@@ -470,6 +476,9 @@ const Map = memo(function Map({
                             strokeColor: feature.style?.strokeColor || '#627BBC',
                             strokeWidth: feature.style?.strokeWidth ?? 2,
                             strokeOpacity: feature.style?.strokeOpacity ?? 0.8,
+                            casingColor: feature.style?.casingColor || '#ffffff',
+                            casingWidth: feature.style?.casingWidth ?? 0,
+                            ringWidth: feature.style?.ringWidth ?? 2,
                             label: feature.style?.label || ''
                         }
                     }))
@@ -485,6 +494,20 @@ const Map = memo(function Map({
                 'paint': {
                     'fill-color': ['get', 'fillColor'],
                     'fill-opacity': ['get', 'fillOpacity']
+                }
+            });
+
+            // The casing draws under the border, so a wide light casing reads as a halo around it.
+            map.current?.addLayer({
+                'id': 'feature-casings',
+                'type': 'line',
+                'source': 'features',
+                'filter': ['all', ['!=', ['geometry-type'], 'Point'], ['>', ['get', 'casingWidth'], 0]],
+                'layout': { 'line-join': 'round', 'line-cap': 'round' },
+                'paint': {
+                    'line-color': ['get', 'casingColor'],
+                    'line-width': ['get', 'casingWidth'],
+                    'line-opacity': 0.95
                 }
             });
 
@@ -534,7 +557,7 @@ const Map = memo(function Map({
                     'circle-color': ['get', 'fillColor'],
                     'circle-opacity': ['get', 'fillOpacity'],
                     'circle-radius': ['get', 'strokeWidth'],
-                    'circle-stroke-width': 2,
+                    'circle-stroke-width': ['get', 'ringWidth'],
                     'circle-stroke-color': ['get', 'strokeColor'],
                     'circle-stroke-opacity': ['get', 'strokeOpacity']
                 }

@@ -51,7 +51,12 @@ const GEOSET_COLORS = [
     '#90A4AE'  // Blue grey
 ];
 
-const SELECTED_STROKE = '#111827';
+// The open place wears the site's active colour (the address pin, the buttons, the links) over a
+// white halo, so it is the one thing on the map in that colour. The places at the reader's address
+// only get a thin dark outline, so they never look like the open one.
+const SELECTED_STROKE = '#C2410C';
+const SELECTED_CASING = '#FFFFFF';
+const HIGHLIGHT_STROKE = '#111827';
 const SAVED_GEOMETRIES_KEY = 'opencouncil-edited-geometries';
 
 // Helper function to create line features between selected locations
@@ -245,9 +250,8 @@ export default function ConsultationMap({
                     : isPoint
                         ? (mapStyle?.strokeWidth ?? 4)
                         : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2));
-                // The open place stands out most; the places at the reader's address are outlined.
                 const isSelected = geometry.id === selectedId;
-                const isHighlighted = highlightIds.has(geometry.id);
+                const isHighlighted = !isSelected && highlightIds.has(geometry.id);
 
                 features.push({
                     id: geometry.id,
@@ -269,10 +273,13 @@ export default function ConsultationMap({
                             : fillOpacity,
                         strokeColor: geometry.type === 'derived'
                             ? 'transparent'
-                            : (isSelected || isHighlighted) && !isPoint ? SELECTED_STROKE : (isFromLocalStorage ? '#1D4ED8' : color),
+                            : isSelected ? SELECTED_STROKE : isHighlighted && !isPoint ? HIGHLIGHT_STROKE : (isFromLocalStorage ? '#1D4ED8' : color),
                         strokeWidth: isPoint
-                            ? (isSelected ? strokeWidth + 3 : strokeWidth)
-                            : isSelected ? 5 : isHighlighted ? 3 : strokeWidth,
+                            ? (isSelected ? strokeWidth + 4 : strokeWidth)
+                            : isSelected ? 5 : isHighlighted ? 2 : strokeWidth,
+                        ...(isSelected ? { strokeOpacity: 1 } : {}),
+                        ...(isSelected && !isPoint ? { casingColor: SELECTED_CASING, casingWidth: 12 } : {}),
+                        ...(isSelected && isPoint ? { ringWidth: 4 } : {}),
                         label
                     }
                 });
