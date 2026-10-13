@@ -62,6 +62,8 @@ describe('VoicePrintConsentControl', () => {
         expect(screen.getByText(/^byPerson .*Α\. Μ\./)).toBeTruthy();
         expect(screen.getByText('recordHint')).toBeTruthy();
         expect(screen.getByText('withdraw')).toBeTruthy();
+        // The Withdraw button deletes the voiceprint, so its hint shows with it.
+        expect(screen.getByText('withdrawHint')).toBeTruthy();
         fireEvent.click(screen.getByText('record'));
         await waitFor(() => expect(mockedRecord).toHaveBeenCalledWith('person-1', true));
     });

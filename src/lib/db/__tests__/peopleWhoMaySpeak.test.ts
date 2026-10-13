@@ -2,6 +2,9 @@
 
 const mockPersonFindMany = jest.fn();
 
+const mockFindVoiceData = jest.fn();
+const mockDeleteVoiceData = jest.fn();
+jest.mock('@/lib/db/voiceprintsDelete', () => ({ findVoiceData: (...args: unknown[]) => mockFindVoiceData(...args), deleteVoiceData: (...args: unknown[]) => mockDeleteVoiceData(...args) }));
 jest.mock('../prisma', () => ({
   __esModule: true,
   default: { person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) } },

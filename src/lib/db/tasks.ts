@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
 import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
+import { findVoiceprintTasks } from "./voiceprintTasks";
 
 // Derived type for meeting task completion status
 export type MeetingTaskStatus = {
@@ -131,26 +132,7 @@ export async function getGenerateHighlightTasksForHighlight(cityId: string, meet
 export async function getVoiceprintTasksForPerson(personId: string): Promise<TaskStatus[]> {
     await withUserAuthorizedToEdit({ personId });
     try {
-        const tasks = await prisma.taskStatus.findMany({
-            where: {
-                type: "generateVoiceprint",
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
-
-        // Filter tasks that contain this personId in their requestBody
-        const personTasks = tasks.filter(task => {
-            try {
-                const requestBody = JSON.parse(task.requestBody);
-                return requestBody.personId === personId;
-            } catch {
-                return false;
-            }
-        });
-
-        return personTasks;
+        return (await findVoiceprintTasks({ personId })).map(({ task }) => task);
     } catch (error) {
         console.error('Error fetching voiceprint tasks:', error);
         throw new Error('Failed to fetch voiceprint tasks for person');

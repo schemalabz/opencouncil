@@ -82,7 +82,8 @@ export function VoicePrintConsentControl({ personId, personName, status }: {
                         {status?.source === "ADMIN" && t("byAdmin", { date, recorder })}
                     </DialogDescription>
                 </DialogHeader>
-                <p className="text-sm text-muted-foreground">{onPaper ? t("withdrawHint") : t("recordHint")}</p>
+                {!onPaper && <p className="text-sm text-muted-foreground">{t("recordHint")}</p>}
+                {given && <p className="text-sm text-muted-foreground">{t("withdrawHint")}</p>}
                 <DialogFooter className="gap-3">
                     {failed && <p className="text-sm text-destructive w-full">{t("error")}</p>}
                     {given && (

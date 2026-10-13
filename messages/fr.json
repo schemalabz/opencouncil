@@ -528,7 +528,7 @@
       "byAdmin": "Enregistré par {recorder}, le {date}. La personne ne peut pas le modifier depuis son profil.",
       "unknownAccount": "un compte supprimé",
       "recordHint": "Enregistrez-le uniquement si la personne a donné son consentement par écrit, sur un formulaire imprimé avec une signature manuscrite. La personne le verra sur son profil, mais ne pourra pas le modifier.",
-      "withdrawHint": "Retirez-le lorsque la personne le demande. La période de consentement reste dans l'historique.",
+      "withdrawHint": "Retirez-le lorsque la personne le demande. La période de consentement reste dans l'historique, et l'empreinte vocale de la personne est supprimée avec ses extraits audio.",
       "record": "Enregistrer le consentement",
       "withdraw": "Retirer le consentement",
       "saving": "Enregistrement…",

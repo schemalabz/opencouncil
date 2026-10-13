@@ -6,7 +6,7 @@ import { usesSecureCookies } from "@/lib/auth/sessionMirror";
 import { getCurrentUser } from "@/lib/auth";
 import { JOIN_NONCE_COOKIE, JOIN_NONCE_MAX_AGE_S, newJoinNonce, signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { claimPerson, type PersonClaimStatus } from "@/lib/db/personClaim";
-import { getVoicePrintConsents } from "@/lib/db/personConsent";
+import { getVoicePrintConsentStatuses } from "@/lib/db/personConsent";
 import { sendPersonClaimedAdminAlert } from "@/lib/discord";
 import { isLikelyEmail, normalizeEmail } from "@/lib/personJoin/email";
 import { signInWithEmail } from "@/lib/serverSignIn";
@@ -26,11 +26,14 @@ export async function claimWithToken(token: string): Promise<ClaimWithTokenStatu
         sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
     }
     if (result.status === "linked" || result.status === "already_yours") {
-        const consent = (await getVoicePrintConsents([personId])).get(personId);
-        // A new claim closed the consent given in the app. One seen now was
-        // given on paper, or by a delegate this instant, and only the paper
-        // one answers for the person.
-        const settled = consent === VoicePrintConsentSource.ADMIN || (consent !== undefined && result.status === "already_yours");
+        const consent = (await getVoicePrintConsentStatuses([personId])).get(personId);
+        // A new claim closed every consent that another account gave in the
+        // app. One seen now was given on paper, by this account before the
+        // claim, or by a delegate this instant; only the first two answer
+        // for the person.
+        const settled = consent !== undefined && (
+            consent.source === VoicePrintConsentSource.ADMIN || consent.userId === user.id || result.status === "already_yours"
+        );
         if (settled) return "consented";
     }
     return result.status;

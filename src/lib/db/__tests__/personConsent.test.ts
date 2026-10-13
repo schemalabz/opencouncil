@@ -18,6 +18,10 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 const mockGetCurrentUser = jest.fn();
 jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
+const mockDeleteVoiceDataWithoutConsent = jest.fn();
+jest.mock('@/lib/db/voiceprintsDelete', () => ({
+    deleteVoiceDataWithoutConsent: (...args: unknown[]) => mockDeleteVoiceDataWithoutConsent(...args),
+}));
 
 import {
     setVoicePrintConsent,
@@ -42,8 +46,9 @@ const closed = { where: { id: 'consent-1' }, data: { withdrawnAt: expect.any(Dat
 const created = (userId: string, source?: 'ADMIN') => ({ data: { personId: 'person-1', userId, ...(source ? { source } : {}) } });
 
 beforeEach(() => {
-    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, mockGetCurrentUser]) m.mockReset();
+    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, mockGetCurrentUser, mockDeleteVoiceDataWithoutConsent]) m.mockReset();
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
+    mockDeleteVoiceDataWithoutConsent.mockResolvedValue([]);
     txAdministers.mockResolvedValue({ id: 'row-1' });
     txFindFirst.mockResolvedValue(null);
 });
@@ -54,6 +59,7 @@ describe('setVoicePrintConsent', () => {
         await setVoicePrintConsent('person-1', true);
         expect(txCreate).toHaveBeenCalledWith(created('user-1'));
         expect(txUpdate).not.toHaveBeenCalled();
+        expect(mockDeleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
     });
 
     it('accepts a delegate account too: the consent follows the permission, not the claim', async () => {
@@ -70,12 +76,24 @@ describe('setVoicePrintConsent', () => {
         expect(txUpdate).not.toHaveBeenCalled();
     });
 
-    it('closes the open period on withdrawal, whoever opened it, and deletes nothing', async () => {
+    it('closes the open period on withdrawal, whoever opened it, keeps the period, and deletes the voiceprints after the commit', async () => {
         mockGetCurrentUser.mockResolvedValue(delegate);
         txFindFirst.mockResolvedValue(open('PERSON'));
+        const order: string[] = [];
+        mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => { const result = await fn(tx); order.push('commit'); return result; });
+        mockDeleteVoiceDataWithoutConsent.mockImplementation(async () => { order.push('delete'); return []; });
         await setVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
         expect(txCreate).not.toHaveBeenCalled();
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(order).toEqual(['commit', 'delete']);
+    });
+
+    it('deletes the voiceprints after a withdrawal even when no period was open', async () => {
+        mockGetCurrentUser.mockResolvedValue(owner);
+        await setVoicePrintConsent('person-1', false);
+        expect(txUpdate).not.toHaveBeenCalled();
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
     });
 
     it('closes a period at its grant time when the clock of this instance is behind', async () => {
@@ -93,6 +111,7 @@ describe('setVoicePrintConsent', () => {
         await setVoicePrintConsent('person-1', true);
         expect(txUpdate).not.toHaveBeenCalled();
         expect(txCreate).not.toHaveBeenCalled();
+        expect(mockDeleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
     });
 
     it('treats a lost race between two ticks as success', async () => {
@@ -189,11 +208,23 @@ describe('recordVoicePrintConsent', () => {
         await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/try again/);
     });
 
-    it("withdraws the open period, the person's own included", async () => {
+    it("withdraws the open period, the person's own included, and deletes the voiceprints after the commit", async () => {
         mockGetCurrentUser.mockResolvedValue(superadmin);
         txFindFirst.mockResolvedValue(open('PERSON'));
+        const order: string[] = [];
+        mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => { const result = await fn(tx); order.push('commit'); return result; });
+        mockDeleteVoiceDataWithoutConsent.mockImplementation(async () => { order.push('delete'); return []; });
         await recordVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(order).toEqual(['commit', 'delete']);
+    });
+
+    it('deletes nothing when it records or replaces a consent', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        txFindFirst.mockResolvedValue(open('PERSON'));
+        await recordVoicePrintConsent('person-1', true);
+        expect(mockDeleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
     });
 
     it('refuses anybody who is not a superadmin, the account of the person included', async () => {
@@ -211,15 +242,18 @@ describe('recordVoicePrintConsent', () => {
 });
 
 describe('closeAppConsent', () => {
-    it('closes the consent given in the app, and only that one', async () => {
+    it('closes the consent that another account gave in the app, and only that one', async () => {
         txFindFirst.mockResolvedValue(open('PERSON'));
-        await closeAppConsent(tx as never, 'person-1');
-        expect(txFindFirst.mock.calls[0][0].where).toEqual({ personId: 'person-1', withdrawnAt: null, source: 'PERSON' });
+        await closeAppConsent(tx as never, 'person-1', 'user-1');
+        // A period whose account was deleted has a null user: it is another account's, and closes too.
+        expect(txFindFirst.mock.calls[0][0].where).toEqual({
+            personId: 'person-1', withdrawnAt: null, source: 'PERSON', OR: [{ userId: null }, { userId: { not: 'user-1' } }],
+        });
         expect(txUpdate).toHaveBeenCalledWith(closed);
     });
 
     it('changes nothing when no consent was given in the app', async () => {
-        await closeAppConsent(tx as never, 'person-1');
+        await closeAppConsent(tx as never, 'person-1', 'user-1');
         expect(txUpdate).not.toHaveBeenCalled();
     });
 });

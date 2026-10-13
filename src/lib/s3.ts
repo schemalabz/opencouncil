@@ -1,5 +1,5 @@
 import {
-    S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL,
+    S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ListObjectsV2Command, ObjectCannedACL,
     CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand, CompleteMultipartUploadCommand,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -118,6 +118,20 @@ export async function objectSize(key: string): Promise<number | null> {
         if (isS3NotFound(error)) return null
         throw error
     }
+}
+
+/** Every key under `prefix` in `bucket`, across all pages of the listing. */
+export async function listObjectKeys(bucket: string, prefix: string): Promise<string[]> {
+    const keys: string[] = []
+    let token: string | undefined
+    do {
+        const page = await s3Client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }))
+        for (const object of page.Contents ?? []) {
+            if (object.Key) keys.push(object.Key)
+        }
+        token = page.IsTruncated ? page.NextContinuationToken : undefined
+    } while (token)
+    return keys
 }
 
 // Delete file

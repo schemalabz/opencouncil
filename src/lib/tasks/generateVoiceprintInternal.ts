@@ -1,17 +1,17 @@
 /**
  * The generateVoiceprint result handler, and the consent check it shares with
- * the request. NOT in a "use server" file: the handler writes a voiceprint
- * with no session to gate on, so it must not be callable as a Server Action.
- * Only the task-server callback and the admin's reprocess reach it, through
- * the registry.
+ * the request. Not in a "use server" file: the handler writes a voiceprint
+ * with no session to gate on. Only the task-server callback and the admin's
+ * reprocess reach it, through the registry.
  */
 import "server-only";
 import prisma from "@/lib/db/prisma";
-import { GenerateVoiceprintResult } from "@/lib/apiTypes";
+import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "@/lib/apiTypes";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 import { getConsentedPersonIds } from "@/lib/db/personConsent";
+import { deleteVoiceData } from "@/lib/db/voiceprintsDelete";
 
-/** Whether the person's voiceprint consent is in force now (see voicePrintConsentInForce). */
+/** Whether the person's voiceprint consent is in force now. */
 export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
     return (await getConsentedPersonIds([personId])).has(personId);
 }
@@ -19,8 +19,8 @@ export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
 /**
  * Store the embedding of a generateVoiceprint task as the person's voiceprint.
  * The consent was in force when the task started; a withdrawal since then
- * fails the task, so the admin sees why. Nothing is deleted: the clip the task
- * uploaded stays, as a stored voiceprint stays after a withdrawal.
+ * fails the task, so the admin sees why, and the clip the task uploaded goes,
+ * as the person's stored voiceprints went with the withdrawal.
  */
 export async function handleGenerateVoiceprintResult(taskId: string, result: GenerateVoiceprintResult): Promise<void> {
     const taskStatus = await prisma.taskStatus.findUnique({
@@ -31,9 +31,11 @@ export async function handleGenerateVoiceprintResult(taskId: string, result: Gen
         throw new Error("Task status not found");
     }
 
-    const requestBody = JSON.parse(taskStatus.requestBody);
+    const requestBody = JSON.parse(taskStatus.requestBody) as GenerateVoiceprintRequest;
 
     if (!await hasVoicePrintConsent(requestBody.personId)) {
+        // Logs and alerts a clip that cannot be removed; the refusal below stands either way.
+        await deleteVoiceData({ voicePrintIds: [], clipUrls: [result.audioUrl], folders: [] }, `voiceprint of task ${taskId} refused`);
         throw new Error(`Voiceprint not stored: person ${requestBody.personId} has no voiceprint consent in force`);
     }
 

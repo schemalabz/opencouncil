@@ -6,6 +6,7 @@ import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
 import { RoleWithRelations, peopleOnly, roleWithRelationsInclude } from "./types";
+import { deleteVoiceData, findVoiceData } from "./voiceprintsDelete";
 
 export type PersonWithRelations = Person & {
     roles: RoleWithRelations[];
@@ -21,6 +22,8 @@ export type PersonWithVoicePrints = PersonWithRelations & {
 
 export async function deletePerson(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
+    // Read before the delete: the rows and the tasks that name the clips go with the person.
+    const voiceData = await findVoiceData({ personId: id });
     try {
         await prisma.person.delete({
             where: { id },
@@ -29,6 +32,7 @@ export async function deletePerson(id: string): Promise<void> {
         console.error('Error deleting person:', error);
         throw new Error('Failed to delete person');
     }
+    await deleteVoiceData(voiceData, `person ${id} deleted`);
 }
 
 export async function createPerson(data: {

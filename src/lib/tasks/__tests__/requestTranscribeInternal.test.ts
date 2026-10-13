@@ -66,16 +66,17 @@ describe('requestTranscribeInternal and voiceprint consent', () => {
     });
 
     it('applies the cap of 50 after the consent filter, so nobody without consent takes a slot', async () => {
-        const people = Array.from({ length: 60 }, (_, i) => person(`p${i}`));
-        const consentedIds = people.slice(0, 55).map(p => p.id);
+        // The 10 people without consent come first in priority order: a cap applied before the
+        // filter would take their slots and send 40.
+        const people = Array.from({ length: 60 }, (_, i) => person(`p${String(i).padStart(2, '0')}`));
+        const consentedIds = people.slice(10).map(p => p.id);
         mockGetPeopleWhoMaySpeak.mockResolvedValue(people);
         mockGetConsentedPersonIds.mockResolvedValue(new Set(consentedIds));
 
         await requestTranscribeInternal('https://youtu.be/x', 'meeting-1', 'city-1');
 
         const sent = sentVoiceprints().map((v: { personId: string }) => v.personId);
-        expect(sent).toHaveLength(50);
-        expect(sent.every((id: string) => consentedIds.includes(id))).toBe(true);
+        expect(sent).toEqual(consentedIds.slice(0, 50));
     });
 
     it('sends no voiceprints when nobody who may speak has a consent in force', async () => {

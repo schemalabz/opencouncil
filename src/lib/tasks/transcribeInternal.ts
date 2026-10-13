@@ -104,9 +104,8 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     const city = councilMeeting.city;
 
-    // Voiceprints of the people who may speak at this meeting, and whose
-    // consent is in force today: a voiceprint stored for a person without one
-    // stays stored and is not matched against.
+    // Voiceprints of the people who may speak at this meeting and whose
+    // consent is in force (see voicePrintConsentRule.ts).
     const people = await getPeopleWhoMaySpeak(cityId, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
     const consented = await getConsentedPersonIds(people.map(person => person.id));
     const voicePrintRows = await prisma.voicePrint.findMany({
