@@ -319,8 +319,9 @@ enum VoicePrintConsentSource {
 /// transcribe request sends only the voiceprints of people with one, the
 /// transcribe result accepts a match only for them, and the voiceprint task
 /// starts and stores an embedding only for them (voicePrintConsentInForce in
-/// src/lib/db/personConsent.ts). A stored voiceprint outlives its period and
-/// is not used while no period is open.
+/// src/lib/db/voicePrintConsentRule.ts). A withdrawal closes the period and
+/// deletes the person's voiceprints with their clips (voiceprintsDelete.ts):
+/// the period is kept as the proof, the voice is not.
 model VoicePrintConsent {
   id          String                  @id @default(cuid())
   personId    String
