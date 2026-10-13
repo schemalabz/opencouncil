@@ -23,7 +23,7 @@ export type PersonWithRoles = PartyWithRoles['roles'][number]['person'] & {
 };
 
 export async function deleteParty(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({ partyId: id });
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.party.delete({
             where: { id },

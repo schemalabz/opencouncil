@@ -19,7 +19,7 @@ export type PersonWithVoicePrints = PersonWithRelations & {
 };
 
 export async function deletePerson(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({ personId: id });
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.person.delete({
             where: { id },

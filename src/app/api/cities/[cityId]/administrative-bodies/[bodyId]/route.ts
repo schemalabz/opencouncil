@@ -65,7 +65,7 @@ export async function DELETE(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withUserAuthorizedToEdit({});
         await deleteAdministrativeBody(params.bodyId);
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);

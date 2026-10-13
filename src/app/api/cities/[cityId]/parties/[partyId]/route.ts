@@ -78,7 +78,7 @@ export async function DELETE(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ partyId: params.partyId });
+        await withUserAuthorizedToEdit({});
         await deleteParty(params.partyId)
         revalidateTag(`city:${params.cityId}:parties`, 'max');
         // The city row carries the roster counts the overview reads to decide
