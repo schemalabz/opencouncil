@@ -124,6 +124,22 @@ const commentListInclude = {
     response: { select: consultationCommentResponseSelect },
 } satisfies Prisma.ConsultationCommentInclude;
 
+type CommentListRow = Prisma.ConsultationCommentGetPayload<{ include: typeof commentListInclude }>;
+
+/**
+ * A comment as the public lists get it: how many agreed and whether the reader did, but not who.
+ * The list of who agreed stays here: author ids are public next to their names, so it would show
+ * which comments a named commenter agreed with.
+ */
+function withUpvoteSummary({ upvotes, ...comment }: CommentListRow, session?: Session | null): ConsultationCommentWithUpvotes {
+    const readerId = session?.user?.id;
+    return {
+        ...comment,
+        upvoteCount: upvotes.length,
+        hasUserUpvoted: !!readerId && upvotes.some(upvote => upvote.userId === readerId),
+    };
+}
+
 export type ConsultationWithStatus = Consultation & {
     isActiveComputed: boolean;
     city: {
@@ -292,18 +308,7 @@ export async function getConsultationComments(
         }
     });
 
-    const result = comments.map(comment => {
-        const hasUserUpvoted = session?.user?.id ? comment.upvotes.some(upvote => upvote.userId === session.user.id) : false;
-        // console.log(`Comment ${comment.id}: userId=${session?.user?.id}, upvotes=[${comment.upvotes.map(u => u.userId).join(',')}], hasUserUpvoted=${hasUserUpvoted}`);
-
-        return {
-            ...comment,
-            upvoteCount: comment.upvotes.length,
-            hasUserUpvoted
-        };
-    });
-
-    return result;
+    return comments.map(comment => withUpvoteSummary(comment, session));
 }
 
 // Get comments for a specific entity
@@ -327,11 +332,7 @@ export async function getCommentsForEntity(
         }
     });
 
-    return comments.map(comment => ({
-        ...comment,
-        upvoteCount: comment.upvotes.length,
-        hasUserUpvoted: session?.user?.id ? comment.upvotes.some(upvote => upvote.userId === session.user.id) : false
-    }));
+    return comments.map(comment => withUpvoteSummary(comment, session));
 }
 
 // Add a new comment (with server-side validation and auth)
