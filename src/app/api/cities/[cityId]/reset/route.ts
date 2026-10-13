@@ -141,6 +141,14 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             });
 
             // 13. Delete consultation related data
+            await tx.consultationCommentResponse.deleteMany({
+                where: {
+                    comment: {
+                        cityId: params.cityId
+                    }
+                }
+            });
+
             await tx.consultationCommentUpvote.deleteMany({
                 where: {
                     comment: {

@@ -7,6 +7,7 @@ import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
+import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Suspense } from "react";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
@@ -103,10 +104,12 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
 export default async function ConsultationPage(props: PageProps) {
     const params = await props.params;
-    const [city, consultation, session] = await Promise.all([
+    // An administrator of the city answers comments in the municipality's name.
+    const [city, consultation, session, canRespond] = await Promise.all([
         getCityCached(params.cityId),
         getConsultationById(params.cityId, params.id),
-        auth()
+        auth(),
+        isUserAuthorizedToEdit({ cityId: params.cityId }),
     ]);
 
     if (!city) {
@@ -216,6 +219,7 @@ export default async function ConsultationPage(props: PageProps) {
                     municipalityName={city.name_municipality}
                     cityLogoUrl={city.logoImage || null}
                     notificationsHref={notificationsSignupHref(city)}
+                    canRespond={canRespond}
                 />
             </Suspense>
         </>

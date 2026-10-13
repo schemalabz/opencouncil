@@ -56,14 +56,16 @@ const RESEND_BATCH_INTERVAL_MS = 500;
  * `sendEmail` does for one-shot sends.
  */
 function applyDevOverride(item: BatchEmailItem, override: string): BatchEmailItem {
+    const replyTo = item.replyTo ? (Array.isArray(item.replyTo) ? item.replyTo.join(', ') : item.replyTo) : 'none';
     const banner = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-family:monospace;font-size:13px;color:#92400e;">
         <strong>🔧 Dev Email Override</strong><br/>
-        <strong>To:</strong> ${item.to}
+        <strong>To:</strong> ${item.to}<br/>
+        <strong>Reply-To:</strong> ${replyTo}
     </div>`;
+    // As in sendEmail: a reply from the dev inbox must not reach the real addresses.
     return {
         from: item.from,
         to: override,
-        replyTo: item.replyTo,
         subject: `[DEV → ${item.to}] ${item.subject}`,
         html: banner + item.html,
         text: item.text,
@@ -83,27 +85,35 @@ export async function sendEmail(params: EmailParams) {
     if ((isDev || isPreview) && devEmailOverride) {
         const originalTo = to;
         const originalCc = cc;
-        
+        const originalReplyTo = replyTo;
+
         // Redirect email to dev address
         to = devEmailOverride;
         cc = undefined; // Clear CC to avoid sending to real addresses
+        // A reply from the dev inbox must not reach the real addresses either.
+        replyTo = undefined;
 
         // Modify subject to include original recipient
         subject = `[DEV → ${originalTo}] ${subject}`;
 
         // Prepend a dev banner to the email body showing original recipients
-        const ccList = originalCc ? (Array.isArray(originalCc) ? originalCc.join(', ') : originalCc) : 'none';
+        const list = (addresses: string | string[] | undefined) =>
+            addresses ? (Array.isArray(addresses) ? addresses.join(', ') : addresses) : 'none';
         const devBanner = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-family:monospace;font-size:13px;color:#92400e;">
             <strong>🔧 Dev Email Override</strong><br/>
             <strong>To:</strong> ${originalTo}<br/>
-            <strong>CC:</strong> ${ccList}
+            <strong>CC:</strong> ${list(originalCc)}<br/>
+            <strong>Reply-To:</strong> ${list(originalReplyTo)}
         </div>`;
         html = devBanner + html;
 
         // Log for debugging
         console.log(`📧 Dev mode: Redirecting email from "${originalTo}" to "${devEmailOverride}"`);
         if (originalCc) {
-            console.log(`   Original CC: ${Array.isArray(originalCc) ? originalCc.join(', ') : originalCc}`);
+            console.log(`   Original CC: ${list(originalCc)}`);
+        }
+        if (originalReplyTo) {
+            console.log(`   Original Reply-To: ${list(originalReplyTo)}`);
         }
     }
 

@@ -1059,6 +1059,7 @@ model User {
   // Add these relations for consultation comments
   consultationComments ConsultationComment[]
   consultationCommentUpvotes ConsultationCommentUpvote[]
+  consultationCommentResponses ConsultationCommentResponse[]
   pendingConsultationComments PendingConsultationComment[]
   
   createdAt DateTime @default(now())
@@ -1384,6 +1385,7 @@ model ConsultationComment {
   cityId        String
 
   upvotes       ConsultationCommentUpvote[]
+  response      ConsultationCommentResponse?
 
   @@index([consultationId, entityType, entityId])
   @@index([cityId])
@@ -1427,6 +1429,26 @@ model ConsultationCommentUpvote {
   @@unique([userId, commentId])
   @@index([commentId])
   @@index([userId])
+}
+
+/// The municipality's one public response under a citizen's consultation comment. It shows in
+/// the municipality's name, never the administrator's. `emailSentAt` is when the email that
+/// joins the author and the municipality went out: once, on the first publication that sends.
+model ConsultationCommentResponse {
+  id           String    @id @default(cuid())
+  body         String    @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  emailSentAt  DateTime?
+
+  comment      ConsultationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId    String    @unique
+
+  /// The administrator who last wrote it: the email's CC and an audit trail. Never shown.
+  author       User?     @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorUserId String?
+
+  @@index([authorUserId])
 }
 
 // Connects a user to a meeting (via a cityId and meetingId). Has a medium (email or message) and a type (beforeMeeting or afterMeeting).

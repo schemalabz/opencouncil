@@ -270,6 +270,7 @@
     "allAdministrativeBodies": "Tous les organes",
     "filterByAdminBody": "Filtrer par organe administratif",
     "citySections": "Sections de la commune",
+    "openConsultations": "{count, plural, one {# consultation ouverte} other {# consultations ouvertes}}",
     "widget": "Widget",
     "supportBadgeOfficialAthens": "Avec le soutien de la municipalité et de DAEM S.A.",
     "supportBadgeOfficialMunicipality": "Avec le soutien de la municipalité",

@@ -270,6 +270,7 @@
         "allAdministrativeBodies": "Όλα τα όργανα",
         "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο",
         "citySections": "Ενότητες δήμου",
+        "openConsultations": "{count, plural, one {# ανοιχτή διαβούλευση} other {# ανοιχτές διαβουλεύσεις}}",
         "widget": "Widget",
         "supportBadgeOfficialAthens": "Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.",
         "supportBadgeOfficialMunicipality": "Με την υποστήριξη του δήμου",

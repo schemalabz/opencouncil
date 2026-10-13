@@ -6,6 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import type { Realm } from "@prisma/client";
 import type { CityWithGeometry } from "@/lib/db/cities";
 import type { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
+import type { ConsultationCommentResponseView } from "@/lib/db/types";
 import { formatClockTime, formatDate } from "@/lib/formatters/time";
 import type { Location } from "@/lib/types/onboarding";
 import ConsultationBar from "./ConsultationBar";
@@ -49,6 +50,8 @@ interface ConsultationViewerProps {
     cityLogoUrl?: string | null;
     /** The municipality's notifications signup, offered after a comment. */
     notificationsHref: string;
+    /** Whether the reader administers the city: the comments get the municipality's response controls. */
+    canRespond?: boolean;
 }
 
 interface Place {
@@ -122,6 +125,7 @@ export default function ConsultationViewer({
     municipalityName,
     cityLogoUrl,
     notificationsHref,
+    canRespond = false,
 }: ConsultationViewerProps) {
     const searchParams = useSearchParams();
     const isDesktop = useIsDesktop();
@@ -226,6 +230,9 @@ export default function ConsultationViewer({
     }, []);
     const onDeleted = useCallback((commentId: string) => {
         setLiveComments(list => list.filter(comment => comment.id !== commentId));
+    }, []);
+    const onResponded = useCallback((commentId: string, response: ConsultationCommentResponseView | null) => {
+        setLiveComments(list => list.map(comment => comment.id === commentId ? { ...comment, response } : comment));
     }, []);
 
     const commentCounts = useMemo(() => {
@@ -386,9 +393,11 @@ export default function ConsultationViewer({
                         notificationsHref={notificationsHref}
                         cityHref={cityHref}
                         municipalityName={municipalityName}
+                        canRespond={canRespond}
                         comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}
+                        onResponded={onResponded}
                     />
                 );
             case 'plan':
@@ -415,8 +424,11 @@ export default function ConsultationViewer({
                         commentHref={commentHref}
                         printHref={`/${cityId}/consultation/${consultationId}/comments`}
                         currentUserId={currentUser?.id}
+                        municipalityName={municipalityName}
+                        canRespond={canRespond}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}
+                        onResponded={onResponded}
                     />
                 );
             case 'map':

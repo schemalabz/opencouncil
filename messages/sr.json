@@ -256,6 +256,7 @@
         "allAdministrativeBodies": "Сва тела",
         "filterByAdminBody": "Филтрирај по управном телу",
         "citySections": "Секције града",
+        "openConsultations": "{count, plural, one {# отворена јавна расправа} few {# отворене јавне расправе} other {# отворених јавних расправа}}",
         "widget": "Виџет",
         "supportBadgeOfficialAthens": "Уз подршку града и компаније ДАЕМ",
         "supportBadgeOfficialMunicipality": "Уз подршку општине/града",
