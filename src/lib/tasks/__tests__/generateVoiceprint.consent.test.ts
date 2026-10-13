@@ -21,6 +21,8 @@ jest.mock('@/lib/db/meetings', () => ({ getCouncilMeeting: jest.fn() }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args) }));
 jest.mock('../tasks', () => ({ startTask: jest.fn() }));
 jest.mock('@/lib/db/voiceprintsCreate', () => ({ createVoicePrintDirect: (...args: unknown[]) => mockCreateVoicePrintDirect(...args) }));
+const mockDeleteClip = jest.fn();
+jest.mock('@/lib/db/voiceprintsDelete', () => ({ deleteClip: (...args: unknown[]) => mockDeleteClip(...args) }));
 jest.mock('@/lib/db/personConsent', () => ({
     voicePrintConsentInForce: { voicePrintConsents: { some: { withdrawnAt: null } } },
     getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args),
@@ -100,14 +102,16 @@ describe('handleGenerateVoiceprintResult', () => {
             sourceAudioUrl: result.audioUrl,
             embedding: 'embedding',
         });
+        expect(mockDeleteClip).not.toHaveBeenCalled();
     });
 
-    it('fails the task and stores nothing when the consent closed while the task ran', async () => {
+    it('fails the task, stores nothing and removes the clip when the consent closed while the task ran', async () => {
         mockTaskFindUnique.mockResolvedValue(task);
         consented();
 
         await expect(handleGenerateVoiceprintResult('task-1', result)).rejects.toThrow('no voiceprint consent in force');
 
         expect(mockCreateVoicePrintDirect).not.toHaveBeenCalled();
+        expect(mockDeleteClip).toHaveBeenCalledWith(result.audioUrl);
     });
 });

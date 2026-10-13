@@ -10,6 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { GenerateVoiceprintResult } from "@/lib/apiTypes";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 import { getConsentedPersonIds } from "@/lib/db/personConsent";
+import { deleteClip } from "@/lib/db/voiceprintsDelete";
 
 /** Whether the person's voiceprint consent is in force now (see voicePrintConsentInForce). */
 export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
@@ -19,8 +20,8 @@ export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
 /**
  * Store the embedding of a generateVoiceprint task as the person's voiceprint.
  * The consent was in force when the task started; a withdrawal since then
- * fails the task, so the admin sees why. Nothing is deleted: the clip the task
- * uploaded stays, as a stored voiceprint stays after a withdrawal.
+ * fails the task, so the admin sees why, and the clip the task uploaded goes,
+ * as the person's stored voiceprints went with the withdrawal.
  */
 export async function handleGenerateVoiceprintResult(taskId: string, result: GenerateVoiceprintResult): Promise<void> {
     const taskStatus = await prisma.taskStatus.findUnique({
@@ -34,6 +35,7 @@ export async function handleGenerateVoiceprintResult(taskId: string, result: Gen
     const requestBody = JSON.parse(taskStatus.requestBody);
 
     if (!await hasVoicePrintConsent(requestBody.personId)) {
+        await deleteClip(result.audioUrl);
         throw new Error(`Voiceprint not stored: person ${requestBody.personId} has no voiceprint consent in force`);
     }
 
