@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
 import { closeAppConsent } from "@/lib/db/personConsent";
+import { deleteVoicePrintsWithoutConsent } from "@/lib/db/voiceprintsDelete";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 
 export type PersonClaimResult =
@@ -28,7 +29,9 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  *
  * The claim closes a consent that an earlier account gave in the app. The
  * flow asks the question next, and the person answers for themselves. A
- * consent recorded on paper stays, and the flow skips the question.
+ * consent recorded on paper stays, and the flow skips the question. With
+ * the app consent closed, the person's voiceprints are deleted, as on any
+ * withdrawal: the new answer decides whether a new one is made.
  *
  * The check and the write run through `serializableOnce`, so two people who
  * scan the same QR at the same moment cannot both win. The partial unique
@@ -36,7 +39,7 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  * was written meanwhile, by another account or by a second submit of this one.
  */
 export async function claimPerson(userId: string, personId: string): Promise<PersonClaimResult> {
-    return serializableOnce<PersonClaimResult>(
+    const result = await serializableOnce<PersonClaimResult>(
         async (tx) => {
             const person = await tx.person.findUnique({
                 where: { id: personId },
@@ -73,6 +76,12 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
         },
     );
+    // The claim closed the app consent and committed. No period may be open
+    // now (a paper consent stays), and the voiceprints of a person without
+    // one go, with their clips. After the commit, so an object store failure
+    // cannot undo the claim.
+    if (result.status === "linked") await deleteVoicePrintsWithoutConsent({ personId });
+    return result;
 }
 
 /**

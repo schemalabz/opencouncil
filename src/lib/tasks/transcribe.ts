@@ -8,6 +8,7 @@ import { buildUnknownSpeakerLabel } from "../utils";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
+import { getConsentedPersonIds } from "../db/personConsent";
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
 // payload; 4 significant figures is far finer than the ASR signal warrants.
@@ -79,6 +80,15 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
 
     console.log(`Pre-computed ${speakerSegmentsData.length} segments with utterances in ${((Date.now() - preComputeStart) / 1000).toFixed(2)}s`);
 
+    // A match counts only for a person whose voiceprint consent is in force
+    // now: the request sent only consented voiceprints, but a consent can
+    // close while the task runs, and a replayed result may predate a
+    // withdrawal. Read once, before the transaction.
+    const matchedPersonIds = response.transcript.transcription.speakers
+        .map(speakerInfo => speakerInfo.match)
+        .filter((id): id is string => id !== null);
+    const consented = await getConsentedPersonIds(matchedPersonIds);
+
     // Start a transaction
     console.log(`Starting transaction to create speaker segments and utterances`);
     const transactionStartTime = Date.now();
@@ -110,6 +120,12 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             // First, validate all person IDs before creating any speaker tags
             for (const speakerInfo of response.transcript.transcription.speakers) {
                 if (speakerInfo.match) {
+                    if (!consented.has(speakerInfo.match)) {
+                        console.warn(`Warning: Person with ID ${speakerInfo.match} has no voiceprint consent in force. Skipping person connection for speaker ${speakerInfo.speaker}`);
+                        speakerInfo.match = null;
+                        continue;
+                    }
+
                     // Verify the person exists before attempting to connect
                     const personExists = await tx.person.findUnique({
                         where: { id: speakerInfo.match }
