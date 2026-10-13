@@ -57,6 +57,11 @@ jest.mock('@/lib/db/notifications', () => ({
     getNotificationPreferenceForCity: jest.fn(),
 }));
 
+// Its real module reaches next-auth's ESM entry through the magic-link helper.
+jest.mock('@/lib/db/consultations', () => ({
+    countOpenConsultationsForCity: jest.fn(),
+}));
+
 // A client component the layout mounts in the header; it pulls next-intl's
 // ESM entry, which jest does not transform, and the suite never renders it.
 jest.mock('@/components/meetings/stage/MeetingHeaderStage', () => ({
@@ -240,6 +245,8 @@ describe('PR1: server-side awaits run concurrently', () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
         const notifications = require('@/lib/db/notifications');
+        const consultations = require('@/lib/db/consultations');
+        consultations.countOpenConsultationsForCity.mockResolvedValue(1);
 
         const cityD = deferred<unknown>();
         const messageD = deferred<unknown>();
@@ -288,10 +295,13 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getCityPetitionBucketCached).not.toHaveBeenCalled();
         // The notification preference needs the user id, so it cannot fire yet.
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
+        // The open-consultation count needs to know whether the city has consultations.
+        expect(consultations.countOpenConsultationsForCity).not.toHaveBeenCalled();
 
-        cityD.resolve({ id: 'athens', status: 'listed', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
+        cityD.resolve({ id: 'athens', status: 'listed', timezone: 'Europe/Athens', consultationsEnabled: true, _count: { councilMeetings: 1, persons: 1, parties: 1 } });
         await flushMicrotasks();
         expect(cache.getCityPetitionBucketCached).toHaveBeenCalledTimes(1);
+        expect(consultations.countOpenConsultationsForCity).toHaveBeenCalledWith('athens');
 
         // Resolve the user on its own; the preference chains off currentUserPromise
         // rather than off the whole batch, so it must fire now even though

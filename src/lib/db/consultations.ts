@@ -195,6 +195,12 @@ export async function getConsultationsForCity(cityId: string): Promise<Consultat
     });
 }
 
+/** How many of the city's consultations take comments now: flagged active and not past their end. */
+export async function countOpenConsultationsForCity(cityId: string): Promise<number> {
+    const consultations = await getConsultationsForCity(cityId);
+    return consultations.filter(consultation => isConsultationActive(consultation, consultation.city.timezone)).length;
+}
+
 export async function getConsultationById(cityId: string, consultationId: string): Promise<ConsultationWithStatus | null> {
     const consultation = await prisma.consultation.findFirst({
         where: {

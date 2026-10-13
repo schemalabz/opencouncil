@@ -12,6 +12,7 @@ import { isPetitionable } from "@/lib/cityStatus";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
+import { countOpenConsultationsForCity } from "@/lib/db/consultations";
 import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
 import { readerPhoneChannel } from "@/lib/notis/reader";
 
@@ -43,7 +44,7 @@ export default async function TabsLayout(
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
     const currentUserPromise = getCurrentUser();
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference, openConsultations] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         currentUserPromise,
@@ -60,6 +61,8 @@ export default async function TabsLayout(
         // Depends on the user id, so it chains off currentUserPromise rather
         // than sitting as a plain sibling.
         currentUserPromise.then(user => user ? getNotificationPreferenceForCity(user.id, cityId) : null),
+        // Not cached: it turns with the clock at each end date, and a city has a handful at most.
+        cityPromise.then(found => found?.consultationsEnabled ? countOpenConsultationsForCity(cityId) : 0),
     ]);
     if (!city) {
         notFound();
@@ -149,7 +152,7 @@ export default async function TabsLayout(
                 </div>
 
                 <div className="min-w-0 space-y-8 max-lg:order-3 lg:col-start-1 lg:row-start-2">
-                    <CityNavigation cityId={cityId} city={city} />
+                    <CityNavigation cityId={cityId} city={city} openConsultations={openConsultations} />
 
                     <Suspense fallback={
                         <div className="flex justify-center items-center h-32">
