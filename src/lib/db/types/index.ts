@@ -48,3 +48,4 @@ export interface SeedData {
 export * from './meeting';
 export * from './adaLookups';
 export * from './decision';
+export * from './consultation';

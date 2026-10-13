@@ -1,6 +1,7 @@
-import { Consultation, User, ConsultationComment, ConsultationCommentEntityType, Realm } from '@prisma/client';
+import { Consultation, User, ConsultationComment, ConsultationCommentEntityType, Prisma, Realm } from '@prisma/client';
 import { Session } from 'next-auth';
 import prisma from "./prisma";
+import { consultationCommentResponseSelect, type ConsultationCommentResponseView } from "./types/consultation";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { plainTextToCommentHtml } from "@/lib/utils/commentText";
@@ -112,7 +113,16 @@ export interface ConsultationCommentWithUpvotes extends ConsultationComment {
     user: Pick<User, 'id' | 'name'>;
     upvoteCount: number;
     hasUserUpvoted: boolean;
+    /** The municipality's public response, when it has answered. */
+    response: ConsultationCommentResponseView | null;
 }
+
+/** What the comment lists need: the author's name, who agreed, and the municipality's response. */
+const commentListInclude = {
+    user: { select: { id: true, name: true } },
+    upvotes: { select: { userId: true } },
+    response: { select: consultationCommentResponseSelect },
+} satisfies Prisma.ConsultationCommentInclude;
 
 export type ConsultationWithStatus = Consultation & {
     isActiveComputed: boolean;
@@ -270,19 +280,7 @@ export async function getConsultationComments(
             consultationId,
             cityId
         },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true
-                }
-            },
-            upvotes: {
-                select: {
-                    userId: true
-                }
-            }
-        },
+        include: commentListInclude,
         orderBy: {
             createdAt: 'desc'
         }
@@ -317,19 +315,7 @@ export async function getCommentsForEntity(
             entityType,
             entityId
         },
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true
-                }
-            },
-            upvotes: {
-                select: {
-                    userId: true
-                }
-            }
-        },
+        include: commentListInclude,
         orderBy: {
             createdAt: 'desc'
         }
