@@ -1,0 +1,6 @@
+{
+  "name": "server-only",
+  "version": "0.0.0",
+  "main": "index.js",
+  "description": "Stand-in for Next.js's bundler marker, so a script run with tsx can import a server-only module. Put scripts/shims on NODE_PATH."
+}
