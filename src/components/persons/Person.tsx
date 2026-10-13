@@ -24,6 +24,7 @@ import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
 import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
 import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
@@ -60,6 +61,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     // topic filter — totalCount tracks whatever the list currently shows.
     const [careerCount, setCareerCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [isLoadingContributions, setIsLoadingContributions] = useState(false);
     const { data: session } = useSession();
@@ -167,6 +169,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                 toast({
                     title: t('personDeleted', { name: person.name }),
                 });
+                setConfirmingDelete(false);
                 router.push(`/${city.id}`);
             } else {
                 const errorData = await response.json();
@@ -310,9 +313,21 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         triggerSize="sm"
                                         triggerClassName={adminToolClass}
                                     />
-                                    <AdminToolButton destructive onClick={onDelete}>
-                                        {t('deletePerson')}
-                                    </AdminToolButton>
+                                    {isSuperAdmin && (
+                                        <>
+                                            <AdminToolButton destructive onClick={() => setConfirmingDelete(true)}>
+                                                {t('deletePerson')}
+                                            </AdminToolButton>
+                                            <ConfirmDeleteDialog
+                                                open={confirmingDelete}
+                                                onOpenChange={setConfirmingDelete}
+                                                title={t('deletePerson')}
+                                                description={t('deletePersonConfirm')}
+                                                itemName={person.name}
+                                                onConfirm={onDelete}
+                                            />
+                                        </>
+                                    )}
                                 </>
                             )}
                             {isSuperAdmin && (
