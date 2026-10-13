@@ -11,7 +11,7 @@ The consultation feature is a JSON-driven viewer with a few plain screens:
 1. **Regulation JSON**: Each consultation points to a remote JSON file (`jsonUrl`) that defines the entire regulation structure — chapters, articles, geographic areas, cross-references, and definitions. The schema is defined in [`json-schemas/regulation.schema.json`](../../json-schemas/regulation.schema.json).
 2. **Database Layer**: Prisma stores consultation metadata (name, end date, active status), comments, and upvotes. Comments are entity-scoped — tied to a specific chapter, article, geoset, or geometry by `entityType` + `entityId`.
 3. **Frontend Layer**: A `ConsultationViewer` client component shows one screen at a time. The screen is the `view` query parameter: `home` asks for the reader's address, `street` shows what changes at it, `map` shows every place, `comment` is the form for one entity, `plan` shows the summary cards, `comments` lists every comment, and `document` is the full text. On a phone each screen is a page. On a computer the map stays on screen and a side panel shows the screen.
-4. **Comment System**: Readers leave plain-text comments on any entity. A signed-in reader's comment goes live at once. A signed-out reader gives a name and an email, and the comment goes live when they open the confirmation link in the email. Comments support upvoting and trigger email notifications to the municipality's contact address.
+4. **Comment System**: Readers leave plain-text comments on any entity. A signed-in reader's comment goes live at once. A signed-out reader gives a name and an email, and the comment goes live when they open the confirmation link in the email. Comments support upvoting and trigger email notifications to the municipality's contact address. An administrator of the city, or a superadmin, writes one public response under a comment, in the municipality's name. The platform then sends one email that joins the author and the municipality, so that they continue by email.
 5. **Admin Geo-Editor**: Administrators can draw missing geometries directly on the map when regulation text defines areas textually but lacks GeoJSON coordinates. Edits are stored in localStorage and exported as a complete updated regulation JSON.
 
 The consultation feature is gated per-city via the `consultationsEnabled` flag on the City model.
@@ -97,6 +97,15 @@ sequenceDiagram
     Frontend->>API: POST /api/consultations/comments/[commentId]/upvote
     API->>DB: Toggle ConsultationCommentUpvote (upsert/delete)
     API-->>Frontend: Updated upvote count
+
+    Note over Citizen, Email: Responding (an administrator of the city)
+    Citizen->>Frontend: Writes the municipality's response under a comment
+    Frontend->>API: PUT /api/consultations/comments/[commentId]/response
+    API->>DB: Check the reader administers the comment's city
+    API->>DB: Create or replace ConsultationCommentResponse
+    API->>Email: First time only: email the author, CC the administrator and contactEmail
+    API-->>Frontend: Response, and whether the email went out
+    Frontend->>Frontend: Show the response in the municipality's name
 ```
 
 ## Key Component Pointers
@@ -106,6 +115,7 @@ sequenceDiagram
     * `ConsultationComment`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (entity-scoped via entityType + entityId)
     * `ConsultationCommentUpvote`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (unique constraint on userId + commentId)
     * `PendingConsultationComment`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (a signed-out reader's comment until they confirm their email)
+    * `ConsultationCommentResponse`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (the municipality's one response per comment; `emailSentAt` is when the email that joins the parties went out)
     * `City.consultationsEnabled`: Feature flag gating the consultations tab
 
 * **JSON Schema**:
@@ -121,12 +131,14 @@ sequenceDiagram
     * `pendingCommentQuote()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (the comment's text, which the confirmation email quotes; `src/auth.ts` passes it to `authProviders`, which hands it to the magic-link provider)
     * `toggleCommentUpvote()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (toggle on/off, returns new count)
     * `deleteConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (owner-only, cascades to upvotes)
+    * `respondToConsultationComment()` / `deleteConsultationCommentResponse()`: [`src/lib/db/consultationResponses.ts`](../../src/lib/db/consultationResponses.ts) (an administrator of the comment's city or a superadmin; allowed after the consultation ended; the first save that sends emails the author with the administrator, `contactEmail` and `ccEmails` in CC and everyone in Reply-To, through [`src/lib/email/consultationResponse.ts`](../../src/lib/email/consultationResponse.ts))
     * `isConsultationActive()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (checks isActive flag AND end date with timezone awareness)
 
 * **API Endpoints**:
     * `GET/POST /api/consultations/[id]/comments`: [`src/app/api/consultations/[id]/comments/route.ts`](../../src/app/api/consultations/%5Bid%5D/comments/route.ts) (list and create comments; a POST without a session but with `name` and `email` stores a pending comment and returns 202)
     * `POST /api/consultations/comments/[commentId]/upvote`: [`src/app/api/consultations/comments/[commentId]/upvote/route.ts`](../../src/app/api/consultations/comments/%5BcommentId%5D/upvote/route.ts) (toggle upvote)
     * `DELETE /api/consultations/comments/[commentId]/delete`: [`src/app/api/consultations/comments/[commentId]/delete/route.ts`](../../src/app/api/consultations/comments/%5BcommentId%5D/delete/route.ts) (owner-only deletion)
+    * `PUT/DELETE /api/consultations/comments/[commentId]/response`: [`src/app/api/consultations/comments/[commentId]/response/route.ts`](../../src/app/api/consultations/comments/%5BcommentId%5D/response/route.ts) (the municipality's response; `PUT` takes `{ text }` and returns the response, `created` and `emailSent`)
 
 * **Pages**:
     * Consultations listing: [`src/app/[locale]/(city)/[cityId]/(other)/(tabs)/consultations/page.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/(other)/(tabs)/consultations/page.tsx) (all consultations for a city)
@@ -139,15 +151,14 @@ sequenceDiagram
     * `consultationUrl.ts`: The URL model. `comment` and `plan` keep any entity; `home`, `street` and `comments` take none; for `map` and `document` the entity's type decides the screen
     * `entityDisplay.ts`: `describeEntity()` gives every screen the same what, where, detail and meaning for an entity
     * `addressLookup.ts`: `computeAddressLookup()` finds the zone, the street's geometries and the nearby points for an address
-    * `views/`: One component per screen — `HomeView`, `StreetView` (with `MiniMap` on a phone), `PlaceView` (the phone's card over the map, the computer's panel), `CommentView`, `PlanView`, `CommentsView` (with `CommentList`) and `StudyView`. `views/ui.tsx` holds the shared styles and `ViewLink`
+    * `views/`: One component per screen — `HomeView`, `StreetView` (with `MiniMap` on a phone), `PlaceView` (the phone's card over the map, the computer's panel), `CommentView`, `PlanView`, `CommentsView` (with `CommentList`, which draws the municipality's response and its form from `views/CommentResponse.tsx`) and `StudyView`. `views/ui.tsx` holds the shared styles and `ViewLink`
     * `ConsultationBar`: The computer's bar under the site header — title, deadline, and links to the plan, the comments and the study
     * `ConsultationMap`: Mapbox map with geoset rendering, the address search bar (`views/AddressSearchBar`), filter chips, the address pin, selection and street outlines, derived geometry computation (buffer/difference), and the superadmin geo-editor
     * `ConsultationDocument`: Renders chapters and articles with expand/collapse and the sources list
-    * `ChapterView` / `ArticleView`: Chapter and article renderers with comment counts, permalinks, and a link to the comment screen
+    * `ChapterView` / `ArticleView`: Chapter and article cards with comment counts and a link to the comment screen; opening one names it in the URL
     * `MarkdownContent`: Renders markdown with `{REF:id}` and `{DEF:id}` pattern handling as interactive links
     * `LayerControlsPanel`, `GeoSetItem`, `GeometryItem`, `EditingToolsPanel`: The geo-editor (superadmins only)
     * `SourcesList`: Regulation source documents and contact information
-    * `PermalinkButton`: Copy-to-clipboard link for any entity
     * `DocumentNavigation`: Fixed outline of the current chapter and article, on wide screens only
     * `PrintButton`: Triggers native print dialog on comments page
 
@@ -269,6 +280,7 @@ For local development, you can place regulation JSON files in the `public/` dire
 7. Comments can only be deleted by their author
 8. Upvotes use a unique constraint (`userId`, `commentId`) for toggle behavior
 9. Each new comment triggers an email notification to the municipality (`contactEmail` from the regulation JSON, CC'd to `ccEmails`)
+10. The municipality answers a comment once, in public and in its own name (`City.name_municipality`). An administrator of the city or a superadmin writes the response, also after the consultation ended, and can replace or delete it. The first save that sends emails the author, with the administrator and the contact addresses in CC and everyone in Reply-To. The email says the discussion continues by email, not in the platform. A failed send keeps the response and retries on the next save
 
 ### Regulation JSON
 1. The regulation JSON is fetched from a remote URL stored in `Consultation.jsonUrl`

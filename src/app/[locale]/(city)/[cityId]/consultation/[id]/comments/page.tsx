@@ -1,11 +1,11 @@
 import { Metadata } from "next";
 import { getCityCached } from "@/lib/cache";
-import { getConsultationById, getConsultationComments, fetchRegulationData } from "@/lib/db/consultations";
+import { getConsultationById, getConsultationComments, fetchRegulationData, type ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
 import { GeoSetData, RegulationData } from "@/components/consultations/types";
 import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
 import { auth } from "@/auth";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 import PrintButton from "@/components/consultations/PrintButton";
 import { env } from "@/env.mjs";
@@ -52,11 +52,11 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
 // Helper function to order comments by document appearance
 function orderCommentsByDocumentStructure(
-    comments: any[],
+    comments: ConsultationCommentWithUpvotes[],
     regulationData: RegulationData
-): { documentComments: any[], locationComments: any[] } {
-    const documentComments: any[] = [];
-    const locationComments: any[] = [];
+): { documentComments: ConsultationCommentWithUpvotes[], locationComments: ConsultationCommentWithUpvotes[] } {
+    const documentComments: ConsultationCommentWithUpvotes[] = [];
+    const locationComments: ConsultationCommentWithUpvotes[] = [];
 
     // Create ordering maps
     const chapterOrder = new Map<string, number>();
@@ -188,6 +188,41 @@ function commentPlace(entityId: string, regulationData: RegulationData, geoSets:
     return display ? entityLabel(display) : 'Στοιχείο που δεν υπάρχει πια στη διαβούλευση';
 }
 
+/** One comment of the printout, with the municipality's response under it when it has one. */
+function PrintedComment({ comment, place, municipalityName, accent, last }: {
+    comment: ConsultationCommentWithUpvotes;
+    place: string;
+    municipalityName: string;
+    accent: 'blue' | 'green';
+    last: boolean;
+}) {
+    return (
+        <div className={cn("border-l-4 pl-4", accent === 'blue' ? "border-blue-200" : "border-green-200")}>
+            <div className="text-sm font-medium text-gray-900 mb-2">
+                «{place}»,
+                ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
+                {formatDate(new Date(comment.createdAt))}:
+            </div>
+            <div
+                className="text-gray-700 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
+            />
+            {comment.response && (
+                <div className="mt-3 border-l-4 border-orange-200 pl-4">
+                    <div className="text-sm font-medium text-gray-900 mb-2">
+                        Ο {municipalityName} απάντησε στις {formatDate(new Date(comment.response.createdAt))}:
+                    </div>
+                    <div
+                        className="text-gray-700 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.response.body) }}
+                    />
+                </div>
+            )}
+            {!last && <div className="mt-4 border-b border-gray-100"></div>}
+        </div>
+    );
+}
+
 export default async function CommentsPage(props: PageProps) {
     const params = await props.params;
     const [city, consultation, session, realm] = await Promise.all([
@@ -284,24 +319,16 @@ export default async function CommentsPage(props: PageProps) {
                         </h2>
 
                         <div className="space-y-6">
-                            {documentComments.map((comment, index) => {
-                                return (
-                                    <div key={comment.id} className="border-l-4 border-blue-200 pl-4">
-                                        <div className="text-sm font-medium text-gray-900 mb-2">
-                                            «{commentPlace(comment.entityId, regulationData, geoSets)}»,
-                                            ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
-                                            {formatDate(new Date(comment.createdAt))}:
-                                        </div>
-                                        <div
-                                            className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
-                                        />
-                                        {index < documentComments.length - 1 && (
-                                            <div className="mt-4 border-b border-gray-100"></div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                            {documentComments.map((comment, index) => (
+                                <PrintedComment
+                                    key={comment.id}
+                                    comment={comment}
+                                    place={commentPlace(comment.entityId, regulationData, geoSets)}
+                                    municipalityName={city.name_municipality}
+                                    accent="blue"
+                                    last={index === documentComments.length - 1}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}
@@ -314,24 +341,16 @@ export default async function CommentsPage(props: PageProps) {
                         </h2>
 
                         <div className="space-y-6">
-                            {locationComments.map((comment, index) => {
-                                return (
-                                    <div key={comment.id} className="border-l-4 border-green-200 pl-4">
-                                        <div className="text-sm font-medium text-gray-900 mb-2">
-                                            «{commentPlace(comment.entityId, regulationData, geoSets)}»,
-                                            ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
-                                            {formatDate(new Date(comment.createdAt))}:
-                                        </div>
-                                        <div
-                                            className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
-                                        />
-                                        {index < locationComments.length - 1 && (
-                                            <div className="mt-4 border-b border-gray-100"></div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                            {locationComments.map((comment, index) => (
+                                <PrintedComment
+                                    key={comment.id}
+                                    comment={comment}
+                                    place={commentPlace(comment.entityId, regulationData, geoSets)}
+                                    municipalityName={city.name_municipality}
+                                    accent="green"
+                                    last={index === locationComments.length - 1}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}
