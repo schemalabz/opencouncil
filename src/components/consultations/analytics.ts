@@ -14,6 +14,16 @@ export function captureConsultationAddressSearched(props: {
     captureEvent('consultation_address_searched', props);
 }
 
+/** An administrator published the municipality's response under a comment, or replaced it. */
+export function captureConsultationResponsePublished(props: {
+    consultation_id?: string;
+    city_id?: string;
+    comment_id: string;
+    created: boolean;
+}): void {
+    captureEvent('consultation_response_published', props);
+}
+
 /** What a reader chose after their comment went in. */
 export function captureConsultationNextStep(props: {
     consultation_id?: string;

@@ -18,6 +18,7 @@ export const primaryButtonClass = "flex min-h-12 w-full items-center justify-cen
 export const secondaryButtonClass = "flex min-h-12 w-full items-center justify-center rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-2.5 text-center text-[17px] font-semibold leading-snug text-stone-900 transition-colors hover:bg-stone-50";
 export const smallActionClass = "shrink-0 rounded-xl border-[1.5px] border-[#c2410c] px-3 py-2 text-[15px] font-semibold text-[#9a3412] transition-colors hover:bg-[#fff7ed]";
 export const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-white px-4 text-[17px] text-stone-900 focus:border-[#c2410c] focus:outline-none";
+export const textareaClass = "w-full resize-none rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-3 text-[17px] leading-relaxed text-stone-900 focus:border-[#c2410c] focus:outline-none";
 /**
  * The site's stylesheet centres every `h2` outside `.prose` at 24px, and its selector outranks a
  * utility class. A heading here resets that; its size then needs `!` too (`!text-xl`).

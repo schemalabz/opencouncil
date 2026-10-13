@@ -21,14 +21,19 @@ export interface CommentsViewProps {
     /** Where "Σχολιάστε κι εσείς" leads while the consultation is open. */
     commentHref?: string;
     currentUserId?: string;
+    /** "Δήμος Χ": the name the municipality's responses show under. */
+    municipalityName?: string;
+    /** Whether the reader administers the city: the comments get the response controls. */
+    canRespond?: boolean;
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
+    onResponded: CommentListProps['onResponded'];
 }
 
 type Sort = 'newest' | 'popular';
 
 /** Every comment, newest or most agreed with first, each with the place it is about. */
-export default function CommentsView({ comments, regulationData, geoSets, href, backHref, printHref, commentHref, currentUserId, onUpvoted, onDeleted }: CommentsViewProps) {
+export default function CommentsView({ comments, regulationData, geoSets, href, backHref, printHref, commentHref, currentUserId, municipalityName, canRespond, onUpvoted, onDeleted, onResponded }: CommentsViewProps) {
     const [sort, setSort] = useState<Sort>('newest');
 
     const sorted = useMemo(() => [...comments].sort((a, b) => sort === 'popular'
@@ -70,7 +75,16 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                                 </button>
                             ))}
                         </div>
-                        <CommentList comments={sorted} placeFor={placeFor} currentUserId={currentUserId} onUpvoted={onUpvoted} onDeleted={onDeleted} />
+                        <CommentList
+                            comments={sorted}
+                            placeFor={placeFor}
+                            currentUserId={currentUserId}
+                            municipalityName={municipalityName}
+                            canRespond={canRespond}
+                            onUpvoted={onUpvoted}
+                            onDeleted={onDeleted}
+                            onResponded={onResponded}
+                        />
                     </>
                 )}
                 {commentHref && (

@@ -13,7 +13,7 @@ import type { EntityDisplay } from "../entityDisplay";
 import type { ConfirmedPendingComment, PendingCommentConfirmation } from "../types";
 import { buildConsultationUrl } from "../consultationUrl";
 import CommentList, { type CommentListProps } from "./CommentList";
-import { cardClass, Dot, headingClass, inputClass, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
+import { cardClass, Dot, headingClass, inputClass, pageClass, primaryButtonClass, SectionLabel, textareaClass, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
 
 export interface CommentViewProps {
     display: EntityDisplay;
@@ -27,9 +27,12 @@ export interface CommentViewProps {
     notificationsHref: string;
     cityHref: string;
     municipalityName?: string;
+    /** Whether the reader administers the city: the comments below get the response controls. */
+    canRespond?: boolean;
     comments: ConsultationCommentWithUpvotes[];
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
+    onResponded: CommentListProps['onResponded'];
 }
 
 type Outcome =
@@ -47,7 +50,7 @@ const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'publishe
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
  * anyone else leaves a name and an email, and the comment goes live when they open the link we send.
  */
-export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, comments, onUpvoted, onDeleted }: CommentViewProps) {
+export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, canRespond, comments, onUpvoted, onDeleted, onResponded }: CommentViewProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
     const signedIn = status === 'authenticated' && !!session?.user;
@@ -177,7 +180,7 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                                 value={text}
                                 onChange={(e) => setText(e.target.value)}
                                 placeholder="Γράψτε ελεύθερα, όπως θα το λέγατε σε έναν γείτονα."
-                                className="w-full resize-none rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-3 text-[17px] leading-relaxed text-stone-900 focus:border-[#c2410c] focus:outline-none"
+                                className={textareaClass}
                             />
                         </div>
                         {signedIn ? (
@@ -225,7 +228,15 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 {comments.length > 0 && (
                     <section id="comments" className="flex flex-col gap-3 pt-2" aria-label="Σχόλια εδώ">
                         <SectionLabel>Τι έχουν πει άλλοι εδώ ({comments.length})</SectionLabel>
-                        <CommentList comments={comments} currentUserId={session?.user?.id} onUpvoted={onUpvoted} onDeleted={onDeleted} />
+                        <CommentList
+                            comments={comments}
+                            currentUserId={session?.user?.id}
+                            municipalityName={municipalityName}
+                            canRespond={canRespond}
+                            onUpvoted={onUpvoted}
+                            onDeleted={onDeleted}
+                            onResponded={onResponded}
+                        />
                     </section>
                 )}
             </div>
