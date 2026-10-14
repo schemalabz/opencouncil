@@ -12,13 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { VoicePrint, TaskStatus } from "@prisma/client";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Play, Trash, Volume2 } from "lucide-react";
+import { AudioLines, Loader2, Play, Trash } from "lucide-react";
 import { deleteVoicePrint } from "@/lib/db/voiceprints";
 import { requestGenerateVoiceprint } from "@/lib/tasks/generateVoiceprint";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import TaskList from "@/components/meetings/admin/TaskList";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface VoiceprintActionsProps {
     personId: string;
@@ -170,12 +171,21 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-                <Button variant='outline' size='sm' className={voicePrint ? "border-blue-300 text-blue-700" : ""}>
-                    <Volume2 className='mr-2 h-4 w-4' />
-                    Voiceprint
-                </Button>
-            </DialogTrigger>
+            <TooltipProvider>
+                <Tooltip>
+                    <DialogTrigger asChild>
+                        <TooltipTrigger asChild>
+                            <Button variant='outline' size='sm' className={voicePrint ? "border-blue-300 text-blue-700" : ""}>
+                                <AudioLines className='mr-2 h-4 w-4' />
+                                Voiceprint
+                            </Button>
+                        </TooltipTrigger>
+                    </DialogTrigger>
+                    <TooltipContent>
+                        {voicePrint ? "A voiceprint exists for this person." : "No voiceprint yet."}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Voiceprint Management</DialogTitle>
@@ -221,7 +231,7 @@ export function VoiceprintActions({ personId, personName, voicePrint }: Voicepri
                             <div className='flex flex-col space-y-2 mt-4'>
                                 {canGenerateVoiceprint && (
                                     <Button onClick={handleGenerateVoiceprint} disabled={isLoading} className='w-full'>
-                                        <Volume2 className='mr-2 h-4 w-4' />
+                                        <AudioLines className='mr-2 h-4 w-4' />
                                         Generate Voiceprint
                                     </Button>
                                 )}

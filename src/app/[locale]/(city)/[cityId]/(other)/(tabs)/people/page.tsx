@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
@@ -81,11 +81,16 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, canEdit] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, canEdit, currentUser] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        isUserAuthorizedToEdit({ cityId })
+        isUserAuthorizedToEdit({ cityId }),
+        // Only a superadmin gets the elected order control, as on /admin/people
+        // before it moved here. This gates the control, not the write: the save
+        // route accepts anyone who may edit the city. Read from the user, the
+        // way the tabs layout above does, rather than through the edit check.
+        getCurrentUser()
     ]);
 
     if (!partiesWithPersons) {
@@ -99,6 +104,7 @@ export default async function PeoplePage(
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             canEdit={canEdit}
+            isSuperAdmin={!!currentUser?.isSuperAdmin}
         />
     );
 } 

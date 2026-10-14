@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { devToolsAllowed } from "@/lib/deployment";
+import { claimedLink } from "@/lib/db/personClaim";
 
 const userWithAdministersInclude = {
     administers: {
@@ -156,7 +157,7 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
                 // claimedAt. A person the form keeps stays claimed; only the
                 // person's own scan can set it, so the form must not lose it.
                 const claimed = await tx.administers.findMany({
-                    where: { userId: id, claimedAt: { not: null } },
+                    where: { userId: id, ...claimedLink },
                     select: { personId: true, claimedAt: true },
                 });
                 const claimedAtByPerson = new Map(claimed.map((row) => [row.personId, row.claimedAt]));

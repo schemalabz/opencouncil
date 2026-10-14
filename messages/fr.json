@@ -491,8 +491,9 @@
   },
   "Person": {
     "voicePrintConsent": {
-      "buttonNone": "Consentement vocal : non",
-      "buttonGiven": "Consentement vocal : oui",
+      "button": "Consentement",
+      "tooltipByPerson": "Un consentement est en vigueur. La personne l'a donné depuis son compte.",
+      "tooltipByAdmin": "Un consentement est en vigueur. OpenCouncil l'a enregistré à partir d'un document.",
       "title": "Consentement à l'empreinte vocale : {name}",
       "none": "Aucun consentement n'est en vigueur.",
       "byPerson": "Donné dans l'application par {recorder}, le {date}.",
@@ -967,7 +968,6 @@
     "cityNotFound": "Ville introuvable"
   },
   "ElectedOrderSheet": {
-    "triggerButton": "Ordre d'élection",
     "title": "Ordre d'élection",
     "description": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
     "currentOrder": "Ordre actuel : {order}",

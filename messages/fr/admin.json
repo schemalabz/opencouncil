@@ -4,7 +4,7 @@
       "button": "Codes QR d'inscription",
       "pdf": "Télécharger le PDF",
       "pdfBusy": "Création du PDF…",
-      "empty": "Aucun code QR à créer : chaque conseiller a déjà un compte, ou la commune n'a aucun conseiller actif.",
+      "empty": "Aucun code QR à créer : chaque élu, du conseil ou d'une communauté, a déjà un compte, ou la commune n'a aucun élu actif.",
       "scan": "Scannez le code avec votre téléphone pour vous inscrire sur OpenCouncil.",
       "validUntil": "Valable jusqu'au {date}",
       "secretCode": "Code secret personnel",

@@ -58,6 +58,16 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
      * total) cannot stand in for once a filter is applied.
      */
     showCount?: boolean;
+    /**
+     * Extra back-of-house controls for the strip that already holds "add item".
+     * A render prop, because a tool usually acts on whatever the filters have
+     * narrowed to — the elected order applies to the one body on screen.
+     *
+     * `editable` does not gate it: the strip opens to anyone who may edit the
+     * city, and a tool can be narrower than that. Return null where the tool
+     * does not apply; a strip with nothing in it is not drawn.
+     */
+    adminTools?: (selectedValues: F[]) => React.ReactNode;
     defaultFilterValues?: F[];
     /**
      * Page size only. The page itself comes from the URL below, and a
@@ -85,6 +95,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
     items,
     editable,
+    adminTools,
     ItemComponent,
     FormComponent,
     formProps,
@@ -222,6 +233,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     const filteredItems = sortItems ? sortItems(matchingItems, selectedFilters) : matchingItems;
 
     const countVisible = showCount ?? showSearch;
+    // Called once, so the strip can tell a tool that renders from one that
+    // returns null: an empty striped box beside a citizen's list is noise.
+    const tools = adminTools?.(selectedFilters) ?? null;
 
     // Client-side pagination — read current page from URL to avoid
     // depending on server component re-renders for page changes.
@@ -385,9 +399,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     {/* Marked as back-of-house, the way the city page's own tools
                         are: an outlined pill beside a citizen's list read as part
                         of the product. */}
-                    {editable && (
+                    {(editable || tools) && (
                         <AdminStrip>
-                            <FormSheet
+                            {tools}
+                            {editable && <FormSheet
                                 FormComponent={FormComponent}
                                 formProps={formProps}
                                 title={t('addItem', { title: t('item') })}
@@ -396,7 +411,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                                 triggerVariant="ghost"
                                 triggerSize="sm"
                                 triggerClassName={adminToolClass}
-                            />
+                            />}
                         </AdminStrip>
                     )}
                 </div>

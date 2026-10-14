@@ -4,7 +4,7 @@
       "button": "Sign-up QR codes",
       "pdf": "Download PDF",
       "pdfBusy": "Creating PDF…",
-      "empty": "No QR codes to create: every council member already has an account, or the city has no active council members.",
+      "empty": "No QR codes to create: every elected member, on the council or a community, already has an account, or the city has no active elected members.",
       "scan": "Scan the code with your phone to sign up for OpenCouncil.",
       "validUntil": "Valid until {date}",
       "secretCode": "Personal secret code",

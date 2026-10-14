@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client'
@@ -15,6 +15,8 @@ import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { AdminToolButton } from '@/components/admin/AdminStrip';
+import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -22,6 +24,8 @@ type CityPeopleProps = {
     administrativeBodies: AdministrativeBody[],
     cityId: string,
     canEdit: boolean,
+    /** Superadmin-only tools. `canEdit` is true for a city admin too, who must not get these. */
+    isSuperAdmin: boolean,
 };
 
 export default function CityPeople({
@@ -30,6 +34,7 @@ export default function CityPeople({
     administrativeBodies,
     cityId,
     canEdit,
+    isSuperAdmin,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -100,11 +105,45 @@ export default function CityPeople({
         return sortPeople(items, selectedValues.length === 1 ? selectedValues[0] : undefined);
     }, [selectedBodyId]);
 
+    // Kept apart from `open` so the sheet still has a body while it animates out.
+    const [electedOrderBodyId, setElectedOrderBodyId] = useState<string | null>(null);
+    const [electedOrderOpen, setElectedOrderOpen] = useState(false);
+    const tElectedOrder = useTranslations('ElectedOrderSheet');
+
+    // The one body on screen, or null. A body named in the URL wins. Otherwise
+    // the type in view decides when it has a single body: the sub-body picker
+    // hides itself for a single body, and the type picker hides itself when the
+    // city has one type, so neither ever names it. Two bodies of the type is
+    // ambiguous, and an order is one body's.
+    const bodyOnScreen = useCallback((selectedValues: AdministrativeBodyType[]): string | null => {
+        const named = selectedBodyId(selectedValues);
+        if (named) return named;
+        const typeInView = selectedValues.length === 1 ? selectedValues[0]
+            : selectedValues.length === 0 && typeOptions.length === 1 ? typeOptions[0].value
+            : null;
+        if (!typeInView) return null;
+        const bodies = getBodiesOfTypeFromPeople(allPeople, typeInView);
+        return bodies.length === 1 ? bodies[0].value : null;
+    }, [selectedBodyId, typeOptions, allPeople]);
+
+    const adminTools = useCallback((selectedValues: AdministrativeBodyType[]) => {
+        if (!isSuperAdmin) return null;
+        const bodyId = bodyOnScreen(selectedValues);
+        if (!bodyId) return null;
+        return (
+            <AdminToolButton onClick={() => { setElectedOrderBodyId(bodyId); setElectedOrderOpen(true); }}>
+                {tElectedOrder('title')}
+            </AdminToolButton>
+        );
+    }, [isSuperAdmin, bodyOnScreen, tElectedOrder]);
+
     return (
+        <>
         <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
             items={allPeople}
             sortItems={sortItems}
             editable={canEdit}
+            adminTools={adminTools}
             ItemComponent={PersonCard}
             FormComponent={PersonForm}
             formProps={{ cityId, parties, administrativeBodies }}
@@ -154,5 +193,15 @@ export default function CityPeople({
             mdColumns={2}
             lgColumns={3}
         />
+        {electedOrderBodyId && (
+            <ElectedOrderSheet
+                open={electedOrderOpen}
+                onOpenChange={setElectedOrderOpen}
+                people={allPeople}
+                cityId={cityId}
+                administrativeBodyId={electedOrderBodyId}
+            />
+        )}
+        </>
     );
 }

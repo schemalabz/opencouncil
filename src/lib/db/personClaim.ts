@@ -5,6 +5,14 @@ import { serializableOnce } from "@/lib/db/serializable";
 import { closeAppConsent } from "@/lib/db/personConsent";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 
+/**
+ * The account link that counts as a claim: the person scanned their own code.
+ * A delegate link (an assistant, or one a superadmin granted) has no claimedAt
+ * and is not a claim. The one statement of that rule for every query here and
+ * in users.ts.
+ */
+export const claimedLink = { claimedAt: { not: null } } satisfies Prisma.AdministersWhereInput;
+
 export type PersonClaimResult =
     | { status: "linked"; cityId: string; cityName: string; personName: string }
     /** This user already claimed the person: a second scan of their own QR. */
@@ -67,7 +75,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
         },
         async () => {
             const claimed = await prisma.administers.findFirst({
-                where: { personId, claimedAt: { not: null } },
+                where: { personId, ...claimedLink },
                 select: { userId: true },
             });
             return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
@@ -84,7 +92,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
 export async function getClaimablePersonStatus(personId: string): Promise<"claimable" | "already_linked" | "not_found"> {
     const person = await prisma.person.findUnique({
         where: { id: personId },
-        select: { _count: { select: { administrators: { where: { claimedAt: { not: null } } } } } },
+        select: { _count: { select: { administrators: { where: claimedLink } } } },
     });
     if (!person) return "not_found";
     return person._count.administrators > 0 ? "already_linked" : "claimable";
@@ -98,7 +106,7 @@ export async function getClaimablePersonStatus(personId: string): Promise<"claim
  */
 export async function getClaimedPersonIds(cityId: string): Promise<Set<string>> {
     const rows = await prisma.administers.findMany({
-        where: { personId: { not: null }, claimedAt: { not: null }, person: { cityId } },
+        where: { personId: { not: null }, ...claimedLink, person: { cityId } },
         select: { personId: true },
     });
     return new Set(rows.map((r) => r.personId).filter((id): id is string => id !== null));
@@ -118,10 +126,11 @@ const joinPersonSelect = {
             cityId: true,
             partyId: true,
             administrativeBodyId: true,
-            administrativeBody: { select: { type: true } },
+            // The name too: a community councillor's title is their community.
+            administrativeBody: { select: { type: true, name: true } },
         },
     },
-    administrators: { where: { claimedAt: { not: null } }, select: { userId: true } },
+    administrators: { where: claimedLink, select: { userId: true } },
 } satisfies Prisma.PersonSelect;
 
 export type JoinPerson = Prisma.PersonGetPayload<{ select: typeof joinPersonSelect }>;
