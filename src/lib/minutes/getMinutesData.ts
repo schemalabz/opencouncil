@@ -146,12 +146,8 @@ export async function getMinutesData(
 
     // Shared member resolver: looks up person in peopleMap, resolves display info
     const resolveMember: MemberResolver = (personId, fallbackName) => {
-        const person = peopleMap.get(personId);
-        return {
-            personId,
-            name: formatSurnameFirst(fallbackName),
-            ...speakerLabels(person),
-        };
+        const { party, isPartyHead } = speakerLabels(peopleMap.get(personId));
+        return { personId, name: formatSurnameFirst(fallbackName), party, isPartyHead };
     };
 
     const adminBodyId = meeting.administrativeBody?.id ?? null;

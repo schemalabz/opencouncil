@@ -408,7 +408,7 @@ describe('formatPhraseOnlyOutcome', () => {
 // --- minutesVoteLists ---
 
 describe('minutesVoteLists', () => {
-    const named = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false, role: null });
+    const named = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false });
     const empty = { forMembers: [], againstMembers: [], abstainMembers: [], presentMembers: [], didNotVoteMembers: [], absentMembers: [] };
 
     it('heads the ΠΑΡΩΝ declarations as ΠΑΡΩΝ, apart from the members present', () => {
@@ -464,7 +464,7 @@ describe('buildMayorNote', () => {
 // --- buildAttendanceChanges (older polls: per-subject diffs, no events) ---
 
 describe('buildAttendanceChanges', () => {
-    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false, role: null });
+    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false });
     const mayor = member('mayor', 'Μαλτέζος Ιωάννης');
     const m1 = member('m1', 'Λιόλιος Αντώνης');
     const subject = (id: string, index: number, present: MinutesMember[], absent: MinutesMember[]) => ({
@@ -609,7 +609,7 @@ describe('buildRollCall', () => {
 });
 
 describe('buildSubjectRollCall', () => {
-    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, isPartyHead: false, role: null });
+    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, isPartyHead: false });
     const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
 
     it('counts and names a member the roll call does not name, from the subject\'s own attendance', () => {
@@ -646,7 +646,7 @@ describe('buildSubjectRollCall', () => {
 });
 
 describe('formatRollCallMemberLabel', () => {
-    const m = (party: string | null, isPartyHead = false): MinutesMember => ({ personId: 'x', name: 'x', party, isPartyHead, role: null });
+    const m = (party: string | null, isPartyHead = false): MinutesMember => ({ personId: 'x', name: 'x', party, isPartyHead });
     it('puts the substitute mark before the party and marks a party head', () => {
         expect(formatRollCallMemberLabel({ member: m('ΝΔ', true), isSubstitute: true, office: null })).toBe('αναπλ. μέλος, ΝΔ, Επικεφαλής');
         expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: null })).toBe('ΝΔ');
@@ -665,7 +665,6 @@ describe('buildCouncilComposition', () => {
         name,
         party: null,
         isPartyHead: false,
-        role: null,
     });
 
     it('includes mayor with personId', () => {
@@ -1061,7 +1060,7 @@ describe('discussedElsewhereIds', () => {
 
 describe('sortByElectedOrder', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({
-        personId, name, party: null, isPartyHead: false, role: null,
+        personId, name, party: null, isPartyHead: false,
     });
 
     it('sorts by elected order ascending', () => {

@@ -79,9 +79,9 @@ describe('renderMinutesDocx', () => {
                 mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1', note: null },
                 president: { name: 'Γιώργος Παπαδόπουλος', personId: 'p1' },
                 members: [
-                    { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
-                    { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
-                    { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
+                    { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false },
+                    { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false },
+                    { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false },
                 ],
                 substituteMembers: [
                 ],
@@ -100,15 +100,15 @@ describe('renderMinutesDocx', () => {
                     },
                     voteResult: {
                         forMembers: [
-                            { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
-                            { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
+                            { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false },
+                            { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false },
                         ],
                         againstMembers: [],
                         abstainMembers: [],
                         presentMembers: [],
                         didNotVoteMembers: [],
                         absentMembers: [
-                            { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
+                            { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false },
                         ],
                         passed: true,
                         isUnanimous: true,
@@ -167,7 +167,7 @@ describe('renderMinutesDocx', () => {
                 makeSubject({
                     attendance: {
                         present: [
-                            { personId: 'p1', name: 'Γιώργος', party: null, isPartyHead: false, role: null },
+                            { personId: 'p1', name: 'Γιώργος', party: null, isPartyHead: false },
                         ],
                         absent: [],
                     },
@@ -290,7 +290,7 @@ async function docxRuns(data: MinutesData): Promise<string[]> {
  */
 describe('MinutesDocx output', () => {
     const member = (personId: string, name: string) =>
-        ({ personId, name, party: 'ΝΔ', isPartyHead: false, role: null });
+        ({ personId, name, party: 'ΝΔ', isPartyHead: false });
 
     const populated = (overrides: Partial<MinutesData> = {}): MinutesData => makeMinutesData({
         councilComposition: {
@@ -409,7 +409,7 @@ describe('MinutesDocx roll call', () => {
 
 describe('MinutesDocx vote result from the phrase', () => {
     const member = (personId: string, name: string) =>
-        ({ personId, name, party: null, isPartyHead: false, role: null });
+        ({ personId, name, party: null, isPartyHead: false });
 
     it('prints the phrase and still names the dissenters and the absent members', async () => {
         const runs = await docxRuns(makeMinutesData({

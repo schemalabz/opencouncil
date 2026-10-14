@@ -25,7 +25,7 @@ jest.mock('next-intl', () => ({
     useLocale: () => 'el',
 }));
 
-const member = (id: string): MinutesMember => ({ personId: id, name: id, party: null, isPartyHead: false, role: null });
+const member = (id: string): MinutesMember => ({ personId: id, name: id, party: null, isPartyHead: false });
 const members = (n: number, prefix: string): MinutesMember[] => Array.from({ length: n }, (_, i) => member(`${prefix}${i}`));
 
 function data(o: Partial<MinutesData>): MinutesData {

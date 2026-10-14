@@ -457,7 +457,7 @@ describe('MeetingDecisionsPage — where the decisions come from', () => {
  * block reads the minutes' snapshot.
  */
 const withSubject = (data: MinutesData, extracted: StoreExtracted): MinutesData => {
-    const member = (a: StoreExtracted['attendance'][number]): MinutesMember => ({ personId: a.personId, name: a.personName, party: null, isPartyHead: false, role: null });
+    const member = (a: StoreExtracted['attendance'][number]): MinutesMember => ({ personId: a.personId, name: a.personName, party: null, isPartyHead: false });
     return {
         ...data,
         subjects: [{
@@ -565,7 +565,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
         // substitute sit, one member is absent, and nine vote in favour.
         const data = committeeWithSubstitute();
         const others = ['Α', 'Β', 'Γ', 'Δ', 'Ε'].map((letter, i) => ({
-            personId: `m${i + 4}`, name: `Μέλος ${letter}`, party: 'Νέα Πνοή', isPartyHead: false, role: null,
+            personId: `m${i + 4}`, name: `Μέλος ${letter}`, party: 'Νέα Πνοή', isPartyHead: false,
         }));
         data.councilComposition!.members.push(...others);
         store.minutes = data;

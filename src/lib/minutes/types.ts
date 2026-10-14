@@ -5,7 +5,6 @@ export interface MinutesMember {
     name: string;
     party: string | null;
     isPartyHead: boolean;
-    role: string | null;
 }
 
 export interface MinutesAttendance {

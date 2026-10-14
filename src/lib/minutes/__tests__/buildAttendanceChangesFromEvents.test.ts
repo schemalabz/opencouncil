@@ -2,7 +2,7 @@ import { buildAttendanceChangesFromEvents, buildMayorNote } from '../builders';
 import type { PlaceableEvent } from '@/lib/derivation/placeEvents';
 import { MinutesMember } from '../types';
 
-const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false, role: null });
+const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false });
 const subject = (subjectId: string, agendaItemIndex: number, decisionNumber: string | null, present: string[] = [], absent: string[] = []) => ({
     subjectId, name: `Θέμα ${agendaItemIndex}`, agendaItemIndex, nonAgendaReason: null as null,
     attendance: { present: present.map(p => member(p, p)), absent: absent.map(p => member(p, p)) },
