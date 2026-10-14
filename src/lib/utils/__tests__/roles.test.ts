@@ -1,5 +1,5 @@
 import { AdministrativeBodyType, Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getRoleNameForPerson, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
+import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
@@ -903,11 +903,3 @@ describe('getRoleTitle', () => {
   });
 });
 
-describe('getRoleNameForPerson', () => {
-  it('titles a head with no stored name, and falls back to the body name for a plain member', () => {
-    const body = { name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const };
-    expect(getRoleNameForPerson([{ ...makeRole({ cityId: 'city-1', isHead: true }), administrativeBody: null }], roleT, meetingDate)).toBe('Δήμαρχος');
-    expect(getRoleNameForPerson([{ ...makeRole({ administrativeBodyId: 'council-1', isHead: true }), administrativeBody: body }], roleT, meetingDate, 'council-1')).toBe('Πρόεδρος');
-    expect(getRoleNameForPerson([{ ...makeRole({ administrativeBodyId: 'council-1' }), administrativeBody: body }], roleT, meetingDate, 'council-1')).toBe('Δημοτικό Συμβούλιο');
-  });
-});

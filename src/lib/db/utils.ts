@@ -11,11 +11,11 @@ import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
 import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
-import { buildSpeakerRoster } from "@/lib/tasks/speakerRoster";
+import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
-import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { getPartyFromRoles } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 import { getRealmCountry } from "@/lib/realm";
@@ -82,7 +82,7 @@ export async function getRequestOnTranscriptRequestBody(
             return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
-                speakerRole: person ? getRoleNameForPerson(person.roles, roleTitles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
+                speakerRole: person ? describeRolesAt(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) : null,
                 speakerSegmentId: segment.id,
                 speakerTagId: segment.speakerTagId,
                 speakerId: person?.id || null,
@@ -111,7 +111,7 @@ export async function getRequestOnTranscriptRequestBody(
             }).map((person) => {
                 return {
                     name: person.name,
-                    role: getRoleNameForPerson(person.roles, roleTitles, councilMeeting.dateTime, councilMeeting.administrativeBodyId)
+                    role: describeRolesAt(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) ?? ''
                 }
             })
         })),

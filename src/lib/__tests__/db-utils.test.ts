@@ -149,7 +149,7 @@ describe('getRequestOnTranscriptRequestBody', () => {
 
         const result = await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
 
-        expect(result.transcript[0].speakerRole).toBe('Président(e)');
+        expect(result.transcript[0].speakerRole).toBe('Président(e), Body');
     });
 
     it('sends the country of the city realm, so locations geocode in the right country', async () => {

@@ -3,7 +3,8 @@ import { ProcessAgendaRequest } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { getTopics } from "../db/topics";
-import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { getPartyFromRoles } from "../utils";
+import { describeRolesAt } from "./speakerRoster";
 import { getPeopleForMeeting } from "../db/people";
 import { getRealmCountry } from "@/lib/realm";
 import { getRoleTitles } from "@/i18n/roleTitles";
@@ -66,7 +67,7 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
     // Build people array with deduplication by ID (keep last entry)
     const peopleMap = new Map();
     for (const p of people) {
-        const roleName = getRoleNameForPerson(p.roles, roleTitles, councilMeeting.dateTime, councilMeeting.administrativeBodyId);
+        const roleName = describeRolesAt(p.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) ?? '';
         const party = getPartyFromRoles(p.roles, councilMeeting.dateTime);
 
         peopleMap.set(p.id, {

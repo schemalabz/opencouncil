@@ -268,50 +268,6 @@ export function getPartyFromRoles(
   return activePartyRole?.party || null;
 }
 
-/**
- * Gets non-party roles (roles without a partyId) that are active at a specific date.
- * @param roles Array of roles with party relations
- * @param date Date to check for active roles (defaults to current date)
- * @param administrativeBodyId Optional administrative body ID to filter by
- * @returns Array of non-party roles
- */
-export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], date?: Date, administrativeBodyId?: string): Role[] {
-  const checkDate = date || new Date();
-  let filteredRoles = roles.filter(role => !role.partyId).filter(role => isRoleActiveAt(role, checkDate));
-  if (administrativeBodyId) {
-    filteredRoles = filteredRoles.filter(role => role.administrativeBodyId && role.administrativeBodyId === administrativeBodyId);
-  }
-  return filteredRoles;
-}
-
-/**
- * Gets a single non-party role from a list of roles.
- * If administrativeBodyId is provided, returns the admin body role.
- * Otherwise, returns a city-level role (role with no party or admin body).
- *
- * NOTE: This function supports both role patterns:
- * - Pattern A: cityId always set (cityId as scope)
- * - Pattern B: cityId only for city-level roles
- *
- * @param roles Array of roles with cityId field
- * @param date Date to check for active roles (defaults to current date)
- * @param administrativeBodyId Optional administrative body ID to filter by
- * @returns The first matching role found, or null if none found
- */
-export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
-  const checkDate = date || new Date();
-  const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
-
-  if (administrativeBodyId) {
-    // If looking for a specific admin body role, return the first match
-    return filteredRoles.length > 0 ? filteredRoles[0] : null;
-  }
-
-  // Otherwise, we want city-level roles (no admin body)
-  const cityLevelRoles = filteredRoles.filter(role => !role.administrativeBodyId);
-  return cityLevelRoles.length > 0 ? cityLevelRoles[0] : null;
-}
-
 /** What a role is attached to. A role carries at most one of a party and a body (validateRoles). */
 export type RoleKind = 'city' | 'body' | 'party';
 
@@ -574,52 +530,6 @@ export function getActiveRoleCondition(date: Date = new Date()) {
     }
   ];
 }
-
-/**
- * Gets a display name for a person's role, using a fallback strategy.
- * Tries city-level roles (mayor) first, then falls back to administrative body roles (council member).
- * Each role reads as its title (getRoleTitle), then its `name_en`.
- * @param roles Array of roles with relations (party, administrativeBody, city)
- * @param titles The `Person` catalog and its locale, for the titles of heads
- * @param date Date to check for active roles (defaults to current date)
- * @param administrativeBodyId Optional administrative body ID to filter by
- * @returns Role name string (can be empty if no suitable role found)
- */
-export function getRoleNameForPerson(
-  roles: (Role & {
-    party?: Party | null;
-    administrativeBody?: { name: string; name_en: string } | null;
-    city?: any | null;
-  })[],
-  titles: RoleTitles,
-  date?: Date,
-  administrativeBodyId?: string | null
-): string {
-  const checkDate = date || new Date();
-
-  // 1. Try city-level role (mayor, deputy mayor) - has cityId set
-  const cityRole = getSingleCityRole(roles, checkDate, administrativeBodyId || undefined);
-  const cityTitle = cityRole ? getRoleTitle(cityRole, titles) || cityRole.name_en : null;
-  if (cityTitle) {
-    return cityTitle;
-  }
-
-  // 2. If no city-level role, try administrative body roles (council member, committee member)
-  const adminBodyRoles = roles.filter(role =>
-    !role.partyId &&
-    isRoleActiveAt(role, checkDate) &&
-    (!administrativeBodyId || role.administrativeBodyId === administrativeBodyId)
-  );
-
-  if (adminBodyRoles.length > 0) {
-    const firstRole = adminBodyRoles[0];
-    // The role's title, then its name_en, then the body's name
-    return getRoleTitle(firstRole, titles) || firstRole.name_en || firstRole.administrativeBody?.name || firstRole.administrativeBody?.name_en || '';
-  }
-
-  return '';
-}
-
 
 /**
  * The translation keys the role titles need. Satisfied by useTranslations('Person')

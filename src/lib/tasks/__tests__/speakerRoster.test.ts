@@ -1,4 +1,4 @@
-import { buildSpeakerRoster } from '../speakerRoster';
+import { buildSpeakerRoster, describeRolesAt } from '../speakerRoster';
 import { PersonWithRelations } from '@/lib/db/people';
 import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
@@ -69,5 +69,22 @@ describe('buildSpeakerRoster', () => {
     it('returns people in a stable order', () => {
         const roster = buildSpeakerRoster([person('p2', 'Βασίλης', []), person('p1', 'Άννα', []), person('p3', 'Άννα', [])], MEETING_DATE, null, roleTitles);
         expect(roster.map(p => p.id)).toEqual(['p1', 'p3', 'p2']);
+    });
+});
+
+describe('describeRolesAt', () => {
+    // What processAgenda matches an agenda's «Εισηγητής: ο Αντιδήμαρχος …» against: the city office must be in it.
+    it('names the city office of a deputy mayor who sits on the meeting body, after the seat', () => {
+        const roles = [role({ cityId: 'athens', name: 'Αντιδήμαρχος Οικονομικών' }), bodyRole('council', 'Δημοτικό Συμβούλιο'), partyRole('Αθήνα Τώρα')];
+        expect(describeRolesAt(roles, MEETING_DATE, 'council', roleTitles)).toBe('Δημοτικό Συμβούλιο; Αντιδήμαρχος Οικονομικών');
+    });
+
+    it('names a mayor who holds no seat on the meeting body', () => {
+        const roles = [role({ cityId: 'athens', isHead: true }), partyRole('Αθήνα Τώρα', { isHead: true })];
+        expect(describeRolesAt(roles, MEETING_DATE, 'council', roleTitles)).toBe('Δήμαρχος');
+    });
+
+    it('is null for a person who holds no office on the meeting date', () => {
+        expect(describeRolesAt([partyRole('Αθήνα Τώρα'), bodyRole('council', 'Δημοτικό Συμβούλιο', { endDate: new Date('2023-12-31') })], MEETING_DATE, 'council', roleTitles)).toBeNull();
     });
 });
