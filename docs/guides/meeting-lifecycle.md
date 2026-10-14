@@ -91,7 +91,7 @@ The legacy fallback has three cases:
 * A meeting without a kind and with a stored name shows that name as the title and as the whole label, with no body and no date around it, because the name already says them («Δημοτικό Συμβούλιο 11/03/26»). English reads `name_en`, or `name` when `name_en` is empty. A Serbian locale reads the name in its script.
 * A meeting without a kind and without a stored name reads «Συνεδρίαση 12/03/2026», and its label is «Δημοτικό Συμβούλιο · Συνεδρίαση 12/03/2026».
 
-The archive backfill fills the facts from the invitations and clears each name that the derived title holds without loss. A later migration drops the columns.
+The archive backfill fills the facts from the invitations and writes no name: a meeting that gets a kind shows its derived title. A later migration drops the columns, after a check of what each stored name still says that no column holds (see *The archive*).
 
 The kind words exist in Greek and English. The other locales name a meeting by their word for "meeting" and the date. The date is in the timezone of the city.
 
@@ -138,7 +138,19 @@ The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the 
 
 ### The archive
 
-The migration sets `kind = accountability` on the existing λογοδοσία meetings of a council, because the decision poller reads the kind. The kind and the format of an archive meeting stay null, and the meeting shows its stored name until the backfill clears it. A λογοδοσία meeting that the migration gave a kind shows the derived title at once, and its stored name is ignored. A later run of processAgenda over the archive will extract the kind, the session number and the format from each invitation.
+The migration sets `kind = accountability` on the existing λογοδοσία meetings of a council, because the decision poller reads the kind. The other facts of an archive meeting stay null, and the meeting shows its stored name until it has a kind. A λογοδοσία meeting that the migration gave a kind shows the derived title at once, and its stored name is ignored.
+
+The archive takes the same reading of its invitations, without a re-run of processAgenda: a re-run would replace the subjects of meetings that summarize has already processed. The backfill writes facts only: the status, the kind, the urgency, the session number and the format. It writes no name. A meeting that gets a kind shows its derived title, and its stored name stays in the column, unread.
+
+1. `npx tsx scripts/meeting-record-export.ts --out reports/meeting-record-export.json` lists the meetings of Greek cities with an agenda. `--supported --per-body 4` takes a sample to measure first.
+2. In opencouncil-tasks, `npm run cli -- read-meeting-records reports/meeting-record-export.json -O reports/meeting-records.json` reads the meetings of each agenda, without its subjects, with the same rules as processAgenda. A second run reads only what is missing or failed.
+3. `npx tsx scripts/meeting-lifecycle-report.ts --records reports/meeting-records.json --out reports/meeting-lifecycle.csv` writes the proposals. The invitation fills a missing value, and a difference from a held value lands in `invitationDiffers`. The name is the fallback for a kind or an urgency when the invitation is not read. The format of an archive meeting holds the default, not a choice, so the invitation fills it too; a meeting by circulation is reported, not filled. The report runs the callback's identity check: an agenda it would refuse proposes nothing. `review` is empty for a row with nothing to look at. It names, among others, a combined meeting, a meeting with decisions that the proposed kind would take out of the decision poll, a kind from the name that the body cannot hold, and a stored name that says more than the derived title (`storedNameLoses`), which the kind would stop showing. Leave such a row without `yes` to keep its name.
+4. Review the CSV. Write `yes` in the `apply` column of each row to apply.
+5. Run `npx tsx --require ./scripts/lib/allow-server-only.cjs scripts/meeting-lifecycle-apply.ts --csv reports/meeting-lifecycle.csv` for a dry run, then with `--apply`. It first checks every accepted row: a value the CSV cannot hold, or a held kind, number or urgency that the row would replace, stops it with nothing written. It skips a row that changed since the report, writes an audit file, and syncs the calendar event when the title changes.
+6. Run `npx tsx --require ./scripts/lib/allow-server-only.cjs scripts/meeting-lifecycle-verify.ts --audit <audit file>`. It prints the counts and fails on what would need a rollback: a council-only kind on another body, a kind, an urgency or a number on a later part or outside Greece, a council record named λογοδοσία that holds another kind, and a meeting with decisions that the decision poll now skips.
+7. To undo, run the apply script with `--rollback <audit file>` (a dry run without `--apply`). It restores each applied row, newest first, only while the row still holds what the apply wrote; a row changed since is listed and left as it is.
+
+Before a later migration drops `name` and `name_en`, `storedNameLoses` of a fresh report lists the names that still say something no column holds («[Διεκόπη]», a name of two meetings). Each is moved into the facts or accepted as lost first.
 
 ## Sequence Diagram
 
