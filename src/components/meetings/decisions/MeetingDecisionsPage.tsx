@@ -45,7 +45,7 @@ import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
 import { buildAttendance, buildSubjectRollCall } from '@/lib/minutes/builders';
-import { downloadFile } from '@/lib/export/download';
+import { downloadFromUrl } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
@@ -1101,9 +1101,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
 
     const handleExportDocx = async () => {
         try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            downloadFile(await response.blob(), `minutes-${city.id}-${meeting.id}.docx`);
+            await downloadFromUrl(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`, `minutes-${city.id}-${meeting.id}.docx`);
             toast({ title: t('minutes.exportSuccess') });
         } catch {
             toast({ title: t('minutes.exportError'), variant: 'destructive' });

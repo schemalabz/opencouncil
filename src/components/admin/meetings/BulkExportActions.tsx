@@ -6,12 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { FileDown, Loader2, Music } from "lucide-react";
-import { 
-    exportMeetingToDocx, 
-    exportMeetingAudioWithProgress,
-    generateMeetingFileName, 
-    downloadFile
-} from "@/lib/export/meetings";
+import { exportMeetingAudioWithProgress } from "@/lib/export/meetings";
+import { downloadFile, downloadTranscriptDocx, generateMeetingFileName } from "@/lib/export/download";
 import { MeetingDataCore } from "@/lib/getMeetingData";
 import { useToast } from '@/hooks/use-toast';
 
@@ -64,13 +60,7 @@ export function BulkExportActions({
                 setCurrentExport({ current: i + 1, total: selectedMeetings.length });
 
                 try {
-                    // Fetch complete meeting data via API
-                    const meetingData = await fetchCompleteMeetingData(meeting.id);
-
-                    const blob = await exportMeetingToDocx(meetingData);
-                    
-                    const fileName = generateMeetingFileName(selectedCityId, meeting.id, 'docx');
-                    downloadFile(blob, fileName);
+                    await downloadTranscriptDocx(selectedCityId, meeting.id);
                     successCount++;
 
                     // Small delay between downloads to prevent browser throttling

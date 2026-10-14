@@ -224,6 +224,7 @@
       "audioSuccess": "Le fichier audio a été téléchargé.",
       "errorTitle": "Échec de l'export",
       "docxError": "Impossible d'exporter le document DOCX. Veuillez réessayer.",
+      "docxNoTranscript": "Cette séance n'a pas encore de transcription.",
       "audioError": "Impossible d'exporter le fichier audio : {error}",
       "audioFailure": {
         "noAudio": "Cette séance n'a pas de fichier audio.",

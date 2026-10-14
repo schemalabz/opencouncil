@@ -224,6 +224,7 @@
       "audioSuccess": "The audio file was downloaded successfully.",
       "errorTitle": "Export failed",
       "docxError": "Could not export the DOCX document. Please try again.",
+      "docxNoTranscript": "This meeting has no transcript yet.",
       "audioError": "Could not export the audio file: {error}",
       "audioFailure": {
         "noAudio": "This meeting has no audio file.",

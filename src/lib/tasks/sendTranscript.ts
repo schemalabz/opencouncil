@@ -5,6 +5,7 @@ import prisma from '@/lib/db/prisma';
 import { sendEmail } from '@/lib/email/resend';
 import { TranscriptEmail } from '@/lib/email/templates/TranscriptEmail';
 import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
+import { generateMeetingFileName } from '@/lib/export/download';
 import { sendTranscriptSentAdminAlert, sendTranscriptSendFailedAdminAlert } from '@/lib/discord';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { formatDate } from '@/lib/formatters/time';
@@ -72,8 +73,7 @@ export async function sendTranscriptToMunicipality(
             return { success: false, error: errorMessage };
         }
 
-        // Filename format matches generateMeetingFileName in src/lib/export/meetings.tsx
-        const filename = `${cityId}_council_meeting_${meetingId}.docx`;
+        const filename = generateMeetingFileName(cityId, meetingId, 'docx');
 
         const transcriptUrl = `${realmBaseUrl(meeting.city.realm)}/${cityId}/${meetingId}/transcript`;
 

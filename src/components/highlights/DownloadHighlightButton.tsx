@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { downloadFile } from "@/lib/export/download";
+import { downloadFromUrl } from "@/lib/export/download";
 
 /**
  * Downloads a highlight's rendered video as an mp4 file. Shared by the
@@ -38,11 +38,7 @@ export function DownloadHighlightButton({
 
         setIsDownloading(true);
         try {
-            const response = await fetch(videoUrl);
-            if (!response.ok) throw new Error('Failed to fetch video');
-
-            const blob = await response.blob();
-            downloadFile(blob, `${fileName}.mp4`);
+            await downloadFromUrl(videoUrl, `${fileName}.mp4`);
             onDownload?.();
 
             toast({

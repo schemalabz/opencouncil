@@ -1,10 +1,11 @@
-"use server";
+import "server-only";
 
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript } from '@/lib/db/transcript';
 import { getCity } from '@/lib/db/cities';
 import { getPeopleForCity } from '@/lib/db/people';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
+import { NotFoundError } from '@/lib/api/errors';
 
 /**
  * Generate a DOCX buffer for a meeting transcript on the server side.
@@ -22,15 +23,15 @@ export async function generateMeetingDocxBuffer(
     ]);
 
     if (!meeting) {
-        throw new Error(`Meeting not found: ${cityId}/${meetingId}`);
+        throw new NotFoundError(`Meeting not found: ${cityId}/${meetingId}`);
     }
 
     if (!city) {
-        throw new Error(`City not found: ${cityId}`);
+        throw new NotFoundError(`City not found: ${cityId}`);
     }
 
     if (!transcript || transcript.length === 0) {
-        throw new Error(`Transcript not found for meeting: ${cityId}/${meetingId}`);
+        throw new NotFoundError(`Transcript not found for meeting: ${cityId}/${meetingId}`);
     }
 
     const doc = await renderDocx({
