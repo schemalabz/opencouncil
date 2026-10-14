@@ -13,6 +13,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslations } from 'next-intl'
+import { useSession } from 'next-auth/react'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
@@ -73,7 +75,10 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [formError, setFormError] = useState<string | null>(null)
     const [editingBody, setEditingBody] = useState<AdministrativeBody | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBody | null>(null)
     const t = useTranslations('AdministrativeBodiesList')
+    const { data: session } = useSession()
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false
 
     const form = useForm<AdministrativeBodyFormValues>({
         resolver: zodResolver(administrativeBodyFormSchema),
@@ -160,14 +165,13 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     }
 
     const handleDelete = async (id: string) => {
-        if (!confirm(t('confirmDelete'))) return
-
         try {
             const response = await fetch(`/api/cities/${cityId}/administrative-bodies/${id}`, {
                 method: 'DELETE',
             })
 
             if (response.ok) {
+                setBodyToDelete(null)
                 onUpdate()
             } else {
                 const errorData = await response.json()
@@ -445,24 +449,36 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             >
                                 <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 shrink-0 rounded-[6px] text-muted-foreground hover:text-destructive"
-                                aria-label={t('delete')}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleDelete(body.id)
-                                }}
-                            >
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {isSuperAdmin && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 shrink-0 rounded-[6px] text-muted-foreground hover:text-destructive"
+                                    aria-label={t('delete')}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setBodyToDelete(body)
+                                    }}
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                            )}
                         </li>
                     ))}
                 </ul>
             </div>
             </Dialog>
+            <ConfirmDeleteDialog
+                open={bodyToDelete !== null}
+                onOpenChange={(open) => !open && setBodyToDelete(null)}
+                title={t('deleteBody')}
+                description={t('confirmDelete')}
+                itemName={bodyToDelete?.name ?? ''}
+                onConfirm={async () => {
+                    if (bodyToDelete) await handleDelete(bodyToDelete.id)
+                }}
+            />
         </div>
     )
 } 

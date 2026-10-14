@@ -111,7 +111,7 @@ export async function DELETE(
     props: { params: Promise<{ cityId: string, personId: string }> }
 ) {
     const params = await props.params;
-    const authorizedToDelete = await isUserAuthorizedToEdit({ personId: params.personId })
+    const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
         return new NextResponse("Unauthorized", { status: 401 });
     }

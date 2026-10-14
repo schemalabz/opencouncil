@@ -110,13 +110,7 @@ export async function editAdministrativeBody(
 }
 
 export async function deleteAdministrativeBody(id: string): Promise<void> {
-    const existingBody = await prisma.administrativeBody.findUnique({
-        where: { id },
-        select: { cityId: true },
-    });
-    if (!existingBody) throw new Error('Administrative body not found');
-
-    await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.administrativeBody.delete({
             where: { id },

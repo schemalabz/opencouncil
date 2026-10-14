@@ -57,7 +57,7 @@ const CITY_ORDER_BY = [
 ];
 
 export async function deleteCity(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({ cityId: id });
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.city.delete({
             where: { id },

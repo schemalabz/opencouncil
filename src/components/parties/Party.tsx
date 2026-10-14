@@ -9,6 +9,8 @@ import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { toast } from '@/hooks/use-toast';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
@@ -368,6 +370,9 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const [selectedAdminBodyType, setSelectedAdminBodyType] = useState<AdministrativeBodyType | null>(null);
     const [isLoadingContributions, setIsLoadingContributions] = useState(false);
 
@@ -481,6 +486,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                 toast({
                     title: t('partyDeleted', { name: party.name }),
                 });
+                setConfirmingDelete(false);
                 router.push(`/${city.id}`);
             } else {
                 const errorData = await response.json();
@@ -606,9 +612,21 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                                     triggerSize="sm"
                                     triggerClassName={adminToolClass}
                                 />
-                                <AdminToolButton destructive onClick={onDelete}>
-                                    {t('deleteParty')}
-                                </AdminToolButton>
+                                {isSuperAdmin && (
+                                    <>
+                                        <AdminToolButton destructive onClick={() => setConfirmingDelete(true)}>
+                                            {t('deleteParty')}
+                                        </AdminToolButton>
+                                        <ConfirmDeleteDialog
+                                            open={confirmingDelete}
+                                            onOpenChange={setConfirmingDelete}
+                                            title={t('deleteParty')}
+                                            description={t('deletePartyConfirm')}
+                                            itemName={party.name}
+                                            onConfirm={onDelete}
+                                        />
+                                    </>
+                                )}
                             </AdminStrip>
                         )}
                     />

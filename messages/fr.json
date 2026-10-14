@@ -17,6 +17,7 @@
     "emptyMessage": "Aucune commune trouvée avec ce nom."
   },
   "Common": {
+    "cancel": "Annuler",
     "continueWithGoogle": "Continuer avec Google",
     "aiGenerated": "Texte généré par IA",
     "aiDisclosure": {
@@ -515,6 +516,7 @@
     "noItems": "Il n'y a aucun membre sur OpenCouncil.",
     "editPerson": "Modifier le membre",
     "deletePerson": "Supprimer le membre",
+    "deletePersonConfirm": "Le membre sera supprimé avec ses rôles, ses présences, ses votes et ses empreintes vocales. Ses interventions dans les transcriptions resteront sans orateur. Cette action est irréversible.",
     "personDeleted": "Le membre {name} a été supprimé",
     "details": "Détails",
     "englishName": "Nom en anglais",
@@ -550,6 +552,7 @@
     "partyLeader": "Chef de groupe",
     "editParty": "Modifier le groupe",
     "deleteParty": "Supprimer le groupe",
+    "deletePartyConfirm": "Le groupe sera supprimé avec les rôles de ses membres dans ce groupe. Cette action est irréversible.",
     "partyDeleted": "Le groupe {name} a été supprimé",
     "items": "{count, plural, =0 {Aucun groupe} =1 {1 groupe} other {# groupes}}",
     "searchItems": "Rechercher des groupes",
@@ -950,7 +953,8 @@
     "create": "Créer",
     "failedToSave": "Échec de l'enregistrement",
     "unexpectedError": "Une erreur inattendue s'est produite",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet organe administratif ?",
+    "deleteBody": "Supprimer l'organe",
+    "confirmDelete": "L'organe sera supprimé avec les rôles de ses membres. Ses séances resteront sans organe. Cette action est irréversible.",
     "failedToDelete": "Échec de la suppression",
     "delete": "Supprimer"
   },
