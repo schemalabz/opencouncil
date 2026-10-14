@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { RoleTitles } from '@/lib/utils/roles';
