@@ -8,6 +8,7 @@ import { describeRolesAt } from "./speakerRoster";
 import { getPeopleForMeeting } from "../db/people";
 import { getRealmCountry } from "@/lib/realm";
 import { getRoleTitles } from "@/i18n/roleTitles";
+import { formatClockTime } from "@/lib/formatters/time";
 
 /**
  * Core processAgenda logic without auth checks.
@@ -37,11 +38,18 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
                 },
                 take: 1
             },
+            administrativeBody: {
+                select: {
+                    name: true,
+                    type: true
+                }
+            },
             city: {
                 select: {
                     name: true,
                     language: true,
-                    realm: true
+                    realm: true,
+                    timezone: true
                 }
             }
         }
@@ -88,7 +96,10 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         cityName: councilMeeting.city.name,
         cityLanguage: councilMeeting.city.language,
         // Scopes geocoding of the agenda's locations to the right country.
-        country: getRealmCountry(councilMeeting.city.realm)
+        country: getRealmCountry(councilMeeting.city.realm),
+        // A meeting with no body is the council's, as everywhere on the platform.
+        administrativeBody: councilMeeting.administrativeBody ?? { type: 'council' },
+        time: formatClockTime(councilMeeting.dateTime, councilMeeting.city.timezone),
     }
 
     console.log(`Process agenda body: ${JSON.stringify(body)}`);

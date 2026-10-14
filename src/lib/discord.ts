@@ -991,3 +991,30 @@ export async function sendLivestreamMultipleMeetingsAlert(data: {
         ],
     });
 }
+
+/**
+ * processAgenda read something in the agenda that a person must decide: the
+ * invitation differs from the meeting record, or the agenda holds more than
+ * one meeting, which a record cannot. Nothing was overwritten.
+ */
+export async function sendAgendaReadingAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    problems: string[];
+}): Promise<void> {
+    const meetingAdminUrl = await meetingUrl(data, '/admin');
+
+    await sendAdminAlert({
+        title: `⚠️ The agenda needs a look - ${data.cityId}`,
+        description: `processAgenda read the agenda of ${data.meetingId}; nothing was overwritten`,
+        color: 0xf39c12, // Yellow/orange
+        fields: [
+            { name: 'Municipality', value: data.cityName, inline: true },
+            { name: 'Meeting', value: data.meetingName, inline: false },
+            { name: 'To decide', value: truncateField(data.problems.join('\n')), inline: false },
+            { name: 'Admin Panel', value: `[Open Meeting Admin](${meetingAdminUrl})`, inline: false },
+        ],
+    });
+}
