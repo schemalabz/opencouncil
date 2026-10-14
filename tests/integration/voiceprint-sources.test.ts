@@ -81,4 +81,39 @@ describe('voiceprint source tags', () => {
         expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(1)
         expect((await findLongestSpeakerSegmentForPerson(personId))?.id).toBe(chosen.id)
     })
+
+    test('eligibility needs one source segment of at least 30 seconds', async () => {
+        await speaks('user', 29.9)
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+
+        await speaks('user', 30)
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(1)
+    })
+
+    test('the long segment must be on a source tag, not only on the transcript\'s', async () => {
+        await speaks('transcript', 300)
+        await speaks('user', 20)
+
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+    })
+
+    test('a person who has a voiceprint, or who belongs to another city, is not eligible', async () => {
+        const segment = await speaks('user', 120)
+        const other = await createCity({ id: 'c2' })
+        await prisma.person.update({ where: { id: personId }, data: { cityId: other.id } })
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+
+        await prisma.person.update({ where: { id: personId }, data: { cityId } })
+        await prisma.voicePrint.create({
+            data: { personId, sourceSegmentId: segment.id, embedding: '[]', sourceAudioUrl: 'https://example.org/a.mp3', startTimestamp: 0, endTimestamp: 30 },
+        })
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+    })
+
+    test('a person with several long source tags is listed once', async () => {
+        await speaks('user', 60)
+        await speaks('voiceprint', 90)
+
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).eligiblePeople).toEqual([{ id: personId, name: 'Speaker' }])
+    })
 })
