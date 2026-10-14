@@ -44,6 +44,13 @@ import { buildRollCall } from '@/lib/minutes/builders';
 import { MinutesCrossSubjectEntry } from '@/lib/minutes/types';
 import type { DecisionReading } from '@/lib/db/decisionFacts';
 
+// The real catalog of the locale the code asks for.
+const mockGetTranslations = jest.fn((o: { locale: string; namespace: string }) =>
+    jest.requireActual('../../../../tests/helpers/catalog').getTranslationsFromCatalog(o));
+jest.mock('next-intl/server', () => ({
+    getTranslations: (o: { locale: string; namespace: string }) => mockGetTranslations(o),
+}));
+
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';
 
@@ -86,7 +93,7 @@ describe('getMinutesData — subject names carry the agenda title', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetCity.mockResolvedValue({
-            name: 'Χανιά', name_municipality: 'Δήμος Χανίων', timezone: 'Europe/Athens', logoImage: null,
+            name: 'Χανιά', name_municipality: 'Δήμος Χανίων', timezone: 'Europe/Athens', logoImage: null, language: 'el',
         });
         mockGetCouncilMeetingDirect.mockResolvedValue({
             id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-03-04T18:00:00Z'),
@@ -117,6 +124,14 @@ describe('getMinutesData — subject names carry the agenda title', () => {
         expect(byId.get('s1')!.name).toBe('ΤΙΤΛΟΣ ΕΝΑ');
         expect(byId.get('s2')!.name).toBe('Περίληψη δύο');
         expect(byId.get('s3')!.name).toBe('ΤΙΤΛΟΣ ΤΡΙΑ');
+    });
+
+    it('reads the role titles in the city language', async () => {
+        mockGetCity.mockResolvedValue({
+            name: 'Rouen', name_municipality: 'Ville de Rouen', timezone: 'Europe/Paris', logoImage: null, language: 'fr',
+        });
+        await getMinutesData(CITY_ID, MEETING_ID);
+        expect(mockGetTranslations).toHaveBeenCalledWith({ locale: 'fr', namespace: 'Person' });
     });
 
     it('prints the title in the discussedWith cross-reference', async () => {
@@ -154,7 +169,7 @@ describe('getMinutesData — discussion summary and procedural votes', () => {
         mockGetCouncilMeetingDirect.mockResolvedValue({
             id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-06-15T18:00:00Z'), administrativeBody: null,
         });
-        mockGetCity.mockResolvedValue({ name: 'Δήμος', name_municipality: 'Δήμος', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' });
+        mockGetCity.mockResolvedValue({ name: 'Δήμος', name_municipality: 'Δήμος', timezone: 'Europe/Athens', logoImage: null, realm: 'greece', language: 'el' });
         mockGetSubjectsForMeeting.mockResolvedValue([
             subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }),
             subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),
@@ -198,7 +213,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         mockGetCouncilMeetingDirect.mockResolvedValue({
             id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-07-21T11:00:00Z'), administrativeBody: COMMITTEE,
         });
-        mockGetCity.mockResolvedValue({ name: 'Άργος', name_municipality: 'Δήμος Άργους', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' });
+        mockGetCity.mockResolvedValue({ name: 'Άργος', name_municipality: 'Δήμος Άργους', timezone: 'Europe/Athens', logoImage: null, realm: 'greece', language: 'el' });
         mockGetSubjectsForMeeting.mockResolvedValue([
             subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }),
             subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),

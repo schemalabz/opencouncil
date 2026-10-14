@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { FileDown, Loader2, Music } from "lucide-react";
-import { AudioExportError, exportMeetingToDocx, exportMeetingAudioWithProgress, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
+import { AudioExportError, exportMeetingAudioWithProgress } from '@/lib/export/meetings';
+import { DownloadError, downloadFile, downloadTranscriptDocx, generateMeetingFileName } from '@/lib/export/download';
 import { MeetingDataForExport } from "@/lib/export/meetings";
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
@@ -35,10 +36,7 @@ export function MeetingExportButtons({
   const handleExportDocx = async () => {
     setIsExportingDocx(true);
     try {
-      const meetingData = await getMeetingData();
-      const blob = await exportMeetingToDocx(meetingData);
-      const fileName = generateMeetingFileName(cityId, meetingId, 'docx');
-      downloadFile(blob, fileName);
+      await downloadTranscriptDocx(cityId, meetingId);
       toast({
         title: t('successTitle'),
         description: t('docxSuccess'),
@@ -47,7 +45,7 @@ export function MeetingExportButtons({
       console.error('Error exporting to DOCX:', error);
       toast({
         title: t('errorTitle'),
-        description: t('docxError'),
+        description: error instanceof DownloadError && error.status === 404 ? t('docxNoTranscript') : t('docxError'),
         variant: "destructive"
       });
     } finally {

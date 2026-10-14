@@ -382,13 +382,13 @@ export function formatRollCallOffice(office: MinutesRollCallOffice): string {
 /**
  * The parenthesis after a member's name in the minutes' lists: «αναπλ. μέλος»
  * for a substitute, the office of an absent president, then the party, with
- * «Επικεφαλής» for its head.
+ * «Επικεφαλής» for its head (`partyLabel`).
  */
 export function formatRollCallMemberLabel({ member, isSubstitute, office }: MinutesRollCallMember): string | null {
     const labels: string[] = [];
     if (isSubstitute) labels.push('αναπλ. μέλος');
     if (office) labels.push(formatRollCallOffice(office));
-    if (member.party) labels.push(member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party);
+    if (member.partyLabel) labels.push(member.partyLabel);
     return labels.length > 0 ? labels.join(', ') : null;
 }
 

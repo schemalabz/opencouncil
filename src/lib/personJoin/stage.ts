@@ -4,6 +4,7 @@ import { getJoinPerson, type JoinPerson } from "@/lib/db/personClaim";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { readerSubscribedToCity } from "@/lib/notis/reader";
 import { getCouncilTitle } from "@/lib/utils/roles";
+import { getRoleTitles } from "@/i18n/roleTitles";
 
 /** What the join flow shows of the person a code names. */
 export interface JoinPersonView {
@@ -58,7 +59,7 @@ export async function getJoinStage(token: string | undefined, userId: string | n
         id: row.id,
         name: row.name,
         image: row.image,
-        title: getCouncilTitle(row.roles),
+        title: getCouncilTitle(row.roles, await getRoleTitles(row.city.language)),
         cityId: row.cityId,
         cityName: row.city.name,
     };

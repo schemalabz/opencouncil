@@ -13,6 +13,7 @@ import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getB
 import { BadgePicker } from '@/components/ui/badge-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityPeopleProps = {
@@ -33,6 +34,7 @@ export default function CityPeople({
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
+    const roleTitles = useRoleTitles();
     const searchParams = useSearchParams();
 
     // Both name columns, not just the localized one: a reader on the Greek page
@@ -48,7 +50,7 @@ export default function CityPeople({
         ...filterActiveRoles(person.roles).flatMap(role => [
             role.name,
             role.name_en,
-            getRoleText(role, t),
+            getRoleText(role, roleTitles),
             role.party?.name,
             role.party?.name_en,
             role.party?.name_short,
@@ -56,7 +58,7 @@ export default function CityPeople({
             role.administrativeBody?.name,
             role.administrativeBody?.name_en,
         ]),
-    ], [locale, t]);
+    ], [locale, roleTitles]);
 
     const parties = useMemo(() =>
         partiesWithPersons.map(({ people, ...party }) => party),

@@ -1,4 +1,5 @@
-import { stripLocalePrefix, localePathPrefix } from '../config';
+import { CityLanguage } from '@prisma/client';
+import { LOCALES, stripLocalePrefix, localePathPrefix } from '../config';
 
 describe('stripLocalePrefix', () => {
     test('removes the custom prefix of sr-Latn', () => {
@@ -32,6 +33,16 @@ describe('stripLocalePrefix', () => {
     test('is the inverse of localePathPrefix', () => {
         for (const locale of ['el', 'en', 'fr', 'sr', 'sr-Latn']) {
             expect(stripLocalePrefix(`${localePathPrefix(locale)}/nis/parties/p1`)).toBe('/nis/parties/p1');
+        }
+    });
+});
+
+describe('city languages', () => {
+    // Documents, task requests and QR strips translate with the city's language
+    // as the locale. A locale next-intl does not know falls back to Greek silently.
+    test('every city language is a locale', () => {
+        for (const language of Object.values(CityLanguage)) {
+            expect(LOCALES).toContain(language);
         }
     });
 });

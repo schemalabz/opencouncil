@@ -11,15 +11,16 @@ import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
 import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
-import { buildSpeakerRoster } from "@/lib/tasks/speakerRoster";
+import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
-import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { getPartyFromRoles } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 import { getRealmCountry } from "@/lib/realm";
 import { getCityRealm } from "./cityRealm";
+import { getRoleTitles } from "@/i18n/roleTitles";
 
 // discussionStatus arrives from the external task server, so it is validated before it
 // reaches Prisma. An unknown value is a PrismaClientValidationError, which would abort the
@@ -67,6 +68,7 @@ export async function getRequestOnTranscriptRequestBody(
     if (!city) {
         throw new Error('City not found');
     }
+    const roleTitles = await getRoleTitles(city.language);
 
     // Realm-scoped taxonomy — use the city's realm, not a global topic set.
     const topics = await getTopics(city.realm);
@@ -75,12 +77,12 @@ export async function getRequestOnTranscriptRequestBody(
         transcript: transcript.map(segment => {
             const speakerTag = segment.speakerTag;
             const person = identifiedPeople.find(p => p.id === speakerTag.personId);
-            const party = person ? getPartyFromRoles(person.roles) : null;
+            const party = person ? getPartyFromRoles(person.roles, councilMeeting.dateTime) : null;
 
             return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
-                speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
+                speakerRole: person ? describeRolesAt(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) : null,
                 speakerSegmentId: segment.id,
                 speakerTagId: segment.speakerTagId,
                 speakerId: person?.id || null,
@@ -99,7 +101,7 @@ export async function getRequestOnTranscriptRequestBody(
         // Scopes geocoding of subject locations to the right country.
         country: getRealmCountry(city.realm),
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
-        people: buildSpeakerRoster(meetingPeople, councilMeeting.dateTime, councilMeeting.administrativeBodyId),
+        people: buildSpeakerRoster(meetingPeople, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles),
         // For a task server that predates `people`: the same people by party.
         partiesWithPeople: parties.map(p => ({
             name: p.name,
@@ -109,7 +111,7 @@ export async function getRequestOnTranscriptRequestBody(
             }).map((person) => {
                 return {
                     name: person.name,
-                    role: getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId)
+                    role: describeRolesAt(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) ?? ''
                 }
             })
         })),

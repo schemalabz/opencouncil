@@ -93,6 +93,21 @@ describe('getCouncilQrStrips', () => {
         expect(strips!.texts.validUntil).toMatch(/^validUntil:\d{1,2} \S+ \d{4}$/);
     });
 
+    it('titles a mayor without a stored role name from the Person catalog, in the city language', async () => {
+        mockGetCity.mockResolvedValue({ id: 'rouen', name: 'Rouen', realm: 'france', language: 'fr', timezone: 'Europe/Paris' });
+        const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
+        mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
+            o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Nicolas Mayer-Rossignol', [role({ cityId: 'rouen', isHead: true })]),
+        ]);
+        mockGetClaimedPersonIds.mockResolvedValue(new Set());
+
+        const strips = await getCouncilQrStrips('rouen');
+
+        expect(strips!.people[0].role).toBe('Maire');
+    });
+
     it('mints new codes on every call', async () => {
         mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
         mockGetPeopleForCity.mockResolvedValue([

@@ -7,7 +7,7 @@ import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
  */
 
 const member = (personId: string, name: string, party: string | null, isPartyHead = false): MinutesMember =>
-    ({ personId, name, party, isPartyHead, role: null });
+    ({ personId, name, party, partyLabel: party && isPartyHead ? `${party}, Επικεφαλής` : party });
 
 const base = (over: Partial<MinutesData>): MinutesData => ({
     city: { name: 'Άργος', name_municipality: 'Δήμος Άργους-Μυκηνών', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' },

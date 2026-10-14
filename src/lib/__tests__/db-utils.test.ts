@@ -31,6 +31,12 @@ import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
 import { getFixTranscriptRequestBody, getRequestOnTranscriptRequestBody } from '../db/utils';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
+// The real catalog of the locale the code asks for.
+jest.mock('next-intl/server', () => ({
+    getTranslations: (o: { locale: string; namespace: string }) =>
+        jest.requireActual('../../../tests/helpers/catalog').getTranslationsFromCatalog(o),
+}));
+
 const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscript>;
 const mockGetCouncilMeetingDirect = getCouncilMeetingDirect as jest.MockedFunction<typeof getCouncilMeetingDirect>;
 const mockGetCouncilMeeting = getCouncilMeeting as jest.MockedFunction<typeof getCouncilMeeting>;
@@ -114,6 +120,36 @@ describe('getRequestOnTranscriptRequestBody', () => {
         expect(result.transcript[0].speakerParty).toBe('Party A');
         expect(result.transcript[0].speakerId).toBe('person-1');
         expect(result.topicLabels).toEqual([{ name: 'Environment', description: '' }]);
+    });
+
+    it('sends the party a speaker held on the meeting date, not the party they hold today', async () => {
+        const person = makePersonWithRoles({ id: 'person-1', name: 'Maria K.', partyId: 'party-a', partyName: 'Party A' });
+        // Party A until after the meeting, Party B since then.
+        person.roles[0].endDate = new Date('2025-01-01T00:00:00Z');
+        const later = makePersonWithRoles({ id: 'person-1', name: 'Maria K.', partyId: 'party-b', partyName: 'Party B' });
+        person.roles.push({ ...later.roles[0], id: 'role-later', startDate: new Date('2025-01-01T00:00:00Z') });
+
+        mockGetTranscript.mockResolvedValue([makeTranscriptSegment({ id: 'seg-1', personId: 'person-1' })] as any);
+        mockPrismaPersonFindMany.mockResolvedValue([person]);
+        mockGetPeopleWhoMaySpeak.mockResolvedValue([person]);
+
+        const result = await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(result.transcript[0].speakerParty).toBe('Party A');
+    });
+
+    it('titles a president without a stored name in the city language', async () => {
+        mockCity({ id: CITY_ID, name: 'Rouen', language: 'fr', realm: 'france' });
+        const chair = makePersonWithRoles({ id: 'person-1', name: 'Marie D.', partyId: 'party-a', partyName: 'Party A' });
+        chair.roles.push({ ...chair.roles[0], id: 'chair', partyId: null, party: null,
+            administrativeBodyId: ADMIN_BODY_ID, isHead: true, name: null, name_en: null });
+        mockGetTranscript.mockResolvedValue([makeTranscriptSegment({ id: 'seg-1', personId: 'person-1' })] as any);
+        mockPrismaPersonFindMany.mockResolvedValue([chair]);
+        mockGetPeopleWhoMaySpeak.mockResolvedValue([chair]);
+
+        const result = await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(result.transcript[0].speakerRole).toBe('Président(e), Body');
     });
 
     it('sends the country of the city realm, so locations geocode in the right country', async () => {

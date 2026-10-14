@@ -1,8 +1,11 @@
-import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
+import { AdministrativeBodyType, Role, Party } from '@prisma/client';
+import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
+import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
-function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
+type TestRole = Role & { party?: Party | null; cityId?: string | null; administrativeBody?: { type: AdministrativeBodyType } | null };
+
+function makeRole(overrides: Partial<TestRole> = {}): TestRole {
   return {
     id: 'role-1',
     personId: 'person-1',
@@ -85,10 +88,21 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.isIndependent).toBe(false);
   });
 
-  it('returns independent for a person with no roles', () => {
+  it('does not call a person with no roles independent', () => {
     const result = getSpeakerDisplayInfo([], meetingDate);
 
     expect(result.role).toBeNull();
+    expect(result.party).toBeNull();
+    expect(result.isIndependent).toBe(false);
+  });
+
+  it('returns independent for a council member with no party', () => {
+    const roles = [
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+    ];
+
+    const result = getSpeakerDisplayInfo(roles, meetingDate);
+
     expect(result.party).toBeNull();
     expect(result.isIndependent).toBe(true);
   });
@@ -116,7 +130,7 @@ describe('getSpeakerDisplayInfo', () => {
 
     expect(result.role).toBeNull();
     expect(result.party).toBeNull();
-    expect(result.isIndependent).toBe(true);
+    expect(result.isIndependent).toBe(false);
   });
 
   it('returns admin body role as role when it is the primary non-party role', () => {
@@ -555,8 +569,10 @@ describe('simplifyRoleName', () => {
 
 // --- getRoleText / getRoleLabelAt (the label MCP and the badges share) ---
 
-const roleT = (key: 'mayor' | 'president' | 'partyLeader' | 'member') =>
-  ({ mayor: 'Δήμαρχος', president: 'Πρόεδρος', partyLeader: 'Επικεφαλής', member: 'Μέλος' }[key]);
+// The real catalogs: a renamed or missing key fails these tests.
+const roleT = roleTitlesFor('el');
+const roleTEn = roleTitlesFor('en');
+const roleTSr = roleTitlesFor('sr');
 
 function makeAdminBody(name: string) {
   return {
@@ -615,6 +631,26 @@ describe('getRoleText', () => {
       isHead: true,
     });
     expect(getRoleText(role, roleT)).toBe('Αντιπρόεδρος - Δημοτική Επιτροπή');
+  });
+});
+
+describe('getRoleText on an English page', () => {
+  it('shows the translated title of a head over its stored name', () => {
+    const party = makeParty({ name: 'Αθήνα Ψηλά' });
+    expect(getRoleText(makeFullRole({ cityId: 'city-1', isHead: true, name: 'Δήμαρχος' }), roleTEn)).toBe('Mayor');
+    expect(getRoleText(makeFullRole({ partyId: party.id, party, isHead: true, name: 'Επικεφαλής' }), roleTEn)).toBe('Αθήνα Ψηλά (Party Leader)');
+    expect(getRoleText(makeFullRole({
+      name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'body-1', administrativeBody: makeAdminBody('Δημοτικό Συμβούλιο'),
+    }), roleTEn)).toBe('President - Δημοτικό Συμβούλιο');
+  });
+});
+
+describe('getRoleText in Serbian', () => {
+  it('shows a party head\'s stored name over the catalog title, in the script of the page', () => {
+    const party = makeParty({ name: 'ДР ДРАГАН МИЛИЋ' });
+    const role = makeFullRole({ partyId: party.id, party, isHead: true, name: 'Шеф' });
+    expect(getRoleText(role, roleTSr)).toBe('ДР ДРАГАН МИЛИЋ (Шеф)');
+    expect(getRoleText(role, roleTitlesFor('sr-Latn'))).toBe('ДР ДРАГАН МИЛИЋ (Šef)');
   });
 });
 
@@ -713,12 +749,17 @@ describe('getCouncilTitle', () => {
   const council = { type: 'council' };
   it('prefers the city-level role, then the council role, and is null for a plain member', () => {
     expect(getCouncilTitle([
-      { name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council },
-      { name: 'Αντιδήμαρχος Πολιτισμού', cityId: 'c' },
-    ])).toBe('Αντιδήμαρχος Πολιτισμού');
-    expect(getCouncilTitle([{ name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council }])).toBe('Πρόεδρος');
-    expect(getCouncilTitle([{ name: null, administrativeBodyId: 'b', administrativeBody: council }])).toBeNull();
-    expect(getCouncilTitle([{ name: 'Μέλος', partyId: 'p', cityId: 'c' }])).toBeNull();
+      { name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council },
+      { name: 'Αντιδήμαρχος Πολιτισμού', isHead: false, cityId: 'c' },
+    ], roleT)).toBe('Αντιδήμαρχος Πολιτισμού');
+    expect(getCouncilTitle([{ name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBe('Πρόεδρος');
+    expect(getCouncilTitle([{ name: null, isHead: false, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBeNull();
+    expect(getCouncilTitle([{ name: 'Μέλος', isHead: false, partyId: 'p', cityId: 'c' }], roleT)).toBeNull();
+  });
+
+  it('titles a head that has no stored name', () => {
+    expect(getCouncilTitle([{ name: null, isHead: true, cityId: 'c' }], roleT)).toBe('Δήμαρχος');
+    expect(getCouncilTitle([{ name: null, isHead: true, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBe('Πρόεδρος');
   });
 });
 
@@ -737,3 +778,128 @@ describe('mayorIsMemberOf', () => {
     expect(mayorIsMemberOf({ roles: [{ administrativeBodyId: 'committee-1', startDate: null, endDate: new Date('2025-01-01') }] }, { id: 'committee-1', type: 'committee' }, date)).toBe(false);
   });
 });
+
+describe('isIndependentCouncilMember', () => {
+  it('is true for a council member with no active party role', () => {
+    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } })];
+    expect(isIndependentCouncilMember(roles, meetingDate)).toBe(true);
+  });
+
+  it('is false for a council member with an active party role', () => {
+    const party = makeParty();
+    const roles = [
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'party-role', partyId: party.id, party }),
+    ];
+    expect(isIndependentCouncilMember(roles, meetingDate)).toBe(false);
+  });
+
+  it('is true when the party role ended before the date', () => {
+    const party = makeParty();
+    const roles = [
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'party-role', partyId: party.id, party, endDate: new Date('2024-01-01') }),
+    ];
+    expect(isIndependentCouncilMember(roles, meetingDate)).toBe(true);
+  });
+
+  it('is false for a member of a community only', () => {
+    const roles = [makeRole({ administrativeBodyId: 'community-1', administrativeBody: { type: 'community' } })];
+    expect(isIndependentCouncilMember(roles, meetingDate)).toBe(false);
+  });
+});
+
+describe('getSpeakerLabels', () => {
+  it('labels an independent council member whose role has no name', () => {
+    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } })];
+
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({
+      party: null,
+      partyLabel: null,
+      role: 'Ανεξάρτητος Δημοτικός Σύμβουλος',
+    });
+  });
+
+  it('prefers a named role over the independent label', () => {
+    const roles = [makeRole({
+      administrativeBodyId: 'council-1',
+      administrativeBody: { type: 'council' },
+      isHead: true,
+      name: 'Πρόεδρος Δημοτικού Συμβουλίου',
+    })];
+
+    expect(getSpeakerLabels(roles, roleT, meetingDate).role).toBe('Πρόεδρος Δημοτικού Συμβουλίου');
+  });
+
+  it('returns the short party name and no role for a party member', () => {
+    const party = makeParty();
+    const roles = [
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'party-role', partyId: party.id, party, isHead: true }),
+    ];
+
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({ party: 'TP', partyLabel: 'TP, Επικεφαλής', role: null });
+  });
+
+  it('simplifies a deputy mayor title', () => {
+    const roles = [makeRole({ cityId: 'city-1', name: 'Αντιδήμαρχος Οικονομικών' })];
+
+    expect(getSpeakerLabels(roles, roleT, meetingDate).role).toBe('Αντιδήμαρχος');
+  });
+
+  it('returns no labels for a person with no roles', () => {
+    expect(getSpeakerLabels([], roleT, meetingDate)).toEqual({ party: null, partyLabel: null, role: null });
+  });
+
+  it('titles a president whose head role has no name', () => {
+    const party = makeParty();
+    const roles = [
+      makeRole({ id: 'chair', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' }, isHead: true }),
+      makeRole({ id: 'party-role', partyId: party.id, party }),
+    ];
+    expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({ party: 'TP', partyLabel: 'TP', role: 'Πρόεδρος' });
+  });
+
+  it('takes the party head word from the catalog it is given', () => {
+    const party = makeParty({ name_short: 'TP' });
+    const roles = [makeRole({ id: 'party-role', partyId: party.id, party, isHead: true })];
+    expect(getSpeakerLabels(roles, roleTSr, meetingDate).partyLabel).toBe('TP, Шеф одборничке групе');
+    expect(getSpeakerLabels(roles, roleT, meetingDate).partyLabel).toBe('TP, Επικεφαλής');
+  });
+
+  it('titles a mayor whose city role has no name', () => {
+    expect(getSpeakerLabels([makeRole({ cityId: 'city-1', isHead: true })], roleT, meetingDate).role).toBe('Δήμαρχος');
+  });
+});
+
+describe('getRoleKind', () => {
+  it('names what a role is attached to', () => {
+    expect(getRoleKind({ partyId: 'p', cityId: 'c' })).toBe('party');
+    expect(getRoleKind({ administrativeBodyId: 'b', cityId: 'c' })).toBe('body');
+    expect(getRoleKind({ cityId: 'c' })).toBe('city');
+    expect(getRoleKind({})).toBeNull();
+  });
+});
+
+describe('getRoleTitle', () => {
+  it('gives a head with no stored name the title of what it heads', () => {
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, roleT)).toBe('Δήμαρχος');
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: null }, roleT)).toBe('Πρόεδρος');
+    expect(getRoleTitle({ partyId: 'p', isHead: true, name: null }, roleT)).toBe('Επικεφαλής');
+  });
+
+  it('lets a stored name override the title of a head', () => {
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: 'Πρόεδρος Δημοτικού Συμβουλίου' }, roleT)).toBe('Πρόεδρος Δημοτικού Συμβουλίου');
+  });
+
+  it('returns the stored name of a role that is not a head, and null when it has none', () => {
+    expect(getRoleTitle({ cityId: 'c', isHead: false, name: 'Αντιδήμαρχος Πολιτισμού' }, roleT)).toBe('Αντιδήμαρχος Πολιτισμού');
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: false, name: null }, roleT)).toBeNull();
+  });
+
+  it('prefers the translated head title on an English page', () => {
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: 'Πρόεδρος' }, roleTEn)).toBe('President');
+    expect(getRoleTitle({ cityId: 'c', isHead: false, name: 'Αντιδήμαρχος Πολιτισμού' }, roleTEn)).toBe('Αντιδήμαρχος Πολιτισμού');
+  });
+});
+

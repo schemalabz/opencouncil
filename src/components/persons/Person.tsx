@@ -20,6 +20,8 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
+import { isIndependentCouncilMember, isMayorRole, type RoleTitles } from '@/lib/utils/roles';
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
@@ -67,6 +69,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const locale = useLocale();
+    const roleTitles = useRoleTitles();
     const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
     const personParty = getPartyFromRoles(person.roles);
     const speakingMinutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
@@ -85,17 +88,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     // Topic chips reflect the actual contributions list (already sorted server-side).
     const relevantTopics = contributionTopics;
 
-    // Check if person is an independent council member
-    const isIndependentCouncilMember = useMemo(() => {
-        const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
-        const partyRoles = activeRoles.filter(role => role.partyId);
-
-        if (partyRoles.length > 0) return false;
-
-        return activeRoles.some(role =>
-            role.administrativeBodyId && role.administrativeBody?.type === 'council'
-        );
-    }, [person.roles]);
+    const isIndependent = useMemo(() => isIndependentCouncilMember(person.roles), [person.roles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -261,20 +254,19 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         </Link>
                                     );
                                 }
-                                const cityLevel = role.cityId && !role.administrativeBodyId;
                                 return (
                                     <span
                                         key={role.id}
                                         className={cn(headerChipClass, 'border-transparent bg-muted text-muted-foreground')}
                                     >
-                                        {cityLevel && role.isHead
+                                        {isMayorRole(role)
                                             ? <Star className="mt-px h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
                                             : <Landmark className="mt-px h-3 w-3 shrink-0" aria-hidden />}
-                                        {getRoleText(role, t)}
+                                        {getRoleText(role, roleTitles)}
                                     </span>
                                 );
                             })}
-                            {isIndependentCouncilMember && (
+                            {isIndependent && (
                                 <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
                             )}
                             </>
@@ -453,10 +445,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     <aside className="min-w-0 space-y-4 lg:pt-[3.25rem]">
                         <RailCard title={t('rolesCard')}>
                             <ul className="space-y-2.5">
-                                {activeRoles.map(role => <RoleRow key={role.id} role={role} t={t} tCommon={tCommon} />)}
+                                {activeRoles.map(role => <RoleRow key={role.id} role={role} roleTitles={roleTitles} tCommon={tCommon} />)}
                                 {activeRoles.length === 0 && (
                                     <li className="text-sm text-muted-foreground">
-                                        {isIndependentCouncilMember ? t('independentCouncilMember') : '—'}
+                                        {isIndependent ? t('independentCouncilMember') : '—'}
                                     </li>
                                 )}
                             </ul>
@@ -467,7 +459,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         <ChevronDown className="ml-1 inline h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden />
                                     </summary>
                                     <ul className="mt-2.5 space-y-2.5 opacity-70">
-                                        {pastRoles.map(role => <RoleRow key={role.id} role={role} t={t} tCommon={tCommon} />)}
+                                        {pastRoles.map(role => <RoleRow key={role.id} role={role} roleTitles={roleTitles} tCommon={tCommon} />)}
                                     </ul>
                                 </details>
                             )}
@@ -510,9 +502,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
  * Two translators: the label is `Person` copy, the date range is `Common` copy —
  * `from` and `until` exist in no other namespace.
  */
-function RoleRow({ role, t, tCommon }: {
+function RoleRow({ role, roleTitles, tCommon }: {
     role: RoleWithRelations;
-    t: ReturnType<typeof useTranslations>;
+    roleTitles: RoleTitles;
     tCommon: ReturnType<typeof useTranslations>;
 }) {
     const dates = formatDateRange(
@@ -528,13 +520,13 @@ function RoleRow({ role, t, tCommon }: {
                     style={{ backgroundColor: role.party.colorHex }}
                     aria-hidden
                 />
-            ) : role.cityId && !role.administrativeBodyId && role.isHead ? (
+            ) : isMayorRole(role) ? (
                 <Star className="mt-[3px] h-3.5 w-3.5 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
             ) : (
                 <Landmark className="mt-[3px] h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
             )}
             <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold leading-snug">{getRoleText(role, t)}</span>
+                <span className="block text-[13px] font-semibold leading-snug">{getRoleText(role, roleTitles)}</span>
                 {dates && <span className="block text-[11.5px] text-muted-foreground">{dates}</span>}
             </span>
         </li>

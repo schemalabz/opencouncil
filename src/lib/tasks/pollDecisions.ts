@@ -125,7 +125,7 @@ export async function pollDecisionsForMeeting(
     }
 
     // Fetch people for name matching during extraction
-    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBody?.id ?? null);
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBody?.id ?? null, councilMeeting.dateTime);
     const peopleForRequest = people.map(p => ({ id: p.id, name: p.name }));
 
     // Find the city mayor for presence extraction from decision narrative

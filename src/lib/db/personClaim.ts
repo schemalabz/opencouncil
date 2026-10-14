@@ -109,11 +109,12 @@ const joinPersonSelect = {
     name: true,
     image: true,
     cityId: true,
-    city: { select: { name: true, supportsNotifications: true } },
+    city: { select: { name: true, language: true, supportsNotifications: true } },
     roles: {
         where: { OR: getActiveRoleCondition() },
         select: {
             name: true,
+            isHead: true,
             cityId: true,
             partyId: true,
             administrativeBodyId: true,

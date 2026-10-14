@@ -544,7 +544,7 @@ function TranscriptSection({ entries, debugMode, debugCounterRef }: {
                     return (
                         <div key={i} id={debugId} className={debugMode ? 'border-l-4 pl-2' : ''} style={debugColor ? { borderLeftColor: debugColor } : undefined}>
                             <span className="font-bold">
-                                {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικεφαλής' : ''})` : ''}
+                                {entry.speakerName} {entry.partyLabel ? `(${entry.partyLabel})` : ''}
                             </span>
                             {entry.role && (
                                 <span className="text-xs text-gray-500"> {entry.role}</span>

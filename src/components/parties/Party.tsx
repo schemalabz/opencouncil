@@ -23,7 +23,8 @@ import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { cn, filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
-import { isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
+import { getRoleTitle, isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { sortInactivePartyMembers, sortPartyMembers, sortPeople } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,6 +64,7 @@ function PartyMembersTab({
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
+    const roleTitles = useRoleTitles();
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
     // The picker sits in the current-members header and offers the bodies those
@@ -179,12 +181,10 @@ function PartyMembersTab({
                                                 <div className="text-xs sm:text-sm text-muted-foreground">
                                                     {/* History-wide by design: this row is a past member, and
                                                         every role it describes has ended. */}
-                                                    {person.roles
+                                                    {[...new Set(person.roles
                                                         .filter(role => isPartyRole(role, party.id))
-                                                        .some(role => role.isHead) && t('partyLeader')}
-                                                    {person.roles
-                                                        .filter(role => isPartyRole(role, party.id) && role.name)
-                                                        .map(role => role.name)
+                                                        .map(role => getRoleTitle(role, roleTitles))
+                                                        .filter(Boolean))]
                                                         .join(', ')}
                                                 </div>
                                             </div>

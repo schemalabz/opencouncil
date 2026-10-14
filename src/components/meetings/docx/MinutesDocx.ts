@@ -607,9 +607,7 @@ function createTranscriptParagraphs(entries: MinutesTranscriptEntry[]): Paragrap
             continue;
         }
 
-        const partyLabel = entry.party
-            ? entry.isPartyHead ? `(${entry.party}, Επικεφαλής) ` : `(${entry.party}) `
-            : '';
+        const partyLabel = entry.partyLabel ? `(${entry.partyLabel}) ` : '';
         const nameWithParty = `${entry.speakerName} ${partyLabel}`;
         const children: TextRun[] = [
             new TextRun({ text: nameWithParty, bold: true, size: FONT_SIZE.BODY }),

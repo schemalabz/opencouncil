@@ -3,9 +3,10 @@ import type { PhraseOutcome } from '@/lib/derivation/deriveVotes';
 export interface MinutesMember {
     personId: string;
     name: string;
+    /** The party's short name; the lists group substitutes by it. */
     party: string | null;
-    isPartyHead: boolean;
-    role: string | null;
+    /** What the minutes print for the party, «ΝΔ, Επικεφαλής» for its head (getSpeakerLabels). */
+    partyLabel: string | null;
 }
 
 export interface MinutesAttendance {
@@ -164,7 +165,8 @@ export interface MinutesSpeakerEntry {
     type: 'speaker';
     speakerName: string;
     party: string | null;
-    isPartyHead: boolean;
+    /** What the minutes print for the party, «ΝΔ, Επικεφαλής» for its head (getSpeakerLabels). */
+    partyLabel: string | null;
     role: string | null;
     text: string;
     timestamp: number;

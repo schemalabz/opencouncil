@@ -8,8 +8,9 @@ import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
 import { readingStatesFacts } from '@/lib/derivation/load';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
+import { getRoleTitles } from '@/i18n/roleTitles';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
-import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, mayorIsMemberOf, simplifyRoleName } from '@/lib/utils/roles';
+import { getSpeakerLabels, isRoleActiveAt, isMayorRole, mayorIsMemberOf } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -40,7 +41,7 @@ import {
     MayorChange,
 } from './builders';
 
-import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
+import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo, SpeakerResolver } from './transcriptEntries';
 
 /** Who a document says presided, read off the raw extraction it was stored with. */
 function presidedByOf(extraction: unknown): { name: string; personId: string | null } | null {
@@ -132,19 +133,22 @@ export async function getMinutesData(
     // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
     const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
 
+    const roleTitles = await getRoleTitles(city.language);
+    const speakerLabels = (person: (typeof people)[number] | null | undefined) =>
+        getSpeakerLabels(person?.roles ?? [], roleTitles, meetingDate);
+
+    const resolveSpeaker: SpeakerResolver = (personId, label) => {
+        const person = personId ? peopleMap.get(personId) : null;
+        return {
+            speakerName: person ? person.name_short : (label || 'Ομιλητής'),
+            ...speakerLabels(person),
+        };
+    };
+
     // Shared member resolver: looks up person in peopleMap, resolves display info
     const resolveMember: MemberResolver = (personId, fallbackName) => {
-        const person = peopleMap.get(personId);
-        const { party, role, isPartyHead } = person
-            ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-            : { party: null, role: null, isPartyHead: false };
-        return {
-            personId,
-            name: formatSurnameFirst(fallbackName),
-            party: party?.name_short ?? null,
-            isPartyHead,
-            role: simplifyRoleName(role?.name ?? null),
-        };
+        const { party, partyLabel } = speakerLabels(peopleMap.get(personId));
+        return { personId, name: formatSurnameFirst(fallbackName), party, partyLabel };
     };
 
     const adminBodyId = meeting.administrativeBody?.id ?? null;
@@ -164,35 +168,11 @@ export async function getMinutesData(
             ? { crossSubjectUtterances: crossMap, subjectNames: subjectNameMap }
             : undefined;
 
-        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
-            const person = personId ? peopleMap.get(personId) : null;
-            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-            const { party, role, isPartyHead } = person
-                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null, isPartyHead: false };
-            return {
-                speakerName,
-                party: party?.name_short ?? null,
-                isPartyHead,
-                role: simplifyRoleName(role?.name ?? null),
-            };
-        }, crossSubjectInfo);
+        return buildTranscriptEntriesFromUtterances(utterances, resolveSpeaker, crossSubjectInfo);
     }
 
     function buildOrphanTranscriptEntries(utterances: typeof allUtterances): MinutesTranscriptEntry[] {
-        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
-            const person = personId ? peopleMap.get(personId) : null;
-            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-            const { party, role, isPartyHead } = person
-                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null, isPartyHead: false };
-            return {
-                speakerName,
-                party: party?.name_short ?? null,
-                isPartyHead,
-                role: simplifyRoleName(role?.name ?? null),
-            };
-        });
+        return buildTranscriptEntriesFromUtterances(utterances, resolveSpeaker);
     }
 
     const preambleEntries = buildOrphanTranscriptEntries(assignment.preambleUtterances);

@@ -1,5 +1,6 @@
 import "server-only";
 import { getTranslations } from "next-intl/server";
+import { getRoleTitles } from "@/i18n/roleTitles";
 import { getCity } from "@/lib/db/cities";
 import { getPeopleForCity, type PersonWithRelations } from "@/lib/db/people";
 import { getClaimedPersonIds } from "@/lib/db/personClaim";
@@ -61,7 +62,10 @@ export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrip
 
     // The councillors read the strips, so the texts follow the city's
     // language, not the admin's UI.
-    const t = await getTranslations({ locale: city.language, namespace: "admin.cities.qrStrip" });
+    const [t, roleTitles] = await Promise.all([
+        getTranslations({ locale: city.language, namespace: "admin.cities.qrStrip" }),
+        getRoleTitles(city.language),
+    ]);
     // One expiry for all the strips: the date printed on every one of them.
     const expiresAt = claimExpiry();
 
@@ -70,7 +74,7 @@ export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrip
         cityName: city.name,
         people: members
             .filter((p) => !claimed.has(p.id))
-            .map((p) => ({ id: p.id, name: p.name, role: getCouncilTitle(p.roles), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
+            .map((p) => ({ id: p.id, name: p.name, role: getCouncilTitle(p.roles, roleTitles), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
         texts: {
             scan: t("scan"),
             validUntil: t("validUntil", { date: formatDate(claimLastValidDay(expiresAt), city.timezone, city.language) }),

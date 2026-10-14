@@ -2,6 +2,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { ImageOrInitials } from "@/components/ImageOrInitials";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
+import { getRoleTitle } from "@/lib/utils/roles";
+import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from "@/lib/formatters/name";
 import SpeakerTimer from "./SpeakerTimer";
 
@@ -11,14 +13,12 @@ interface SubjectSlideProps {
 
 export default function SubjectSlide({ subject }: SubjectSlideProps) {
     const t = useTranslations("presentation");
+    const roleTitles = useRoleTitles();
     const locale = useLocale();
     const introducer = subject.introducedBy;
     const introducerParty = introducer ? getPartyFromRoles(introducer.roles) : null;
-    const firstRole = introducer
-        ? filterActiveRoles(introducer.roles).find((r) => r.name) ?? null
-        : null;
-    const roleName = firstRole?.name
-        ? getLocalizedName({ name: firstRole.name, name_en: firstRole.name_en }, locale)
+    const roleName = introducer
+        ? filterActiveRoles(introducer.roles).map((r) => getRoleTitle(r, roleTitles)).find(Boolean) ?? null
         : null;
     const introducerSubtitle = [roleName, introducerParty && getLocalizedName(introducerParty, locale)]
         .filter(Boolean)

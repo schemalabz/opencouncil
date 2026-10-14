@@ -34,18 +34,19 @@ const simpleResolver: MemberResolver = (personId, name) => ({
     personId,
     name: `resolved-${name}`,
     party: null,
-    isPartyHead: false,
-    role: null,
+    partyLabel: null,
 });
 
 /** Resolver that attaches party info based on personId prefix. */
-const partyResolver: MemberResolver = (personId, name) => ({
-    personId,
-    name: `resolved-${name}`,
-    party: personId.startsWith('nd-') ? 'ΝΔ' : personId.startsWith('syriza-') ? 'ΣΥΡΙΖΑ' : null,
-    isPartyHead: personId.endsWith('-head'),
-    role: personId.startsWith('mayor-') ? 'Δήμαρχος' : null,
-});
+const partyResolver: MemberResolver = (personId, name) => {
+    const party = personId.startsWith('nd-') ? 'ΝΔ' : personId.startsWith('syriza-') ? 'ΣΥΡΙΖΑ' : null;
+    return {
+        personId,
+        name: `resolved-${name}`,
+        party,
+        partyLabel: party && personId.endsWith('-head') ? `${party}, Επικεφαλής` : party,
+    };
+};
 
 /** No elected order for anyone. */
 const noElectedOrder: ElectedOrderGetter = () => null;
@@ -408,7 +409,7 @@ describe('formatPhraseOnlyOutcome', () => {
 // --- minutesVoteLists ---
 
 describe('minutesVoteLists', () => {
-    const named = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false, role: null });
+    const named = (name: string): MinutesMember => ({ personId: name, name, party: null, partyLabel: null });
     const empty = { forMembers: [], againstMembers: [], abstainMembers: [], presentMembers: [], didNotVoteMembers: [], absentMembers: [] };
 
     it('heads the ΠΑΡΩΝ declarations as ΠΑΡΩΝ, apart from the members present', () => {
@@ -464,7 +465,7 @@ describe('buildMayorNote', () => {
 // --- buildAttendanceChanges (older polls: per-subject diffs, no events) ---
 
 describe('buildAttendanceChanges', () => {
-    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false, role: null });
+    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, partyLabel: null });
     const mayor = member('mayor', 'Μαλτέζος Ιωάννης');
     const m1 = member('m1', 'Λιόλιος Αντώνης');
     const subject = (id: string, index: number, present: MinutesMember[], absent: MinutesMember[]) => ({
@@ -523,7 +524,7 @@ describe('buildRollCall', () => {
         const rollCall = rollCallOf(data);
         expect(rollCall.president).toMatchObject({ isMayor: true, absent: true, presidedBy: null, note, printedName: 'Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)', printedNote: note });
         expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
-        expect(rollCall.absent.map(formatRollCallMemberLabel)).toEqual(['ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα', 'Νέα Πνοή']);
+        expect(rollCall.absent.map(e => formatRollCallMemberLabel(e))).toEqual(['ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα', 'Νέα Πνοή']);
         data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
         expect(rollCallOf(data).president).toMatchObject({ isMayor: false, note: null, printedNote: null });
     });
@@ -609,7 +610,7 @@ describe('buildRollCall', () => {
 });
 
 describe('buildSubjectRollCall', () => {
-    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, isPartyHead: false, role: null });
+    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, partyLabel: party });
     const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
 
     it('counts and names a member the roll call does not name, from the subject\'s own attendance', () => {
@@ -646,7 +647,8 @@ describe('buildSubjectRollCall', () => {
 });
 
 describe('formatRollCallMemberLabel', () => {
-    const m = (party: string | null, isPartyHead = false): MinutesMember => ({ personId: 'x', name: 'x', party, isPartyHead, role: null });
+    const m = (party: string | null, isPartyHead = false): MinutesMember =>
+        ({ personId: 'x', name: 'x', party, partyLabel: party && isPartyHead ? `${party}, Επικεφαλής` : party });
     it('puts the substitute mark before the party and marks a party head', () => {
         expect(formatRollCallMemberLabel({ member: m('ΝΔ', true), isSubstitute: true, office: null })).toBe('αναπλ. μέλος, ΝΔ, Επικεφαλής');
         expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: null })).toBe('ΝΔ');
@@ -664,8 +666,7 @@ describe('buildCouncilComposition', () => {
         personId,
         name,
         party: null,
-        isPartyHead: false,
-        role: null,
+        partyLabel: null,
     });
 
     it('includes mayor with personId', () => {
@@ -1061,7 +1062,7 @@ describe('discussedElsewhereIds', () => {
 
 describe('sortByElectedOrder', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({
-        personId, name, party: null, isPartyHead: false, role: null,
+        personId, name, party: null, partyLabel: null,
     });
 
     it('sorts by elected order ascending', () => {
