@@ -35,6 +35,17 @@ describe('CityNavigation', () => {
         expect(screen.getByRole('link', { name: /Διαβουλεύσεις/ })).toHaveAccessibleName('Διαβουλεύσεις');
     });
 
+    it('clips the badge\'s hidden label inside the scrolling nav', () => {
+        renderNavigation({ openConsultations: 2 });
+
+        // The `sr-only` label is absolutely positioned. The nav must be its
+        // containing block, or it escapes the overflow clipping and widens the
+        // page on a phone. jsdom does no layout, so the class is the check.
+        const nav = screen.getByRole('navigation');
+        expect(nav).toHaveClass('relative', 'overflow-x-auto');
+        expect(nav).toContainElement(screen.getByText('2 ανοιχτές διαβουλεύσεις'));
+    });
+
     it('has no consultations tab for a city without consultations', () => {
         renderNavigation({ city: { consultationsEnabled: false }, openConsultations: 3 });
         expect(screen.queryByRole('link', { name: /Διαβουλεύσεις/ })).toBeNull();
