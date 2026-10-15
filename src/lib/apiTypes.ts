@@ -131,6 +131,43 @@ export interface ProcessAgendaRequest extends TaskRequest {
     cityLanguage: CityLanguage;
     country: Country;
     date: string;
+    /** The body that holds the meeting, so its meeting can be told from another one in the same agenda. */
+    administrativeBody?: { name?: string; type: 'council' | 'committee' | 'community' };
+    /** The meeting's start in the city's time (HH:MM): two meetings of one body on one day differ by the hour. */
+    time?: string;
+}
+
+/**
+ * A meeting as its invitation states it (processAgenda v7). Each value is
+ * null when the invitation does not state it, and carries the phrase it was
+ * read from. The unions mirror the Prisma `MeetingKind` and `MeetingFormat`;
+ * urgency is a flag, false when the invitation does not say urgent.
+ */
+export interface AgendaMeetingRecord {
+    kind: 'ordinary' | 'special' | 'accountability' | 'activityReport' | 'budget' | 'presidencyElection' | 'financialAccounts' | null;
+    kindEvidence: string | null;
+    /** Convened urgently («κατεπείγουσα», «έκτακτη»), for any kind. */
+    urgent: boolean;
+    urgentEvidence: string | null;
+    sessionNumber: number | null;
+    sessionNumberEvidence: string | null;
+    format: 'inPerson' | 'remote' | 'hybrid' | 'byCirculation' | null;
+    formatEvidence: string | null;
+}
+
+/** One of the meetings that an agenda calls, with how many of the returned subjects are its own. */
+export interface AgendaMeetingInAgenda extends AgendaMeetingRecord {
+    /** As printed, e.g. «ΔΗΜΟΣ ΧΑΛΑΝΔΡΙΟΥ». */
+    municipality: string | null;
+    bodyName: string | null;
+    /** Whether the printed body is this meeting's body; null when not printed. */
+    ofThisBody: boolean | null;
+    /** YYYY-MM-DD, as printed. */
+    date: string | null;
+    /** HH:MM, as printed. */
+    time: string | null;
+    subjectCount: number;
+    isThisMeeting: boolean;
 }
 
 export interface SubjectContext {
@@ -215,6 +252,13 @@ export interface Subject {
 
 export interface ProcessAgendaResult {
     subjects: Subject[];
+    /** Absent before v7; null when the invitation could not be read. */
+    meetingRecord?: AgendaMeetingRecord | null;
+    /**
+     * Absent before v7. Every meeting the agenda calls; more than one means the
+     * subjects of other meetings are among `subjects`, since a record holds one meeting.
+     */
+    meetingsInAgenda?: AgendaMeetingInAgenda[];
 }
 
 /*

@@ -9,6 +9,9 @@ import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
+import { checkAgendaIdentity } from '@/lib/agendaMeetingRecord';
+import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -61,6 +64,30 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
 
     const subjects = response.subjects;
 
+    // A document from another municipality must not replace this meeting's
+    // subjects or notify its subscribers. Throwing marks the task failed, with
+    // the reason, before anything is saved. The record of a meeting follows
+    // the Greek Code, and the names compare as Greek text («Град Београд» is
+    // no «Grad Beograd» to it), so only a Greek city is checked and filled.
+    const greek = recordsGreekCodeFacts(task.councilMeeting.city.realm);
+    let identityDifferences: string[] = [];
+    if (greek && response.meetingsInAgenda?.length) {
+        const { councilMeeting } = task;
+        const otherCities = await prisma.city.findMany({
+            where: { realm: councilMeeting.city.realm, id: { not: councilMeeting.cityId } },
+            select: { name_municipality: true },
+        });
+        const identity = checkAgendaIdentity({
+            municipality: councilMeeting.city.name_municipality,
+            date: localCalendarDate(councilMeeting.dateTime, councilMeeting.city.timezone),
+            time: formatClockTime(councilMeeting.dateTime, councilMeeting.city.timezone),
+        }, response.meetingsInAgenda, otherCities.map((c) => c.name_municipality));
+        if (identity.refusal) {
+            throw new Error(`processAgenda refused the agenda of ${councilMeeting.cityId}/${councilMeeting.id}: ${identity.refusal}. Nothing was saved.`);
+        }
+        identityDifferences = identity.differences;
+    }
+
     // The agenda is authoritative, so saveSubjectsForMeeting both matches and
     // prunes: it keeps a subject's id when the incoming set still contains it
     // (by name first, so a renumbered agenda keeps each id with its own
@@ -84,6 +111,18 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         undefined,
         { pruneUnmatched: true }
     );
+
+    // Before the cache and the notifications below: the kind is part of the
+    // derived name that both of them show.
+    // The subjects are saved: nothing here may fail the task.
+    if (greek && (response.meetingRecord || (response.meetingsInAgenda?.length ?? 0) > 1 || identityDifferences.length > 0)) {
+        try {
+            const { applyAgendaMeetingRecord } = await import('./applyAgendaMeetingRecord');
+            Object.assign(task.councilMeeting, await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences));
+        } catch (error) {
+            console.error(`processAgenda could not apply the meeting record of ${task.councilMeeting.cityId}/${task.councilMeeting.id}:`, error);
+        }
+    }
 
     // Bust the meeting/subject cache now that the new agenda subjects are persisted,
     // BEFORE sending notifications below. The notification send is rate-limited

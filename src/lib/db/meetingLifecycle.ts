@@ -200,6 +200,9 @@ export async function updateMeetingRecord(
     cityId: string,
     id: string,
     patch: Partial<MeetingRecordFields>,
+    // The archive backfill locks the row, compares it with the reviewed
+    // report and writes in one transaction, so no edit slips in between.
+    { tx }: { tx?: Prisma.TransactionClient } = {},
 ): Promise<CouncilMeetingWithAdminBody> {
     const run = async (client: Prisma.TransactionClient) => {
         const current = await client.councilMeeting.findUnique({ where: { cityId_id: { cityId, id } } });
@@ -226,7 +229,7 @@ export async function updateMeetingRecord(
         }
         return meeting;
     };
-    return prisma.$transaction(run);
+    return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /**
