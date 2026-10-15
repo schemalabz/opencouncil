@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { meetingDisplayName } from '@/lib/meetingName';
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics; matches?: SearchMatches };
@@ -87,7 +88,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                 topic={subject.topic}
                 context={showContext ? {
                     meta: [getLocalizedName(city, locale), meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null, formatDate(new Date(meeting.dateTime), undefined, locale)].filter(Boolean).join(" · "),
-                    meetingName: getLocalizedName(meeting, locale),
+                    meetingName: meetingDisplayName(meeting, locale, city.timezone),
                 } : null}
                 locationText={subjectLocation(subject, localize) ?? t("noLocation")}
                 agendaLabel={getAgendaLabel(t, subject)}

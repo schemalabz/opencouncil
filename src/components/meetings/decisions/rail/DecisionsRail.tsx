@@ -75,8 +75,10 @@ export function DecisionsRail({
     onExportDocx: () => void;
     previewDisabled: boolean;
     isPolling: boolean;
-    /** Polls Diavgeia and re-extracts every document, cache or no cache. */
-    onPollSkippingCache: () => void;
+    /** Polls Diavgeia and re-extracts every document, cache or no cache.
+     * Null when the meeting takes no decisions: the button is disabled, and
+     * the footer says why. */
+    onPollSkippingCache: (() => void) | null;
     isClearing: boolean;
     onResetExtractions: () => void;
     /** Whether the meeting has any extracted data left to reset. */
@@ -149,7 +151,7 @@ export function DecisionsRail({
                             before pressing a destructive button. */}
                         <div className="space-y-3 rounded-lg border bg-background p-2.5">
                             <div className="space-y-1.5">
-                                <AdminToolButton disabled={isPolling} onClick={onPollSkippingCache}>
+                                <AdminToolButton disabled={isPolling || !onPollSkippingCache} onClick={onPollSkippingCache ?? undefined}>
                                     <Search className="h-3.5 w-3.5 mr-1.5" />
                                     {tPage('pollButtonSkipCache')}
                                 </AdminToolButton>

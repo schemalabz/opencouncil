@@ -6,6 +6,7 @@ import { getSpeakerLabels, type RoleTitles } from '@/lib/utils/roles';
 import { getShortName } from '@/lib/formatters/name';
 import { MeetingDataForExport } from '@/lib/export/meetings';
 import { getRealmDomain } from '@/lib/realm';
+import { meetingLabel } from '@/lib/meetingName';
 
 const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
     return [
@@ -17,7 +18,7 @@ const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting'
             spacing: { after: 400 },
             children: [
                 new TextRun({
-                    text: meeting.name,
+                    text: meetingLabel(meeting, 'el', city.timezone),
                     size: 32, // 16pt
                     bold: true
                 })
@@ -140,7 +141,7 @@ export const renderDocx = async ({ meeting, transcript, people, city }: MeetingD
     const doc = new Document({
         creator: "OpenCouncil",
         description: "Council Meeting Transcript",
-        title: meeting.name,
+        title: meetingLabel(meeting, 'el', city.timezone),
         subject: "Council Meeting",
         keywords: ["council", "meeting", "transcript"].join(", "),
         lastModifiedBy: "OpenCouncil",

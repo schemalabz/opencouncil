@@ -287,7 +287,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         // Both scopes of both bookends: the band's scope switch must not refetch.
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(4);
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
-            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'],
+            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true,
         });
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
         // The petition bucket needs the city's status (a supported city has no

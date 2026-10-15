@@ -1,4 +1,5 @@
-import { describeMeetingDate, describeNow } from "./dates";
+import { asMeetingKind, meetingTitle } from "@opencouncil/ui/lib/meeting-title";
+import { athensNumericDate, describeMeetingDate, describeNow } from "./dates";
 import { distanceLine, locationLabel, locationPoints } from "./geo";
 import {
   CONVERSATION_WINDOW,
@@ -163,22 +164,59 @@ export function decisionLine(
   );
 }
 
+export type MeetingWakeEvent = Extract<WakeEvent, { type: "agenda_processed" | "meeting_summarized" }>;
+
+/**
+ * The Meeting line of a meeting event: the label that the shared rule of the
+ * app gives (the body and the title), the raw facts, and the date. A meeting
+ * without a kind falls back to its legacy stored name, which is the whole
+ * label; without a kind and a stored name the title is «Συνεδρίαση» and the
+ * date. Notis is Greek-only, so the label is in Greek.
+ * An event queued before the view carried the facts has no kind, urgency or
+ * number, only the stored name; it renders as it did then.
+ */
+export function meetingLine(event: MeetingWakeEvent, now: Date): string {
+  const where = `, city ${event.cityId}, id ${event.meetingId}.\n`;
+  const when = describeMeetingDate(event.meetingDate, now);
+  if (event.meetingKind === undefined && event.sessionNumber === undefined && event.urgent === undefined) {
+    return `Meeting: ${event.meetingName ?? "(no name)"} (${when})${
+      event.adminBody ? ` — ${event.adminBody}` : ""
+    }${where}`;
+  }
+  const title = meetingTitle(
+    {
+      storedName: event.meetingName,
+      kind: asMeetingKind(event.meetingKind),
+      sessionNumber: event.sessionNumber,
+      urgent: event.urgent ?? false,
+    },
+    "el",
+    () => {
+      const date = new Date(event.meetingDate);
+      return Number.isNaN(date.getTime()) ? event.meetingDate : athensNumericDate(date);
+    },
+  );
+  const label = title.wholeLabel ? title.text : [event.adminBody, title.text].filter(Boolean).join(", ");
+  const facts = [
+    event.meetingKind ? `kind: ${event.meetingKind}` : "kind not stated",
+    `urgent: ${event.urgent ? "yes" : "no"}`,
+    event.sessionNumber ? `session number ${event.sessionNumber}` : "no session number",
+  ].join(", ");
+  return `Meeting: ${label} (${facts}) — ${when}${where}`;
+}
+
 export function renderEvent(event: WakeEvent, state: WakeState, now: Date): string {
   switch (event.type) {
     case "agenda_processed":
       return (
         `The agenda for an upcoming meeting has been processed.\n` +
-        `Meeting: ${event.meetingName} (${describeMeetingDate(event.meetingDate, now)})${
-          event.adminBody ? ` — ${event.adminBody}` : ""
-        }, city ${event.cityId}, id ${event.meetingId}.\n` +
+        meetingLine(event, now) +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief, readerPlaces(state, event.cityId))}`
       );
     case "meeting_summarized":
       return (
         `A meeting has concluded and its record is published.\n` +
-        `Meeting: ${event.meetingName} (${describeMeetingDate(event.meetingDate, now)})${
-          event.adminBody ? ` — ${event.adminBody}` : ""
-        }, city ${event.cityId}, id ${event.meetingId}.\n` +
+        meetingLine(event, now) +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief, readerPlaces(state, event.cityId))}`
       );
     case "user_message":

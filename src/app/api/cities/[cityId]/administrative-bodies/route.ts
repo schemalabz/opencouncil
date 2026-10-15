@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds || [],
+            place,
         });
 
         revalidateTag(`city:${cityId}:administrativeBodies`, 'max');

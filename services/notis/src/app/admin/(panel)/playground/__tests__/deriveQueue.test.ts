@@ -33,6 +33,25 @@ describe("deriveQueue", () => {
     expect(queue.map((q) => q.id)).toEqual(["patras:p1:summary", "athens:m2:summary"]);
   });
 
+  it("carries the facts and keeps a title only when the facts do not give it", () => {
+    const queue = deriveQueue(
+      [
+        {
+          id: "u1",
+          cityId: "athens",
+          name: "Δημοτικό Συμβούλιο · 2η Έκτακτη · 10/05/2026",
+          title: "2η Έκτακτη",
+          kind: "ordinary",
+          urgent: true,
+          sessionNumber: 2,
+          dateTime: "2026-05-10T18:00:00.000Z",
+        },
+      ],
+      "2026-05-01",
+    );
+    expect(queue[0].event).toMatchObject({ meetingName: null, meetingKind: "ordinary", urgent: true, sessionNumber: 2 });
+  });
+
   it("insertChronological places items before later pending events", () => {
     const queue = deriveQueue(meetings, "2026-05-01");
     const item: WakeRecord = {

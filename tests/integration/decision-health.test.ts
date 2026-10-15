@@ -133,6 +133,23 @@ describe('coverage window', () => {
         expect(rows[0].meetings).toBe(1)
         expect(rows[0].eligibleSubjects).toBe(1)
     })
+
+    test('a postponed or cancelled meeting never counts: it had no decisions to take', async () => {
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
+        const body = await createAdministrativeBody(city.id, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const dateTime = new Date('2025-01-10T10:00:00Z')
+        for (const scheduleStatus of ['scheduled', 'postponed', 'cancelled'] as const) {
+            const meeting = await createMeeting(city.id, { id: `m-${scheduleStatus}`, administrativeBodyId: body.id, dateTime, scheduleStatus })
+            await createSubject(meeting.id, city.id, { name: scheduleStatus, agendaItemIndex: 1 })
+        }
+
+        const rows = await getDecisionHealth('c1')
+        expect(rows[0].meetings).toBe(1)
+        expect(rows[0].eligibleSubjects).toBe(1)
+        const detail = await getCityDecisionDetail('c1')
+        const unmatched = Object.values(detail!.unmatched).flat().map((s) => s.councilMeetingId)
+        expect(new Set(unmatched)).toEqual(new Set(['m-scheduled']))
+    })
 })
 
 describe('queue visibility', () => {

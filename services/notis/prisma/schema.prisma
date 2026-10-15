@@ -335,6 +335,13 @@ model NotisProcessedEvent {
   meetingName   String?
   meetingDate   DateTime?
   adminBodyName String?
+  // The facts the title is derived from (@opencouncil/ui/lib/meeting-title).
+  // meetingName is the legacy stored name: a meeting without a kind falls
+  // back to it. Null on rows recorded before the view carried the facts:
+  // their meetingName is the stored name then.
+  meetingKind   String?
+  urgent        Boolean?
+  sessionNumber Int?
 
   // The shared editorial pass output, run once per taskId before fan-out;
   // every enqueued event embeds it verbatim. Null only for seed-only

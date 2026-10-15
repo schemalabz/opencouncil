@@ -191,6 +191,24 @@ describe('LinkPanel', () => {
         expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     });
 
+    it('offers no ΑΔΑ search for a meeting that takes no decisions', () => {
+        renderPanel({ rows: [], offerableCount: 0, renderAdaStep: null });
+        expect(screen.getByText('manual-step')).toBeInTheDocument();
+        expect(screen.queryByText(/ada-step/)).not.toBeInTheDocument();
+    });
+
+    it('offers no way back when there is neither a list nor an ΑΔΑ step', () => {
+        const renderManualStep = jest.fn(() => <div>manual-step</div>);
+        renderPanel({ rows: [], offerableCount: 0, renderAdaStep: null, renderManualStep });
+        expect(renderManualStep).toHaveBeenCalledWith(expect.objectContaining({ onBack: null }));
+    });
+
+    it('lists no ΑΔΑ route for a meeting that takes no decisions', () => {
+        renderPanel({ renderAdaStep: null });
+        expect(screen.queryByRole('button', { name: /Προσθήκη με ΑΔΑ/ })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Χειροκίνητη προσθήκη' })).toBeInTheDocument();
+    });
+
     it('opens on the list when a decision is free to link, and reaches both other routes', async () => {
         renderPanel();
         expect(screen.getByText('670/2026')).toBeInTheDocument();

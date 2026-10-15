@@ -6,7 +6,8 @@ import {
 import {
     collectMeetingCandidateStats, compareDecisionNumbers, type UnmatchedCause,
 } from './decisionHealthDerive';
-import { isLogodosiaMeeting } from '../tasks/pollDecisionsBackoff';
+import { takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 
 /**
  * On-demand detail for one city's row on the decisions overview. Fetched only
@@ -123,7 +124,7 @@ function deriveUnmatchedLists(facts: DecisionFacts): CityDecisionDetail['unmatch
     // detail is the drill-down, and the drill-down must show everything.
     const classified: Array<CityUnmatchedSubject & { cause: UnmatchedCause }> = [];
     for (const m of facts.meetings) {
-        if (isLogodosiaMeeting(m.name)) continue;
+        if (!takesPlace(m) || takesNoDecisions(m)) continue;
         for (const s of m.subjects) {
             if (s.linked) continue;
             classified.push({

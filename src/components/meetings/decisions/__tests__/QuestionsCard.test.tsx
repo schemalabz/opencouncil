@@ -274,6 +274,12 @@ describe('QuestionsCard', () => {
         expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
     });
 
+    it('says why a meeting that takes no decisions has no check', () => {
+        renderCard({ pollState: { kind: 'noDecisions' } });
+        expect(screen.getByText(/δεν λαμβάνει αποφάσεις/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
+    });
+
     it('says a municipality has no Diavgeia organisation instead of offering a check', () => {
         renderCard({ pollState: { kind: 'blocked' }, diavgeiaUid: null, pollScope: [] });
         expect(screen.getByText(/δεν έχει ID οργανισμού στη Διαύγεια/)).toBeInTheDocument();

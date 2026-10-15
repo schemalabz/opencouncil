@@ -33,9 +33,10 @@ let nextId = 0;
 function meeting(overrides: {
     dateTime: Date;
     bodyType?: 'council' | 'committee' | 'community' | null;
+    scheduleStatus?: 'scheduled' | 'postponed' | 'cancelled';
     subjects?: Array<{ agendaItemIndex?: number | null; nonAgendaReason?: string | null; withdrawn?: boolean }>;
 }): CouncilMeetingWithSubjectPreview {
-    const { dateTime, bodyType = 'council', subjects = [] } = overrides;
+    const { dateTime, bodyType = 'council', subjects = [], scheduleStatus = 'scheduled' } = overrides;
     const id = `m${nextId++}`;
     return {
         id,
@@ -44,6 +45,10 @@ function meeting(overrides: {
         name_en: `Meeting ${id}`,
         dateTime,
         released: true,
+        scheduleStatus,
+        scheduleStatusReason: null,
+        format: 'inPerson',
+        closedToPublic: false,
         youtubeUrl: null,
         videoUrl: null,
         audioUrl: null,
@@ -91,6 +96,18 @@ describe('MeetingsTimeline', () => {
         const pastCards = links.filter(a => !a.className.includes('border-dashed'));
         expect(upcomingCards.length).toBeGreaterThan(0);
         expect(pastCards.length).toBeGreaterThan(0);
+    });
+
+    it('shows a cancelled meeting as cancelled a week later, never as archive', () => {
+        renderTimeline([], [past(8, { scheduleStatus: 'cancelled' })]);
+        expect(screen.getAllByText('label.cancelled').length).toBeGreaterThan(0);
+        expect(screen.queryByText('label.archive')).toBeNull();
+    });
+
+    it('keeps a postponed future meeting off the upcoming treatment', () => {
+        renderTimeline([future(3, { scheduleStatus: 'postponed' })], []);
+        expect(screen.getAllByText('label.postponed').length).toBeGreaterThan(0);
+        expect(screen.queryByText('label.upcoming')).toBeNull();
     });
 
     it('tells the reader when a scheduled meeting has no published agenda yet', () => {

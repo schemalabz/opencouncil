@@ -1,8 +1,7 @@
 import { meetingSchema } from '../meeting';
+import { MEETING_RECORD_INPUT_KEYS } from '@/lib/meetingLifecycleRules';
 
 const validBase = {
-  name: 'Δημοτικό Συμβούλιο',
-  name_en: 'City Council',
   date: '2026-01-15T18:00:00.000Z',
 };
 
@@ -39,8 +38,23 @@ describe('meetingSchema', () => {
     expect(() => meetingSchema.parse({ ...validBase, youtubeUrl: 'not a url' })).toThrow();
   });
 
-  it('rejects names shorter than 2 characters', () => {
-    expect(() => meetingSchema.parse({ ...validBase, name: 'A' })).toThrow();
-    expect(() => meetingSchema.parse({ ...validBase, name_en: 'A' })).toThrow();
+  it('drops a name that a client still sends, because the name is derived', () => {
+    const parsed = meetingSchema.parse({ ...validBase, name: 'Δημοτικό Συμβούλιο', name_en: 'A' });
+    expect(parsed).not.toHaveProperty('name');
+    expect(parsed).not.toHaveProperty('name_en');
   });
+});
+
+describe('the fields of meetingSchema', () => {
+    // Create and update both take the facts of the record through
+    // MEETING_RECORD_INPUT_KEYS. A field that the schema gains must be one of
+    // them, or one of the other fields that both routes pass on by name.
+    const OTHER_FIELDS = [
+        'date', 'youtubeUrl', 'agendaUrl', 'meetingId', 'administrativeBodyId',
+        'processAgenda', 'postponedFromId', 'continuationOfId',
+    ];
+
+    it('are the record facts and the fields that the routes pass on by name', () => {
+        expect(Object.keys(meetingSchema.shape).sort()).toEqual([...MEETING_RECORD_INPUT_KEYS, ...OTHER_FIELDS].sort());
+    });
 });

@@ -8,6 +8,19 @@ export function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("el-GR");
 }
 
+/**
+ * 12/03/2026 in Athens: two digits, as the app prints the date of a meeting
+ * (formatNumericDate) and so as a derived meeting title carries it.
+ */
+export function fmtNumericDate(iso: string): string {
+  return new Intl.DateTimeFormat("el-GR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Athens",
+  }).format(new Date(iso));
+}
+
 /** 10/8/2026, 14:35 */
 export function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString("el-GR", {

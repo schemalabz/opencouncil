@@ -28,7 +28,10 @@ export type RecordEvent =
       at: string;
       cityId: string;
       meetingId: string;
-      meetingName: string;
+      meetingName: string | null;
+      meetingKind?: string | null;
+      urgent?: boolean | null;
+      sessionNumber?: number | null;
       meetingDate: string;
       adminBody?: string | null;
       brief: PendingBrief;

@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from 'crypto';
 import { sendEmailInBatches, type BatchEmailItem } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 
 // Derive the delivery row shape from the DB function — keeps us honest if the
 // include shape ever changes, without redeclaring the type.
@@ -40,9 +41,20 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
 
         console.log(`Releasing ${pendingDeliveries.length} pending deliveries for ${notificationIds.length} notifications`);
 
+        // Do not announce a meeting that no longer takes place on its date.
+        const eligibleDeliveries: PendingDelivery[] = [];
+        for (const delivery of pendingDeliveries) {
+            if (delivery.notification.type === 'beforeMeeting' && !takesPlace(delivery.notification.meeting)) {
+                await updateDeliveryStatus(delivery.id, 'skipped');
+                skipped++;
+            } else {
+                eligibleDeliveries.push(delivery);
+            }
+        }
+
         // Partition by medium up front so emails can be batched.
-        const emailDeliveries = pendingDeliveries.filter((d) => d.medium === 'email');
-        const messageDeliveries = pendingDeliveries.filter((d) => d.medium === 'message');
+        const emailDeliveries = eligibleDeliveries.filter((d) => d.medium === 'email');
+        const messageDeliveries = eligibleDeliveries.filter((d) => d.medium === 'message');
 
         // ---- Emails: batch send via Resend ----
         const emailResult = await sendEmailDeliveriesBatched(emailDeliveries);

@@ -1,10 +1,11 @@
 import { ArrowRight, Clock, FileText, Users } from 'lucide-react';
-import { formatDate } from '@/lib/formatters/time';
+import { DEFAULT_TIMEZONE, formatDate } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { embedLocalePrefix } from '@/lib/utils/embedParams';
 import { pickSummarySubjects } from '@/lib/utils/subjects';
 import type { MeetingSummary } from '@/lib/db/types';
 import { EmbedSummarySubjectCard } from '@/components/embed/EmbedSummarySubjectCard';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export interface EmbedSummaryTranslations {
     aiSummary: string;
@@ -46,7 +47,7 @@ export function EmbedMeetingSummary({ summary, maxSubjects, locale, baseUrl, cit
     const meetingUrl = `${baseUrl}${embedLocalePrefix(locale)}/${meeting.cityId}/${meeting.id}`;
     const subjects = pickSummarySubjects(meeting.subjects, maxSubjects);
 
-    const meetingName = getLocalizedName(meeting, locale);
+    const meetingName = meetingDisplayName(meeting, locale, cityTimezone ?? DEFAULT_TIMEZONE);
     // The cached payload revives dates as ISO strings; normalize before formatting.
     const date = formatDate(new Date(meeting.dateTime), cityTimezone, locale);
     const title = meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : meetingName;
