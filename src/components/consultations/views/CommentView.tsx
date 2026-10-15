@@ -29,6 +29,8 @@ export interface CommentViewProps {
     municipalityName?: string;
     /** Whether the reader administers the city: the comments below get the response controls. */
     canRespond?: boolean;
+    /** The reader's account, read on the server: the session hook has no user until it loads. */
+    currentUserId?: string;
     comments: ConsultationCommentWithUpvotes[];
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
@@ -50,7 +52,7 @@ const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'publishe
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
  * anyone else leaves a name and an email, and the comment goes live when they open the link we send.
  */
-export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, canRespond, comments, onUpvoted, onDeleted, onResponded }: CommentViewProps) {
+export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, canRespond, currentUserId, comments, onUpvoted, onDeleted, onResponded }: CommentViewProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
     const signedIn = status === 'authenticated' && !!session?.user;
@@ -230,7 +232,8 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                         <SectionLabel>Τι έχουν πει άλλοι εδώ ({comments.length})</SectionLabel>
                         <CommentList
                             comments={comments}
-                            currentUserId={session?.user?.id}
+                            currentUserId={currentUserId}
+                            hasDraft={!!text.trim()}
                             municipalityName={municipalityName}
                             canRespond={canRespond}
                             onUpvoted={onUpvoted}
