@@ -96,6 +96,17 @@ export function describeMeetingDate(iso: string, now: Date): string {
   return `${hasClock ? athensDateTime(date) : athensDate(date)}, ${relativeDayLabel(date, now)}`;
 }
 
+/**
+ * A day the user turn shows without its clock: «Πέμπτη 05/03/2026, πριν 5
+ * ημέρες». Takes an ISO instant, or a date-only value from an older state.
+ * An unparseable value renders as it came.
+ */
+export function describeDay(iso: string, now: Date): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return `${athensDate(date)}, ${relativeDayLabel(date, now)}`;
+}
+
 /** The <current_time> line: the ISO instant, then the Athens reading of it. */
 export function describeNow(now: Date): string {
   return `${now.toISOString()} — ${athensDateTime(now)}`;

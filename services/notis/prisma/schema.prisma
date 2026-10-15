@@ -69,6 +69,7 @@ model NotisSubscription {
   scheduledWakes NotisScheduledWake[]
   queueItems     NotisWakeQueue[]
   commitments    NotisCommitment[]
+  supportRequests NotisSupportRequest[]
 
   @@index([status])
   @@index([phone])
@@ -99,6 +100,58 @@ model NotisCommitment {
 
   @@unique([subscriptionId, slug])
   @@index([subscriptionId, resolvedAt])
+}
+
+enum SupportRequestKind {
+  // The reader is unhappy or angry with Notis or OpenCouncil.
+  dissatisfaction
+  // The reader asks for a person or for the OpenCouncil team.
+  contact
+  // The reader needs help with OpenCouncil itself (account, sign-in, a
+  // feature) that the agent cannot give.
+  help
+  // The reader says that the record is wrong: a fact, a name, a vote, a link.
+  data_error
+}
+
+enum SupportRequestStatus {
+  open
+  // The reader said that they do not want to be contacted.
+  withdrawn
+  // An operator handled it and closed it in the panel.
+  closed
+}
+
+/// A reader who wants a person on the OpenCouncil team to contact them.
+///
+/// The agent files the request the moment the trigger is clear and tells
+/// the reader. The team contacts the reader later on their WhatsApp number.
+/// A reader has at most one open request: a second call updates the open
+/// row. The partial unique index NotisSupportRequest_one_open_per_sub
+/// (migration 20261015120000) enforces this; Prisma cannot express it.
+model NotisSupportRequest {
+  id             String            @id @default(cuid())
+  subscription   NotisSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  // The wake that opened the request. The row survives that wake.
+  wake           NotisWake?        @relation(fields: [wakeId], references: [id], onDelete: SetNull)
+  wakeId         String?
+
+  kind   SupportRequestKind
+  status SupportRequestStatus @default(open)
+  // The agent's note for the operator.
+  summary     String
+  // What the reader typed in the wakes that filed the request. The shell
+  // copies it from the user_message events; the model never writes it.
+  readerWords String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  withdrawnAt DateTime?
+  closedAt    DateTime?
+
+  @@index([subscriptionId, status])
+  @@index([status, createdAt])
 }
 
 enum WakeDecision {
@@ -156,7 +209,8 @@ model NotisWake {
 
   createdAt DateTime @default(now())
 
-  messages NotisMessage[]
+  messages        NotisMessage[]
+  supportRequests NotisSupportRequest[]
 
   @@index([subscriptionId, createdAt])
   @@index([createdAt])

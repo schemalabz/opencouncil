@@ -72,6 +72,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     wakes: [] as Row[],
     scheduled: [] as Row[],
     commitments: [] as Row[],
+    supportRequests: [] as Row[],
     queue: new Map<string, Row>(),
     settings: new Map<string, Row>((seed.settings ?? []).map((r) => [r.key as string, r])),
     processedEvents: new Map<string, Row>(),
@@ -397,6 +398,52 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return { count: rows.length };
       },
     },
+    notisSupportRequest: {
+      // Newest first, the order the wake's state read asks for.
+      findFirst: async ({ where }: { where?: Row; orderBy?: unknown; select?: Row } = {}) =>
+        [...store.supportRequests]
+          .sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime())
+          .find((r) => messageMatches(r, where)) ?? null,
+      findMany: async ({ where }: { where?: Row; orderBy?: unknown; select?: Row } = {}) =>
+        store.supportRequests.filter((r) => messageMatches(r, where)),
+      create: async ({ data }: { data: Row }) => {
+        // The partial unique index: one open request per reader.
+        if (
+          (data.status ?? "open") === "open" &&
+          store.supportRequests.some(
+            (r) => r.subscriptionId === data.subscriptionId && r.status === "open",
+          )
+        ) {
+          throw new Error("unique violation: NotisSupportRequest_one_open_per_sub");
+        }
+        const row: Row = {
+          id: id("sr"),
+          status: "open",
+          wakeId: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          withdrawnAt: null,
+          closedAt: null,
+          ...data,
+        };
+        store.supportRequests.push(row);
+        calls.push("support-request-created");
+        return row;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: Row }) => {
+        const row = store.supportRequests.find((r) => r.id === where.id);
+        if (!row) throw new Error(`no support request ${where.id}`);
+        Object.assign(row, data, { updatedAt: new Date() });
+        calls.push("support-request-updated");
+        return row;
+      },
+      updateMany: async ({ where, data }: { where?: Row; data: Row }) => {
+        const rows = store.supportRequests.filter((r) => messageMatches(r, where));
+        for (const row of rows) Object.assign(row, data, { updatedAt: new Date() });
+        if (rows.length > 0) calls.push("support-request-updated");
+        return { count: rows.length };
+      },
+    },
     notisWakeQueue: {
       create: async ({ data }: { data: Row }) => {
         const row: Row = {
@@ -465,6 +512,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         wakes: store.wakes,
         scheduled: store.scheduled,
         commitments: store.commitments,
+        supportRequests: store.supportRequests,
         queue: store.queue,
         settings: store.settings,
         processedEvents: store.processedEvents,
@@ -477,6 +525,7 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         store.wakes = snapshot.wakes;
         store.scheduled = snapshot.scheduled;
         store.commitments = snapshot.commitments;
+        store.supportRequests = snapshot.supportRequests;
         store.queue = snapshot.queue;
         store.settings = snapshot.settings;
         store.processedEvents = snapshot.processedEvents;

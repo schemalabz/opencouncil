@@ -1,4 +1,10 @@
-import { athensDateTime, describeMeetingDate, describeNow, relativeDayLabel } from "../dates";
+import {
+  athensDateTime,
+  describeDay,
+  describeMeetingDate,
+  describeNow,
+  relativeDayLabel,
+} from "../dates";
 
 describe("dates", () => {
   // 2026-09-23 is a Wednesday. 19:00 Athens (EEST, UTC+3) is 16:00Z.
@@ -23,6 +29,15 @@ describe("dates", () => {
       "Τετάρτη 23/09/2026 19:00 ώρα Αθήνας, πριν 2 ημέρες",
     );
     expect(describeMeetingDate("not a date", new Date())).toBe("not a date");
+  });
+
+  it("describes a stored day by its Athens date, and passes garbage through", () => {
+    const now = new Date("2026-03-10T10:00:00.000Z");
+    // 23:30Z on the 4th is already the 5th in Athens (EET, UTC+2).
+    expect(describeDay("2026-03-04T23:30:00.000Z", now)).toBe("Πέμπτη 05/03/2026, πριν 5 ημέρες");
+    // A date-only value from an older state keeps its day.
+    expect(describeDay("2026-03-04", now)).toBe("Τετάρτη 04/03/2026, πριν 6 ημέρες");
+    expect(describeDay("not a date", now)).toBe("not a date");
   });
 
   it("winter time: 10:00Z is 12:00 Athens", () => {

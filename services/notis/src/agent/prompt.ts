@@ -1,5 +1,5 @@
 import { asMeetingKind, meetingTitle } from "@opencouncil/ui/lib/meeting-title";
-import { athensNumericDate, describeMeetingDate, describeNow } from "./dates";
+import { athensNumericDate, describeDay, describeMeetingDate, describeNow } from "./dates";
 import { distanceLine, locationLabel, locationPoints } from "./geo";
 import {
   CONVERSATION_WINDOW,
@@ -82,7 +82,7 @@ function renderBrief(brief: EditorialBrief, places: ReaderPlace[]): string {
  */
 export function neutralizeFences(text: string): string {
   return text.replaceAll(
-    /<(\/?)(reader_message|conversation|decisions|commitments|memory)>/gi,
+    /<(\/?)(reader_message|conversation|decisions|commitments|support_request|memory)>/gi,
     "[$1$2]",
   );
 }
@@ -313,6 +313,26 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     )
     .join("\n");
 
+  // The reader's latest support request: the agent must not file an open one
+  // twice, and «το προώθησες;» is answered from here, also after the request
+  // ended. The summary is model-written, so it is neutralized like every
+  // other stored text inside a fence.
+  const request = state.supportRequest;
+  const supportRequest = !request
+    ? "(none)"
+    : request.status === "open"
+      ? `OPEN since ${describeDay(request.since, now)} (${request.kind}): ` +
+        `${neutralizeFences(request.summary)}\n` +
+        "The team will contact them. Do not file it again; if they decline contact, call " +
+        "withdraw_support_request."
+      : `${request.status === "closed" ? "CLOSED" : "WITHDRAWN"} on ` +
+        `${request.endedAt ? describeDay(request.endedAt, now) : "?"} ` +
+        `(${request.kind}, filed ${describeDay(request.since, now)}): ` +
+        `${neutralizeFences(request.summary)}\n` +
+        (request.status === "closed"
+          ? "The team handled it. File a new request only for something new."
+          : "They declined contact.");
+
   return [
     `<user_profile>`,
     `Name: ${state.user.name}`,
@@ -327,6 +347,10 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
     `<commitments>`,
     commitments || "(none open)",
     `</commitments>`,
+    ``,
+    `<support_request>`,
+    supportRequest,
+    `</support_request>`,
     ``,
     ...(state.memory
       ? [`<memory>`, neutralizeFences(state.memory), `</memory>`, ``]

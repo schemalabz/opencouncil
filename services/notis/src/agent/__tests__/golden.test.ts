@@ -103,6 +103,8 @@ describe("golden scenarios (recorded replay)", () => {
           "update_taste_profile",
           "schedule_wakeup",
           "unsubscribe_user",
+          "open_support_request",
+          "withdraw_support_request",
         ]);
         expect(req.system).toHaveLength(2);
         expect(req.system[0].cache_control).toBeUndefined();
