@@ -137,7 +137,7 @@ export default function CommentList({ comments, placeFor, currentUserId, hasDraf
                 return (
                     <li key={comment.id} className="rounded-2xl border border-stone-200 bg-white p-4">
                         <div className="flex flex-wrap items-baseline gap-x-2 text-[15px]">
-                            <span className="font-semibold text-stone-900">{comment.user.name || 'Δημότης'}</span>
+                            <span className="font-semibold text-stone-900">{comment.user.name || 'Πολίτης'}</span>
                             <span className="text-stone-500"><RelativeTime date={comment.createdAt} /></span>
                         </div>
                         {place && (

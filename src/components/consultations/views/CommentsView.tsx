@@ -50,7 +50,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
 
     return (
         <div className={pageClass}>
-            <ViewHeader backHref={backHref} title="Τι λένε οι δημότες" />
+            <ViewHeader backHref={backHref} title="Τι λένε οι πολίτες" />
             <div className="flex flex-col gap-3 px-4 pb-8 pt-4">
                 {comments.length === 0 ? (
                     <div className={cn(cardClass, "flex flex-col gap-2 p-5")}>

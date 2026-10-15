@@ -188,7 +188,7 @@ export default async function ConsultationPage(props: PageProps) {
         "validThrough": consultation.endDate.toISOString(),
         "permitAudience": {
             "@type": "Audience",
-            "audienceType": "Δημότες",
+            "audienceType": "Πολίτες",
             "geographicArea": {
                 "@type": "City",
                 "name": city.name

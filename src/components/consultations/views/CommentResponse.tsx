@@ -79,7 +79,7 @@ export function ResponseEditor({ value, onChange, onSubmit, onCancel, busy, isNe
             </div>
             {isNew && (
                 <p className="text-[13px] leading-snug text-stone-600">
-                    Η απάντηση δημοσιεύεται εδώ στο όνομα του Δήμου. Ο δημότης και ο Δήμος λαμβάνουν ένα email, για να συνεχίσουν τη συζήτηση μεταξύ τους.
+                    Η απάντηση δημοσιεύεται εδώ στο όνομα του Δήμου. Ο πολίτης και ο Δήμος λαμβάνουν ένα email, για να συνεχίσουν τη συζήτηση μεταξύ τους.
                 </p>
             )}
         </form>
