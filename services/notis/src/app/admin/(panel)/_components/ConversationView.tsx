@@ -1,6 +1,7 @@
 "use client";
 
 import { WakeTrace } from "@/agent/types";
+import type { CommitmentNote, SupportRequestNote, UpcomingWake } from "../_lib/conversations";
 import { CityMeta, Origin, WakeRecord } from "../_lib/records";
 import { InspectorPane, InspectorSimActions } from "./InspectorPane";
 import { Timeline } from "./Timeline";
@@ -25,8 +26,9 @@ interface Props {
   traceFor(id: string): WakeTrace | undefined;
   chatSim?: SimControls;
   inspectorSim?: InspectorSimActions;
-  upcoming?: import("../_lib/conversations").UpcomingWake[];
-  commitments?: import("../_lib/conversations").CommitmentNote[];
+  upcoming?: UpcomingWake[];
+  commitments?: CommitmentNote[];
+  supportRequests?: SupportRequestNote[];
 }
 
 export function ConversationView({
@@ -45,6 +47,7 @@ export function ConversationView({
   inspectorSim,
   upcoming,
   commitments,
+  supportRequests,
 }: Props) {
   const selectedItem = records.find((q) => q.id === selectedId);
 
@@ -70,6 +73,7 @@ export function ConversationView({
             sim={chatSim}
             upcoming={upcoming}
             commitments={commitments}
+            supportRequests={supportRequests}
           />
         </div>
         <div className="min-h-0 overflow-hidden border-l">

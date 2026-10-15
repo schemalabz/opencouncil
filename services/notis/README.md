@@ -58,7 +58,8 @@ stateless playground-only mode:
   delete when too many subscriptions look orphaned, and that refusal is
   permanent until a person clears the backlog — this webhook is how anyone
   learns it happened. Without it the refusal reaches the logs and nobody
-  else.
+  else. Support requests post to the same webhook; see
+  [Support requests](#support-requests).
 
   The role can `SELECT` the five views and nothing else.
 
@@ -112,20 +113,22 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL`, `NOTIS_SERVICE_TOKEN` (see [Subscriptions API](#subscriptions-api-service-token)) |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
-| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
-| Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups and poller failures; without it those alarms only reach the logs |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `NOTIS_PUBLIC_URL` (defaults to `https://notis.opencouncil.gr`), `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
+| Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups, poller failures and support requests; without it those lines only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,
 `main` → staging. The staging component gets its own domain
 (`notis.staging.opencouncil.gr`) and its own database URLs; nothing is shared
-with production. Staging must also set three vars whose defaults point at
+with production. Staging must also set four vars whose defaults point at
 production: `MAIN_SESSION_COOKIE_NAME=__Secure-oc-session-staging` (the main
 app derives that suffix per environment and Notis has no `DEPLOYMENT_ENV` of
 its own — see below), `OPENCOUNCIL_BASE_URL=https://staging.opencouncil.gr`
 (the login page links there; with the default, a staging admin is sent to the
 PRODUCTION sign-in, which mirrors under the unsuffixed cookie name, and login
-bounces forever) and `NOTIS_MCP_URL=https://staging.opencouncil.gr/mcp` (so
-wakes research staging data, not production). DNS per
+bounces forever), `NOTIS_MCP_URL=https://staging.opencouncil.gr/mcp` (so
+wakes research staging data, not production) and
+`NOTIS_PUBLIC_URL=https://notis.staging.opencouncil.gr` (so the links in the
+support-request lines open the staging conversation). DNS per
 domain: a CNAME to the DO app's default hostname (DO then issues the
 certificate). The main app's component is untouched by this — its build still
 runs at the root and ignores `services/`.
@@ -192,6 +195,34 @@ a bearer request through on this prefix only; the auth-guard test keeps
 
 Notis owns the status (schema.prisma); the main app is a client that asks
 for a state on the reader's explicit action.
+
+## Support requests
+
+The agent files a support request when a reader is unhappy with Notis or
+OpenCouncil, asks for a person, needs help with OpenCouncil that the agent
+cannot give, or reports wrong data. It files first, without asking. Then it
+tells the reader in one line that the team will contact them on this number.
+If the reader declines, the agent withdraws the request. A complaint about
+the municipality is not a support request.
+
+- **Tools:** `open_support_request` (a kind and a summary for the operator)
+  and `withdraw_support_request`. Both work only on a wake with a reader
+  message.
+- **Storage:** `NotisSupportRequest`, written in the wake transaction. The
+  shell copies the reader's own words from the wake's messages. A reader has
+  at most one open request: a second call updates it. Requests are never
+  pruned, and an unsubscribe does not close them.
+- **Prompt:** the user turn shows the open request. After it ends, it shows
+  the withdrawn or closed request for 30 days, so the agent knows what
+  happened to it.
+- **Alert:** after the commit, one line goes to `NOTIS_ALERT_WEBHOOK_URL`
+  with the scope `support`. It names the change and the kind, and links to
+  the conversation under `NOTIS_PUBLIC_URL`. It carries no personal data:
+  the panel shows the reader, the summary and their words behind the admin
+  login. The app log gets only the event and the subscription id.
+- **Panel:** `/admin/support-requests` («Αιτήματα») lists the open requests
+  first. An operator contacts the reader, then clicks «Κλείσιμο». The
+  conversation thread shows the requests as chips.
 
 ## Known gaps (tracked for later PRs)
 

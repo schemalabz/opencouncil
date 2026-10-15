@@ -29,7 +29,7 @@ export async function GET(
     return NextResponse.json({ error: "conversation not found" }, { status: 404 });
   }
 
-  const [messages, wakes, queue, scheduledWakes, commitments] = await Promise.all([
+  const [messages, wakes, queue, scheduledWakes, commitments, supportRequests] = await Promise.all([
     db.notisMessage.findMany({
       where: { subscriptionId: id },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -87,6 +87,10 @@ export async function GET(
       where: { subscriptionId: id },
       orderBy: { createdAt: "asc" },
     }),
+    db.notisSupportRequest.findMany({
+      where: { subscriptionId: id },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const body = {
@@ -97,6 +101,7 @@ export async function GET(
     queue,
     scheduledWakes,
     commitments,
+    supportRequests,
   };
 
   const date = new Date().toISOString().slice(0, 10);

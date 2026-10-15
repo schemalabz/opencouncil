@@ -5,6 +5,7 @@ import { Download, MousePointerClick, Rewind } from "lucide-react";
 import { Badge } from "@opencouncil/ui/badge";
 import { Button } from "@opencouncil/ui/button";
 import { WakeTrace } from "@/agent/types";
+import { SUPPORT_REQUEST_KIND_LABELS } from "@/lib/support-requests";
 import { WakeRecord } from "../_lib/records";
 import { fmtInt } from "../_lib/format";
 import { EmptyState } from "./EmptyState";
@@ -134,6 +135,24 @@ export function InspectorPane({ item, trace, profile, memory, sim }: Props) {
                     {w.at} — {w.reason}
                   </p>
                 ))}
+              </div>
+            )}
+            {item.outcome.supportRequest?.open && (
+              <div>
+                <p className="font-medium">
+                  Αίτημα υποστήριξης ({SUPPORT_REQUEST_KIND_LABELS[item.outcome.supportRequest.open.kind]}):
+                </p>
+                <p className="whitespace-pre-wrap text-muted-foreground">
+                  {item.outcome.supportRequest.open.summary}
+                </p>
+              </div>
+            )}
+            {item.outcome.supportRequest?.withdraw && (
+              <div>
+                <p className="font-medium">Απέσυρε το αίτημα υποστήριξης:</p>
+                <p className="whitespace-pre-wrap text-muted-foreground">
+                  {item.outcome.supportRequest.withdraw.reason}
+                </p>
               </div>
             )}
             {item.outcome.profileRewrite !== undefined && (

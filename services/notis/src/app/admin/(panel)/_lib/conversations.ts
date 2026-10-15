@@ -2,13 +2,14 @@
 // client components import (e.g. ConversationDetail in the thread view).
 // The data-fetching functions here are guarded at their server-page call
 // sites (getAdminSession); see the (panel) auth-guard test.
-import { CityPreference, WakeOutcome, WakeTrace } from "@/agent/types";
+import { CityPreference, SupportRequestKind, WakeOutcome, WakeTrace } from "@/agent/types";
 import { clampToActiveHours } from "@/lib/active-hours";
 import { TemplateName } from "@/agent/templates";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { citiesForUsers } from "@/lib/fanout";
 import { hasMainDb } from "@/lib/main-db";
 import { LIVE_QUEUE_STATUSES, MAX_ATTEMPTS } from "@/lib/queue-core";
+import type { SupportRequestStatus } from "../../../../../generated/client";
 import {
   CityMeta,
   MessageDelivery,
@@ -65,6 +66,18 @@ export interface CommitmentNote {
   resolvedAt?: string;
 }
 
+/** A request for a person on the OpenCouncil team. The open one is what the
+ *  agent reads on every wake. */
+export interface SupportRequestNote {
+  id: string;
+  kind: SupportRequestKind;
+  status: SupportRequestStatus;
+  summary: string;
+  createdAt: string;
+  withdrawnAt?: string;
+  closedAt?: string;
+}
+
 export interface ConversationDetail {
   summary: ConversationSummary;
   records: WakeRecord[];
@@ -74,6 +87,8 @@ export interface ConversationDetail {
   upcoming: UpcomingWake[];
   /** Open promises first, then recently resolved ones. */
   commitments: CommitmentNote[];
+  /** The open request first, then withdrawn and closed ones. */
+  supportRequests: SupportRequestNote[];
   /** The compacted past — everything older than the two live windows. */
   memory?: string;
 }
@@ -418,8 +433,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const sortKey = (r: WakeRecord) => r.deliveries?.[0]?.at ?? r.event.at;
   records.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 
-  // Three independent reads: one round trip, like the counts above.
-  const [pendingNotes, commitmentRows, cityMap] = await Promise.all([
+  // Independent reads: one round trip, like the counts above.
+  const [pendingNotes, commitmentRows, supportRequestRows, cityMap] = await Promise.all([
     db.notisScheduledWake.findMany({
       where: { subscriptionId: id, firedAt: null },
       orderBy: { runAfter: "asc" },
@@ -431,6 +446,20 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       // would put every closed promise above the ones still owed.
       orderBy: [{ resolvedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }],
       select: { id: true, slug: true, what: true, createdAt: true, resolvedAt: true },
+    }),
+    db.notisSupportRequest.findMany({
+      where: { subscriptionId: id },
+      // Postgres sorts an enum by its declaration order: open comes first.
+      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        summary: true,
+        createdAt: true,
+        withdrawnAt: true,
+        closedAt: true,
+      },
     }),
     liveCities([sub.userId]),
   ]);
@@ -454,6 +483,16 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     ...(c.resolvedAt ? { resolvedAt: c.resolvedAt.toISOString() } : {}),
   }));
 
+  const supportRequests: SupportRequestNote[] = supportRequestRows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    status: r.status,
+    summary: r.summary,
+    createdAt: r.createdAt.toISOString(),
+    ...(r.withdrawnAt ? { withdrawnAt: r.withdrawnAt.toISOString() } : {}),
+    ...(r.closedAt ? { closedAt: r.closedAt.toISOString() } : {}),
+  }));
+
   const cities = cityMap.get(sub.userId) ?? [];
 
   return {
@@ -470,6 +509,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     profile: sub.profileText,
     upcoming,
     commitments,
+    supportRequests,
     ...(sub.memory ? { memory: sub.memory } : {}),
   };
 }
