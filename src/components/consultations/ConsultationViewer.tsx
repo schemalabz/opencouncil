@@ -394,6 +394,7 @@ export default function ConsultationViewer({
                         cityHref={cityHref}
                         municipalityName={municipalityName}
                         canRespond={canRespond}
+                        currentUserId={currentUser?.id}
                         comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}

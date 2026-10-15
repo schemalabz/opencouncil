@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ThumbsUp } from "lucide-react";
+// The locale-aware router: next/navigation's would push a bare "/sign-in" and drop the locale prefix.
+import { useRouter } from "@/i18n/routing";
 import { RelativeTime } from "@/components/RelativeTime";
 import { captureConsultationResponsePublished } from "../analytics";
 import { MunicipalityResponse, ResponseEditor } from "./CommentResponse";
@@ -18,6 +20,8 @@ export interface CommentListProps {
     /** Where each comment was left, for the list of every comment; omit on a single place's list. */
     placeFor?: (comment: ConsultationCommentWithUpvotes) => { label: string; href: string } | null;
     currentUserId?: string;
+    /** Whether the page holds an unsent comment, which the sign-in for agreeing would throw away. */
+    hasDraft?: boolean;
     /** "Δήμος Χ": the name the municipality's responses show under. */
     municipalityName?: string;
     /** Whether the reader administers the city: shows the response controls. The API checks again. */
@@ -35,8 +39,9 @@ const NOTICE_TEXT: Record<Notice['kind'], string> = {
     'email-failed': 'Η απάντηση δημοσιεύτηκε, αλλά το email δεν στάλθηκε. Αποθηκεύστε ξανά για να ξαναπροσπαθήσουμε.',
 };
 
-/** Comments with their author, age, place, agreement count and the municipality's response. Agreeing needs an account. */
-export default function CommentList({ comments, placeFor, currentUserId, municipalityName, canRespond, onUpvoted, onDeleted, onResponded }: CommentListProps) {
+/** Comments with their author, age, place, agreement count and the municipality's response. Agreeing needs an account: a signed-out reader goes to sign in. */
+export default function CommentList({ comments, placeFor, currentUserId, hasDraft, municipalityName, canRespond, onUpvoted, onDeleted, onResponded }: CommentListProps) {
+    const router = useRouter();
     const [busy, setBusy] = useState<string | null>(null);
     const [editing, setEditing] = useState<{ commentId: string; text: string } | null>(null);
     const [notice, setNotice] = useState<Notice | null>(null);
@@ -47,7 +52,13 @@ export default function CommentList({ comments, placeFor, currentUserId, municip
     };
 
     const toggleUpvote = async (commentId: string) => {
-        if (!currentUserId || busy) return;
+        if (!currentUserId) {
+            if (hasDraft && !confirm('Το σχόλιο που γράφετε θα χαθεί με τη σύνδεση. Να συνεχίσουμε;')) return;
+            const back = window.location.pathname + window.location.search + window.location.hash;
+            router.push(`/sign-in?callbackUrl=${encodeURIComponent(back)}`);
+            return;
+        }
+        if (busy) return;
         setBusy(commentId);
         try {
             const response = await fetch(`/api/consultations/comments/${commentId}/upvote`, { method: 'POST' });
@@ -140,13 +151,12 @@ export default function CommentList({ comments, placeFor, currentUserId, municip
                             <button
                                 type="button"
                                 onClick={() => toggleUpvote(comment.id)}
-                                disabled={!currentUserId || busy === comment.id}
-                                aria-pressed={comment.hasUserUpvoted}
-                                title={currentUserId ? 'Συμφωνώ' : 'Για να συμφωνήσετε χρειάζεται λογαριασμός'}
+                                disabled={busy === comment.id}
+                                aria-pressed={currentUserId ? comment.hasUserUpvoted : undefined}
+                                title={currentUserId ? 'Συμφωνώ' : 'Συνδεθείτε για να συμφωνήσετε'}
                                 className={cn(
                                     "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors",
-                                    comment.hasUserUpvoted ? "bg-[#ffedd5] text-[#7c2d12]" : "text-stone-600 hover:bg-stone-100",
-                                    !currentUserId && "cursor-default hover:bg-transparent"
+                                    comment.hasUserUpvoted ? "bg-[#ffedd5] text-[#7c2d12]" : "text-stone-600 hover:bg-stone-100"
                                 )}
                             >
                                 <ThumbsUp className="h-4 w-4" aria-hidden="true" />
