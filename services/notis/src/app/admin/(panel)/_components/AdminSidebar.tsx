@@ -8,6 +8,7 @@ import {
   Gauge,
   LayoutDashboard,
   LayoutTemplate,
+  LifeBuoy,
   MessagesSquare,
   Settings,
 } from "lucide-react";
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/admin", label: "Επισκόπηση", icon: LayoutDashboard, exact: true },
   { href: "/admin/conversations", label: "Συνομιλίες", icon: MessagesSquare },
   { href: "/admin/wakes", label: "Wakes", icon: Activity },
+  { href: "/admin/support-requests", label: "Αιτήματα", icon: LifeBuoy },
   { href: "/admin/system", label: "Σύστημα", icon: Gauge },
   { href: "/admin/playground", label: "Playground", icon: FlaskConical },
   { href: "/admin/templates", label: "Templates", icon: LayoutTemplate },

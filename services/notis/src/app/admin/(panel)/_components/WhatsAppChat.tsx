@@ -13,17 +13,20 @@ import {
   ExternalLink,
   EyeOff,
   FastForward,
+  LifeBuoy,
   Loader2,
   Send,
   SkipForward,
   Square,
   StepForward,
+  type LucideIcon,
 } from "lucide-react";
 /* eslint-disable @next/next/no-img-element */
 import { Button } from "@opencouncil/ui/button";
 import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/templates";
 import { Countdown } from "./Countdown";
-import type { CommitmentNote, UpcomingWake } from "../_lib/conversations";
+import { SUPPORT_REQUEST_KIND_LABELS, SUPPORT_REQUEST_STATUS_LABELS } from "@/lib/support-requests";
+import type { CommitmentNote, SupportRequestNote, UpcomingWake } from "../_lib/conversations";
 import { fmtDateChip, fmtTime } from "../_lib/format";
 import { meetingLabel } from "../_lib/meetingLabel";
 import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
@@ -54,6 +57,8 @@ interface Props {
   /** The agent's un-fired scheduled wakes (DB-backed viewer only). */
   upcoming?: UpcomingWake[];
   commitments?: CommitmentNote[];
+  /** Requests for a person on the team (DB-backed viewer only). */
+  supportRequests?: SupportRequestNote[];
 }
 
 /* WhatsApp visual constants (palette lives in ../_lib/whatsapp) */
@@ -383,6 +388,36 @@ function TemplateBubble({
   );
 }
 
+/** A note pinned under the thread. A live one (an open promise or request)
+ *  is warm; a closed one stays muted, so the panel shows its history. */
+function NoteChip({
+  icon: Icon,
+  live,
+  text,
+  at,
+}: {
+  icon: LucideIcon;
+  live: boolean;
+  text: string;
+  at: string;
+}) {
+  return (
+    <div className="flex justify-center px-4 pt-1">
+      <div
+        className={`flex max-w-[85%] items-center gap-2.5 rounded-full border py-1.5 pl-3 pr-4 shadow-sm ${
+          live ? "border-[#e6e0d4] bg-[#fdf6ee]" : "border-[#e9e9e4] bg-[#f4f4f1] opacity-60"
+        }`}
+      >
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${live ? "text-orange" : "text-[#8696a0]"}`} />
+        <span className="min-w-0 truncate text-[11.5px] text-[#54656f]">{text}</span>
+        <span className="shrink-0 text-[10.5px] text-[#8696a0]">
+          {new Date(at).toLocaleDateString("el-GR", { day: "numeric", month: "short" })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SilenceChip({ item, selected, onClick }: { item: WakeRecord; selected: boolean; onClick(): void }) {
   return (
     <div className="flex justify-center px-4">
@@ -445,6 +480,7 @@ export function WhatsAppChat({
   sim,
   upcoming,
   commitments,
+  supportRequests,
 }: Props) {
   const threadRef = useRef<HTMLDivElement>(null);
   const busy = sim?.busy ?? false;
@@ -682,6 +718,33 @@ export function WhatsAppChat({
                   </button>
                 </div>
               )}
+              {item.outcome?.supportRequest?.open && (
+                <div className="flex justify-center px-4">
+                  <button
+                    onClick={() => onSelect(item.id)}
+                    title={item.outcome.supportRequest.open.summary}
+                    className={`rounded-md bg-[#fdf6ee] px-3 py-1 text-[11px] font-medium text-[#b45309] shadow-sm ${
+                      selected ? "ring-2 ring-orange" : ""
+                    }`}
+                  >
+                    Ο Νότης κατέγραψε αίτημα υποστήριξης ·{" "}
+                    {SUPPORT_REQUEST_KIND_LABELS[item.outcome.supportRequest.open.kind]}
+                  </button>
+                </div>
+              )}
+              {item.outcome?.supportRequest?.withdraw && (
+                <div className="flex justify-center px-4">
+                  <button
+                    onClick={() => onSelect(item.id)}
+                    title={item.outcome.supportRequest.withdraw.reason}
+                    className={`rounded-md bg-[#f4f4f1] px-3 py-1 text-[11px] font-medium text-[#54656f] shadow-sm ${
+                      selected ? "ring-2 ring-orange" : ""
+                    }`}
+                  >
+                    Ο Νότης απέσυρε το αίτημα υποστήριξης
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -704,28 +767,27 @@ export function WhatsAppChat({
         {/* What the agent owes this reader. Open promises read as live; a
             resolved one stays a while so the panel can show it was kept. */}
         {commitments?.map((c) => (
-          <div key={c.id} className="flex justify-center px-4 pt-1">
-            <div
-              className={`flex max-w-[85%] items-center gap-2.5 rounded-full border py-1.5 pl-3 pr-4 shadow-sm ${
-                c.resolvedAt
-                  ? "border-[#e9e9e4] bg-[#f4f4f1] opacity-60"
-                  : "border-[#e6e0d4] bg-[#fdf6ee]"
-              }`}
-            >
-              <BookMarked
-                className={`h-3.5 w-3.5 shrink-0 ${c.resolvedAt ? "text-[#8696a0]" : "text-orange"}`}
-              />
-              <span className="min-w-0 truncate text-[11.5px] text-[#54656f]">
-                {c.resolvedAt ? "το έκλεισε" : "υπόσχεση"} · «{c.what}»
-              </span>
-              <span className="shrink-0 text-[10.5px] text-[#8696a0]">
-                {new Date(c.resolvedAt ?? c.createdAt).toLocaleDateString("el-GR", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </span>
-            </div>
-          </div>
+          <NoteChip
+            key={c.id}
+            icon={BookMarked}
+            live={!c.resolvedAt}
+            text={`${c.resolvedAt ? "το έκλεισε" : "υπόσχεση"} · «${c.what}»`}
+            at={c.resolvedAt ?? c.createdAt}
+          />
+        ))}
+        {/* Requests for a person on the team. The open one is live; the
+            withdrawn and closed ones stay so the panel shows their history. */}
+        {supportRequests?.map((r) => (
+          <NoteChip
+            key={r.id}
+            icon={LifeBuoy}
+            live={r.status === "open"}
+            text={
+              `αίτημα ${SUPPORT_REQUEST_STATUS_LABELS[r.status]} · ` +
+              `${SUPPORT_REQUEST_KIND_LABELS[r.kind]} · «${r.summary}»`
+            }
+            at={r.closedAt ?? r.withdrawnAt ?? r.createdAt}
+          />
         ))}
         {/* The agent's future: un-fired scheduled wakes, as system chips. */}
         {upcoming?.map((note) => (

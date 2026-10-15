@@ -58,6 +58,7 @@ export function ConversationDetailView({ detail }: { detail: ConversationDetail 
         profile={detail.profile}
         upcoming={detail.upcoming}
         commitments={detail.commitments}
+        supportRequests={detail.supportRequests}
         memory={detail.memory}
         selectedId={selectedId}
         onSelect={setSelectedId}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { env } from "@/env.mjs";
 import { decideDelivery } from "@/agent/delivery";
 import { toDecisionEntry } from "@/agent/prompt";
 import { runWake } from "@/agent/runWake";
@@ -20,7 +21,7 @@ import {
 } from "@/agent/types";
 import type { NotisMessage, NotisSubscription, Prisma, PrismaClient } from "../../generated/client";
 import { clampToActiveHours, isQuietHour } from "./active-hours";
-import { alert as sendAlert } from "./alert";
+import { alert as sendAlert, notify as sendNotify } from "./alert";
 import { BirdLike, SEND_TIMEOUT_MS, realBird } from "./bird";
 import { buildDeps } from "./deps";
 import { hasNotisDb, notisDb } from "./db";
@@ -48,6 +49,13 @@ import {
 } from "./conversation";
 import { getProactiveSettings } from "./settings";
 import { markUnsubscribed, suppressPendingOutbound } from "./subscription";
+import {
+  appendReaderWords,
+  conversationUrl,
+  formatSupportNotification,
+  readerWordsOf,
+  type SupportRequestChange,
+} from "./support-requests";
 
 // The unsubscribe cleanup lives with the other state transitions now; the
 // name stays exported from here for the callers that learned it here.
@@ -72,12 +80,19 @@ export interface DrainDeps {
   bird?: BirdLike;
   db?: PrismaClient;
   alert?: (message: string) => Promise<void>;
+  /** Operational news that is not a failure: a support request that a wake
+   *  opened, updated or withdrew. */
+  notify?: (message: string) => Promise<void>;
 }
 
 export interface DrainResult {
   processed: number;
   failed: number;
 }
+
+/** How long a withdrawn or closed support request stays in the prompt, so
+ *  the agent can answer «το προώθησες;» after the team closed it. */
+export const ENDED_REQUEST_VISIBLE_MS = 30 * 24 * 60 * 60_000;
 
 /** Outbound messages still `pending` after this long get re-sent by the
  *  sweeper — covers a crash between the persist commit and the Bird call. */
@@ -199,6 +214,10 @@ function resolveAlert(overrides: DrainDeps) {
   return overrides.alert ?? ((message: string) => sendAlert("queue", message));
 }
 
+function resolveNotify(overrides: DrainDeps) {
+  return overrides.notify ?? ((message: string) => sendNotify("support", message));
+}
+
 /**
  * The reader's cities, live from the view. No main database configured is a
  * deliberate dev mode and yields none; a configured database that is
@@ -221,6 +240,7 @@ async function runOneWake(
   overrides: DrainDeps,
 ): Promise<void> {
   const alert = resolveAlert(overrides);
+  const notify = resolveNotify(overrides);
   const deps = overrides.deps ?? buildDeps();
   const bird = overrides.bird ?? realBird;
   const ordered = [...events].sort((a, b) => a.at.localeCompare(b.at));
@@ -270,12 +290,38 @@ async function runOneWake(
 
   const cities = await assembleCities(sub);
   // Open promises never age out: unlike the two windows above, a commitment
-  // leaves only when the agent resolves it.
-  const openCommitments = await db.notisCommitment.findMany({
-    where: { subscriptionId: sub.id, resolvedAt: null },
-    orderBy: { createdAt: "asc" },
-    select: { slug: true, what: true, createdAt: true },
-  });
+  // leaves only when the agent resolves it. The same holds for an open
+  // support request; an ended one stays in view for ENDED_REQUEST_VISIBLE_MS.
+  const endedAfter = new Date(Date.now() - ENDED_REQUEST_VISIBLE_MS);
+  const [openCommitments, lastRequest] = await Promise.all([
+    db.notisCommitment.findMany({
+      where: { subscriptionId: sub.id, resolvedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { slug: true, what: true, createdAt: true },
+    }),
+    db.notisSupportRequest.findFirst({
+      where: {
+        subscriptionId: sub.id,
+        OR: [
+          { status: "open" },
+          { withdrawnAt: { gte: endedAfter } },
+          { closedAt: { gte: endedAfter } },
+        ],
+      },
+      // A reader's requests run one after another, so the newest one is the
+      // open one, or else the one that ended last.
+      orderBy: { createdAt: "desc" },
+      select: {
+        kind: true,
+        status: true,
+        summary: true,
+        createdAt: true,
+        withdrawnAt: true,
+        closedAt: true,
+      },
+    }),
+  ]);
+  const requestEnded = lastRequest?.closedAt ?? lastRequest?.withdrawnAt;
   const state = {
     user: { name: sub.userName ?? "", cities },
     profile: sub.profileText,
@@ -292,8 +338,19 @@ async function runOneWake(
     commitments: openCommitments.map((c) => ({
       slug: c.slug,
       what: c.what,
-      since: c.createdAt.toISOString().slice(0, 10),
+      since: c.createdAt.toISOString(),
     })),
+    ...(lastRequest
+      ? {
+          supportRequest: {
+            kind: lastRequest.kind,
+            status: lastRequest.status,
+            summary: lastRequest.summary,
+            since: lastRequest.createdAt.toISOString(),
+            ...(requestEnded ? { endedAt: requestEnded.toISOString() } : {}),
+          },
+        }
+      : {}),
     ...(sub.memory ? { memory: sub.memory } : {}),
   };
 
@@ -443,8 +500,15 @@ async function runOneWake(
       : undefined;
 
   const unparseableSchedules: string[] = [];
+  // What the reader typed in this wake, absorbed messages included. The
+  // shell copies it onto the support request: the model never writes it.
+  const readerWords = readerWordsOf(finalEvents);
+  // What the transaction did to the support request, for the line after the
+  // commit. A persist can run twice, so each attempt sets it again.
+  let supportRequestChange: SupportRequestChange | undefined;
   const persistOnce = () => db.$transaction(
     async (tx) => {
+    supportRequestChange = undefined;
     // updatedAt is always touched: it is the conversation list's activity
     // sort key. (The update also serializes concurrent writers of this
     // subscription on its row lock — the ΣΤΟΠ path touches the same row.)
@@ -537,6 +601,35 @@ async function runOneWake(
       },
       select: { id: true },
     });
+
+    // The support request rides the wake's transaction, like commitments:
+    // the row and the wake that explains it land together. The webhook line
+    // goes out after the commit, so a rolled-back wake tells nobody.
+    if (outcome.supportRequest?.open) {
+      const { kind, summary } = outcome.supportRequest.open;
+      const existing = await tx.notisSupportRequest.findFirst({
+        where: { subscriptionId: sub.id, status: "open" },
+        select: { id: true, readerWords: true },
+      });
+      if (existing) {
+        await tx.notisSupportRequest.update({
+          where: { id: existing.id },
+          data: { kind, summary, readerWords: appendReaderWords(existing.readerWords, readerWords) },
+        });
+        supportRequestChange = "updated";
+      } else {
+        await tx.notisSupportRequest.create({
+          data: { subscriptionId: sub.id, wakeId: wake.id, kind, summary, readerWords },
+        });
+        supportRequestChange = "opened";
+      }
+    } else if (outcome.supportRequest?.withdraw) {
+      const withdrawn = await tx.notisSupportRequest.updateMany({
+        where: { subscriptionId: sub.id, status: "open" },
+        data: { status: "withdrawn", withdrawnAt: new Date() },
+      });
+      if (withdrawn.count > 0) supportRequestChange = "withdrawn";
+    }
 
     for (const scheduled of outcome.scheduledWakes) {
       // The instant is model-written, so it is parsed defensively: an
@@ -646,6 +739,19 @@ async function runOneWake(
 
   for (const at of unparseableSchedules) {
     await alert(`wake for ${sub.id} scheduled an unparseable instant (${at}) — note dropped`);
+  }
+
+  if (supportRequestChange) {
+    // Neither line carries personal data: the panel has the details.
+    console.log(`[notis:support] request ${supportRequestChange} for ${sub.id}`);
+    // notify never throws, the same as the alerts around it.
+    await notify(
+      formatSupportNotification({
+        change: supportRequestChange,
+        conversationUrl: conversationUrl(env.NOTIS_PUBLIC_URL, sub.id),
+        kind: outcome.supportRequest?.open?.kind,
+      }),
+    );
   }
 
   // The prompt reserves web_search for a reader's question. The tool list is

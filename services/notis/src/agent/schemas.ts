@@ -62,7 +62,31 @@ export const cityPreferenceSchema = z.object({
 export const commitmentSchema = z.object({
   slug: z.string(),
   what: z.string(),
+  /** When it was recorded: an ISO instant. The prompt renders the Athens day. */
   since: z.string(),
+});
+
+/**
+ * Why a reader wants a person on the OpenCouncil team: they are unhappy with
+ * Notis or OpenCouncil, they ask for a person, they need help with
+ * OpenCouncil itself, or they say the record is wrong. The tool schema and
+ * the panel labels follow this list. The database enums must match both
+ * lists: the shell assigns the Prisma values to these types, so a drift
+ * fails to compile.
+ */
+export const SUPPORT_REQUEST_KINDS = ["dissatisfaction", "contact", "help", "data_error"] as const;
+export const SUPPORT_REQUEST_STATUSES = ["open", "withdrawn", "closed"] as const;
+export const supportRequestKindSchema = z.enum(SUPPORT_REQUEST_KINDS);
+
+/** The reader's latest support request, as the prompt sees it. */
+export const supportRequestSchema = z.object({
+  kind: supportRequestKindSchema,
+  status: z.enum(SUPPORT_REQUEST_STATUSES),
+  summary: z.string(),
+  /** When it was filed: an ISO instant. The prompt renders the Athens day. */
+  since: z.string(),
+  /** When it was withdrawn or closed: an ISO instant. Absent while it is open. */
+  endedAt: z.string().optional(),
 });
 
 /** One turn of the real WhatsApp thread — what actually reached the reader
@@ -114,6 +138,13 @@ export const wakeStateSchema = z.object({
    * handle the absence, and the compiler now makes them.
    */
   commitments: z.array(commitmentSchema).optional(),
+  /**
+   * The reader's open support request, or else the one that ended in the
+   * last 30 days, so that the agent knows what happened to it. An open
+   * request never ages out. Optional, not defaulted, for the same reason as
+   * commitments.
+   */
+  supportRequest: supportRequestSchema.optional(),
   /**
    * Everything that has aged out of both windows, folded into one running
    * narrative by the compaction pass. Absent until a reader has enough history

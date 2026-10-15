@@ -1688,3 +1688,299 @@ describe("runWake — links nothing vouches for (2026-10)", () => {
     expect(trace.turns.filter((t) => t.role === "injected")).toHaveLength(2);
   });
 });
+
+describe("support requests", () => {
+  const userEvent = {
+    type: "user_message" as const,
+    at: "2026-03-10T10:00:00.000Z",
+    text: "Δεν μου χρησιμεύουν αυτά τα μηνύματα.",
+  };
+  const openRequest = {
+    kind: "dissatisfaction",
+    summary: "Δεν βρίσκει χρήσιμα τα μηνύματα και είναι ενοχλημένος.",
+  };
+
+  /** The tool_result the loop sent back for one tool_use id. requests[]
+   *  aliases the live messages array, so search by id, not by position. */
+  function toolResult(fake: FakeAnthropic, id: string): string | undefined {
+    const blocks = fake.requests
+      .flatMap((r) => r.messages as Array<{ content: unknown }>)
+      .flatMap((m) => (Array.isArray(m.content) ? m.content : [])) as Array<{
+      type: string;
+      tool_use_id?: string;
+      content?: string;
+    }>;
+    return blocks.find((b) => b.type === "tool_result" && b.tool_use_id === id)?.content;
+  }
+
+  it("files a request on a reader-message wake, and the reply still goes out", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "open_support_request", openRequest),
+          toolUse("t2", "send_message", {
+            text: "Το βλέπει η ομάδα του OpenCouncil και θα επικοινωνήσει μαζί σου.",
+          }),
+          toolUse("t3", "finish_wake", { decision: "send", rationale: "Δυσαρεστημένος αναγνώστης." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toEqual({ open: openRequest });
+    expect(outcome.messages).toHaveLength(1);
+  });
+
+  it("ignores open_support_request on a wake without a reader message", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "open_support_request", openRequest)],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+
+    expect(outcome.supportRequest).toBeUndefined();
+    expect(toolResult(fake, "t1")).toMatch(/^ignored/);
+  });
+
+  it("ignores an unknown kind and an empty summary", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "open_support_request", { kind: "complaint", summary: "Κάτι." }),
+          toolUse("t2", "open_support_request", { kind: "contact", summary: "   " }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t3", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toBeUndefined();
+    expect(toolResult(fake, "t1")).toMatch(/^ignored/);
+    expect(toolResult(fake, "t2")).toMatch(/^ignored/);
+  });
+
+  it("tells the model when an open request is updated, not filed", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "open_support_request", openRequest)],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Ενημέρωση." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const state = makeState({
+      supportRequest: {
+        kind: "contact",
+        status: "open",
+        summary: "Θέλει να μιλήσει με άνθρωπο.",
+        since: "2026-03-01T09:00:00.000Z",
+      },
+    });
+    const { outcome } = await runWake(state, [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toEqual({ open: openRequest });
+    expect(toolResult(fake, "t1")).toMatch(/^updated/);
+  });
+
+  it("files a new request after the last one was closed, and cannot withdraw a closed one", async () => {
+    const closed = makeState({
+      supportRequest: {
+        kind: "help",
+        status: "closed",
+        summary: "Δεν μπορεί να συνδεθεί.",
+        since: "2026-03-01T09:00:00.000Z",
+        endedAt: "2026-03-04T09:00:00.000Z",
+      },
+    });
+    const filing = new FakeAnthropic([
+      { content: [toolUse("t1", "open_support_request", openRequest)], stop_reason: "tool_use" },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Νέο αίτημα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const filed = await runWake(closed, [userEvent], makeDeps(filing));
+    expect(filed.outcome.supportRequest).toEqual({ open: openRequest });
+    expect(toolResult(filing, "t1")).toMatch(/^filed/);
+
+    const withdrawing = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "withdraw_support_request", { reason: "δεν θέλει" })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const withdrawn = await runWake(closed, [userEvent], makeDeps(withdrawing));
+    expect(withdrawn.outcome.supportRequest).toBeUndefined();
+    expect(toolResult(withdrawing, "t1")).toContain("no open support request");
+  });
+
+  it("withdrawing with nothing open is a no-op", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "withdraw_support_request", { reason: "δεν θέλει" })],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toBeUndefined();
+    expect(toolResult(fake, "t1")).toContain("no open support request");
+  });
+
+  it("withdraws the reader's open request", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "withdraw_support_request", { reason: "δεν θέλει να τον πάρουν" }),
+          toolUse("t2", "send_message", { text: "Εντάξει, δεν θα σε ενοχλήσουν." }),
+          toolUse("t3", "finish_wake", { decision: "send", rationale: "Το απέσυρε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const state = makeState({
+      supportRequest: {
+        kind: "contact",
+        status: "open",
+        summary: "Θέλει να μιλήσει με άνθρωπο.",
+        since: "2026-03-01T09:00:00.000Z",
+      },
+    });
+    const { outcome } = await runWake(state, [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toEqual({ withdraw: { reason: "δεν θέλει να τον πάρουν" } });
+  });
+
+  it("an open the reader declines in the same wake files nothing", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "open_support_request", openRequest)],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "withdraw_support_request", { reason: "το πήρε πίσω" }),
+          toolUse("t3", "finish_wake", { decision: "silence", rationale: "Το πήρε πίσω." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+
+    expect(outcome.supportRequest).toBeUndefined();
+    expect(toolResult(fake, "t2")).toMatch(/^cancelled/);
+  });
+
+  it("a held turn files nothing", async () => {
+    const update = {
+      type: "user_message" as const,
+      at: "2026-03-10T10:00:30.000Z",
+      text: "Άσ' το, δεν πειράζει.",
+    };
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "open_support_request", openRequest),
+          toolUse("t2", "send_message", { text: "Το βλέπει η ομάδα." }),
+          toolUse("t3", "finish_wake", { decision: "send", rationale: "Δυσαρέσκεια." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t4", "send_message", { text: "Εντάξει." }),
+          toolUse("t5", "finish_wake", { decision: "send", rationale: "Το άφησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    let calls = 0;
+    const { outcome } = await runWake(makeState(), [userEvent], {
+      ...makeDeps(fake),
+      deliver: async () => ({ ok: true }),
+      // The update lands in the pre-send probe of the first turn.
+      absorb: async () => (++calls === 2 ? [update] : []),
+    });
+
+    expect(outcome.supportRequest).toBeUndefined();
+    expect(toolResult(fake, "t1")).toMatch(/^held/);
+  });
+
+  it("applyOutcome opens, keeps and clears the simulated request", () => {
+    const base = makeState();
+    const opened = applyOutcome(base, [userEvent], {
+      decision: "send",
+      rationale: "r",
+      messages: [],
+      scheduledWakes: [],
+      supportRequest: { open: { kind: "contact", summary: "Θέλει άνθρωπο." } },
+    });
+    expect(opened.supportRequest).toEqual({
+      kind: "contact",
+      status: "open",
+      summary: "Θέλει άνθρωπο.",
+      since: "2026-03-10T10:00:00.000Z",
+    });
+
+    const later = { ...userEvent, at: "2026-03-12T09:00:00.000Z" };
+    const quiet = applyOutcome(opened, [later], {
+      decision: "silence",
+      rationale: "r",
+      messages: [],
+      scheduledWakes: [],
+    });
+    expect(quiet.supportRequest).toEqual(opened.supportRequest);
+
+    const updated = applyOutcome(quiet, [later], {
+      decision: "send",
+      rationale: "r",
+      messages: [],
+      scheduledWakes: [],
+      supportRequest: { open: { kind: "data_error", summary: "Λάθος όνομα." } },
+    });
+    // An update keeps the request's age, like the shell's single open row.
+    expect(updated.supportRequest).toEqual({
+      kind: "data_error",
+      status: "open",
+      summary: "Λάθος όνομα.",
+      since: "2026-03-10T10:00:00.000Z",
+    });
+
+    const withdrawn = applyOutcome(updated, [later], {
+      decision: "send",
+      rationale: "r",
+      messages: [],
+      scheduledWakes: [],
+      supportRequest: { withdraw: { reason: "δεν θέλει" } },
+    });
+    // A withdrawn request stays in view, the way the shell shows it.
+    expect(withdrawn.supportRequest).toEqual({
+      kind: "data_error",
+      status: "withdrawn",
+      summary: "Λάθος όνομα.",
+      since: "2026-03-10T10:00:00.000Z",
+      endedAt: "2026-03-12T09:00:00.000Z",
+    });
+  });
+});

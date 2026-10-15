@@ -894,3 +894,222 @@ describe("commitments", () => {
     expect(db.store.commitments[0].resolvedAt).toBeInstanceOf(Date);
   });
 });
+
+describe("support requests", () => {
+  const UNHAPPY: ClaimedItem = {
+    ...ITEM,
+    events: [{ type: "user_message", at: "2026-03-10T10:00:00.000Z", text: "Γιατί μου στέλνετε μηνύματα;" }],
+  };
+  const turn = (calls: Array<ReturnType<typeof toolUse>>) => [
+    { content: calls, stop_reason: "tool_use" as const },
+  ];
+  let logs: string[] = [];
+  let logSpy: jest.SpyInstance;
+  beforeEach(() => {
+    logs = [];
+    logSpy = jest.spyOn(console, "log").mockImplementation((line: string) => {
+      logs.push(line);
+    });
+  });
+  afterEach(() => logSpy.mockRestore());
+  const openRow = (overrides: Row = {}): Row => ({
+    id: "sr_old",
+    subscriptionId: "sub1",
+    wakeId: null,
+    kind: "contact",
+    status: "open",
+    summary: "Θέλει να μιλήσει με άνθρωπο.",
+    readerWords: "Θέλω να μιλήσω με κάποιον.",
+    createdAt: new Date("2026-03-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-03-01T00:00:00.000Z"),
+    withdrawnAt: null,
+    closedAt: null,
+    ...overrides,
+  });
+
+  it("files a row with the reader's own words, then announces it after the commit", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const notes: string[] = [];
+    let rowsAtNotify = -1;
+    let wakesAtNotify = -1;
+
+    await processItem(UNHAPPY, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      notify: async (m) => {
+        notes.push(m);
+        rowsAtNotify = db.store.supportRequests.length;
+        wakesAtNotify = db.store.wakes.length;
+      },
+      deps: makeDeps(
+        new FakeAnthropic(
+          turn([
+            toolUse("t1", "open_support_request", {
+              kind: "dissatisfaction",
+              summary: "Ενοχλείται από τα μηνύματα.",
+            }),
+            toolUse("t2", "send_message", { text: "Το βλέπει η ομάδα του OpenCouncil." }),
+            toolUse("t3", "finish_wake", { decision: "send", rationale: "Δυσαρέσκεια." }),
+          ]),
+        ),
+      ),
+    });
+
+    expect(db.store.supportRequests).toHaveLength(1);
+    const row = db.store.supportRequests[0];
+    expect(row).toMatchObject({
+      subscriptionId: "sub1",
+      kind: "dissatisfaction",
+      status: "open",
+      summary: "Ενοχλείται από τα μηνύματα.",
+      readerWords: "Γιατί μου στέλνετε μηνύματα;",
+      wakeId: db.store.wakes[0].id,
+    });
+    // The line goes out after the transaction committed both rows.
+    expect(rowsAtNotify).toBe(1);
+    expect(wakesAtNotify).toBe(1);
+    expect(notes).toEqual([
+      "Νέο αίτημα υποστήριξης (δυσαρέσκεια): https://notis.test/admin/conversations/sub1",
+    ]);
+    // No personal data leaves for the webhook: no name, phone, words or summary.
+    for (const pii of ["Μαρία", "+306900000001", "μηνύματα", "Ενοχλείται"]) {
+      expect(notes[0]).not.toContain(pii);
+    }
+    // The app log gets the event, never the reader's name, phone or words.
+    expect(logs).toEqual(["[notis:support] request opened for sub1"]);
+  });
+
+  it("shows the open request to the model and updates the same row", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    db.store.supportRequests.push(openRow());
+    seedClaim(db);
+    const notes: string[] = [];
+    const fake = new FakeAnthropic(
+      turn([
+        toolUse("t1", "open_support_request", {
+          kind: "dissatisfaction",
+          summary: "Θέλει άνθρωπο και τώρα είναι και ενοχλημένος.",
+        }),
+        toolUse("t2", "send_message", { text: "Το έχει ήδη η ομάδα." }),
+        toolUse("t3", "finish_wake", { decision: "send", rationale: "Ενημέρωση αιτήματος." }),
+      ]),
+    );
+
+    await processItem(UNHAPPY, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      notify: async (m) => {
+        notes.push(m);
+      },
+      deps: makeDeps(fake),
+    });
+
+    const userTurn = JSON.stringify(fake.requests[0].messages);
+    expect(userTurn).toContain(
+      "OPEN since Κυριακή 01/03/2026, πριν 9 ημέρες (contact): Θέλει να μιλήσει με άνθρωπο.",
+    );
+    expect(db.store.supportRequests).toHaveLength(1);
+    expect(db.store.supportRequests[0]).toMatchObject({
+      id: "sr_old",
+      kind: "dissatisfaction",
+      summary: "Θέλει άνθρωπο και τώρα είναι και ενοχλημένος.",
+      readerWords: "Θέλω να μιλήσω με κάποιον.\nΓιατί μου στέλνετε μηνύματα;",
+      status: "open",
+    });
+    expect(notes).toEqual([expect.stringContaining("Ενημερώθηκε το αίτημα υποστήριξης")]);
+  });
+
+  it("withdraws the open row and announces it", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    db.store.supportRequests.push(openRow());
+    seedClaim(db);
+    const notes: string[] = [];
+
+    await processItem(
+      {
+        ...ITEM,
+        events: [{ type: "user_message", at: "2026-03-10T10:00:00.000Z", text: "Δεν χρειάζεται να με πάρετε." }],
+      },
+      {
+        db,
+        bird: new FakeBird(),
+        alert: async () => {},
+        notify: async (m) => {
+          notes.push(m);
+        },
+        deps: makeDeps(
+          new FakeAnthropic(
+            turn([
+              toolUse("t1", "withdraw_support_request", { reason: "δεν θέλει να τον πάρουν" }),
+              toolUse("t2", "send_message", { text: "Εντάξει, το απέσυρα." }),
+              toolUse("t3", "finish_wake", { decision: "send", rationale: "Το απέσυρε." }),
+            ]),
+          ),
+        ),
+      },
+    );
+
+    expect(db.store.supportRequests).toHaveLength(1);
+    expect(db.store.supportRequests[0].status).toBe("withdrawn");
+    expect(db.store.supportRequests[0].withdrawnAt).toBeInstanceOf(Date);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toBe("Αποσύρθηκε το αίτημα υποστήριξης: https://notis.test/admin/conversations/sub1");
+  });
+
+  it("shows a request closed in the last 30 days, and forgets an older one", async () => {
+    const userTurnWith = async (row: Row) => {
+      const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+      db.store.supportRequests.push(row);
+      seedClaim(db);
+      const fake = new FakeAnthropic(sendTurn);
+      await processItem(ITEM, {
+        db,
+        bird: new FakeBird(),
+        alert: async () => {},
+        notify: async () => {},
+        deps: makeDeps(fake),
+      });
+      return JSON.stringify(fake.requests[0].messages);
+    };
+
+    // FIXED_NOW is 2026-03-10.
+    const recent = await userTurnWith(
+      openRow({ status: "closed", closedAt: new Date("2026-03-05T12:00:00.000Z") }),
+    );
+    expect(recent).toContain(
+      "CLOSED on Πέμπτη 05/03/2026, πριν 5 ημέρες (contact, filed Κυριακή 01/03/2026, πριν 9 ημέρες)",
+    );
+
+    const old = await userTurnWith(
+      openRow({
+        status: "withdrawn",
+        createdAt: new Date("2026-01-02T00:00:00.000Z"),
+        withdrawnAt: new Date("2026-01-03T00:00:00.000Z"),
+      }),
+    );
+    expect(old).not.toContain("WITHDRAWN");
+    expect(old).toContain("<support_request>\\n(none)\\n</support_request>");
+  });
+
+  it("a wake that touches no request writes no row and sends no line", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const notes: string[] = [];
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      alert: async () => {},
+      notify: async (m) => {
+        notes.push(m);
+      },
+      deps: makeDeps(new FakeAnthropic(sendTurn)),
+    });
+
+    expect(db.store.supportRequests).toHaveLength(0);
+    expect(notes).toEqual([]);
+  });
+});

@@ -2,10 +2,12 @@ import { buildDecisionEntry } from "./decisions";
 import { findUngroundedLinks, isServerResultBlock, linksOnly } from "./links";
 import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "./pricing";
 import { assembleSystem, assembleUserTurn, neutralizeFences } from "./prompt";
+import { SUPPORT_REQUEST_KINDS } from "./schemas";
 import { buildMcpServers, buildTools } from "./tools";
 import {
   Deps,
   RecordedTurn,
+  SupportRequestKind,
   WakeEvent,
   WakeOutcome,
   WakeState,
@@ -26,6 +28,14 @@ const MAX_REPAIR_TURNS = 4;
 /** Longest commitment handle we store. The tool asks for a short one; this is
  *  what happens when the model does not oblige. */
 const SLUG_MAX_CHARS = 40;
+
+/** Longest support-request summary we store. The tool asks for one to three
+ *  sentences; the operator reads the reader's own words beside it. */
+const SUMMARY_MAX_CHARS = 600;
+
+function isSupportRequestKind(value: string): value is SupportRequestKind {
+  return (SUPPORT_REQUEST_KINDS as readonly string[]).includes(value);
+}
 
 /**
  * A commitment slug, forced into the shape the tool describes: lowercase
@@ -219,6 +229,17 @@ export async function runWake(
   let profileRewrite: string | undefined;
   const scheduledWakes: Array<{ at: string; reason: string }> = [];
   let unsubscribe: { reason: string } | undefined;
+  // The support request this wake opened or withdrew. The two are exclusive
+  // within one wake and the later call wins, so an open that the reader
+  // declines before the wake ends files nothing. Unlike the unsubscribe
+  // latch, a reader update mid-run does not clear it: it is reversible with
+  // withdraw_support_request, and a newer message does not undo that the
+  // reader was unhappy.
+  let supportRequestOpen: { kind: SupportRequestKind; summary: string } | undefined;
+  let supportRequestWithdraw: { reason: string } | undefined;
+  // The state can also carry a request that ended recently; only an open one
+  // can be updated or withdrawn.
+  const hasOpenRequest = state.supportRequest?.status === "open";
   let rationale = "";
   let refused = false;
   // Repairs come in two kinds and must not compete for one budget. A
@@ -566,6 +587,61 @@ export async function runWake(
             }
             unsubscribe = { reason: String(block.input.reason ?? "") };
             break;
+          case "open_support_request": {
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
+            // Only the reader's own message can open a request about the
+            // reader: a proactive wake has nobody in it to be unhappy.
+            if (!hasUserMessage) {
+              ack =
+                "ignored: a support request is only available while replying to the " +
+                "reader; this wake has no reader message";
+              break;
+            }
+            const kind = String(block.input.kind ?? "");
+            const summary = String(block.input.summary ?? "").trim().slice(0, SUMMARY_MAX_CHARS);
+            if (!isSupportRequestKind(kind) || !summary) {
+              ack =
+                `ignored: kind must be one of ${SUPPORT_REQUEST_KINDS.join(", ")}, and the ` +
+                "summary cannot be empty";
+              break;
+            }
+            supportRequestOpen = { kind, summary };
+            supportRequestWithdraw = undefined;
+            ack =
+              (hasOpenRequest ? "updated the open request" : "filed") +
+              ": tell them in one line that the team will contact them, and that they can say no";
+            break;
+          }
+          case "withdraw_support_request": {
+            if (holdNote) {
+              ack = "held: re-decide after the reader update below";
+              break;
+            }
+            if (!hasUserMessage) {
+              ack =
+                "ignored: a support request can only be withdrawn while replying to the " +
+                "reader; this wake has no reader message";
+              break;
+            }
+            if (supportRequestOpen && !hasOpenRequest) {
+              // Opened in this wake and declined before the wake ended: the
+              // request never lands, and nobody is told about it.
+              supportRequestOpen = undefined;
+              ack = "cancelled: the request you opened in this wake was not filed";
+              break;
+            }
+            if (!hasOpenRequest) {
+              ack = "no open support request to withdraw";
+              break;
+            }
+            supportRequestOpen = undefined;
+            supportRequestWithdraw = { reason: String(block.input.reason ?? "").trim() };
+            ack = "withdrawn: tell them in one line that the team will not contact them";
+            break;
+          }
           case "finish_wake":
             if (holdNote) {
               ack = "not finished: address the reader's newest message first";
@@ -865,6 +941,11 @@ export async function runWake(
         }
       : {}),
     ...(unsubscribe ? { unsubscribe } : {}),
+    ...(supportRequestOpen
+      ? { supportRequest: { open: supportRequestOpen } }
+      : supportRequestWithdraw
+        ? { supportRequest: { withdraw: supportRequestWithdraw } }
+        : {}),
     ...(partialDeliveryError !== undefined ? { partialDeliveryError } : {}),
   };
 
@@ -907,18 +988,31 @@ export function applyOutcome(
       }),
     ...recorded
       .filter((r) => !existing.some((c) => c.slug === r.slug))
-      // Date only, exactly as the shell renders it from createdAt — the
+      // An instant, exactly as the shell stores it from createdAt — the
       // simulation surfaces feed the model the same block production does.
       .map((r) => ({
         slug: r.slug,
         what: r.what,
-        since: ordered[ordered.length - 1].at.slice(0, 10),
+        since: ordered[ordered.length - 1].at,
       })),
   ];
 
+  // The shell keeps one open request per reader: an open replaces it (an
+  // update keeps its age), and a withdrawal ends it but keeps it in view.
+  const { supportRequest: previousRequest, ...rest } = state;
+  const at = ordered[ordered.length - 1].at;
+  const wasOpen = previousRequest?.status === "open";
+  const opened = outcome.supportRequest?.open;
+  const supportRequest = opened
+    ? { ...opened, status: "open" as const, since: wasOpen ? previousRequest.since : at }
+    : outcome.supportRequest?.withdraw && wasOpen
+      ? { ...previousRequest, status: "withdrawn" as const, endedAt: at }
+      : previousRequest;
+
   return {
-    ...state,
+    ...rest,
     commitments,
+    ...(supportRequest ? { supportRequest } : {}),
     profile: outcome.profileRewrite !== undefined ? outcome.profileRewrite : state.profile,
     conversation: [
       ...state.conversation,

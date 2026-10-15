@@ -1,3 +1,5 @@
+import { SUPPORT_REQUEST_KINDS } from "./schemas";
+
 /**
  * Client tools exposed to the model. The core records their invocations into
  * the WakeOutcome and answers with synthetic tool_results — no side effect
@@ -164,6 +166,43 @@ export const CLIENT_TOOLS = [
       "Unsubscribe the reader from all proactive messages, immediately and permanently " +
       "(until they explicitly resubscribe). Use when they clearly want to leave. " +
       "Warm goodbye first via send_message is welcome; never argue.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        reason: { type: "string", description: "Their words or your one-line summary of why." },
+      },
+      required: ["reason"],
+    },
+  },
+  {
+    name: "open_support_request",
+    description:
+      "Ask the OpenCouncil team to contact this reader on this number. File first, without " +
+      "asking. Calling it while a request is open updates that request.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        kind: {
+          type: "string",
+          enum: [...SUPPORT_REQUEST_KINDS],
+          description:
+            "dissatisfaction: unhappy with you or OpenCouncil. contact: wants a person. " +
+            "help: needs help with OpenCouncil that you cannot give. data_error: says the " +
+            "record is wrong.",
+        },
+        summary: {
+          type: "string",
+          description:
+            "One to three sentences in Greek for the operator: what they need and why. The " +
+            "shell attaches their own words.",
+        },
+      },
+      required: ["kind", "summary"],
+    },
+  },
+  {
+    name: "withdraw_support_request",
+    description: "Withdraw the reader's open request when they do not want to be contacted.",
     input_schema: {
       type: "object" as const,
       properties: {

@@ -5,6 +5,7 @@ import {
   editorialBriefSchema,
   editorialSubjectSchema,
   effortSchema,
+  supportRequestKindSchema,
   decisionEntrySchema,
   wakeEventSchema,
   wakeStateSchema,
@@ -27,6 +28,7 @@ export type WakeState = z.infer<typeof wakeStateSchema>;
 export type EditorialSubject = z.infer<typeof editorialSubjectSchema>;
 export type EditorialBrief = z.infer<typeof editorialBriefSchema>;
 export type WakeEvent = z.infer<typeof wakeEventSchema>;
+export type SupportRequestKind = z.infer<typeof supportRequestKindSchema>;
 
 export interface WakeOutcome {
   decision: "silence" | "send";
@@ -49,6 +51,15 @@ export interface WakeOutcome {
     resolve?: string[];
   };
   unsubscribe?: { reason: string };
+  /**
+   * The support request this wake opened or withdrew. At most one of the two:
+   * within a wake the later tool call wins. Applied by the shell. Absent when
+   * the wake touched none.
+   */
+  supportRequest?: {
+    open?: { kind: SupportRequestKind; summary: string };
+    withdraw?: { reason: string };
+  };
   /**
    * The wake errored AFTER at least one incremental delivery reached (or
    * may still reach) the reader. The loop was finalized instead of retried:

@@ -27,6 +27,10 @@ export const env = createEnv({
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
     NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
+    // The public URL of this service. The support-request line on the alert
+    // webhook links to the admin conversation under it. Staging must set its
+    // own, like OPENCOUNCIL_BASE_URL and NOTIS_MCP_URL.
+    NOTIS_PUBLIC_URL: z.string().url().default("https://notis.opencouncil.gr"),
     // Bird (WhatsApp). Notis has its OWN webhook subscription and signing
     // key, separate from the main app's — both subscriptions receive all
     // conversation events during rollout and each service filters to the
@@ -69,6 +73,7 @@ export const env = createEnv({
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
     NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
+    NOTIS_PUBLIC_URL: process.env.NOTIS_PUBLIC_URL,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
     BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,

@@ -22,7 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { runWake } from "@/agent/runWake";
 import { buildDeps } from "@/lib/deps";
-import type { WakeEvent, WakeOutcome, WakeState } from "@/agent/types";
+import type { SupportRequestKind, WakeEvent, WakeOutcome, WakeState } from "@/agent/types";
 
 interface EvalCase {
   name: string;
@@ -48,6 +48,10 @@ interface EvalCase {
     commitmentRecorded?: boolean;
     /** Regex the recorded commitment's text must match. */
     commitmentMatches?: string;
+    /** open_support_request fired. */
+    supportRequestOpened?: boolean;
+    /** The kind of the request that the wake opened. */
+    supportRequestKind?: SupportRequestKind;
   };
 }
 
@@ -86,6 +90,21 @@ function check(c: EvalCase, outcome: WakeOutcome): CheckResult[] {
       ok: all.some((c) => re.test(c)),
       label: `commitment~/${e.commitmentMatches}/`,
       detail: all.join(" | ").slice(0, 160),
+    });
+  }
+  if (e.supportRequestOpened !== undefined) {
+    const opened = outcome.supportRequest?.open !== undefined;
+    out.push({
+      ok: opened === e.supportRequestOpened,
+      label: `supportRequestOpened=${e.supportRequestOpened}`,
+      detail: outcome.supportRequest?.open?.summary.slice(0, 160),
+    });
+  }
+  if (e.supportRequestKind !== undefined) {
+    out.push({
+      ok: outcome.supportRequest?.open?.kind === e.supportRequestKind,
+      label: `supportRequestKind=${e.supportRequestKind}`,
+      detail: outcome.supportRequest?.open?.kind,
     });
   }
   if (e.profileMatches) {
