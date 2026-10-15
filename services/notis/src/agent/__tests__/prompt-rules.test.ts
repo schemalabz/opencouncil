@@ -55,3 +55,31 @@ describe("context pack — neighbourhood to κοινότητα", () => {
     expect(communities).not.toMatch(/^- [1-7]η:/m);
   });
 });
+
+describe("support requests", () => {
+  const boundaries = fs.readFileSync(
+    path.join(PROMPTS, "context-pack/95-notis-boundaries.md"),
+    "utf8",
+  );
+
+  it("files first for each of the four kinds, and never argues", () => {
+    expect(system).toContain("File a support request with open_support_request, without asking first");
+    for (const kind of ["«dissatisfaction»", "«contact»", "«help»", "«data_error»"]) {
+      expect(system).toContain(kind);
+    }
+    expect(system).toContain("Never argue.");
+    expect(system).toContain("Promise no outcome and no time.");
+  });
+
+  it("does not file twice, and withdraws on request", () => {
+    expect(system).toContain("never file an open one twice");
+    expect(system).toContain("call withdraw_support_request when they decline contact");
+  });
+
+  it("keeps municipality complaints, city changes and opt-outs out", () => {
+    expect(system).toContain("a complaint about the municipality");
+    expect(system).toContain("a request to stop the messages (unsubscribe_user)");
+    expect(boundaries).toContain("δεν διαβιβάζει αιτήματα ή καταγγελίες προς τις δημοτικές υπηρεσίες");
+    expect(boundaries).toContain("ομάδα του OpenCouncil");
+  });
+});

@@ -1,0 +1,61 @@
+{
+  "name": "unhappy-reader-files-support-request",
+  "note": "Invented case. After two ordinary exchanges the reader turns against the service itself. Pass: the agent files a support request of kind dissatisfaction, tells the reader that the OpenCouncil team will contact them, and does not argue.",
+  "state": {
+    "user": {
+      "name": "Ο αναγνώστης",
+      "cities": [
+        {
+          "cityId": "athens",
+          "cityName": "Αθήνα",
+          "topics": [],
+          "locations": []
+        }
+      ]
+    },
+    "profile": "Έχει ενεργοποιήσει ενημερώσεις για Αθήνα. Θέματα που έχει επιλέξει: Περιβάλλον, Πολεοδομία.",
+    "conversation": [
+      {
+        "at": "2026-09-02T09:00:00.000Z",
+        "from": "notis",
+        "text": "Το δημοτικό συμβούλιο ενέκρινε τη μελέτη για νέο πάρκο τσέπης σε οικόπεδο του δήμου. Το έργο περνά τώρα σε δημοπράτηση. https://opencouncil.gr/athens"
+      },
+      {
+        "at": "2026-09-02T18:40:00.000Z",
+        "from": "reader",
+        "text": "Και πότε θα γίνει;"
+      },
+      {
+        "at": "2026-09-02T18:40:20.000Z",
+        "from": "notis",
+        "text": "Στο αρχείο δεν υπάρχει ακόμα ημερομηνία έναρξης, μόνο η έγκριση της μελέτης. Αν συζητηθεί η δημοπράτηση, θα σου πω."
+      }
+    ],
+    "decisions": [
+      {
+        "at": "2026-09-02T09:00:00.000Z",
+        "event": "meeting_summarized",
+        "decision": "send",
+        "rationale": "Νέο πάρκο στη γειτονιά του, ταιριάζει με το Περιβάλλον που έχει επιλέξει."
+      },
+      {
+        "at": "2026-09-02T18:40:00.000Z",
+        "event": "user_message",
+        "decision": "send",
+        "rationale": "Ρώτησε πότε ξεκινά το έργο. Το αρχείο δεν έχει ημερομηνία, το είπα καθαρά."
+      }
+    ]
+  },
+  "event": {
+    "type": "user_message",
+    "at": "2026-09-03T08:15:00.000Z",
+    "text": "Αυτά δεν μου χρησιμεύουν σε τίποτα. Γιατί μου γράφετε;"
+  },
+  "expect": {
+    "decision": "send",
+    "supportRequestOpened": true,
+    "supportRequestKind": "dissatisfaction",
+    "messageMatches": "ομάδα|επικοινων",
+    "messageForbids": "δεν έχεις δίκιο|κάνεις λάθος"
+  }
+}
