@@ -1,21 +1,22 @@
-import type { MeetingKind } from '@prisma/client';
-import { analyzeStoredName, storedNameLoss } from '../meetingRecordBackfill';
+import type { MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import { analyzeStoredName, postponementInInvitation, storedNameLoss } from '../meetingRecordBackfill';
 
 const council = { bodyName: 'Δημοτικό Συμβούλιο' };
 
 /** Whether the derived name of the record says all that the stored name says. */
-const holds = (name: string, record: { kind: MeetingKind | null; urgent?: boolean; sessionNumber?: number | null }, body = council) =>
-    storedNameLoss(analyzeStoredName(name, body), { urgent: false, sessionNumber: null, ...record }) === null
+const holds = (name: string, record: { kind: MeetingKind | null; urgent?: boolean; sessionNumber?: number | null; scheduleStatus?: MeetingScheduleStatus }, body = council) =>
+    storedNameLoss(analyzeStoredName(name, body), { urgent: false, sessionNumber: null, scheduleStatus: 'scheduled', ...record }) === null
 
 describe('analyzeStoredName', () => {
-    it('proposes cancelled for the three spellings of the archive, which no name needs to keep', () => {
+    it('proposes cancelled for the three spellings of the archive, which no name needs to keep once the status holds it', () => {
         for (const name of [
             '[Ακυρώθηκε] Δημοτικό Συμβούλιο 12/03/2026',
             'Δημοτικό Συμβούλιο 26/08/26 [δεν πραγματοποιήθηκε]',
             'Δημοτικό Συμβούλιο 26/08/26 [Δεν πραγματοποιήθηκε]',
         ]) {
             expect(analyzeStoredName(name, council)).toMatchObject({ proposedStatus: 'cancelled', unmappedBrackets: [] })
-            expect(holds(name, { kind: 'ordinary' })).toBe(true)
+            expect(holds(name, { kind: 'ordinary', scheduleStatus: 'cancelled' })).toBe(true)
+            expect(holds(name, { kind: 'ordinary' })).toBe(false)
         }
         expect(analyzeStoredName('Συνεδρίαση 16/07/26 [Δεν πραγματοποιήθηκε]', { bodyName: '5η Δημοτική Κοινότητα' }))
             .toMatchObject({ proposedStatus: 'cancelled', brackets: ['Δεν πραγματοποιήθηκε'] })
@@ -23,6 +24,14 @@ describe('analyzeStoredName', () => {
 
     it('reads «[Ματαιώθηκε]», the word of the law, as cancelled too', () => {
         expect(analyzeStoredName('Δημοτικό Συμβούλιο 12/03/2026 [Ματαιώθηκε]', council)).toMatchObject({ proposedStatus: 'cancelled', unmappedBrackets: [] })
+    })
+
+    it('reads «[Αναβολή]» as postponed, which the name keeps until the status holds it', () => {
+        const name = 'Συνεδρίαση 30/04/26 [Αναβολή]'
+        expect(analyzeStoredName(name, { bodyName: '7η Δημοτική Κοινότητα' })).toMatchObject({ proposedStatus: 'postponed', unmappedBrackets: [] })
+        expect(analyzeStoredName('Δημοτικό Συμβούλιο 12/03/2026 [Αναβλήθηκε]', council)).toMatchObject({ proposedStatus: 'postponed' })
+        expect(holds('Δημοτικό Συμβούλιο 30/04/26 [Αναβολή]', { kind: 'ordinary', scheduleStatus: 'postponed' })).toBe(true)
+        expect(holds('Δημοτικό Συμβούλιο 30/04/26 [Αναβολή]', { kind: 'ordinary', scheduleStatus: 'cancelled' })).toBe(false)
     })
 
     it('loses nothing to a derived name that differs only in the date or its format', () => {
@@ -94,5 +103,15 @@ describe('the two «απολογισμοί»', () => {
     it('reads no kind from a bare «Απολογισμού»: the activity report and the financial accounts both carry it', () => {
         expect(analyzeStoredName('Ειδική Συνεδρίαση Απολογισμού 23/12/25', council)).toMatchObject({ proposedKind: null, note: 'special-unknown' })
         expect(analyzeStoredName('Ειδική Συνεδρίαση Απολογισμού Πεπραγμένων 13/07/26', council)).toMatchObject({ proposedKind: 'activityReport' })
+    })
+})
+
+describe('postponementInInvitation', () => {
+    it('tells the new meeting after a postponement from the notice that postpones this one', () => {
+        expect(postponementInInvitation('4ης ΣΥΝΕΔΡΙΑΣΗΣ (ΑΠΟ 2η ΑΝΑΒΟΛΗ)')).toBe('after')
+        expect(postponementInInvitation('1η ΣΥΝΕΔΡΙΑΣΗ (ΑΠΟ ΑΝΑΒΟΛΗ)')).toBe('after')
+        expect(postponementInInvitation('στην 8η 2η ΕΞ ΑΝΑΒΟΛΗΣ Συνεδρίαση του Σώματος')).toBe('after')
+        expect(postponementInInvitation('Αναβολή συνεδρίασης της 4ης Ειδικής Συνεδρίασης λογοδοσίας της Δημοτικής Αρχής.')).toBe('notice')
+        expect(postponementInInvitation('Καλείστε σε τακτική συνεδρίαση')).toBeNull()
     })
 })

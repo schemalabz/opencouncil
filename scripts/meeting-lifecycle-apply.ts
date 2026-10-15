@@ -21,7 +21,11 @@
  *
  * The script writes the status, the kind, the urgency, the session number
  * and the format. It never writes a name (#150): the stored names stay as the
- * legacy fallback. It never writes links, visibility or reasons. When the
+ * legacy fallback. It writes one link: a postponed meeting's new meeting
+ * (`proposedPostponedTo`) gets `postponedFromId`, in the same transaction as
+ * the status, through the same rules as the admin form. When the new meeting
+ * is public, the link unreleases the postponed one, as a release would. It
+ * never writes visibility otherwise, or reasons. When the
  * status or the derived title changes it syncs the Google Calendar event; a
  * past meeting emails nobody. The sync never throws: a failure goes to the
  * admin alert, and a second run with --resync-calendar syncs the rows that it
@@ -31,6 +35,8 @@
  *
  * --rollback reads an audit file and restores the `before` of each applied
  * row, newest first, through the same lifecycle write and the same row lock.
+ * It removes a link before it restores the status, which shows the postponed
+ * meeting again when the link had hidden it.
  * A row restores only while it still holds the `after` that the apply wrote:
  * one that changed since (an admin's edit, a processAgenda run) is skipped
  * and listed, and one already back at `before` counts as done, so a second
@@ -42,7 +48,7 @@ import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import { MeetingFormat, MeetingKind, MeetingScheduleStatus, type Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import { updateMeetingRecord, type MeetingRecordFields } from '@/lib/db/meetingLifecycle';
@@ -52,6 +58,8 @@ import { parseCsvFile } from './lib/csv';
 import { assertNotProduction, type ReportRow } from './lib/meetingLifecycleCsv';
 
 type Patch = Pick<MeetingRecordFields, 'scheduleStatus' | 'kind' | 'urgent' | 'sessionNumber' | 'format'>;
+/** The fields of a row, and the new meeting that a postponed one links to. */
+type RowState = Patch & { postponedTo: string | null };
 
 const empty = z.literal('').transform(() => null);
 /** A person edits the CSV before the apply, so every value is checked before the first write. */
@@ -61,17 +69,21 @@ const values = z.object({
     urgent: z.enum(['yes', '']).transform((v) => v === 'yes'),
     sessionNumber: empty.or(z.string().regex(/^[1-9]\d{0,2}$/, 'a whole number').transform(Number)),
     format: empty.or(z.nativeEnum(MeetingFormat)),
+    postponedTo: empty.or(z.string().regex(/^\S+$/, 'a meeting id')),
 });
 
-function patchOf(row: ReportRow, side: 'proposed' | 'current'): Patch {
+function patchOf(row: ReportRow, side: 'proposed' | 'current'): RowState {
     return values.parse({
         scheduleStatus: side === 'proposed' ? row.proposedStatus : row.currentStatus,
         kind: side === 'proposed' ? row.proposedKind : row.currentKind,
         urgent: side === 'proposed' ? row.proposedUrgent : row.currentUrgent,
         sessionNumber: side === 'proposed' ? row.proposedSessionNumber : row.currentSessionNumber,
         format: side === 'proposed' ? row.proposedFormat : row.currentFormat,
+        postponedTo: side === 'proposed' ? row.proposedPostponedTo : row.currentPostponedTo,
     });
 }
+
+const fieldsOf = ({ postponedTo: _link, ...fields }: RowState): Patch => fields;
 
 /** The values that the reviewed row asks for. */
 const target = (row: ReportRow) => patchOf(row, 'proposed');
@@ -84,7 +96,7 @@ const reviewed = (row: ReportRow) => patchOf(row, 'current');
  * them; a person changes a held value in the admin form.
  */
 function rowProblem(row: ReportRow): string | null {
-    let wanted: Patch, held: Patch;
+    let wanted: RowState, held: RowState;
     try {
         wanted = target(row);
         held = reviewed(row);
@@ -94,16 +106,43 @@ function rowProblem(row: ReportRow): string | null {
     if (held.kind !== null && wanted.kind !== held.kind) return `replaces the held kind ${held.kind}`;
     if (held.sessionNumber !== null && wanted.sessionNumber !== held.sessionNumber) return `replaces the held number ${held.sessionNumber}`;
     if (held.urgent && !wanted.urgent) return 'drops the held urgency';
+    if (held.scheduleStatus !== 'scheduled' && wanted.scheduleStatus !== held.scheduleStatus) return `replaces the held status ${held.scheduleStatus}`;
+    if (held.postponedTo !== null && wanted.postponedTo !== held.postponedTo) return `replaces the held link to ${held.postponedTo}`;
+    if (wanted.postponedTo !== null && wanted.scheduleStatus !== 'postponed') return 'links a new meeting to a meeting that is not postponed';
     return null;
 }
 
 /** The fields that the derived title, and so the calendar event, is made of. */
 const titleChanges = (a: Patch, b: Patch) => a.kind !== b.kind || a.urgent !== b.urgent || a.sessionNumber !== b.sessionNumber || a.scheduleStatus !== b.scheduleStatus;
 
-const FIELDS = ['scheduleStatus', 'kind', 'urgent', 'sessionNumber', 'format'] as const;
+const FIELDS = ['scheduleStatus', 'kind', 'urgent', 'sessionNumber', 'format', 'postponedTo'] as const;
 
-function differs(a: Patch, b: Patch) {
-    return FIELDS.filter((field) => a[field] !== b[field]);
+/** An audit file of an earlier version has no link: none was written. */
+function differs(a: RowState, b: RowState) {
+    return FIELDS.filter((field) => (a[field] ?? null) !== (b[field] ?? null));
+}
+
+/** The row and the meeting that is linked to it as its new meeting, locked. */
+async function lockState(tx: Prisma.TransactionClient, cityId: string, id: string): Promise<{ state: RowState; released: boolean } | null> {
+    await tx.$queryRaw`SELECT id FROM "CouncilMeeting" WHERE "cityId" = ${cityId} AND (id = ${id} OR "postponedFromId" = ${id}) FOR UPDATE`;
+    const row = await tx.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id } },
+        select: { scheduleStatus: true, kind: true, urgent: true, sessionNumber: true, format: true, released: true },
+    });
+    if (!row) return null;
+    const link = await tx.councilMeeting.findFirst({ where: { cityId, postponedFromId: id }, select: { id: true } });
+    const { released, ...fields } = row;
+    return { state: { ...fields, postponedTo: link?.id ?? null }, released };
+}
+
+/** Moves the link of a postponed meeting from one new meeting to another, either of which may be none. */
+async function relink(tx: Prisma.TransactionClient, cityId: string, postponedId: string, from: string | null, to: string | null) {
+    if ((from ?? null) === (to ?? null)) return;
+    if (from) await updateMeetingRecord(cityId, from, { postponedFromId: null }, { tx });
+    if (to) {
+        await tx.$queryRaw`SELECT id FROM "CouncilMeeting" WHERE "cityId" = ${cityId} AND id = ${to} FOR UPDATE`;
+        await updateMeetingRecord(cityId, to, { postponedFromId: postponedId }, { tx });
+    }
 }
 
 type Outcome = 'applied' | 'already-applied' | 'changed-since-report' | 'refused' | 'not-found' | 'would-apply';
@@ -136,23 +175,27 @@ async function main() {
     for (const row of accepted) {
         const wanted = target(row);
         let outcome: Outcome;
-        let before: Patch | null = null;
+        let before: RowState | null = null;
         try {
             outcome = await prisma.$transaction(async (tx) => {
                 // Lock the row, so an admin edit cannot slip between the check and the write.
-                await tx.$queryRaw`SELECT id FROM "CouncilMeeting" WHERE "cityId" = ${row.cityId} AND id = ${row.id} FOR UPDATE`;
-                const current = await tx.councilMeeting.findUnique({
-                    where: { cityId_id: { cityId: row.cityId, id: row.id } },
-                    select: { scheduleStatus: true, kind: true, urgent: true, sessionNumber: true, format: true },
-                });
-                if (!current) return 'not-found';
+                const locked = await lockState(tx, row.cityId, row.id);
+                if (!locked) return 'not-found';
+                const current = locked.state;
                 before = current;
                 const changes = differs(current, wanted);
                 if (changes.length === 0) return 'already-applied';
                 if (differs(current, reviewed(row)).length > 0) return 'changed-since-report';
-                console.log(`${row.cityId}/${row.id}: ${changes.map((field) => `${field} ${JSON.stringify(current[field])} → ${JSON.stringify(wanted[field])}`).join('; ')}`);
+                // The rules hide a postponed meeting once its new meeting is public.
+                const newMeeting = wanted.postponedTo && wanted.postponedTo !== current.postponedTo
+                    ? await tx.councilMeeting.findUnique({ where: { cityId_id: { cityId: row.cityId, id: wanted.postponedTo } }, select: { released: true } })
+                    : null;
+                const hides = locked.released && newMeeting?.released ? ' (its new meeting is public, so it is unreleased)' : '';
+                console.log(`${row.cityId}/${row.id}: ${changes.map((field) => `${field} ${JSON.stringify(current[field])} → ${JSON.stringify(wanted[field])}`).join('; ')}${hides}`);
                 if (!argv.apply) return 'would-apply';
-                await updateMeetingRecord(row.cityId, row.id, wanted, { tx });
+                // The status first: a new meeting can only follow a postponed one.
+                await updateMeetingRecord(row.cityId, row.id, fieldsOf(wanted), { tx });
+                await relink(tx, row.cityId, row.id, current.postponedTo, wanted.postponedTo);
                 return 'applied';
             });
         } catch (error) {
@@ -179,7 +222,7 @@ async function main() {
     if (counts.applied > 0) console.log(`Audit: ${auditFile}`);
 }
 
-interface AppliedLine { cityId: string; id: string; result: string; before: Patch; after: Patch }
+interface AppliedLine { cityId: string; id: string; result: string; before: RowState; after: RowState }
 
 type RollbackOutcome = 'restored' | 'already-restored' | 'changed-since-apply' | 'refused' | 'not-found' | 'would-restore';
 
@@ -196,12 +239,9 @@ async function rollback(file: string, { apply, audit }: { apply: boolean; audit?
         let outcome: RollbackOutcome;
         try {
             outcome = await prisma.$transaction(async (tx) => {
-                await tx.$queryRaw`SELECT id FROM "CouncilMeeting" WHERE "cityId" = ${line.cityId} AND id = ${line.id} FOR UPDATE`;
-                const current = await tx.councilMeeting.findUnique({
-                    where: { cityId_id: { cityId: line.cityId, id: line.id } },
-                    select: { scheduleStatus: true, kind: true, urgent: true, sessionNumber: true, format: true },
-                });
-                if (!current) return 'not-found';
+                const locked = await lockState(tx, line.cityId, line.id);
+                if (!locked) return 'not-found';
+                const current = locked.state;
                 if (differs(current, line.before).length === 0) return 'already-restored';
                 const changed = differs(current, line.after);
                 if (changed.length > 0) {
@@ -211,7 +251,9 @@ async function rollback(file: string, { apply, audit }: { apply: boolean; audit?
                 const back = differs(line.after, line.before);
                 console.log(`${line.cityId}/${line.id}: ${back.map((field) => `${field} ${JSON.stringify(line.after[field])} → ${JSON.stringify(line.before[field])}`).join('; ')}`);
                 if (!apply) return 'would-restore';
-                await updateMeetingRecord(line.cityId, line.id, line.before, { tx });
+                // The link first: the status of a postponed meeting cannot change while its new meeting exists.
+                await relink(tx, line.cityId, line.id, line.after.postponedTo ?? null, line.before.postponedTo ?? null);
+                await updateMeetingRecord(line.cityId, line.id, fieldsOf(line.before), { tx });
                 return 'restored';
             });
         } catch (error) {

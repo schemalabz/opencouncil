@@ -66,11 +66,12 @@ export async function applyAgendaMeetingRecord(
         problems.push(`this record holds one meeting's ${[current.kind && `kind ${current.kind}`, current.urgent && 'urgency', current.sessionNumber !== null && `number ${current.sessionNumber}`].filter(Boolean).join(', ')}, though it holds several meetings`);
     }
     // A kind replaces the stored name with the derived title. A name that says
-    // more than that title («Δημοτική - Διαχειριστική Επιτροπή», «[Διεκόπη]»)
-    // keeps showing until a person decides.
+    // more than that title («Δημοτική - Διαχειριστική Επιτροπή», «[Διεκόπη]»,
+    // an «[Ακυρώθηκε]» the status does not hold) keeps showing until a person decides.
     if (patch.kind && current.kind === null && current.name) {
         const loss = storedNameLoss(analyzeStoredName(current.name, { bodyName: current.administrativeBody?.name ?? null }), {
             kind: patch.kind, urgent: patch.urgent ?? current.urgent, sessionNumber: patch.sessionNumber ?? current.sessionNumber,
+            scheduleStatus: current.scheduleStatus,
         });
         if (loss) {
             problems.push(`kind ${patch.kind} not written: the stored name «${current.name}» says more than the derived title would (${loss})`);

@@ -3,14 +3,15 @@
  * scripts/meeting-lifecycle-apply.ts. The `current*` columns hold the values
  * that the report read, so the apply script can refuse a row that changed
  * since the review. `review` is empty for a row with nothing to look at, and
- * names what to look at otherwise. The names are read, never written:
+ * names what to look at otherwise. `proposedPostponedTo` is the meeting that
+ * took over a postponed one: the apply links it in the same transaction. The names are read, never written:
  * `storedNameLoses` says what a name still says that no column holds.
  */
 export const REPORT_COLUMNS = [
     'cityId', 'id', 'localDate', 'bodyName', 'bodyType',
-    'currentName', 'currentNameEn', 'currentStatus', 'currentKind', 'currentUrgent', 'currentSessionNumber', 'currentFormat',
+    'currentName', 'currentNameEn', 'currentStatus', 'currentKind', 'currentUrgent', 'currentSessionNumber', 'currentFormat', 'currentPostponedTo',
     'brackets', 'storedNameLoses',
-    'proposedStatus',
+    'proposedStatus', 'proposedPostponedTo', 'postponedToEvidence',
     'proposedKind', 'kindEvidence',
     'proposedUrgent', 'urgentEvidence',
     'proposedSessionNumber', 'sessionNumberEvidence',

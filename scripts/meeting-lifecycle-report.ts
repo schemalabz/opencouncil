@@ -5,7 +5,10 @@
  * meeting come from its invitation, which processAgenda reads
  * (opencouncil-tasks `read-meeting-records`, fed by
  * scripts/meeting-record-export.ts). The stored names carry what now has its
- * own column: «[Ακυρώθηκε]» is a status, «Λογοδοσίας» is a kind. This script
+ * own column: «[Ακυρώθηκε]» is a status, «Λογοδοσίας» is a kind. A postponed
+ * meeting is told from a cancelled one by the next meeting of its body: the
+ * new meeting after a postponement holds the same number, and the apply links
+ * it. This script
  * proposes a value for each column and writes a CSV. A person reviews
  * each row and writes `yes` in the `apply` column; then
  * scripts/meeting-lifecycle-apply.ts writes the accepted rows.
@@ -28,7 +31,7 @@ import { hideBin } from 'yargs/helpers';
 import prisma from '@/lib/db/prisma';
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId';
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
-import { analyzeStoredName, storedNameLoss } from '@/lib/meetingRecordBackfill';
+import { analyzeStoredName, postponementInInvitation, storedNameLoss } from '@/lib/meetingRecordBackfill';
 import { checkAgendaIdentity, describeMismatch, holdsAnotherMeeting, meetingsOfThisBody, reconcileAgendaMeetingRecord } from '@/lib/agendaMeetingRecord';
 import { COUNCIL_ONLY_KINDS, recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
 import { takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
@@ -91,6 +94,32 @@ async function main() {
     for (const m of allMeetings) ofSameBody.set(bodyKey(m), [...(ofSameBody.get(bodyKey(m)) ?? []), m]);
     const hasSibling = (m: typeof allMeetings[number]) => (ofSameBody.get(bodyKey(m)) ?? []).some((o) => holdsAnotherMeeting(m, o));
     const meetings = allMeetings.filter((m) => !argv['only-read'] || reads.has(`${m.cityId}/${m.id}`));
+
+    // The rules link a postponed meeting to a later meeting of the same body.
+    const exactBodyKey = (m: typeof allMeetings[number]) => `${m.cityId}/${m.administrativeBodyId ?? '-'}`;
+    const ofExactBody = new Map<string, typeof allMeetings>();
+    for (const m of allMeetings) ofExactBody.set(exactBodyKey(m), [...(ofExactBody.get(exactBodyKey(m)) ?? []), m]);
+    const linkedTo = new Map(allMeetings.filter((m) => m.postponedFromId).map((m) => [`${m.cityId}/${m.postponedFromId}`, m.id]));
+    const invitationText = (read?: RecordRead) => [read?.record?.kindEvidence, read?.record?.sessionNumberEvidence].filter(Boolean).join(' ');
+    /**
+     * The meeting that took over a postponed one: the next meeting of the same
+     * body within 60 days that holds the same number, which the law keeps for
+     * a postponed meeting, or whose invitation says it follows a postponement.
+     */
+    const newMeetingAfter = (meeting: typeof allMeetings[number], sessionNumber: number | null) => {
+        const later = (ofExactBody.get(exactBodyKey(meeting)) ?? []).filter((o) => o.dateTime > meeting.dateTime
+            && o.dateTime.getTime() - meeting.dateTime.getTime() <= 60 * 24 * 3600 * 1000 && !o.postponedFromId && !o.continuationOfId);
+        for (const o of later) {
+            const read = reads.get(`${o.cityId}/${o.id}`);
+            if (sessionNumber !== null && read?.record?.sessionNumber === sessionNumber) {
+                return { id: o.id, sameNumber: true, evidence: `${o.id} holds the same number: «${read.record.sessionNumberEvidence ?? sessionNumber}»` };
+            }
+            if (postponementInInvitation(invitationText(read)) === 'after') {
+                return { id: o.id, sameNumber: false, evidence: `${o.id}: «${invitationText(read)}»` };
+            }
+        }
+        return null;
+    };
     // Decisions per meeting: a kind the decision poll skips must not silence a meeting that has them.
     const decisionRows = await prisma.$queryRaw<{ cityId: string; meetingId: string; n: bigint }[]>`
         SELECT s."cityId", s."councilMeetingId" AS "meetingId", COUNT(*) AS n
@@ -98,7 +127,7 @@ async function main() {
     const decisions = new Map(decisionRows.map((r) => [`${r.cityId}/${r.meetingId}`, Number(r.n)]));
 
     const rows: ReportRow[] = [];
-    const counts = { nameLoses: 0, cancelled: 0, kind: 0, urgent: 0, format: 0, sessionNumber: 0, differs: 0, review: 0 };
+    const counts = { nameLoses: 0, cancelled: 0, postponed: 0, linked: 0, kind: 0, urgent: 0, format: 0, sessionNumber: 0, differs: 0, review: 0 };
     for (const meeting of meetings) {
         const localDate = localCalendarDate(meeting.dateTime, meeting.city.timezone);
         const analysis = meeting.name ? analyzeStoredName(meeting.name, { bodyName: meeting.administrativeBody?.name ?? null }) : null;
@@ -140,7 +169,21 @@ async function main() {
         const proposedUrgent = meeting.urgent || patch.urgent === true || nameUrgent;
         const proposedSessionNumber = meeting.sessionNumber ?? patch.sessionNumber ?? null;
         const proposedFormat = patch.format ?? meeting.format;
-        const nameLoses = analysis ? storedNameLoss(analysis, { kind: proposedKind, urgent: proposedUrgent, sessionNumber: proposedSessionNumber }) : null;
+
+        // The name or a notice of postponement says that the meeting did not
+        // take place. The next meeting tells a postponement from a cancellation.
+        // A status the record holds is kept.
+        const notice = postponementInInvitation(invitationText(read)) === 'notice';
+        const statusRead = analysis?.proposedStatus ?? (notice ? 'postponed' : null);
+        const currentPostponedTo = linkedTo.get(`${meeting.cityId}/${meeting.id}`) ?? null;
+        const successor = !currentPostponedTo && (statusRead || meeting.scheduleStatus === 'postponed')
+            ? newMeetingAfter(meeting, proposedSessionNumber) : null;
+        const postponedNotCancelled = statusRead === 'cancelled' && successor?.sameNumber === true;
+        const proposedStatus = meeting.scheduleStatus !== 'scheduled' ? meeting.scheduleStatus
+            : postponedNotCancelled ? 'postponed' : statusRead ?? 'scheduled';
+        const proposedPostponedTo = currentPostponedTo ?? (proposedStatus === 'postponed' ? successor?.id ?? null : null);
+
+        const nameLoses = analysis ? storedNameLoss(analysis, { kind: proposedKind, urgent: proposedUrgent, sessionNumber: proposedSessionNumber, scheduleStatus: proposedStatus }) : null;
 
         const meetingsInAgenda = read?.meetings ?? [];
         const otherMeetings = meetingsInAgenda.length > 1
@@ -151,6 +194,8 @@ async function main() {
             analysis?.note,
             analysis?.combined ? 'combined' : null,
             analysis?.interrupted ? 'interrupted' : null,
+            notice ? 'the invitation postpones this meeting' : null,
+            postponedNotCancelled ? `postponed, not cancelled: ${successor!.id} holds the same number` : null,
             analysis?.proposedKind && invitation?.kind && analysis.proposedKind !== invitation.kind ? `name says ${analysis.proposedKind}` : null,
             read?.error ? `invitation not read: ${read.error}` : null,
             ...identity.differences,
@@ -172,7 +217,7 @@ async function main() {
             // The agenda may show one meeting while the stream held two (a λογοδοσία invitation is often its own document).
             analysis?.combined ? 'the name says two meetings' : null,
             (read?.warnings ?? []).some((w) => w.code !== 'MULTIPLE_MEETINGS') ? 'warnings' : null,
-            analysis?.proposedStatus ? 'status' : null,
+            proposedStatus !== meeting.scheduleStatus || proposedPostponedTo !== currentPostponedTo ? 'status' : null,
             !meeting.kind && !patch.kind && proposedKind ? 'kind from the name only' : null,
             nameUrgent && !meeting.urgent ? 'urgency from the name only' : null,
         ].filter(Boolean).join(', ');
@@ -190,9 +235,12 @@ async function main() {
             currentUrgent: meeting.urgent ? 'yes' : '',
             currentSessionNumber: meeting.sessionNumber?.toString() ?? '',
             currentFormat: meeting.format ?? '',
+            currentPostponedTo: currentPostponedTo ?? '',
             brackets: analysis?.brackets.join(' | ') ?? '',
             storedNameLoses: nameLoses ?? '',
-            proposedStatus: analysis?.proposedStatus ?? meeting.scheduleStatus,
+            proposedStatus,
+            proposedPostponedTo: proposedPostponedTo ?? '',
+            postponedToEvidence: proposedPostponedTo && !currentPostponedTo ? successor?.evidence ?? '' : '',
             proposedKind: proposedKind ?? '',
             kindEvidence: invitation?.kindEvidence ?? (!meeting.kind && !patch.kind && proposedKind ? `[name] ${meeting.name}` : ''),
             proposedUrgent: proposedUrgent ? 'yes' : '',
@@ -209,7 +257,8 @@ async function main() {
         });
 
         if (nameLoses) counts.nameLoses++;
-        if (analysis?.proposedStatus) counts.cancelled++;
+        if (proposedStatus !== meeting.scheduleStatus) counts[proposedStatus === 'postponed' ? 'postponed' : 'cancelled']++;
+        if (proposedPostponedTo && !currentPostponedTo) counts.linked++;
         if (!meeting.kind && proposedKind) counts.kind++;
         if (!meeting.urgent && proposedUrgent) counts.urgent++;
         if (proposedFormat !== meeting.format) counts.format++;
@@ -222,7 +271,7 @@ async function main() {
     fs.writeFileSync(argv.out, [REPORT_COLUMNS.join(','), ...rows.map(toCsvLine)].join('\n') + '\n');
     console.log(`${rows.length} meetings → ${argv.out}`);
     console.log(`Names are kept as they are; ${counts.nameLoses} say something the derived name would not (storedNameLoses).`);
-    console.log(`Proposals: ${counts.cancelled} cancelled, ${counts.kind} kinds, ${counts.urgent} urgent, ${counts.format} formats, ${counts.sessionNumber} session numbers.`);
+    console.log(`Proposals: ${counts.cancelled} cancelled, ${counts.postponed} postponed (${counts.linked} new meetings linked), ${counts.kind} kinds, ${counts.urgent} urgent, ${counts.format} formats, ${counts.sessionNumber} session numbers.`);
     console.log(`${counts.differs} invitations differ from the record; ${counts.review} rows name something to review, the others have an empty \`review\`.`);
     console.log('Review the rows, write "yes" in the apply column, then run scripts/meeting-lifecycle-apply.ts.');
 }

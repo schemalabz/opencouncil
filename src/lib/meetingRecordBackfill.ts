@@ -1,10 +1,10 @@
-import type { MeetingKind } from '@prisma/client';
+import type { MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 
 /**
  * The reading of stored names behind the reviewed backfill of the meeting
  * record (scripts/meeting-lifecycle-report.ts). The kind, the urgency, the
  * session number and the format come from the invitation, which processAgenda
- * reads; the name gives the cancellations, a fallback kind, and what it says
+ * reads; the name gives the cancellations and postponements, a fallback kind, and what it says
  * beyond the facts. The backfill writes no name (#150): the names stay as the
  * legacy fallback until a later migration drops them, after a check of what
  * each still says that no column holds.
@@ -46,7 +46,7 @@ export interface StoredNameAnalysis {
     brackets: string[];
     /** The brackets that no column holds: the derived name does not say them. */
     unmappedBrackets: string[];
-    proposedStatus: 'cancelled' | null;
+    proposedStatus: 'cancelled' | 'postponed' | null;
     /** «[Διεκόπη]»: the meeting took place and was interrupted. No status. */
     interrupted: boolean;
     /** The kind that the words of the name say, when they say one. */
@@ -62,9 +62,28 @@ export interface StoredNameAnalysis {
     note: 'special-unknown' | null;
 }
 
-/** «Ματαιώθηκε» is the word of the law for a cancellation (art. 124 §5). */
-function cancels(foldedBracket: string): boolean {
-    return ['ακυρωθηκε', 'δεν πραγματοποιηθηκε', 'ματαιωθηκε'].some((word) => foldedBracket.includes(word));
+/**
+ * The status that a bracket says. «Ματαιώθηκε» is the word of the law for a
+ * cancellation (art. 124 §5). «Δεν πραγματοποιήθηκε» reads as a cancellation
+ * too: a meeting without a quorum is cancelled and convened anew. Whether it
+ * was postponed instead, the report tells from the next meeting.
+ */
+function statusOfBracket(foldedBracket: string): 'cancelled' | 'postponed' | null {
+    if (['ακυρωθηκε', 'δεν πραγματοποιηθηκε', 'ματαιωθηκε'].some((word) => foldedBracket.includes(word))) return 'cancelled';
+    if (/αναβολη|αναβληθηκε/.test(foldedBracket)) return 'postponed';
+    return null;
+}
+
+/**
+ * What an invitation says about a postponement: «ΑΠΟ ΑΝΑΒΟΛΗ», «ΕΞ ΑΝΑΒΟΛΗΣ»
+ * convene the new meeting after one (`after`); «Αναβολή συνεδρίασης …»
+ * announces that this meeting is postponed (`notice`).
+ */
+export function postponementInInvitation(text: string): 'after' | 'notice' | null {
+    const folded = fold(text);
+    if (/(?:απο|εξ)\s*(?:\d+\s*η\s*)?αναβολ/.test(folded)) return 'after';
+    if (/αναβολ/.test(folded)) return 'notice';
+    return null;
 }
 
 /**
@@ -75,9 +94,10 @@ function cancels(foldedBracket: string): boolean {
 export function analyzeStoredName(name: string, { bodyName }: { bodyName: string | null }): StoredNameAnalysis {
     const brackets = [...name.matchAll(/\[([^\]]*)\]/g)].map((match) => match[1].trim());
     const foldedBrackets = brackets.map(fold);
-    const proposedStatus = foldedBrackets.some(cancels) ? 'cancelled' : null;
+    const statuses = foldedBrackets.map(statusOfBracket);
+    const proposedStatus = statuses.find((status) => status !== null) ?? null;
     const interrupted = foldedBrackets.some((b) => b.includes('διεκοπη'));
-    const unmappedBrackets = brackets.filter((_, i) => !cancels(foldedBrackets[i]));
+    const unmappedBrackets = brackets.filter((_, i) => statuses[i] === null);
 
     // The words outside every bracket; an unmapped bracket counts on its own.
     const text = fold(name.replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim());
@@ -115,15 +135,16 @@ export function analyzeStoredName(name: string, { bodyName }: { bodyName: string
  * What a stored name says that the derived name of the record does not:
  * the check to run before a migration drops the names (#150). Null when the
  * derived name loses nothing: the name says only the body, the kind, the
- * urgency and the number that the record holds, and a date. A name that says
+ * urgency, the number and the status that the record holds, and a date. A name that says
  * only the body and the date loses nothing even without a kind, as the label
  * prints both around «Συνεδρίαση <date>».
  */
 export function storedNameLoss(
     analysis: StoredNameAnalysis,
-    record: { kind: MeetingKind | null; urgent: boolean; sessionNumber: number | null },
+    record: { kind: MeetingKind | null; urgent: boolean; sessionNumber: number | null; scheduleStatus: MeetingScheduleStatus },
 ): string | null {
     if (analysis.combined) return 'two meetings in one record';
+    if (analysis.proposedStatus && analysis.proposedStatus !== record.scheduleStatus) return `the name says ${analysis.proposedStatus}, the record ${record.scheduleStatus}`;
     if (analysis.unmappedBrackets.length > 0) return `bracket no column holds: ${analysis.unmappedBrackets.join(', ')}`;
     if (analysis.leftover.length > 0) return `words beyond body, kind and date: ${analysis.leftover.join(' ')}`;
     if (analysis.note === 'special-unknown' && (record.kind === null || record.kind === 'ordinary')) return 'a special meeting whose kind is unknown';
