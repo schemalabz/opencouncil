@@ -116,7 +116,7 @@ export default function HomeView({
                 {planHref && <LinkRow href={planHref}>Το σχέδιο σε 2 λεπτά</LinkRow>}
                 {canLookUpAddress && <LinkRow href={mapHref}>Ο χάρτης, δρόμο προς δρόμο</LinkRow>}
                 <LinkRow href={commentsHref} badge={commentCount > 0 ? <span className="text-[15px]">{commentCount}</span> : undefined}>
-                    Τι λένε οι άλλοι δημότες
+                    Τι λένε οι άλλοι πολίτες
                 </LinkRow>
                 <LinkRow href={studyHref}>Ολόκληρη η μελέτη</LinkRow>
             </nav>

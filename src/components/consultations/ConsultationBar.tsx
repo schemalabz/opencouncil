@@ -44,7 +44,7 @@ export default function ConsultationBar({
             <nav aria-label="Η διαβούλευση" className="ml-auto flex shrink-0 items-center gap-5">
                 {planHref && <ViewLink href={planHref} className={linkClass}>Το σχέδιο σε 2 λεπτά</ViewLink>}
                 <ViewLink href={commentsHref} className={linkClass}>
-                    Τι λένε οι δημότες{commentCount > 0 ? ` (${commentCount})` : ''}
+                    Τι λένε οι πολίτες{commentCount > 0 ? ` (${commentCount})` : ''}
                 </ViewLink>
                 <ViewLink href={studyHref} className={linkClass}>Η μελέτη</ViewLink>
                 {commentHref && (
