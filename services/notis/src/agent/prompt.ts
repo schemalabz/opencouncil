@@ -309,7 +309,8 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
   const commitments = (state.commitments ?? [])
     .map(
       (c) =>
-        `[${neutralizeFences(c.slug)}] since ${c.since} — ${neutralizeFences(c.what)}`,
+        `[${neutralizeFences(c.slug)}] since ${describeDay(c.since, now)} — ` +
+        neutralizeFences(c.what),
     )
     .join("\n");
 

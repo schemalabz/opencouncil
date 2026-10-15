@@ -338,7 +338,7 @@ async function runOneWake(
     commitments: openCommitments.map((c) => ({
       slug: c.slug,
       what: c.what,
-      since: c.createdAt.toISOString().slice(0, 10),
+      since: c.createdAt.toISOString(),
     })),
     ...(lastRequest
       ? {

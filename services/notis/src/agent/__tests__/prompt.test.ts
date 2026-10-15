@@ -58,7 +58,8 @@ describe("assembleUserTurn", () => {
     expect(turn).toContain(FIXED_NOW.toISOString());
     expect(turn).toContain("Ανάπλαση πλατείας Κυψέλης");
     expect(turn).toContain("hyperlocal 5/5");
-    expect(turn).toContain("[metro] since 2026-03-01 — Να του πω για το μετρό.");
+    // A date-only value, as older states carry, renders the same way.
+    expect(turn).toContain("[metro] since Κυριακή 01/03/2026, πριν 9 ημέρες — Να του πω για το μετρό.");
     expect(turn).toContain(
       "OPEN since Δευτέρα 02/03/2026, πριν 8 ημέρες (contact): Θέλει να μιλήσει με άνθρωπο.",
     );

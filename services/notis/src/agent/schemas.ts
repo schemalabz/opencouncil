@@ -62,6 +62,7 @@ export const cityPreferenceSchema = z.object({
 export const commitmentSchema = z.object({
   slug: z.string(),
   what: z.string(),
+  /** When it was recorded: an ISO instant. The prompt renders the Athens day. */
   since: z.string(),
 });
 
