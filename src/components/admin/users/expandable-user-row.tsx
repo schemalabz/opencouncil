@@ -73,6 +73,13 @@ export function ExpandableUserRow({
                                                     </Badge>
                                                 )
                                             }
+                                            if (admin.administrativeBody) {
+                                                return (
+                                                    <Badge key={admin.id} variant="secondary" className="block w-fit">
+                                                        🏢 {admin.administrativeBody.city.name} / {admin.administrativeBody.name}
+                                                    </Badge>
+                                                )
+                                            }
                                             return null
                                         })}
                                     </div>

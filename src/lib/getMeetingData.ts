@@ -82,8 +82,10 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     // the key, a concurrent .fr request for a French slug could coalesce with a
     // .gr request for the same ids and receive the other realm's payload.
     // Key by edit access as well: getCouncilMeeting returns an unreleased
-    // meeting to an editor only, and a waiter takes the leader's result.
-    const [realm, canEdit] = await Promise.all([getRealm(), isUserAuthorizedToEdit({ cityId })]);
+    // meeting to an editor only, and a waiter takes the leader's result. The
+    // scope is the meeting's, as in getCouncilMeeting, so that the admin of
+    // its body is an editor here too and never shares a key with a reader.
+    const [realm, canEdit] = await Promise.all([getRealm(), isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId })]);
     const key = `${realm}/${cityId}/${meetingId}/${canEdit ? 'editor' : 'reader'}`;
 
     const existing = coreInflight.get(key);

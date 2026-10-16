@@ -27,7 +27,7 @@ import InputWithDerivatives from "../../components/InputWithDerivatives"
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { useToast } from "@/hooks/use-toast"
 import { ImageCropDialog } from "@/components/ui/ImageCropDialog"
-import RolesList from './RolesList'
+import RolesList, { type RoleType } from './RolesList'
 
 
 interface PersonFormProps {
@@ -36,9 +36,17 @@ interface PersonFormProps {
     cityId: string,
     parties: Party[]
     administrativeBodies: AdministrativeBody[]
+    /**
+     * Whether the viewer may change the roles. A person who claimed their own
+     * page edits name and photo only; their form then sends no roles, and the
+     * server keeps the roles as they are.
+     */
+    canEditRoles?: boolean
+    /** The kinds of role the editor offers; see RolesList. */
+    roleTypes?: RoleType[]
 }
 
-export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId }: PersonFormProps) {
+export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes }: PersonFormProps) {
     const router = useRouter()
     const [image, setImage] = useState<File | null>(null)
     const [removeImage, setRemoveImage] = useState(false)
@@ -104,8 +112,10 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             electedOrder: role.electedOrder
         }))
 
-        console.log('Roles to be sent:', cleanRoles)
-        formData.append('roles', JSON.stringify(cleanRoles))
+        if (canEditRoles) {
+            console.log('Roles to be sent:', cleanRoles)
+            formData.append('roles', JSON.stringify(cleanRoles))
+        }
 
         // Only append image if it exists and is valid
         if (image) {
@@ -163,8 +173,11 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                     description: person ? t('personUpdated') : t('personCreated'),
                 })
             } else {
+                // The routes answer { error }: a string for a refused role,
+                // the zod issues for a malformed form.
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSavePerson'))
+                const message = typeof errorData.error === 'string' ? errorData.error : errorData.message
+                throw new Error(message || t('failedToSavePerson'))
             }
         } catch (error) {
             console.error('Error in form submission:', error)
@@ -301,17 +314,20 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                     )}
                 />
 
-                <div className="space-y-2">
-                    <h3 className="text-lg font-medium">{t('roles')}</h3>
-                    <RolesList
-                        personId={person?.id}
-                        cityId={cityId}
-                        roles={roles}
-                        parties={parties}
-                        administrativeBodies={administrativeBodies}
-                        onUpdate={setRoles}
-                    />
-                </div>
+                {canEditRoles && (
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-medium">{t('roles')}</h3>
+                        <RolesList
+                            personId={person?.id}
+                            cityId={cityId}
+                            roles={roles}
+                            parties={parties}
+                            administrativeBodies={administrativeBodies}
+                            onUpdate={setRoles}
+                            roleTypes={roleTypes}
+                        />
+                    </div>
+                )}
 
                 <div className="flex justify-between">
                     <Button type="submit" disabled={isSubmitting}>

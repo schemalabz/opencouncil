@@ -7,7 +7,7 @@ import "server-only";
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
@@ -440,11 +440,17 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
 
     // The caller supplies the task id, so the gate is what stops one city's
     // admin from replaying a result onto another city's meeting.
-    await withUserAuthorizedToEdit({ cityId: task.cityId });
+    await withUserAuthorizedToEdit(taskScope(task));
 
-    const handler = taskHandlers[taskType];
+    // The gate checked the stored type, so the handler must be that type's.
+    // A body admin could otherwise name a city-only type and run its handler
+    // on a task of their meeting.
+    if (taskType !== task.type) {
+        throw new Error(`Task ${taskId} is a ${task.type} task, not ${taskType}`);
+    }
+    const handler = taskHandlers[task.type];
     if (!handler) {
-        throw new Error(`Unsupported task type: ${taskType}`);
+        throw new Error(`Unsupported task type: ${task.type}`);
     }
 
     // Only a task whose result arrived has anything to replay. The success

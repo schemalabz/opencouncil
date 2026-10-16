@@ -10,6 +10,7 @@ import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
 import { requestSummarizeInternal } from "./summarizeInternal";
 import { withUserAuthorizedToEdit } from "../auth";
+import { taskScope } from "./types";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { meetingLabelInCity } from '@/lib/meetingName';
@@ -23,7 +24,7 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 }: {
     force?: boolean;
 } = {}) {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit(taskScope({ type: 'summarize', cityId, councilMeetingId }));
     return requestSummarizeInternal(cityId, councilMeetingId, requestedSubjects, additionalInstructions, { force });
 }
 

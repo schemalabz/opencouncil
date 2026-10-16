@@ -192,14 +192,24 @@ describe('DELETE', () => {
         expect(mockRevalidateTag).not.toHaveBeenCalled();
     });
 
-    it('returns 401 and deletes nothing for a caller who cannot edit the city', async () => {
+    it('returns 401 and deletes nothing for a caller who cannot edit the meeting', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
+
+        const res = await DELETE({} as never, props);
+
+        expect(res.status).toBe(401);
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, councilMeetingId: TASK.councilMeetingId });
+        expect(mockDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it("asks for the city to delete a task that is the city's, such as a human review", async () => {
+        tableWith({ ...TASK, type: 'humanReview' });
         mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
 
         const res = await DELETE({} as never, props);
 
         expect(res.status).toBe(401);
         expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY });
-        expect(mockDeleteMany).not.toHaveBeenCalled();
     });
 
     it('returns 403 and deletes nothing for a task updated within the last 10 minutes', async () => {
@@ -230,6 +240,6 @@ describe('progress polling (GET)', () => {
         const body = await (await GET({} as never, props)).json();
 
         expect(body.requestBody).toBe('{}');
-        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY });
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, councilMeetingId: TASK.councilMeetingId });
     });
 });

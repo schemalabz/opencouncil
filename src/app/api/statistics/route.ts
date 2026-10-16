@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStatisticsFor } from '@/lib/statistics';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
 
 // This route uses dynamic data from request params and can't be statically optimized
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
         const subjectId = searchParams.get('subjectId');
         const administrativeBodyId = searchParams.get('administrativeBodyId');
 
-        const includeUnreleased = cityId ? await isUserAuthorizedToEdit({ cityId }) : false;
+        // What the viewer may see of the city's drafts: a meeting's editors see
+        // that meeting, a body admin sees the meetings of their bodies.
+        const includeUnreleased = cityId && meetingId ? await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }) : false;
+        const unreleased = cityId && !includeUnreleased ? await getUnreleasedScope(cityId) : undefined;
 
         const params: any = {};
         if (personId) params.personId = personId;
@@ -25,6 +28,7 @@ export async function GET(request: NextRequest) {
         if (subjectId) params.subjectId = subjectId;
         if (administrativeBodyId) params.administrativeBodyId = administrativeBodyId;
         params.includeUnreleased = includeUnreleased;
+        params.unreleased = unreleased;
 
         const groupBy = ['topic', 'person', 'party'] as ('topic' | 'person' | 'party')[];
         const statistics = await getStatisticsFor(params, groupBy);

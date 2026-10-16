@@ -32,7 +32,7 @@ export type SpeakerTagIdentification = Prisma.SpeakerIdentificationGetPayload<{ 
  * server, and it requires edit rights.
  */
 export async function getSpeakerIdentificationsForMeeting(cityId: string, meetingId: string): Promise<SpeakerTagIdentification[]> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
     return prisma.speakerIdentification.findMany({
         where: { speakerTag: { speakerSegments: { some: { cityId, meetingId } } } },
         select: speakerIdentificationSelect,
@@ -66,7 +66,7 @@ export async function assignSpeaker(
         throw new Error('Speaker segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: speakerSegment.cityId });
+    await withUserAuthorizedToEdit({ cityId: speakerSegment.cityId, councilMeetingId: speakerSegment.meetingId });
 
     // Edit rights are per city, and so are people: a meeting's speaker is a
     // person of the meeting's city.

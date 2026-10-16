@@ -876,7 +876,8 @@
     "contactForAccess": "Pour obtenir un accès d'administration, contactez-nous :",
     "adminCity": "Gérer la ville",
     "adminParty": "Gérer le groupe",
-    "adminPerson": "Gérer le membre"
+    "adminPerson": "Gérer le membre",
+    "adminBody": "Gérer l'organe"
   },
   "OfferForm": {
     "success": "Succès",

@@ -75,7 +75,7 @@ export async function getUtteranceContext(
     // city, or a service with a bearer token, also gets a draft or a closed one.
     if (!meeting.released || !transcriptIsPublic(meeting)) {
         const bearer = await validateBearerAuth(request);
-        if (!bearer && !(await isUserAuthorizedToEdit({ cityId }))) {
+        if (!bearer && !(await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }))) {
             return null;
         }
     }

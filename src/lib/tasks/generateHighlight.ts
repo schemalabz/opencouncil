@@ -13,7 +13,7 @@ import { requestGenerateHighlightCore, type GenerateHighlightOptions } from './g
 export async function requestGenerateHighlight(highlightId: string, options?: GenerateHighlightOptions) {
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
-        select: { cityId: true, createdById: true },
+        select: { cityId: true, meetingId: true, createdById: true },
     });
 
     if (!highlight) {
@@ -22,6 +22,7 @@ export async function requestGenerateHighlight(highlightId: string, options?: Ge
 
     const authorized = await canViewHighlight({
         cityId: highlight.cityId,
+        meetingId: highlight.meetingId,
         createdById: highlight.createdById
     });
 

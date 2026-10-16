@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
-import { withServiceOrUserAuth } from '@/lib/auth';
+import { withServiceOrUserAuth, getUnreleasedScope } from '@/lib/auth';
+import { ALL_UNRELEASED, NO_UNRELEASED, type UnreleasedScope } from '@/lib/unreleased';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
 import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
@@ -33,8 +34,15 @@ const getMeetingsQuerySchema = z.object({
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
     try {
-        await withServiceOrUserAuth(request, { cityId: params.cityId });
         const body = await request.json();
+        // A body admin creates meetings of their body only, so the check
+        // carries the body; a meeting with no body is the city's. The check
+        // runs before the parse, so a caller without rights learns nothing
+        // about the schema.
+        const bodyId = typeof body?.administrativeBodyId === 'string' && body.administrativeBodyId ? body.administrativeBodyId : undefined;
+        await withServiceOrUserAuth(request, bodyId
+            ? { cityId: params.cityId, administrativeBodyId: bodyId }
+            : { cityId: params.cityId });
         const { processAgenda, ...input } = meetingSchema.parse(body);
 
         // Auth was already verified by withServiceOrUserAuth above. The shared
@@ -61,13 +69,23 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
 
         const { limit, from, to, includeUnreleased } = getMeetingsQuerySchema.parse(queryParams);
 
-        // includeUnreleased requires auth (service key or authorized user)
+        // includeUnreleased needs a service key or an editor of the city. A
+        // body admin is one: they get the drafts of their bodies and no other,
+        // so the meeting form can offer them the meeting that a new one replaces.
+        let unreleased: UnreleasedScope = NO_UNRELEASED;
         if (includeUnreleased) {
-            await withServiceOrUserAuth(request, { cityId: params.cityId });
+            const scope = await getUnreleasedScope(params.cityId);
+            if (scope.all || scope.bodyIds.length > 0) {
+                unreleased = scope;
+            } else {
+                // No session with rights here: a service key passes, anyone else gets 401.
+                await withServiceOrUserAuth(request, { cityId: params.cityId });
+                unreleased = ALL_UNRELEASED;
+            }
         }
 
         const meetings = await getCouncilMeetingsForCity(params.cityId, {
-            includeUnreleased,
+            unreleased,
             limit,
             from,
             to,

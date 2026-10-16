@@ -54,8 +54,8 @@ const meetingRecordInput = {
 
 /**
  * The admin suite. The access decides what is registered, and so what is
- * advertised: meeting tools for anyone with admin access, city tools for a
- * superadmin only. The access comes from the route handler and is a
+ * advertised: meeting tools for anyone with admin access (a city or a body
+ * administrator), city tools for a superadmin only. The access comes from the route handler and is a
  * display decision — each handler authorizes again in adminData.
  */
 export function registerAdminTools(server: McpServer, access: McpAdminAccess) {
@@ -74,7 +74,8 @@ function registerMeetingAdminTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Create a council meeting in a municipality that you administer. The meeting is saved as a '
+                'Create a council meeting in a municipality, or of an administrative body, that you administer. '
+                + 'An administrator of a body must pass that body. The meeting is saved as a '
                 + 'draft (unreleased), so the public does not see it. It also creates the calendar event. '
                 + 'Call list_meetings first with the same date: a second call creates a second meeting. '
                 + 'Pass administrativeBodyId (see get_city): the meeting list of the site shows the council '
@@ -105,11 +106,12 @@ function registerMeetingAdminTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Change the details of a meeting in a municipality that you administer: date, video URL, '
-                + 'agenda URL, administrative body, kind, urgency, session number, status, format or place. A field that '
+                'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
+                + 'date, video URL, agenda URL, administrative body, kind, urgency, session number, status, format or place. A field that '
                 + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. The name '
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
-                + 'meeting postponed or cancelled with scheduleStatus. It cannot link a meeting to a postponed '
+                + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
+                + 'to a body that they do not administer. It cannot link a meeting to a postponed '
                 + 'meeting, it cannot release a meeting and it cannot delete one. Confirm the change with the '
                 + 'user before you call.',
             inputSchema: z.object({
@@ -159,7 +161,7 @@ function registerTaskAdminTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
             _meta: category('admin'),
             description:
-                'Start one step of the processing pipeline for a meeting in a municipality that you administer, '
+                'Start one step of the processing pipeline for a meeting in a municipality, or of an administrative body, that you administer, '
                 + 'as the admin page of the meeting does. The steps, in order: `processAgenda` reads the subjects '
                 + 'from the agenda PDF; `transcribe` turns the video into a transcript (and starts fixTranscript '
                 + 'on its own when it finishes); `fixTranscript` corrects the transcript; `summarize` writes the '

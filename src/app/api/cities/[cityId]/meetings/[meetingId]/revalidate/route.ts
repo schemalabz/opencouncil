@@ -8,7 +8,7 @@ export async function POST(
 ) {
     const params = await props.params;
     // Check if user is authorized to edit this meeting
-    const hasPermission = await isUserAuthorizedToEdit({ cityId: params.cityId });
+    const hasPermission = await isUserAuthorizedToEdit({ cityId: params.cityId, councilMeetingId: params.meetingId });
     if (!hasPermission) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

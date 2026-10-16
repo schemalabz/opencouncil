@@ -26,7 +26,7 @@ type CallResult = { isError?: boolean; content: { text: string }[] };
  */
 async function connect() {
     const server = new McpServer({ name: 'test', version: '0.0.0' });
-    registerAdminTools(server, { superadmin: true, cityIds: new Set() });
+    registerAdminTools(server, { superadmin: true, cityIds: new Set(), bodyIds: new Set() });
     const [client, serverEnd] = InMemoryTransport.createLinkedPair();
     const pending = new Map<number, (response: Response) => void>();
     client.onmessage = (message: JSONRPCMessage) => {

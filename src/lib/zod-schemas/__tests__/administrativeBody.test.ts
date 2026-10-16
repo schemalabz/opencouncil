@@ -1,4 +1,4 @@
-import { administrativeBodyFormSchema, administrativeBodySchema } from '../administrativeBody';
+import { administrativeBodyContactsSchema, administrativeBodyFormSchema, administrativeBodySchema } from '../administrativeBody';
 
 const validBody = { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council' };
 
@@ -49,5 +49,22 @@ describe('administrativeBodyFormSchema', () => {
 
     it('accepts an empty CC list', () => {
         expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: '' }).success).toBe(true);
+    });
+});
+
+// The body admin's schema (#828) takes the channel rule of the city admin's:
+// pollLivestreams can use only a URL that names a channel.
+describe('administrativeBodyContactsSchema', () => {
+    it('accepts a channel URL', () => {
+        expect(administrativeBodyContactsSchema.parse({ youtubeChannelUrl: 'https://www.youtube.com/@cityofathens' }).youtubeChannelUrl)
+            .toBe('https://www.youtube.com/@cityofathens');
+    });
+
+    it('rejects a URL that names no channel', () => {
+        expect(administrativeBodyContactsSchema.safeParse({ youtubeChannelUrl: 'https://evil.example/login' }).success).toBe(false);
+    });
+
+    it.each([['', null], [null, null], [undefined, undefined]])('maps %s to %s', (value, expected) => {
+        expect(administrativeBodyContactsSchema.parse({ youtubeChannelUrl: value }).youtubeChannelUrl).toBe(expected);
     });
 });

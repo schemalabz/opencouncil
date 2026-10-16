@@ -21,14 +21,13 @@ export const baseAdministrativeBodyFields = {
 
 // pollLivestreams can only use a URL that parseChannelRef resolves, so reject
 // any other URL here (a /c/ vanity URL, a playlist, a search results page).
-const youtubeChannelUrl = z.union([
-    z.string().url({
-        message: "Must be a valid URL.",
-    }).refine(val => parseChannelRef(val) !== null, {
-        message: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",
-    }),
-    z.literal('')
-]).optional().transform(val => val === '' ? undefined : val);
+const youtubeChannelUrlValue = z.string().url({
+    message: "Must be a valid URL.",
+}).refine(val => parseChannelRef(val) !== null, {
+    message: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",
+});
+const youtubeChannelUrl = z.union([youtubeChannelUrlValue, z.literal('')])
+    .optional().transform(val => val === '' ? undefined : val);
 
 // JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}
 export const administrativeBodySchema = z.object({
@@ -44,6 +43,16 @@ export const administrativeBodySchema = z.object({
         if (!val || val.trim() === '') return [];
         return val.split(',').map(s => s.trim()).filter(Boolean);
     }),
+});
+
+// JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
+// who may change these two fields and no other.
+// An absent field stays as it is. An empty string or null clears the channel.
+export const administrativeBodyContactsSchema = z.object({
+    youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal(''), z.null()])
+        .optional()
+        .transform(val => val === '' ? null : val),
+    contactEmails: z.array(z.string().email()).optional(),
 });
 
 // Frontend form schema (React Hook Form). The form edits the contact emails as

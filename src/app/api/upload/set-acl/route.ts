@@ -1,28 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { s3Client } from '@/lib/s3'
 import { PutObjectAclCommand } from '@aws-sdk/client-s3'
-import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { verifyUploadAclToken } from '@/lib/uploadAclToken'
 
 /**
- * Set ACL for an uploaded file to make it public
+ * Set ACL for an uploaded file to make it public.
+ *
+ * Only for a key that presigned-url issued, proved by the token it returned
+ * with the key. That route authorized the upload; a key from anywhere else,
+ * an upload of another body or city among them, stays private.
  */
 export async function POST(request: NextRequest) {
     try {
-        // Parse request body
         const body = await request.json()
-        const { key } = body
+        const { key, token } = body as { key?: unknown; token?: unknown }
 
-        // Validate required fields
-        if (!key) {
+        if (!key || typeof key !== 'string' || !token || typeof token !== 'string') {
             return NextResponse.json(
-                { error: 'Missing required field: key' },
+                { error: 'Missing required fields: key and token' },
                 { status: 400 }
             )
         }
 
-        // Check user authorization
-        const authorizedToEdit = await isUserAuthorizedToEdit({})
-        if (!authorizedToEdit) {
+        if (!verifyUploadAclToken(key, token)) {
             return NextResponse.json(
                 { error: 'Unauthorized to modify file permissions' },
                 { status: 403 }

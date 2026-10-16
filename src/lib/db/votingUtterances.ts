@@ -6,8 +6,8 @@ import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publi
 /**
  * The vote utterances of a subject, with their speakers. A reader gets them
  * from a public transcript only (see transcriptIsPublic); an editor of the
- * city also gets them from a draft or an unreviewed transcript. Only utterances of
- * the subject's own meeting count.
+ * meeting, the admin of its body among them, also gets them from a draft or
+ * an unreviewed transcript. Only utterances of the subject's own meeting count.
  */
 export async function getVotingUtterances(subjectId: string) {
     const subject = await prisma.subject.findUnique({
@@ -17,7 +17,7 @@ export async function getVotingUtterances(subjectId: string) {
     if (!subject) return [];
     const { councilMeeting } = subject;
     if ((!councilMeeting.released || !transcriptIsPublic(councilMeeting))
-        && !(await isUserAuthorizedToEdit({ cityId: subject.cityId }))) {
+        && !(await isUserAuthorizedToEdit({ cityId: subject.cityId, councilMeetingId: subject.councilMeetingId }))) {
         return [];
     }
 

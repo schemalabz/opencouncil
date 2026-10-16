@@ -175,6 +175,7 @@ model AdministrativeBody {
   meetings  CouncilMeeting[]
 
   roles Role[]
+  administrators Administers[]
 
   @@index([cityId])
 }
@@ -1237,10 +1238,20 @@ model Administers {
   cityId    String?
   partyId   String?
   personId  String?
+  /// An admin of one administrative body: its meetings, its members and its
+  /// own contact settings, and nothing else in the city (#828).
+  /// The migration adds two rules that this schema cannot state: a check
+  /// constraint keeps exactly one of cityId, partyId, personId and
+  /// administrativeBodyId set, and the partial unique index
+  /// Administers_user_body_key allows one row per user and body. The
+  /// @@unique below never rejects a row, because its other columns are NULL
+  /// and Postgres treats NULLs as distinct.
+  administrativeBodyId String?
   
   city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
   party     Party?   @relation(fields: [partyId], references: [id], onDelete: Cascade)
   person    Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  administrativeBody AdministrativeBody? @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
 
   /// Set only by claimPerson, when the person scans their own QR code. It
   /// says "this account is this person", where a row without it says only
@@ -1252,7 +1263,7 @@ model Administers {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, cityId, partyId, personId])
+  @@unique([userId, cityId, partyId, personId, administrativeBodyId])
 }
 
 model ServiceApiKey {
