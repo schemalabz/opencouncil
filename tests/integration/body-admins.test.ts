@@ -7,6 +7,7 @@
 import prisma from '@/lib/db/prisma'
 import { BadRequestError } from '@/lib/api/errors'
 import { addBodyAdmin, removeBodyAdmin } from '@/lib/db/bodyAdmins'
+import { editPerson } from '@/lib/db/people'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createUser } from '../helpers/factories'
 import { __setSessionEmail } from '../mocks/auth'
@@ -18,8 +19,10 @@ const MAX_ADMINS_PER_BODY = 20
 
 let bodyId: string
 
+let admin: { id: string; email: string }
+
 async function signInAsBodyAdmin() {
-    const admin = await createUser('secretary@integration.test')
+    admin = await createUser('secretary@integration.test')
     await prisma.administers.create({ data: { userId: admin.id, administrativeBodyId: bodyId } })
     __setSessionEmail(admin.email)
     return admin
@@ -102,5 +105,28 @@ describe('body admins', () => {
 
         expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
         expect(await adminCount()).toBe(1)
+    })
+
+    describe('the members of the body', () => {
+        const details = { name: 'Member', name_en: 'Member', name_short: 'M', name_short_en: 'M', profileUrl: null }
+        const role = { name: null, name_en: null, isHead: false, startDate: null, endDate: null, electedOrder: null }
+        const personWithRoles = (roles: { cityId?: string; administrativeBodyId?: string; name?: string }[]) =>
+            prisma.person.create({ data: { ...details, profileUrl: undefined, cityId: CITY, roles: { create: roles } } })
+
+        it('lets a body admin replace the roles of a person whose roles are all on their body', async () => {
+            const person = await personWithRoles([{ administrativeBodyId: bodyId, name: 'Old' }])
+            await editPerson(person.id, { ...details, roles: [{ ...role, administrativeBodyId: bodyId, name: 'New' }] })
+            expect((await prisma.role.findMany({ where: { personId: person.id } })).map(role => role.name)).toEqual(['New'])
+        })
+
+        // An account with a body row and a person row passes the person check.
+        // The role gate must still refuse a person with a role outside the body.
+        it('does not let a body admin with a person row replace the roles of a councillor', async () => {
+            const councillor = await personWithRoles([{ cityId: CITY, name: 'Mayor' }, { administrativeBodyId: bodyId }])
+            await prisma.administers.create({ data: { userId: admin.id, personId: councillor.id } })
+            await expect(editPerson(councillor.id, { ...details, roles: [{ ...role, administrativeBodyId: bodyId }] }))
+                .rejects.toThrow('outside the bodies you administer')
+            expect(await prisma.role.count({ where: { personId: councillor.id, name: 'Mayor' } })).toBe(1)
+        })
     })
 })

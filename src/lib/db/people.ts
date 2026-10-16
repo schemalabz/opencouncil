@@ -2,7 +2,7 @@
 import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleData } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit, getRoleLimitForCity } from "@/lib/auth";
+import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
@@ -82,14 +82,22 @@ export async function createPerson(data: {
  * A body admin gives roles on their bodies only, and at least one, with no
  * party and no other city on any of them: the rules of the people routes
  * (validateRolesForBodyAdmin), applied here too, so a direct call of these
- * functions cannot pass what the routes refuse. Anyone else, a person who
- * claimed their own page among them, changes no roles.
+ * functions cannot pass what the routes refuse. On an update, the person must
+ * also be theirs: every current role on a body they hold. Without that, an
+ * account with a body row and a person row could replace the roles of a
+ * councillor through the person row. Anyone else, a person who claimed their
+ * own page among them, changes no roles.
  */
-async function withRolesAuthorized(cityId: string, roles: PersonRoleData[]): Promise<void> {
+async function withRolesAuthorized(
+    cityId: string,
+    roles: PersonRoleData[],
+    currentRoles?: { administrativeBodyId: string | null }[],
+): Promise<void> {
     const limit = await getRoleLimitForCity(cityId);
     if (!limit) return;
     const refused = validateRolesForBodyAdmin(roles, limit)
-        ?? (roles.some(role => role.cityId && role.cityId !== cityId) ? { error: 'Every role must be in this city.' } : null);
+        ?? (roles.some(role => role.cityId && role.cityId !== cityId) ? { error: 'Every role must be in this city.' } : null)
+        ?? (currentRoles && !personIsOwnedByBodyAdmin(currentRoles, limit) ? { error: 'This person has a role outside the bodies you administer.' } : null);
     if (refused) throw new Error(`Not authorized: ${refused.error}`);
 }
 
@@ -105,9 +113,12 @@ export async function editPerson(id: string, data: {
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ personId: id });
     if (data.roles) {
-        const person = await prisma.person.findUnique({ where: { id }, select: { cityId: true } });
+        const person = await prisma.person.findUnique({
+            where: { id },
+            select: { cityId: true, roles: { select: { administrativeBodyId: true } } },
+        });
         if (!person) throw new Error('Person not found');
-        await withRolesAuthorized(person.cityId, data.roles);
+        await withRolesAuthorized(person.cityId, data.roles, person.roles);
     }
     const roles = data.roles;
     try {
