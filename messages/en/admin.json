@@ -306,14 +306,7 @@
       "showRestMissing": "{n} with no decision",
       "showRestWithdrawn": "{n, plural, one {# withdrawn} other {# withdrawn}}",
       "showLess": "Show less",
-      "empty": "No subject matches this filter.",
-      "result": {
-        "unanimous": "Unanimous",
-        "majority": "By majority",
-        "rejected": "Rejected",
-        "none": "—",
-        "noVote": "—"
-      }
+      "empty": "No subject matches this filter."
     },
     "panel": {
       "adaTitle": "Add a decision by ADA for {subject}",

@@ -17,10 +17,10 @@ import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { isDecisionConventions } from '@/lib/decisionConventions';
-import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
-import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
+import { isRecordSubject } from '@/lib/utils/subjects';
+import { buildDecisionTable, orderRecordSubjects, type DecisionTableSubject } from '@/lib/decisionsTable/rows';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
-import { compareAgendaPosition, normalizeText } from '@/lib/utils';
+import { normalizeText } from '@/lib/utils';
 import { TWO_COLUMN_GRID } from '@/components/ui/surface-card';
 import { CollapsibleMarkdown, NameList } from '@/components/meetings/decisions/shared';
 import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
@@ -170,6 +170,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const noDecisions = takesNoDecisions(meeting);
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
+    const tTable = useTranslations('decisionsTable');
     const tSubject = useTranslations('Subject');
     const locale = useLocale();
     // What a poll would actually ask Diavgeia for. Parsed through the same
@@ -464,14 +465,28 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // ─── The view model ──────────────────────────────────────────────────
 
     const recordSubjects = useMemo(() => subjects.filter(isRecordSubject), [subjects]);
-    /** Agenda order, the order a posted Πίνακας is written in: the items taken
-     * up out of the agenda first, then the agenda itself by section and number
-     * — the same order the minutes preview and the DOCX print (issue 366). */
-    const orderedSubjects = useMemo(() => [
-        ...recordSubjects.filter(s => recordSection(s) === 'outOfAgenda'),
-        ...recordSubjects.filter(s => recordSection(s) === 'agenda')
-            .sort(compareAgendaPosition),
-    ], [recordSubjects]);
+    /** The Πίνακας as the shared builder lays it out — agenda order, the items
+     * taken up out of the agenda first (issue 366) — over this page's own
+     * decisions and votes, which it refreshes after every write while the
+     * page's subjects stay as the server rendered them. */
+    const table = useMemo(() => buildDecisionTable(subjects.map((subject): DecisionTableSubject => {
+        const decision = decisions[subject.id];
+        return {
+            id: subject.id,
+            name: subject.name,
+            agendaItemTitle: subject.agendaItemTitle,
+            agendaItemIndex: subject.agendaItemIndex,
+            agendaSectionIndex: subject.agendaSectionIndex,
+            nonAgendaReason: subject.nonAgendaReason,
+            withdrawn: subject.withdrawn,
+            outcome: subject.outcome,
+            decision: decision
+                ? { decisionNumber: decision.decisionNumber, protocolNumber: decision.protocolNumber, pdfUrl: decision.pdfUrl, ada: decision.ada, summary: decision.summary }
+                : null,
+            votes: extractedData[subject.id]?.votes ?? [],
+        };
+    })), [subjects, decisions, extractedData]);
+    const orderedSubjects = useMemo(() => orderRecordSubjects(subjects), [subjects]);
 
     const hasDecision = useCallback((id: string) => Boolean(decisions[id]), [decisions]);
     const routed = useMemo(
@@ -520,31 +535,24 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
      * audit line looks the counts up here instead of `src/lib/minutes` carrying them too. */
     const eventDocumentCounts = useMemo(() => documentCountsByChange(derivation?.events ?? []), [derivation]);
 
-    const rows: TableRow[] = orderedSubjects.map(subject => {
+    const rows: TableRow[] = table.rows.map(row => {
+        const subject = row.subject;
         const decision = decisions[subject.id];
-        const votes = extractedData[subject.id]?.votes ?? [];
-        const result = resultKey({ withdrawn: subject.withdrawn, hasDecision: Boolean(decision), votes });
         const proposal = decision ? undefined : routed.proposalBySubject.get(subject.id);
         return {
-            subject: {
-                id: subject.id,
-                name: displayName(subject),
-                agendaItemIndex: subject.agendaItemIndex,
-                nonAgendaReason: subject.nonAgendaReason,
-                withdrawn: subject.withdrawn,
-            },
+            subject,
             decision: decision
                 ? {
-                    number: decisionNumberOf(decision, tPage('table.linked')),
+                    number: row.decision?.number ?? tPage('table.linked'),
                     manualBy: decision.createdBy?.name || decision.createdBy?.email || null,
                 }
                 : null,
-            result,
+            result: row.result,
             // A dash means two different things and only one of them explains
             // itself: a linked decision whose document records no vote. A row
             // with nothing linked yet has nothing to explain.
-            resultHint: result === 'noVote' ? tPage('table.noVoteHint') : null,
-            voteCounts: hasRecordedVote(result) ? voteCountsPhrase(tPage, calculateVoteResult(votes)) : null,
+            resultHint: row.result === 'noVote' ? tPage('table.noVoteHint') : null,
+            voteCounts: row.voteCounts ? voteCountsPhrase(tPage, row.voteCounts) : null,
             proposal: proposal
                 ? {
                     candidateId: proposal.id,
@@ -599,10 +607,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             return Object.keys(next).length === Object.keys(current).length ? current : next;
         });
     }, [decisions]);
-    const beforeAgenda = subjects
-        .filter(subject => !isRecordSubject(subject))
-        .map(subject => ({ id: subject.id, name: displayName(subject) }))
-        .filter(subject => !query || normalizeText(subject.name).includes(query));
+    const beforeAgenda = table.beforeAgenda.filter(subject => !query || normalizeText(subject.name).includes(query));
 
     const decidableSubjects = recordSubjects.filter(s => !s.withdrawn);
     /** Whether anything on this meeting was extracted — an excerpt counts, so a
@@ -1109,6 +1114,15 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             toast({ title: t('minutes.exportSuccess') });
         } catch {
             toast({ title: t('minutes.exportError'), variant: 'destructive' });
+        }
+    };
+
+    const handleExportDecisionsTable = async () => {
+        try {
+            await downloadFromUrl(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions/table`, `decisions-table-${city.id}-${meeting.id}.docx`);
+            toast({ title: tTable('exportSuccess') });
+        } catch {
+            toast({ title: tTable('exportError'), variant: 'destructive' });
         }
     };
 
@@ -1687,6 +1701,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         isSuperAdmin={isSuperAdmin}
                         onPreviewMinutes={() => setPreviewOpen(true)}
                         onExportDocx={handleExportDocx}
+                        onExportDecisionsTable={handleExportDecisionsTable}
                         previewDisabled={!minutes}
                         isPolling={isPolling}
                         onPollSkippingCache={noDecisions ? null : () => { void handlePoll(true); }}

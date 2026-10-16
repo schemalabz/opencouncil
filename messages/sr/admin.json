@@ -306,13 +306,6 @@
             "showRestWithdrawn": "{n, plural, one {# повучена} few {# повучене} other {# повучених}}",
             "showLess": "Прикажи мање",
             "empty": "Ниједна тачка не одговара овом филтеру.",
-            "result": {
-                "unanimous": "Једногласно",
-                "majority": "Већином гласова",
-                "rejected": "Одбијено",
-                "none": "—",
-                "noVote": "—"
-            },
             "filterAudit": "Захтевају проверу"
         },
         "panel": {
