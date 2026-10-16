@@ -771,7 +771,7 @@
         "adminCity": "Управљај градом",
         "adminParty": "Управљај одборничком групом",
         "adminPerson": "Управљај чланом",
-        "adminBody": "Body administrator"
+        "adminBody": "Управљај органом"
     },
     "OfferForm": {
         "recipientName": "Прималац",

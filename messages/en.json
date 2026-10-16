@@ -771,7 +771,7 @@
         "adminCity": "Manage City",
         "adminParty": "Manage Party",
         "adminPerson": "Manage Member",
-        "adminBody": "Body administrator"
+        "adminBody": "Manage Body"
     },
     "OfferForm": {
         "recipientName": "Recipient",

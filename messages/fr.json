@@ -877,7 +877,7 @@
     "adminCity": "Gérer la ville",
     "adminParty": "Gérer le groupe",
     "adminPerson": "Gérer le membre",
-    "adminBody": "Body administrator"
+    "adminBody": "Gérer l'organe"
   },
   "OfferForm": {
     "success": "Succès",
