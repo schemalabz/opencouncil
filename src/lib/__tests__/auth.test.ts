@@ -23,7 +23,8 @@ jest.mock('@/lib/db/prisma', () => ({
     },
 }));
 
-import { isUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { ForbiddenError } from '@/lib/api/errors';
 
 type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
 
@@ -159,5 +160,67 @@ describe('personIsOwnedByBodyAdmin', () => {
         expect(personIsOwnedByBodyAdmin([], held)).toBe(false);
         expect(personIsOwnedByBodyAdmin([{ administrativeBodyId: 'youth' }], held)).toBe(true);
         expect(personIsOwnedByBodyAdmin([{ administrativeBodyId: 'youth' }, { administrativeBodyId: undefined }], held)).toBe(false);
+    });
+});
+
+describe('an anonymous caller', () => {
+    beforeEach(() => signIn(null));
+
+    // createPerson ("use server") has no other gate than this limit.
+    it('gives no role', async () => {
+        expect(await getRoleLimitForCity('athens')).toEqual(new Set());
+    });
+
+    it('passes no scope', async () => {
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens' })).toBe(false);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', administrativeBodyId: 'youth' })).toBe(false);
+        mockPersonFindUnique.mockResolvedValue({ cityId: 'athens', roles: [{ administrativeBodyId: 'youth' }] });
+        expect(await isUserAuthorizedToEdit({ personId: 'p1' })).toBe(false);
+    });
+});
+
+describe('a body admin and the other shapes', () => {
+    beforeEach(() => signIn({ administers: [{ administrativeBodyId: 'youth' }] }));
+
+    it('does not pass a party scope', async () => {
+        mockPartyFindUnique.mockResolvedValue({ cityId: 'athens' });
+        expect(await isUserAuthorizedToEdit({ partyId: 'democrats' })).toBe(false);
+    });
+
+    it('does not own a person of another city whose roles name their body id', async () => {
+        mockPersonFindUnique.mockResolvedValue({ cityId: 'argos', roles: [{ administrativeBodyId: 'youth' }] });
+        expect(await isUserAuthorizedToEdit({ personId: 'p1' })).toBe(false);
+    });
+
+    it('is refused with a 403 ForbiddenError, not a plain Error', async () => {
+        const error = await withUserAuthorizedToEdit({ cityId: 'athens' }).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ForbiddenError);
+        expect((error as ForbiddenError).statusCode).toBe(403);
+    });
+});
+
+describe('a party admin and a person admin', () => {
+    it.each([[{ partyId: 'democrats' }], [{ personId: 'p9' }]])('do not pass the meeting scope of a meeting with no body (%o)', async (row) => {
+        signIn({ administers: [row] });
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'council1' })).toBe(false);
+    });
+});
+
+describe('a city admin of another city', () => {
+    beforeEach(() => signIn({ administers: [{ cityId: 'argos' }] }));
+
+    it('passes nothing in athens', async () => {
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'ym1' })).toBe(false);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', administrativeBodyId: 'youth' })).toBe(false);
+        expect(await getRoleLimitForCity('athens')).toEqual(new Set());
+    });
+});
+
+describe('a superadmin', () => {
+    it('passes every shape, the bare one included', async () => {
+        signIn({ isSuperAdmin: true, administers: [] });
+        expect(await isUserAuthorizedToEdit({})).toBe(true);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'cm1' })).toBe(true);
+        expect(await getRoleLimitForCity('athens')).toBeNull();
     });
 });

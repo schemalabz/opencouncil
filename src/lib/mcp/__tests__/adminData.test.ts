@@ -407,3 +407,28 @@ describe('permission matrix', () => {
         expect(writes()).toBe(0);
     });
 });
+
+// A body admin may move a meeting between two bodies that they both hold.
+describe('an administrator of two bodies', () => {
+    beforeEach(() => {
+        mockUserFindUnique.mockResolvedValue({
+            isSuperAdmin: false,
+            administers: [
+                { cityId: null, administrativeBodyId: 'council', administrativeBody: { cityId: 'argos' } },
+                { cityId: null, administrativeBodyId: 'committee', administrativeBody: { cityId: 'argos' } },
+            ],
+        });
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: 'n', name_en: 'n', dateTime: new Date(), youtubeUrl: null,
+            agendaUrl: null, administrativeBody: { name: 'Committee' }, released: false,
+        });
+    });
+
+    it('moves a meeting from one of their bodies to the other, and not to no body', async () => {
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: 'committee' }))
+            .resolves.toMatchObject({ id: 'm1' });
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: null }))
+            .rejects.toThrow(ForbiddenError);
+        expect(updateMeetingWithEffects).toHaveBeenCalledTimes(1);
+    });
+});
