@@ -7,7 +7,7 @@ import { OptionalSectionBoundary } from "@/components/ui/OptionalSectionBoundary
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
@@ -79,12 +79,9 @@ export async function generateMetadata(
 
     const shared = await selectedContribution(props);
     const sharedMetadata = shared ? await contributionMetadata(shared, params.locale) : {};
-    return {
+    return withCanonicalUrl(`/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`, {
         title,
         description,
-        alternates: await buildCanonicalAlternates(
-            `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`
-        ),
         openGraph: {
             title,
             description,
@@ -95,7 +92,7 @@ export async function generateMetadata(
             description,
         },
         ...sharedMetadata,
-    };
+    });
 }
 
 // Server component that renders the Subject component

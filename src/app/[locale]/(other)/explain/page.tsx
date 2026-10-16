@@ -13,7 +13,7 @@ import {
     CURRENT_OFFER_VERSION,
 } from "@/lib/pricing/config";
 import type { ExplainPricing } from "./ExplainFeatures";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
@@ -76,7 +76,7 @@ export async function generateMetadata(props: {
 
     const ogImageUrl = "/api/og?pageType=explain";
 
-    return {
+    return withCanonicalUrl("/explain", {
         title: `${PAGE_TITLE} | OpenCouncil`,
         description: PAGE_DESCRIPTION,
         keywords: [
@@ -111,8 +111,7 @@ export async function generateMetadata(props: {
             description: PAGE_DESCRIPTION,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates("/explain"),
-    };
+    });
 }
 
 export default async function ExplainPage() {

@@ -8,7 +8,7 @@ import { listUserMcpTokens } from "@/lib/db/mcpTokens";
 import { CopyButton } from "@/components/mcp/CopyButton";
 import { ConnectPanel } from "@/components/mcp/ConnectPanel";
 import { McpTokenManager } from "@/components/mcp/McpTokenManager";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { ArrowRight } from "lucide-react";
 
 // Both entry points read the locale from params and pass it explicitly:
@@ -20,17 +20,16 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
     const { locale } = await props.params;
     const t = await getTranslations({ locale, namespace: "mcp.metadata" });
-    return {
+    return withCanonicalUrl("/mcp", {
         title: t("title"),
         description: t("description"),
-        alternates: await buildCanonicalAlternates("/mcp"),
         openGraph: {
             title: t("title"),
             description: t("description"),
             type: "website",
             siteName: "OpenCouncil",
         },
-    };
+    });
 }
 
 // The walkthrough is linked rather than embedded: an embed sits between the

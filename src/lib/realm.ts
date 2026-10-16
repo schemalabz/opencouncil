@@ -262,7 +262,7 @@ export function getRealmBaseUrl(realm: Realm): string {
 /**
  * Base URL for resolving a page's relative metadata URLs — today only the
  * `/api/og` images, since canonicals and hreflang are built absolute by
- * `buildCanonicalAlternates`.
+ * `withCanonicalUrl`.
  *
  * On a realm's production apex this is the canonical realm URL, so
  * opencouncil.gr and opencouncil.fr each unfurl their own images. On a preview
