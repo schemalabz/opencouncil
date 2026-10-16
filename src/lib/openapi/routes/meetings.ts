@@ -26,6 +26,7 @@ const MeetingSchema = z.object({
     cityId: z.string(),
     youtubeUrl: z.string().nullable(),
     agendaUrl: z.string().nullable(),
+    municipalMinutesUrl: z.string().nullable().openapi({ description: "The municipality's own verbatim minutes, when the meeting was backfilled from them." }),
     videoUrl: z.string().nullable(),
     audioUrl: z.string().nullable(),
     released: z.boolean(),

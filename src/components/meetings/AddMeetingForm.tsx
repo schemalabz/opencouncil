@@ -55,6 +55,11 @@ const formSchema = z.object({
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
+    // The municipality's own verbatim minutes (#876): attaching them is the
+    // choice to correct the transcript from them and skip the review.
+    municipalMinutesUrl: z.string().url({
+        message: "Invalid municipal minutes URL.",
+    }).optional().or(z.literal("")),
     // Empty on create: the API makes the id from the date and adds _2, _3 when
     // the day already has a meeting. A typed id is sent as it is.
     meetingId: z.string().optional(),
@@ -125,6 +130,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
+            municipalMinutesUrl: meeting?.municipalMinutesUrl || "",
             meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
@@ -531,6 +537,35 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                     </FormControl>
                                     <FormDescription>
                                         {t('meetingAgendaDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )
+                        }}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="municipalMinutesUrl"
+                        render={({ field }) => {
+                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
+
+                            return (
+                                <FormItem>
+                                    <FormLabel>{t('meetingMunicipalMinutes')}</FormLabel>
+                                    <FormControl>
+                                        <LinkOrDrop
+                                            {...field}
+                                            placeholder={t('meetingMunicipalMinutesPlaceholder')}
+                                            onUrlChange={(url) => field.onChange(url)}
+                                            config={meetingId ? {
+                                                cityId,
+                                                identifier: meetingId,
+                                                suffix: 'municipalMinutes'
+                                            } : undefined}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingMunicipalMinutesDescription')}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>

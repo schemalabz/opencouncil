@@ -6,6 +6,8 @@ const mockUtteranceFindUnique = jest.fn();
 const mockUtteranceUpdate = jest.fn();
 const mockUtteranceEditCreate = jest.fn();
 const mockApplySpeakerHints = jest.fn();
+const mockAutoTriggerTask = jest.fn();
+const mockRequestFixFromMinutes = jest.fn();
 
 jest.mock('server-only', () => ({}));
 jest.mock('@/lib/db/prisma', () => ({
@@ -25,6 +27,8 @@ jest.mock('@/lib/db/prisma', () => ({
 jest.mock('@/lib/db/utils', () => ({ getFixTranscriptRequestBody: jest.fn() }));
 jest.mock('@/lib/tasks/tasks', () => ({ startTask: jest.fn() }));
 jest.mock('../speakerHints', () => ({ applySpeakerHints: (...args: unknown[]) => mockApplySpeakerHints(...args) }));
+jest.mock('../autoTrigger', () => ({ autoTriggerTask: (...args: unknown[]) => mockAutoTriggerTask(...args) }));
+jest.mock('../fixFromMinutesInternal', () => ({ requestFixFromMinutesInternal: (...args: unknown[]) => mockRequestFixFromMinutes(...args) }));
 
 import { handleFixTranscriptResult } from '../fixTranscriptInternal';
 
@@ -52,12 +56,12 @@ describe('handleFixTranscriptResult', () => {
       data: { text: 'Διορθωμένο.', uncertain: false, lastModifiedBy: 'task' },
     });
     expect(mockUtteranceEditCreate).toHaveBeenCalledWith({
-      data: { utteranceId: 'u1', beforeText: 'Λάθος.', afterText: 'Διορθωμένο.', editedBy: 'task' },
+      data: { utteranceId: 'u1', beforeText: 'Λάθος.', afterText: 'Διορθωμένο.', editedBy: 'task', taskId: 'task-1' },
     });
     expect(mockApplySpeakerHints).toHaveBeenCalledWith('task-1', result.speakerHints);
   });
 
-  it('looks for a later transcribe or fixTranscript run of the same meeting whose result has arrived', async () => {
+  it('looks for a later transcribe, fixTranscript or fixFromMinutes run of the same meeting whose result has arrived', async () => {
     await handleFixTranscriptResult('task-1', result);
 
     // A later run counts from the moment its payload is in, not only once its
@@ -66,9 +70,31 @@ describe('handleFixTranscriptResult', () => {
       cityId: 'city-1',
       councilMeetingId: 'meeting-1',
       OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
-      type: { in: ['transcribe', 'fixTranscript'] },
+      type: { in: ['transcribe', 'fixTranscript', 'fixFromMinutes'] },
       createdAt: { gt: TASK_CREATED },
     });
+  });
+
+  it('chains fixFromMinutes when the meeting has the municipal minutes, and not otherwise', async () => {
+    mockAutoTriggerTask.mockImplementation(async (_type: string, _context: unknown, trigger: () => Promise<unknown>) => { await trigger(); return 'started'; });
+    await handleFixTranscriptResult('task-1', result);
+    expect(mockAutoTriggerTask).not.toHaveBeenCalled();
+
+    mockTaskFindUnique.mockResolvedValue({
+      cityId: 'city-1', councilMeetingId: 'meeting-1', createdAt: TASK_CREATED,
+      councilMeeting: {
+        municipalMinutesUrl: 'https://example.com/minutes.pdf',
+        name: null, name_en: null, kind: null, urgent: false, sessionNumber: null, dateTime: TASK_CREATED,
+        city: { name_en: 'City', timezone: 'Europe/Athens' }, administrativeBody: null,
+      },
+    });
+    await handleFixTranscriptResult('task-1', result);
+    expect(mockAutoTriggerTask).toHaveBeenCalledWith(
+      'fixFromMinutes',
+      expect.objectContaining({ cityId: 'city-1', meetingId: 'meeting-1', source: { taskType: 'fixTranscript', taskId: 'task-1' } }),
+      expect.any(Function),
+    );
+    expect(mockRequestFixFromMinutes).toHaveBeenCalledWith('meeting-1', 'city-1', { force: true });
   });
 
   it('ignores a superseded result whole: no old text comes back, no hints are applied', async () => {

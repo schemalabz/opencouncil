@@ -53,7 +53,7 @@ Meetings progress through defined stages based on completed tasks. The stages ar
 1. **Scheduled** - Initial state when meeting is created
 2. **Transcribe** - Audio/video has been transcribed to text
 3. **Fix Transcript** - Automatic transcript correction has been applied
-4. **Human Review** - Manual review and correction completed by human
+4. **Human Review** - Manual review and correction completed by human. A meeting that has the municipality's own verbatim minutes (`municipalMinutesUrl`) skips it: the `fixFromMinutes` task stands in for the review and for the transcript email (`standsInFor` in `TASK_CONFIG`), so the meeting reaches "ready" with no review row. See [Backfill from the municipal minutes](#backfill-from-the-municipal-minutes).
 5. **Transcript Sent** - The corrected transcript has been sent
 6. **Summarize** - AI summarization and topic extraction completed
 7. **Ready** - All required pipeline tasks completed, meeting fully processed
@@ -261,7 +261,7 @@ sequenceDiagram
 *   **Authentication**:
     *   `src/lib/auth.ts` (withUserAuthorizedToEdit, isUserAuthorizedToEdit, hierarchical permissions)
 *   **Task Processing Pipeline**:
-    *   **Core Pipeline**: Process Agenda (optional) → Transcribe → Fix Transcript → Human Review → Summarize
+    *   **Core Pipeline**: Process Agenda (optional) → Transcribe → Fix Transcript → Human Review → Summarize. With the municipal minutes: Transcribe → Fix Transcript → Fix From Minutes → Summarize, with no step for a person.
     *   **Post-Processing**: Highlight Generation, Voiceprint Generation, Decision Polling
 *   **Cache Management**:
     *   `src/lib/cache/queries.ts` (cache invalidation via Next.js API routes)
@@ -306,3 +306,15 @@ sequenceDiagram
 
 
 
+
+## Backfill from the municipal minutes
+
+A municipality that keeps verbatim minutes (πρακτικά) can backfill a past meeting from the recording and the minutes, with no reviewer (#876). The task server corrects the transcript from the minutes and names the speakers from their labels; `opencouncil-tasks/docs/minutes-correction.md` describes how.
+
+* **The document.** `CouncilMeeting.municipalMinutesUrl` holds the municipality's own minutes, a PDF or a DOCX. The meeting form has a field for it, and the admin MCP takes it on `create_meeting`, `update_meeting` and `start_task`. `create_document_upload_url` uploads a file that has no public URL. The name keeps it apart from `src/lib/minutes/`, which generates minutes from our data.
+* **The chain.** When `fixTranscript` succeeds on a meeting that has the minutes, its handler starts `fixFromMinutes`. When that succeeds, its handler starts `summarize`, as the end of a review does. `fixFromMinutes` is exclusive with `transcribe` and `fixTranscript`, and a later run of any of the three supersedes an earlier correction result.
+* **No review.** `TASK_CONFIG.fixFromMinutes.standsInFor` names `humanReview` and `transcriptSent`. `getMeetingTaskStatus` reads a required step as done when the step or a stand-in succeeded, so the stage, the "ready" flag and the public transcript follow. No review row is written: the reviews table, the review stats and `applySpeakerHints` see no review, and a voiceprint is never generated from a backfilled meeting.
+* **No notifications.** A meeting older than `NOTIFICATION_MAX_MEETING_AGE_DAYS` (30) creates no citizen notification, from `summarize` or from `processAgenda`, whatever its body's `notificationBehavior`.
+* **The record.** Every task edit records its run in `UtteranceEdit.taskId`, so the changes of `fixTranscript` and of `fixFromMinutes` can be told apart. `list_transcript_edits` lists them with the page and the speaker label of the turn each change came from, and `revert_transcript_edit` puts the earlier text back as an edit of the caller. The result of the run carries a report (coverage, corrections, contested speakers, disagreements between methods, unresolved labels) that `get_meeting` shows on the task.
+* **The roster.** The task names speakers from the roles in force on the meeting date. A past term's roles must be in the city before the backfill, or the labels of the minutes resolve to nobody; the report lists them.
+* **Speakers.** The minutes are a third `SpeakerIdentification` method, `minutes`, beside `voiceprint` and `transcript`. See the editing interface guide for how the three combine.

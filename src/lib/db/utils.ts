@@ -10,7 +10,8 @@ import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
-import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { FixFromMinutesRequest, FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { localCalendarDate } from "@/lib/formatters/time";
 import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
@@ -127,6 +128,31 @@ export async function getFixTranscriptRequestBody(councilMeetingId: string, city
     // Speaker hints judge each diarization speaker on its own, so two tags the
     // voiceprint matched to one person must not reach the task as one speaker.
     return getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true });
+}
+
+/**
+ * The fixFromMinutes request: the transcript as fixTranscript left it, the
+ * municipality's minutes, and what picks the meeting inside a document that
+ * holds several. The caller checks that the meeting has the minutes.
+ */
+export async function getFixFromMinutesRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixFromMinutesRequest, 'callbackUrl'>> {
+    const [base, meeting, city] = await Promise.all([
+        getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true }),
+        getCouncilMeetingDirect(cityId, councilMeetingId),
+        getCity(cityId),
+    ]);
+    if (!meeting?.municipalMinutesUrl) {
+        throw new Error('The meeting has no municipal minutes');
+    }
+    if (!city) {
+        throw new Error('City not found');
+    }
+    return {
+        ...base,
+        municipalMinutesUrl: meeting.municipalMinutesUrl,
+        meetingDate: localCalendarDate(meeting.dateTime, city.timezone),
+        sessionNumber: meeting.sessionNumber,
+    };
 }
 
 let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {

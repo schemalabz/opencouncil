@@ -71,13 +71,14 @@ The system divides editing into distinct categories and modes:
     **Speaker identifications.** Two tasks each give an independent opinion on who a speaker is. Each opinion is a `SpeakerIdentification` row, one per speaker tag and method:
     *   The **voiceprint** identification comes from `transcribe`, which matches the voice against stored voiceprints.
     *   The **transcript** identification comes from `fixTranscript`, which reads who is speaking from the text alone: the chair gives the floor by name, members answer the roll call. It never sees the voiceprint matches, and it works in a city that has no voiceprints. It carries the `evidence`: the decisive transcript line with its timestamp.
-    *   `personSetBy`, on the `SpeakerTag`, records who decided `personId`: `voiceprint`, `transcript`, `both` or `user`.
+    *   The **minutes** identification comes from `fixFromMinutes`, which aligns the municipality's own verbatim minutes with the transcript and reads the speaker label of each turn (#876). Its `confidence` is the purity: the share of the speaker's aligned words that the minutes give to that person.
+    *   `personSetBy`, on the `SpeakerTag`, records who decided `personId`: `voiceprint`, `transcript`, `minutes`, `both` (two or more methods agreed) or `user`.
 
     Each method decides on the task server whether it would act on its opinion by itself, and says so in `actionable`. For voiceprints that is the match threshold. For the transcript it is the kind of evidence, decided next to the prompt that produces it (see opencouncil-tasks, `docs/speaker-identification-backtest.md`). This app thresholds no score: `confidence` is stored for a reviewer to read.
 
     `src/lib/speakerIdentifications.ts` holds the rules, as pure functions that compare identities and that the task handler and the editor share:
-    *   Both methods name the same person: that person.
-    *   Both would act, on different people: nobody. One of them is wrong, so the speaker shows as unknown and the editor alerts the reviewer, who decides.
+    *   Every actionable opinion names the same person, or a majority does (two of three): that person. No method ranks above another.
+    *   The actionable opinions tie on different people: nobody. One of them is wrong, so the speaker shows as unknown and the editor alerts the reviewer, who decides. The minutes never overwrite a speaker on their own.
     *   Only the voiceprint would act: the voiceprint's person. A name the transcript would not act on does not unseat a match.
     *   Only the transcript would act: the transcript's person.
     *   **A reviewer's tag is never reassigned.** Any edit of a tag, a typed label included, sets `personSetBy` to `user`, and so does a tag the reviewer creates by adding a segment or splitting utterances off. A meeting whose review is complete is final too: a reviewer who agrees with a name leaves the tag untouched, so once the review has completed, a run stores identifications and changes no assignment. An unfinished review freezes only the tags it touched. A review counts for the transcript it looked at: after a re-transcribe, the rules apply again. A result that a later transcribe or fixTranscript run has superseded is ignored whole, its text corrections included.

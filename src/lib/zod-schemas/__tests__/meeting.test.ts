@@ -51,7 +51,7 @@ describe('the fields of meetingSchema', () => {
     // them, or one of the other fields that both routes pass on by name.
     const OTHER_FIELDS = [
         'date', 'youtubeUrl', 'agendaUrl', 'meetingId', 'administrativeBodyId',
-        'processAgenda', 'postponedFromId', 'continuationOfId',
+        'processAgenda', 'postponedFromId', 'continuationOfId', 'municipalMinutesUrl',
     ];
 
     it('are the record facts and the fields that the routes pass on by name', () => {

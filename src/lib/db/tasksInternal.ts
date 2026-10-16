@@ -7,6 +7,7 @@
 // prevents a client from invoking them directly to probe or delete task ids.
 import "server-only";
 import type { Prisma, TaskStatus } from '@prisma/client';
+import type { FixFromMinutesReport, FixFromMinutesResult } from '@/lib/apiTypes';
 import prisma from "./prisma";
 import { TASK_CONFIG } from '@/lib/tasks/types';
 
@@ -122,4 +123,19 @@ export async function getTasksForMeetingDirect(cityId: string, councilMeetingId:
     const errorById = new Map(errors.map(row => [row.id, row.failureReason]));
 
     return rows.map(row => ({ ...row, error: errorById.get(row.id) ?? null }));
+}
+
+/**
+ * The report of a fixFromMinutes run, from its stored result: what the
+ * minutes changed and where they disagree with the other methods. Null for
+ * another task, a run without a result, or a payload that is not JSON.
+ */
+export async function getFixFromMinutesReport(taskId: string): Promise<FixFromMinutesReport | null> {
+    const task = await prisma.taskStatus.findUnique({ where: { id: taskId }, select: { type: true, responseBody: true } });
+    if (task?.type !== 'fixFromMinutes' || !task.responseBody) return null;
+    try {
+        return (JSON.parse(task.responseBody) as Partial<FixFromMinutesResult>).report ?? null;
+    } catch {
+        return null;
+    }
 }

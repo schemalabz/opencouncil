@@ -1,6 +1,7 @@
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
 import { handleFixTranscriptResult } from './fixTranscriptInternal';
+import { handleFixFromMinutesResult } from './fixFromMinutesInternal';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleGenerateHighlightResult } from './generateHighlight';
@@ -13,6 +14,7 @@ export const taskHandlers: Record<string, TaskResultHandler> = {
     transcribe: handleTranscribeResult,
     summarize: handleSummarizeResult,
     fixTranscript: handleFixTranscriptResult,
+    fixFromMinutes: handleFixFromMinutesResult,
     processAgenda: handleProcessAgendaResult,
     generateVoiceprint: handleGenerateVoiceprintResult,
     generateHighlight: handleGenerateHighlightResult,

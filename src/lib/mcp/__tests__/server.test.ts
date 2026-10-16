@@ -41,7 +41,7 @@ const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
 
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
-const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
+const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_document_upload_url', 'create_agenda_upload_url', 'list_transcript_edits', 'revert_transcript_edit', 'start_task'];
 const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
 const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set() };
 const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
