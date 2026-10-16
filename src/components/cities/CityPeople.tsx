@@ -153,7 +153,7 @@ export default function CityPeople({
             ItemComponent={PersonCard}
             FormComponent={PersonForm}
             formProps={editableBodyIds
-                ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)) }
+                ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)), roleTypes: ['administrativeBody' as const] }
                 : { cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={typeOptions}

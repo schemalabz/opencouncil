@@ -312,6 +312,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                 parties: [],
                                                 administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)),
                                                 canEditRoles: editableBodyIds.length > 0,
+                                                roleTypes: ['administrativeBody' as const],
                                             }
                                             : { person, cityId: person.cityId, parties, administrativeBodies }}
                                         title={t('editPerson')}

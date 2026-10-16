@@ -53,6 +53,9 @@ const formSchema = z.object({
     administrativeBodyId: z.string().optional(),
 }).refine(roleDatesInOrder, roleDatesInOrderIssue)
 
+export type RoleType = z.infer<typeof formSchema>['type']
+const ALL_ROLE_TYPES: RoleType[] = ['city', 'party', 'administrativeBody']
+
 interface RolesListProps {
     personId?: string;
     cityId: string;
@@ -60,9 +63,15 @@ interface RolesListProps {
     parties: Party[];
     administrativeBodies: AdministrativeBody[];
     onUpdate: (roles: RoleWithRelations[]) => void;
+    /**
+     * The kinds of role the editor offers, the first one as the default. A
+     * body admin gives roles on their bodies only (#828), so their editor
+     * offers no city role and no party role.
+     */
+    roleTypes?: RoleType[];
 }
 
-export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate }: RolesListProps) {
+export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES }: RolesListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [startDateOpen, setStartDateOpen] = useState(false)
     const [endDateOpen, setEndDateOpen] = useState(false)
@@ -77,7 +86,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: editingRole?.isHead || false,
             startDate: editingRole?.startDate || null,
             endDate: editingRole?.endDate || null,
-            type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : 'city',
+            type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : roleTypes[0],
             partyId: editingRole?.partyId || undefined,
             administrativeBodyId: editingRole?.administrativeBodyId || undefined,
         },
