@@ -38,6 +38,19 @@ type TranscriptGateFields = Pick<PublicMeeting, 'taskStatuses'> & {
 export const transcriptIsPublic = (meeting: TranscriptGateFields) =>
     meeting.administrativeBody?.showUnreviewedTranscript !== false || meeting.taskStatuses.length > 0;
 
+/**
+ * `transcriptIsPublic` for one meeting, read by its ids. The meeting page reads
+ * it alongside the meeting: the public body that the page receives does not
+ * carry the setting. False when the meeting does not exist.
+ */
+export async function meetingTranscriptIsPublic(cityId: string, meetingId: string): Promise<boolean> {
+    const meeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        select: transcriptGateSelect,
+    });
+    return meeting !== null && transcriptIsPublic(meeting);
+}
+
 /** `transcriptIsPublic` as a database filter, for a released meeting. */
 export const TRANSCRIPT_PUBLIC_WHERE = {
     released: true,

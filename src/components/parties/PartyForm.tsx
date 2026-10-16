@@ -2,9 +2,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { partyFormSchema, type PartyFormValues } from "@/lib/zod-schemas/party"
+import type * as z from "zod"
+import { partyFormDataSchema, partyFormSchema, type PartyFormOutput } from "@/lib/zod-schemas/party"
+import { toFormData } from "@/lib/utils/formData"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -42,9 +45,10 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const [formError, setFormError] = useState<string | null>(null)
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
     const t = useTranslations('PartyForm')
+    const validationMessage = useValidationMessage()
 
-    const form = useForm<PartyFormValues>({
-        resolver: zodResolver(partyFormSchema),
+    const form = useForm({
+        resolver: useZodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",
             name_en: party?.name_en || "",
@@ -53,30 +57,22 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
             colorHex: party?.colorHex || "",
         },
     })
-    async function onSubmit(values: PartyFormValues) {
+    async function onSubmit(values: PartyFormOutput) {
         setIsSubmitting(true)
         setFormError(null)
         const url = party ? `/api/cities/${cityId}/parties/${party.id}` : `/api/cities/${cityId}/parties`
         const method = party ? 'PUT' : 'POST'
 
-        const formData = new FormData()
-
-        // Append all form values
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('colorHex', values.colorHex)
-        formData.append('cityId', cityId)
-
-        // Append logo if it exists
-        if (logo) {
-            formData.append('logo', logo)
-        }
-        // Signal removal of an existing logo
-        if (removeLogo && !logo) {
-            formData.append('removeLogo', 'true')
-        }
+        const formData = toFormData({
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            colorHex: values.colorHex,
+            logo: logo ?? undefined,
+            // Signal removal of an existing logo
+            removeLogo: removeLogo && !logo ? 'true' : undefined,
+        } satisfies z.input<typeof partyFormDataSchema>)
 
         try {
             const response = await fetch(url, {
@@ -91,7 +87,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
                 router.refresh() // Refresh the page to show updated data
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSaveParty'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSaveParty'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSaveParty'), error)
@@ -104,6 +100,11 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {formError && (
+                    <div role="alert" className="whitespace-pre-line rounded-[8px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {formError}
+                    </div>
+                )}
                 <InputWithDerivatives
                     baseName="name"
                     basePlaceholder={t('partyNamePlaceholder')}

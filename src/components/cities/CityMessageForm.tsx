@@ -26,9 +26,11 @@ const DEFAULT_MESSAGE_STATE: MessageFormState = {
 interface CityMessageFormProps {
     existingMessage?: CityMessage | null;
     onMessageChange?: (messageData: MessageFormState) => void;
+    /** The error of the call-to-action link, in the language of the reader. */
+    callToActionUrlError?: string | null;
 }
 
-export default function CityMessageForm({ existingMessage, onMessageChange }: CityMessageFormProps) {
+export default function CityMessageForm({ existingMessage, onMessageChange, callToActionUrlError }: CityMessageFormProps) {
     const t = useTranslations('CityForm.CityMessageForm')
 
     // Message state using Prisma type with form additions
@@ -120,7 +122,11 @@ export default function CityMessageForm({ existingMessage, onMessageChange }: Ci
                                         placeholder={t('urlPlaceholder')}
                                         value={messageState.callToActionUrl || ''}
                                         onChange={(e) => updateMessageState({ callToActionUrl: e.target.value || null })}
+                                        aria-invalid={callToActionUrlError ? true : undefined}
                                     />
+                                    {callToActionUrlError && (
+                                        <p className="text-sm font-medium text-destructive">{callToActionUrlError}</p>
+                                    )}
                                     <div className="flex items-center space-x-2">
                                         <Checkbox
                                             id="external-link"

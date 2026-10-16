@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { z } from 'zod'
 import { uploadFile } from '@/lib/s3'
-import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
-import { updateCityFormDataSchema } from '@/lib/zod-schemas/city'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { CityUpdateData } from '@/lib/db/types/city'
+import { errorResponse, handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -28,7 +27,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
 
     // Check if user is superadmin (required for status changes)
@@ -36,29 +35,24 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
     const isSuperAdmin = currentUser?.isSuperAdmin ?? false
 
     try {
-        const formData = await request.formData();
-        const data = await parseFormData(formData, updateCityFormDataSchema);
-
-        // CityMessage is a separate entity, parsed manually and handled after city update
-        const hasMessage = formData.get('hasMessage') === 'true'
-        const messageEmoji = formData.get('messageEmoji') as string | null
-        const messageTitle = formData.get('messageTitle') as string | null
-        const messageDescription = formData.get('messageDescription') as string | null
-        const messageCallToActionText = formData.get('messageCallToActionText') as string | null
-        const messageCallToActionUrl = formData.get('messageCallToActionUrl') as string | null
-        const messageCallToActionExternal = formData.get('messageCallToActionExternal') === 'true'
-        const messageIsActive = formData.get('messageIsActive') === 'true'
+        const formData = await readFormData(request);
+        const {
+            removeLogoImage,
+            // CityMessage is a separate entity, handled after the city update
+            hasMessage,
+            messageEmoji,
+            messageTitle,
+            messageDescription,
+            messageCallToActionText,
+            messageCallToActionUrl,
+            messageCallToActionExternal,
+            messageIsActive,
+            ...data
+        } = parseFormData(formData, updateCityRequestFormDataSchema);
 
         // Upload logo if provided
-        const removeLogoImage = formData.get('removeLogoImage') === 'true'
         let logoImageUrl: string | undefined = undefined
         if (data.logoImage) {
-            if (!ALLOWED_LOGO_CONTENT_TYPES.includes(data.logoImage.type)) {
-                return NextResponse.json(
-                    { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` },
-                    { status: 400 }
-                )
-            }
             try {
                 const result = await uploadFile(data.logoImage, { prefix: 'city-logos' })
                 logoImageUrl = result.url
@@ -118,27 +112,29 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             await updateCityGeometry(params.cityId, boundary.geometry);
         }
 
-        // Handle message operations
-        try {
-            if (hasMessage && messageEmoji && messageTitle && messageDescription) {
-                // Upsert message (create or update - overwrites existing)
-                await upsertCityMessage(params.cityId, {
-                    emoji: messageEmoji,
-                    title: messageTitle,
-                    description: messageDescription,
-                    callToActionText: messageCallToActionText || null,
-                    callToActionUrl: messageCallToActionUrl || null,
-                    callToActionExternal: messageCallToActionExternal,
-                    isActive: messageIsActive
-                });
-            } else if (!hasMessage) {
-                // Delete message if hasMessage is false
-                await deleteCityMessage(params.cityId);
+        // The message editor is a superadmin tool, so only a superadmin's
+        // request writes the message. Any other request leaves it as it is.
+        if (isSuperAdmin && hasMessage !== undefined) {
+            try {
+                if (hasMessage && messageEmoji && messageTitle && messageDescription) {
+                    // Upsert message (create or update - overwrites existing)
+                    await upsertCityMessage(params.cityId, {
+                        emoji: messageEmoji,
+                        title: messageTitle,
+                        description: messageDescription,
+                        callToActionText: messageCallToActionText || null,
+                        callToActionUrl: messageCallToActionUrl || null,
+                        callToActionExternal: messageCallToActionExternal,
+                        isActive: messageIsActive
+                    });
+                } else if (!hasMessage) {
+                    await deleteCityMessage(params.cityId);
+                }
+            } catch (error) {
+                console.error('Error handling city message:', error);
+                // Don't return error here, as city was updated successfully
+                // Just log the message operation failure
             }
-        } catch (error) {
-            console.error('Error handling city message:', error);
-            // Don't return error here, as city was updated successfully
-            // Just log the message operation failure
         }
 
         // Revalidate cache after successful operations
@@ -154,14 +150,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
 
         return NextResponse.json(city);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: error.errors },
-                { status: 400 }
-            );
-        }
-        console.error('Error updating city:', error);
-        return NextResponse.json({ error: 'Failed to update city' }, { status: 500 });
+        return handleApiError(error, 'Failed to update city');
     }
 }
 
@@ -169,7 +158,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ cityId
     const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     await deleteCity(params.cityId);
     return NextResponse.json({ message: 'City deleted successfully' })

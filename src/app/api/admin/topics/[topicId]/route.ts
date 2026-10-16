@@ -7,9 +7,8 @@ import { updateTopicSchema } from "@/lib/zod-schemas/topic";
 
 export async function PUT(request: Request, props: { params: Promise<{ topicId: string }> }) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({});
-
     try {
+        await withUserAuthorizedToEdit({});
         const data = updateTopicSchema.parse(await request.json());
 
         const topic = await updateTopic(params.topicId, data);
@@ -25,9 +24,8 @@ export async function PUT(request: Request, props: { params: Promise<{ topicId: 
 
 export async function DELETE(_request: Request, props: { params: Promise<{ topicId: string }> }) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({});
-
     try {
+        await withUserAuthorizedToEdit({});
         await deleteTopic(params.topicId);
 
         revalidatePath("/admin/topics");

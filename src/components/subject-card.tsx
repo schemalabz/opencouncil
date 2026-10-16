@@ -1,4 +1,5 @@
-import { AdministrativeBody, City, CouncilMeeting, Party } from "@prisma/client";
+import { City, CouncilMeeting, Party } from "@prisma/client";
+import type { PublicAdministrativeBody } from "@/lib/db/types";
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SubjectCardContent } from "./subject/SubjectCardContent";
@@ -24,7 +25,7 @@ import { meetingDisplayName } from '@/lib/meetingName';
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics; matches?: SearchMatches };
     city: City;
-    meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
+    meeting: CouncilMeeting & { administrativeBody?: PublicAdministrativeBody | null };
     parties: Party[];
     persons: PersonWithRelations[];
     fullWidth?: boolean;

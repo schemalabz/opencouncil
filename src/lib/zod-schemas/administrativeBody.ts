@@ -1,31 +1,34 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
-import { decisionConventionsSchema } from '@/lib/decisionConventions';
+import { decisionConventionsRecordSchema, decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
+import { webUrl } from './primitives';
+import { vmsg } from './messages';
 
-export const administrativeBodyTypeSchema = z.nativeEnum(AdministrativeBodyType);
-export const notificationBehaviorSchema = z.nativeEnum(NotificationBehavior);
+export const administrativeBodyTypeSchema = z.enum(AdministrativeBodyType);
+export const notificationBehaviorSchema = z.enum(NotificationBehavior);
 
 // Field rules of an administrative body — validation only, no defaults.
 // Shared by the body form, the body routes, and the city import
 // (zod-schemas/cityPopulation.ts).
 export const baseAdministrativeBodyFields = {
     name: z.string().min(2, {
-        message: "Name must be at least 2 characters.",
+        error: vmsg('bodyNameMin2'),
     }),
     name_en: z.string().min(2, {
-        message: "Name (English) must be at least 2 characters.",
+        error: vmsg('bodyNameEnMin2'),
     }),
     type: administrativeBodyTypeSchema,
 };
 
 // pollLivestreams can only use a URL that parseChannelRef resolves, so reject
 // any other URL here (a /c/ vanity URL, a playlist, a search results page).
+// webUrl first: parseChannelRef reads a value without a slash as a bare handle.
 const youtubeChannelUrl = z.union([
-    z.string().url({
-        message: "Must be a valid URL.",
+    webUrl({
+        error: vmsg('invalidUrl'),
     }).refine(val => parseChannelRef(val) !== null, {
-        message: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",
+        error: vmsg('youtubeChannelUrl'),
     }),
     z.literal('')
 ]).optional().transform(val => val === '' ? undefined : val);
@@ -34,7 +37,7 @@ const youtubeChannelUrl = z.union([
 export const administrativeBodySchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl,
-    contactEmails: z.array(z.string().email()).optional(),
+    contactEmails: z.array(z.email()).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
@@ -46,21 +49,36 @@ export const administrativeBodySchema = z.object({
     }),
 });
 
+// JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision
+// conventions of the body. It carries only the conventions.
+export const confirmConventionsRequestSchema = z.object({
+    confirmConventions: z.literal(true),
+    decisionConventions: decisionConventionsSchema,
+});
+
+// JSON body of PUT /administrative-bodies/{bodyId}: an update of the body, or
+// a confirmation of its conventions. confirmConventions selects the variant,
+// so the issues of a failed confirmation have paths under decisionConventions.
+export const updateAdministrativeBodyRequestSchema = z.discriminatedUnion('confirmConventions', [
+    confirmConventionsRequestSchema,
+    administrativeBodySchema.extend({ confirmConventions: z.literal(false).optional() }),
+]);
+
 // Frontend form schema (React Hook Form). The form edits the contact emails as
 // a primary address plus a comma-separated CC list, and joins them on submit.
 export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl,
     contactEmailPrimary: z.union([
-        z.string().email({ message: "Must be a valid email address" }),
+        z.email({ error: vmsg('invalidEmail') }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
     contactEmailsCC: z.string().optional().refine(val => {
         if (!val || val.trim() === '') return true;
         const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
-        const emailSchema = z.string().email();
+        const emailSchema = z.email();
         return emails.every(email => emailSchema.safeParse(email).success);
-    }, { message: "All entries must be valid email addresses" }),
+    }, { error: vmsg('invalidEmailList') }),
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),
@@ -68,7 +86,8 @@ export const administrativeBodyFormSchema = z.object({
     // Edited through its own fields and written by its own Confirm button, not
     // by this form's submit. Held as the parsed record, so the fields and the
     // Confirm handler take a typed value rather than an unchecked one.
-    decisionConventions: decisionConventionsSchema.nullable(),
+    decisionConventions: decisionConventionsRecordSchema.nullable(),
 });
 
-export type AdministrativeBodyFormValues = z.infer<typeof administrativeBodyFormSchema>;
+export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFormSchema>;
+export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;

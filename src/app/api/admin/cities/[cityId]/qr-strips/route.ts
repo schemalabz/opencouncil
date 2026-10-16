@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { getCouncilQrStrips } from "@/lib/admin/councilQrStrips";
 import { handleApiError } from "@/lib/api/errors";

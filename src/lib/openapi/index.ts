@@ -1,25 +1,48 @@
-// Import route registrations — each file calls registry.registerPath() on import.
-// Add new route files here as they are migrated.
-import './routes/cities';
-import './routes/cityPopulation';
-import './routes/meetings';
-import './routes/search';
-import './routes/parties';
-import './routes/people';
-import './routes/subjects';
-import './routes/utterances';
-
-import { registry, generateSpec } from './registry';
+import { generateDocument, mergePaths } from './registry';
+import { adminPaths } from './routes/admin';
+import { administrativeBodiesPaths } from './routes/administrativeBodies';
+import { citiesPaths } from './routes/cities';
+import { cityPopulationPaths } from './routes/cityPopulation';
+import { decisionsPaths } from './routes/decisions';
+import { meetingsPaths } from './routes/meetings';
+import { partiesPaths } from './routes/parties';
+import { peoplePaths } from './routes/people';
+import { profilePaths } from './routes/profile';
+import { rolesPaths } from './routes/roles';
+import { searchPaths } from './routes/search';
+import { subjectsPaths } from './routes/subjects';
+import { utterancesPaths } from './routes/utterances';
 import type { OpenApiSpec } from '@/lib/utils/openapi';
 
-export { registry, generateSpec };
+/** Every documented operation, with the zod schemas of its request and responses. */
+export const paths = mergePaths(
+    citiesPaths,
+    cityPopulationPaths,
+    meetingsPaths,
+    searchPaths,
+    partiesPaths,
+    peoplePaths,
+    subjectsPaths,
+    utterancesPaths,
+    administrativeBodiesPaths,
+    decisionsPaths,
+    rolesPaths,
+    profilePaths,
+    adminPaths,
+);
 
-// The spec is fully derived from the Zod registry, so it's stable for the
+export function generateSpec(): OpenApiSpec {
+    // OpenApiSpec is the loose shape that filterSpecByAccessLevel walks; the
+    // typed OpenAPIObject has no index signatures, so it does not convert directly.
+    return generateDocument(paths) as unknown as OpenApiSpec;
+}
+
+// The spec is fully derived from the Zod schemas, so it's stable for the
 // lifetime of the process — generate it once and reuse. Consumers filter a
 // fresh copy per request (filterSpecByAccessLevel never mutates its input).
 let cachedSpec: OpenApiSpec | undefined;
 
 export function getOpenApiSpec(): OpenApiSpec {
-    cachedSpec ??= generateSpec() as unknown as OpenApiSpec;
+    cachedSpec ??= generateSpec();
     return cachedSpec;
 }

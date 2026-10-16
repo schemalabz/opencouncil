@@ -1,6 +1,6 @@
 "use server";
 
-import { z } from "zod";
+import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import {
     confirmPhoneCode as confirmPhoneCodeInternal,

@@ -2,9 +2,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { personFormSchema, type PersonFormValues } from "@/lib/zod-schemas/person"
+import type * as z from "zod"
+import { personFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
+import { toFormData } from "@/lib/utils/formData"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -17,7 +20,8 @@ import {
 } from "../../components/ui/form"
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
-import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
+import { Party, Person, Role } from '@prisma/client'
+import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Loader2, Check, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
@@ -35,7 +39,7 @@ interface PersonFormProps {
     onSuccess?: () => void
     cityId: string,
     parties: Party[]
-    administrativeBodies: AdministrativeBody[]
+    administrativeBodies: PublicAdministrativeBody[]
 }
 
 export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId }: PersonFormProps) {
@@ -48,11 +52,12 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
     const [roles, setRoles] = useState<RoleWithRelations[]>(person?.roles || [])
     const t = useTranslations('PersonForm')
+    const validationMessage = useValidationMessage()
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
-    const form = useForm<PersonFormValues>({
-        resolver: zodResolver(personFormSchema),
+    const form = useForm({
+        resolver: useZodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",
             name_en: person?.name_en || "",
@@ -62,7 +67,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
         },
     })
 
-    async function onSubmit(values: PersonFormValues) {
+    async function onSubmit(values: PersonFormOutput) {
         setIsSubmitting(true)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
@@ -77,17 +82,6 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             setIsSubmitting(false)
             return
         }
-
-        const formData = new FormData()
-        console.log('Creating FormData object...')
-
-        // Append all form values
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('cityId', cityId)
-        formData.append('profileUrl', values.profileUrl || "")
 
         // Clean up roles data before sending
         const cleanRoles = roles.map(role => ({
@@ -105,17 +99,18 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
         }))
 
         console.log('Roles to be sent:', cleanRoles)
-        formData.append('roles', JSON.stringify(cleanRoles))
 
-        // Only append image if it exists and is valid
-        if (image) {
-            console.log('Appending image:', image.name, image.size)
-            formData.append('image', image)
-        }
-        // Signal removal of an existing image
-        if (removeImage && !image) {
-            formData.append('removeImage', 'true')
-        }
+        const formData = toFormData({
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            profileUrl: values.profileUrl || "",
+            roles: JSON.stringify(cleanRoles),
+            image: image ?? undefined,
+            // Signal removal of an existing image
+            removeImage: removeImage && !image ? 'true' : undefined,
+        } satisfies z.input<typeof personFormDataSchema>)
 
         console.log('FormData created, sending request to:', url)
 
@@ -164,7 +159,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                 })
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSavePerson'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSavePerson'), validationMessage))
             }
         } catch (error) {
             console.error('Error in form submission:', error)
@@ -198,7 +193,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         <strong className="font-bold">{t('formErrors')}</strong>
                         <ul className="mt-2 list-disc list-inside">
                             {Object.entries(form.formState.errors).map(([key, error]) => (
-                                <li key={key}>{error.message}</li>
+                                <li key={key}>{error.message && validationMessage(error.message)}</li>
                             ))}
                         </ul>
                     </div>

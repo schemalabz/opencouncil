@@ -1,9 +1,12 @@
-import { getOpenApiSpec } from '@/lib/openapi';
+import * as z from 'zod';
+import { getOpenApiSpec, paths } from '@/lib/openapi';
+import { validationErrorSchema } from '@/lib/api/errors';
+import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 
 // The set of API operations we intend the generated OpenAPI spec to document.
 // This is a deliberate snapshot: because the spec is generated only from
-// registry.registerPath() calls, an endpoint whose registration is removed (or
-// never written) silently disappears from the spec. This guard fails loudly in
+// the paths that the route files export, an endpoint whose entry is removed
+// (or never written) silently disappears from the spec. This guard fails loudly in
 // that case — as happened with GET /api/utterance/{utteranceId}/context, which
 // existed in the hand-written spec but was dropped during the code-first migration.
 //
@@ -16,6 +19,7 @@ const EXPECTED_OPERATIONS = [
     'PUT /api/cities/{cityId}',
     'DELETE /api/cities/{cityId}',
     'POST /api/cities/{cityId}/populate',
+    'POST /api/cities/{cityId}/populate/ai',
     'GET /api/cities/{cityId}/meetings',
     'POST /api/cities/{cityId}/meetings',
     'GET /api/cities/{cityId}/meetings/{meetingId}',
@@ -36,12 +40,24 @@ const EXPECTED_OPERATIONS = [
     'PATCH /api/cities/{cityId}/meetings/{meetingId}/subjects/{subjectId}',
     'POST /api/search',
     'GET /api/utterance/{utteranceId}/context',
+    'POST /api/cities/{cityId}/administrative-bodies',
+    'PUT /api/cities/{cityId}/administrative-bodies/{bodyId}',
+    'PUT /api/cities/{cityId}/meetings/{meetingId}/decisions',
+    'POST /api/cities/{cityId}/meetings/{meetingId}/decisions',
+    'POST /api/cities/{cityId}/roles/elected-order',
+    'POST /api/profile',
+    'POST /api/revalidate',
+    'POST /api/admin/api-keys',
+    'POST /api/admin/product-updates/send',
+    'POST /api/admin/topics',
+    'PUT /api/admin/topics/{topicId}',
+    'POST /api/admin/users',
+    'PUT /api/admin/users',
 ].sort();
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 
-function actualOperations(): string[] {
-    const spec = getOpenApiSpec();
+function actualOperations(spec: OpenApiSpec = getOpenApiSpec()): string[] {
     const ops: string[] = [];
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
         for (const method of Object.keys(item as Record<string, unknown>)) {
@@ -61,5 +77,60 @@ describe('OpenAPI coverage', () => {
         expect(missing).toEqual([]);
         // `unexpected` catches a new endpoint added without updating this snapshot.
         expect(unexpected).toEqual([]);
+    });
+
+    it('shows each viewer only the operations of its access level', () => {
+        const spec = getOpenApiSpec();
+        const publicOps = actualOperations(filterSpecByAccessLevel(spec, 'public'));
+        const userOps = actualOperations(filterSpecByAccessLevel(spec, 'user'));
+        const adminOps = actualOperations(filterSpecByAccessLevel(spec, 'admin'));
+
+        expect(publicOps).not.toContain('POST /api/profile');
+        expect(userOps).toContain('POST /api/profile');
+        expect(adminOps).toContain('POST /api/cities/{cityId}/administrative-bodies');
+        expect(adminOps).not.toContain('POST /api/admin/api-keys');
+        expect(adminOps).not.toContain('POST /api/revalidate');
+        expect(actualOperations(filterSpecByAccessLevel(spec, 'superadmin'))).toEqual(EXPECTED_OPERATIONS);
+
+        // The request schemas of a hidden operation are hidden too.
+        const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
+        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'AdministrativeBodyUpdateRequest', 'RevalidateRequest'].includes(name)))
+            .toEqual([]);
+    });
+
+    // A 400 for a request that fails a zod schema has one shape. These two
+    // operations answer 400 in another documented shape on purpose.
+    const OTHER_400 = [
+        'POST /api/search', // SearchError, whose INVALID_REQUEST carries the same issues
+        'GET /api/utterance/{utteranceId}/context', // no zod schema: the handler checks two numbers
+    ];
+
+    it('documents every other 400 as a ValidationError', () => {
+        const without: string[] = [];
+        for (const [path, item] of Object.entries(paths)) {
+            for (const [method, operation] of Object.entries(item)) {
+                const name = `${method.toUpperCase()} ${path}`;
+                const response = operation?.responses?.['400'];
+                if (!response || OTHER_400.includes(name)) continue;
+                const schema = 'content' in response ? response.content?.['application/json']?.schema : undefined;
+                const documented = schema === validationErrorSchema
+                    || (schema instanceof z.ZodUnion && schema.options.includes(validationErrorSchema));
+                if (!documented) without.push(name);
+            }
+        }
+        expect(without).toEqual([]);
+    });
+
+    // The test above checks the shape of a 400 that exists. This one makes a
+    // dropped 400 fail: an operation that parses a body or a query can refuse it.
+    it('documents a 400 for every operation with a request body or a query schema', () => {
+        const without: string[] = [];
+        for (const [path, item] of Object.entries(paths)) {
+            for (const [method, operation] of Object.entries(item)) {
+                const validates = operation?.requestBody !== undefined || operation?.requestParams?.query !== undefined;
+                if (validates && !operation?.responses?.['400']) without.push(`${method.toUpperCase()} ${path}`);
+            }
+        }
+        expect(without).toEqual([]);
     });
 });

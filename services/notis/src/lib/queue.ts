@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { env } from "@/env.mjs";
 import { decideDelivery } from "@/agent/delivery";
 import { toDecisionEntry } from "@/agent/prompt";

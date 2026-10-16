@@ -1,8 +1,9 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
+import { webUrl } from './primitives';
 
 // The payload of the City Creator: the parties, administrative bodies, people
 // and roles of a city that has no data yet. A role names its party or its
@@ -14,6 +15,8 @@ import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role'
 // its types from it.
 
 const optionalText = z.string().nullable().optional();
+// The app renders these links and images, so only http(s) is accepted.
+const optionalLink = webUrl().or(z.literal('')).nullable().optional();
 
 const cityPopulationRoleSchema = z.object({
     type: z.enum(['party', 'city', 'adminBody'])
@@ -33,18 +36,18 @@ export const cityPopulationSchema = z.object({
     cityId: z.string().describe('Reference to existing city ID in the database'),
     parties: z.array(z.object({
         ...basePartyFields,
-        logo: optionalText.describe('URL to party logo'),
+        logo: optionalLink.describe('Absolute http(s) URL of the party logo, or null'),
     })).describe('Political parties/coalitions in the council'),
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object(baseAdministrativeBodyFields))
-        .min(1, { message: 'Add at least one administrative body, e.g. the council.' })
+        .min(1, { error: 'Add at least one administrative body, e.g. the council.' })
         .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
-        image: optionalText.describe("URL to person's photo"),
+        image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),
         activeFrom: optionalText.describe('ISO 8601 date-time'),
         activeTo: optionalText.describe('ISO 8601 date-time'),
-        profileUrl: optionalText,
+        profileUrl: optionalLink.describe("Absolute http(s) URL of the person's profile page, or null"),
         partyName: optionalText.describe('Reference to party name (null for independents)'),
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),
@@ -52,3 +55,10 @@ export const cityPopulationSchema = z.object({
 
 export type CityPopulationInput = z.input<typeof cityPopulationSchema>;
 export type CityPopulationData = z.output<typeof cityPopulationSchema>;
+
+// The request of the AI City Creator. The superadmin can paste text about the
+// council (e.g. an election result) for the model to use.
+export const cityPopulationAiRequestSchema = z.object({
+    userProvidedText: z.string().trim().optional()
+        .describe('Text about the council for the model to use, e.g. an election result'),
+});

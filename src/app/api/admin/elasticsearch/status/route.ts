@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getCities } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import type { CityStatus } from "@prisma/client";
 
 // This prevents Next.js from trying to statically pre-render this route
@@ -149,10 +150,6 @@ export async function GET() {
         });
 
     } catch (error) {
-        console.error('Error fetching Elasticsearch status:', error);
-        if (error instanceof Error && error.message.includes("Not authorized")) {
-            return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
-        }
-        return NextResponse.json({ error: 'Failed to fetch Elasticsearch status' }, { status: 500 });
+        return handleApiError(error, 'Failed to fetch Elasticsearch status');
     }
 } 

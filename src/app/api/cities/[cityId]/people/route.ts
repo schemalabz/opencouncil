@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
-import { z } from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
-import { personFormDataSchema, type PersonFormData } from '@/lib/zod-schemas/person'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
+import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
-import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
+import { errorResponse, handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -20,18 +20,14 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     console.log('Creating person')
-    let data: PersonFormData
+    let data: PersonFormDataOutput
     try {
-        data = await parseFormData(await request.formData(), personFormDataSchema)
+        data = parseFormData(await readFormData(request), personFormDataSchema)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 })
-        }
-        console.error('Error parsing form data:', error)
-        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+        return handleApiError(error, 'Failed to parse form data')
     }
     const { name, name_en, name_short, name_short_en, image, profileUrl, roles } = data
 
@@ -40,7 +36,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         // Get valid parties and administrative bodies for this city
         const [parties, adminBodies] = await Promise.all([
             getPartiesForCity(params.cityId),
-            getAdministrativeBodiesForCity(params.cityId)
+            getPublicAdministrativeBodiesForCity(params.cityId)
         ]);
 
         const validPartyIds = new Set(parties.map(p => p.id));

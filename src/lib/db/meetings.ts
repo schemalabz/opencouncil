@@ -23,12 +23,13 @@ import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
+import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
 
 const meetingWithAdminBodyInclude = {
-    administrativeBody: true,
+    administrativeBody: publicAdministrativeBodyRelation,
     continuationOf: DECISION_KIND_SELECT.continuationOf,
 } satisfies Prisma.CouncilMeetingInclude;
 
@@ -141,7 +142,7 @@ export async function findCouncilMeetingByYouTubeVideoId(videoId: string) {
 
 const upcomingMeetingInclude = {
     city: { select: { id: true, name: true, name_municipality: true, logoImage: true, timezone: true } },
-    administrativeBody: true,
+    administrativeBody: publicAdministrativeBodyRelation,
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{

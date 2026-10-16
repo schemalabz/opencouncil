@@ -1,7 +1,7 @@
 import {
     buildSearchHref,
     DERIVED_FILTER_PARAMS,
-    filterDateRangeToInstants,
+    filterDateRange,
     formatFilterDate,
     hasActiveSearchFilters,
     parseDerivedKeys,
@@ -52,36 +52,26 @@ describe('filter date round trip', () => {
     });
 });
 
-describe('filterDateRangeToInstants', () => {
-    it('bounds the range on local day edges', () => {
-        const range = filterDateRangeToInstants('2026-08-20', '2026-08-22');
-
-        // First and last moment of the picked LOCAL days — so a meeting held at
-        // 21:00 local on the 22nd, already the 23rd in UTC, still falls inside.
-        expect(new Date(range!.start)).toEqual(new Date(2026, 7, 20, 0, 0, 0, 0));
-        expect(new Date(range!.end)).toEqual(new Date(2026, 7, 22, 23, 59, 59, 999));
+describe('filterDateRange', () => {
+    // The search reads the days in the zone of the city, so the range must
+    // not depend on the zone of the browser.
+    it('keeps the picked calendar days', () => {
+        expect(filterDateRange('2026-08-20', '2026-08-22')).toEqual({ start: '2026-08-20', end: '2026-08-22' });
     });
 
     it('treats a half-picked range as that single day', () => {
-        const range = filterDateRangeToInstants('2026-08-20', undefined);
-
-        expect(new Date(range!.start)).toEqual(new Date(2026, 7, 20, 0, 0, 0, 0));
-        expect(new Date(range!.end)).toEqual(new Date(2026, 7, 20, 23, 59, 59, 999));
+        expect(filterDateRange('2026-08-20', undefined)).toEqual({ start: '2026-08-20', end: '2026-08-20' });
     });
 
     it('is undefined without a start date', () => {
-        expect(filterDateRangeToInstants(undefined, '2026-08-22')).toBeUndefined();
+        expect(filterDateRange(undefined, '2026-08-22')).toBeUndefined();
     });
 
     // A hand-edited URL can put the end before the start. Passing that straight
     // through produced a reversed range, which matched nothing while the pill
     // still read as a period — zero results with nothing to explain them.
     it('orders a reversed range instead of emitting an impossible one', () => {
-        const reversed = filterDateRangeToInstants('2026-08-22', '2026-08-20');
-
-        expect(reversed).toEqual(filterDateRangeToInstants('2026-08-20', '2026-08-22'));
-        expect(new Date(reversed!.start).getTime())
-            .toBeLessThan(new Date(reversed!.end).getTime());
+        expect(filterDateRange('2026-08-22', '2026-08-20')).toEqual({ start: '2026-08-20', end: '2026-08-22' });
     });
 });
 

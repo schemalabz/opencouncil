@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { registry, ErrorResponseSchema } from '../registry';
+import * as z from 'zod';
+import { errorResponseOf, type Paths } from '@/lib/openapi/registry';
 
 // --- Response Schemas ---
 // Mirrors the UtteranceContext / UtteranceContextNeighbor types returned by
@@ -11,7 +11,7 @@ const UtteranceContextNeighborSchema = z.object({
     start: z.number(),
     end: z.number(),
     speakerTagId: z.string(),
-}).openapi('UtteranceContextNeighbor');
+}).meta({ id: 'UtteranceContextNeighbor' });
 
 const UtteranceContextSchema = z.object({
     meeting: z.object({
@@ -22,55 +22,38 @@ const UtteranceContextSchema = z.object({
     }),
     before: z.array(UtteranceContextNeighborSchema),
     after: z.array(UtteranceContextNeighborSchema),
-}).openapi('UtteranceContext');
-
-registry.register('UtteranceContextNeighbor', UtteranceContextNeighborSchema);
-registry.register('UtteranceContext', UtteranceContextSchema);
+}).meta({ id: 'UtteranceContext' });
 
 // --- Routes ---
 
-registry.registerPath({
-    method: 'get',
-    path: '/api/utterance/{utteranceId}/context',
-    summary: 'Get utterance context (neighbors)',
-    description:
-        'Returns N utterances immediately before and after the target utterance within the same '
-        + 'meeting, crossing speaker segments. Designed for transcript review tools that already have '
-        + 'the target utterance locally and only need surrounding context.',
-    tags: ['Utterances'],
-    request: {
-        params: z.object({
-            utteranceId: z.string().openapi({ description: 'Utterance ID' }),
-        }),
-        query: z.object({
-            before: z.string().optional().openapi({ description: 'Utterances to include before the target (integer 0-50)', example: '10' }),
-            after: z.string().optional().openapi({ description: 'Utterances to include after the target (integer 0-50)', example: '10' }),
-        }),
-    },
-    responses: {
-        200: {
-            description: 'Utterance context',
-            content: {
-                'application/json': { schema: UtteranceContextSchema },
+export const utterancesPaths: Paths = {
+    '/api/utterance/{utteranceId}/context': {
+        get: {
+            summary: 'Get utterance context (neighbors)',
+            description:
+                'Returns N utterances immediately before and after the target utterance within the same '
+                + 'meeting, crossing speaker segments. Designed for transcript review tools that already have '
+                + 'the target utterance locally and only need surrounding context.',
+            tags: ['Utterances'],
+            // The handler parses these by hand, so the spec declares them.
+            requestParams: {
+                path: z.object({
+                    utteranceId: z.string().meta({ description: 'Utterance ID' }),
+                }),
+                query: z.object({
+                    before: z.string().optional().meta({ description: 'Utterances to include before the target (integer 0-50)', example: '10' }),
+                    after: z.string().optional().meta({ description: 'Utterances to include after the target (integer 0-50)', example: '10' }),
+                }),
             },
-        },
-        400: {
-            description: 'Invalid before/after parameter',
-            content: {
-                'application/json': { schema: ErrorResponseSchema },
-            },
-        },
-        404: {
-            description: 'Utterance not found',
-            content: {
-                'application/json': { schema: ErrorResponseSchema },
-            },
-        },
-        500: {
-            description: 'Server error',
-            content: {
-                'application/json': { schema: ErrorResponseSchema },
+            responses: {
+                200: {
+                    description: 'Utterance context',
+                    content: { 'application/json': { schema: UtteranceContextSchema } },
+                },
+                400: errorResponseOf('Invalid before/after parameter'),
+                404: errorResponseOf('Utterance not found'),
+                500: errorResponseOf('Server error'),
             },
         },
     },
-});
+};

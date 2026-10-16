@@ -16,6 +16,8 @@ import { X } from "lucide-react"
 import { UserWithRelations } from "@/lib/db/users"
 import Combobox from "@/components/Combobox"
 import { toast } from "@/hooks/use-toast"
+import { useValidationMessage } from "@/hooks/useLocalizedValidation"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 
 interface UserDialogProps {
     open: boolean
@@ -73,6 +75,7 @@ function mapAdministersToEntities(administers: NonNullable<UserDialogProps['user
 }
 
 export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogProps) {
+    const validationMessage = useValidationMessage()
     const [loading, setLoading] = useState(false)
     const [entities, setEntities] = useState<EntityOption[]>([])
     const [selectedEntities, setSelectedEntities] = useState<EntityOption[]>([])
@@ -139,8 +142,8 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
             })
 
             if (!response.ok) {
-                const { error } = await response.json().catch(() => ({ error: "Failed to save user" }))
-                throw new Error(typeof error === "string" ? error : "Failed to save user")
+                const errorData = await response.json().catch(() => null)
+                throw new Error(apiErrorMessage(errorData, "Failed to save user", validationMessage))
             }
 
             const result = await response.json()

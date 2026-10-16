@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
+import { cityMessageLinkSchema } from '@/lib/zod-schemas/city';
 
 interface CityMessageProps {
   message: CityMessageType;
@@ -15,13 +16,16 @@ interface CityMessageProps {
 export function CityMessage({ message, className }: CityMessageProps) {
   const router = useRouter();
 
+  // The route accepts only these links. The check here covers a row that was
+  // stored before the route checked it.
+  const link = cityMessageLinkSchema.safeParse(message.callToActionUrl).data;
+
   const handleCallToAction = () => {
-    if (message.callToActionUrl) {
-      if (message.callToActionExternal) {
-        window.open(message.callToActionUrl, '_blank');
-      } else {
-        router.push(message.callToActionUrl);
-      }
+    if (!link) return;
+    if (message.callToActionExternal) {
+      window.open(link, '_blank', 'noopener,noreferrer');
+    } else {
+      router.push(link);
     }
   };
 

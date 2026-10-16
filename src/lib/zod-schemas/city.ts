@@ -1,13 +1,15 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
+import { logoFile, queryFlag, stringBoolean, webUrl } from './primitives';
+import { vmsg } from './messages';
 
-// Prisma enum schemas - use nativeEnum for type safety
-export const authorityTypeSchema = z.nativeEnum(AuthorityType);
-export const cityStatusSchema = z.nativeEnum(CityStatus);
-export const highlightCreationPermissionSchema = z.nativeEnum(HighlightCreationPermission);
-export const cityLanguageSchema = z.nativeEnum(CityLanguage);
-export const realmSchema = z.nativeEnum(Realm);
+// Prisma enum schemas
+export const authorityTypeSchema = z.enum(AuthorityType);
+export const cityStatusSchema = z.enum(CityStatus);
+export const highlightCreationPermissionSchema = z.enum(HighlightCreationPermission);
+export const cityLanguageSchema = z.enum(CityLanguage);
+export const realmSchema = z.enum(Realm);
 
 // Default values — single source of truth for the entire app.
 // These mirror the Prisma schema defaults and are used by:
@@ -31,38 +33,35 @@ export const CITY_DEFAULTS = {
   realm: 'greece' as Realm,
 } as const;
 
-// Helper to convert string to boolean (for FormData)
-const stringToBoolean = z.string().transform(val => val === 'true');
-
 // Helper to convert empty string to null (for optional nullable fields)
 const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
 
 // The id is part of every URL of the city.
 export const cityIdSchema = z.string().min(2, {
-  message: "ID must be at least 2 characters.",
+  error: vmsg('cityIdMin2'),
 }).regex(/^[a-z-]+$/, {
-  message: "ID must contain only lowercase letters a-z and dashes.",
+  error: vmsg('cityIdFormat'),
 });
 
 // Base field definitions — validation and transformation only, no defaults.
 // Shared between frontend (baseCityFormSchema) and backend (baseCityFormDataSchema).
 export const baseCityFields = {
   name: z.string().min(2, {
-    message: "City name must be at least 2 characters.",
+    error: vmsg('cityNameMin2'),
   }),
   name_en: z.string().min(2, {
-    message: "City name (English) must be at least 2 characters.",
+    error: vmsg('cityNameEnMin2'),
   }),
   name_municipality: z.string().min(2, {
-    message: "Municipality name must be at least 2 characters.",
+    error: vmsg('municipalityNameMin2'),
   }),
   name_municipality_en: z.string().min(2, {
-    message: "Municipality name (English) must be at least 2 characters.",
+    error: vmsg('municipalityNameEnMin2'),
   }),
   timezone: z.string().min(1, {
-    message: "Timezone is required.",
+    error: vmsg('timezoneRequired'),
   }).refine(isTimeZone, {
-    message: 'Not an IANA time zone name; e.g. "Europe/Athens".',
+    error: vmsg('timezoneInvalid'),
   }),
   authorityType: authorityTypeSchema,
   status: cityStatusSchema,
@@ -83,8 +82,8 @@ export const baseCityFormSchema = z.object({
 export const baseCityFormDataSchema = z.object({
   ...baseCityFields,
   authorityType: authorityTypeSchema,
-  supportsNotifications: stringToBoolean,
-  consultationsEnabled: stringToBoolean,
+  supportsNotifications: stringBoolean,
+  consultationsEnabled: stringBoolean,
   diavgeiaUid: emptyStringToNull.optional(),
   // Pasted boundary GeoJSON, still as text: routes parse it with
   // parseBoundaryInput (shared with the form) and write via PostGIS.
@@ -95,23 +94,52 @@ export const baseCityFormDataSchema = z.object({
 // Create schema for FormData (POST route)
 export const createCityFormDataSchema = baseCityFormDataSchema.extend({
   id: cityIdSchema,
-  logoImage: z.instanceof(File, { message: 'Logo image is required' }),
+  logoImage: logoFile({ error: 'Logo image is required' }).meta({ description: 'Logo image file' }),
 });
 
 // Update schema for FormData (PUT route) — all fields optional.
 // Since there are no .default() values in the base schema, .partial()
 // is sufficient: absent fields are undefined = "don't change".
 export const updateCityFormDataSchema = baseCityFormDataSchema.partial().extend({
-  logoImage: z.instanceof(File).optional().nullable(),
+  logoImage: logoFile().optional().nullable().meta({ description: 'Replacement logo image file' }),
+});
+
+// The link of the call to action of a city message: an http(s) URL, which the
+// message opens in a new tab, or a path on this site, which it navigates to.
+// The path starts with one slash. A second slash or a backslash would make
+// the browser read the rest as a host.
+const cityMessageLinkError = vmsg('cityMessageLink');
+export const cityMessageLinkSchema = z.union([
+  webUrl(),
+  z.string().regex(/^\/(?![/\\])/),
+], { error: cityMessageLinkError });
+
+// The PUT route's fields that are not city columns: the logo removal flag
+// and the city message. The route writes the message for a superadmin only,
+// and a request without hasMessage leaves the message as it is.
+export const updateCityRequestFormDataSchema = updateCityFormDataSchema.extend({
+  removeLogoImage: stringBoolean.default(false),
+  hasMessage: stringBoolean.optional(),
+  messageEmoji: z.string().optional(),
+  messageTitle: z.string().optional(),
+  messageDescription: z.string().optional(),
+  messageCallToActionText: z.string().optional(),
+  messageCallToActionUrl: z.union([cityMessageLinkSchema, z.literal('')], { error: cityMessageLinkError }).optional(),
+  messageCallToActionExternal: stringBoolean.default(false),
+  messageIsActive: stringBoolean.default(false),
 });
 
 // Frontend form schema (extends base with id and logoImage)
 export const cityFormSchema = baseCityFormSchema.extend({
   id: cityIdSchema,
-  logoImage: z.instanceof(File).optional(),
+  logoImage: z.file().optional(),
 });
 
-// Type exports
-export type CityFormData = z.infer<typeof cityFormSchema>;
-export type CreateCityFormData = z.infer<typeof createCityFormDataSchema>;
-export type UpdateCityFormData = z.infer<typeof updateCityFormDataSchema>;
+// Query of GET /cities. includeUnlisted reads as a query flag: an empty value
+// is false, like every other query flag of the API.
+export const citiesListQuerySchema = z.object({
+  includeUnlisted: queryFlag.default(false).meta({
+    description: 'When "true", includes non-public (pending) cities the user can administer',
+    example: 'false',
+  }),
+});

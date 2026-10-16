@@ -1,6 +1,53 @@
 import { defineConfig } from "eslint/config";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
+// Date text must render identically on the server (UTC machine) and in the
+// visitor's browser, or hydration breaks (React error #418) and printed
+// days go wrong near midnight. Raw toLocaleDateString/Intl.DateTimeFormat
+// default to the machine's timezone and locale, so they are confined to
+// src/lib/formatters — everything else calls its helpers, which pin a
+// timezone and an hour cycle.
+const dateFormattingSelectors = [{
+    selector: "CallExpression[callee.property.name='toLocaleDateString']",
+    message: "toLocaleDateString renders in the machine's timezone and locale, which differ between server and browser. Use formatDate/formatNumericDate/localCalendarDate from @/lib/formatters/time.",
+}, {
+    selector: "CallExpression[callee.property.name='toLocaleTimeString']",
+    message: "toLocaleTimeString renders in the machine's timezone and locale, which differ between server and browser. Use formatDateTime/formatNumericDateTime from @/lib/formatters/time.",
+}, {
+    selector: "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
+    message: "Intl.DateTimeFormat defaults to the machine's timezone, which differs between server and browser. Use a formatter from @/lib/formatters/time.",
+}];
+
+// `import { z } from "zod"` makes Turbopack bundle all of zod, with its 60
+// locales, into each client chunk that uses it: 272 KB more first-load JS
+// than `import * as z from "zod"` on the pages with a form (next build).
+// The source regex matches `zod` and its subpaths `zod/v4`, `zod/mini` and
+// `zod/v4/mini` (an esquery regex cannot hold a slash, so `.` stands for it).
+const ZOD_SOURCE = "/^zod(.v4)?(.mini)?$/";
+const zodNamespaceMessage = "Import zod as a namespace: `import * as z from 'zod'`. The named `z` import adds all of zod and its locales to client bundles.";
+const zodNamespaceImportSelectors = [{
+    selector: `ImportDeclaration[source.value=${ZOD_SOURCE}] > ImportSpecifier[imported.name='z']`,
+    message: zodNamespaceMessage,
+}, {
+    selector: `ImportDeclaration[source.value=${ZOD_SOURCE}] > ImportDefaultSpecifier`,
+    message: zodNamespaceMessage,
+}, {
+    selector: `ExportNamedDeclaration[source.value=${ZOD_SOURCE}] > ExportSpecifier[local.name='z']`,
+    message: zodNamespaceMessage,
+}];
+
+// Client code reads NEXT_PUBLIC_ variables from src/lib/publicEnv, not from
+// src/env.mjs: env.mjs adds t3-env and zod to the bundle of every page that
+// renders the component (src/instrumentation-client.ts runs on all pages).
+const envMjsMessage = "Read NEXT_PUBLIC_ variables from @/lib/publicEnv. env.mjs adds t3-env and zod to the client bundle, and its server variables are not available in the browser.";
+// Any specifier whose last segment is `env` or `env.mjs`: `@/env.mjs`, `@/env`, `../../env.mjs`.
+const ENV_SOURCE = "/(^|[^A-Za-z0-9_-])env(.mjs)?$/";
+// A 'use client' module anywhere in src, also under src/app and src/lib.
+const useClientEnvSelector = {
+    selector: `Program:has(> ExpressionStatement[directive='use client']) ImportDeclaration[source.value=${ENV_SOURCE}]`,
+    message: envMjsMessage,
+};
+
 export default defineConfig([{
     // services/* are separate workspace apps with their own lint setup;
     // the root app's Next config must not walk into them.
@@ -57,7 +104,9 @@ export default defineConfig([{
     // src/lib/__tests__/prisma-boundary.test.ts, which also covers server code).
     // These directories are Prisma-free today, so this rule is purely
     // preventive — it stops a regression at review time.
-    files: ["src/components/**/*.{ts,tsx}", "src/contexts/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}"],
+    //
+    // Client code also reads NEXT_PUBLIC_ variables from src/lib/publicEnv (see envMjsMessage).
+    files: ["src/components/**/*.{ts,tsx}", "src/contexts/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}", "src/instrumentation-client.ts"],
     rules: {
         "no-restricted-imports": ["error", {
             paths: [{
@@ -68,6 +117,9 @@ export default defineConfig([{
             patterns: [{
                 group: ["**/db/prisma", "@/lib/db/prisma"],
                 message: "Do not import the Prisma client in client-side code. Call a data-access function from src/lib/db instead.",
+            }, {
+                group: ["**/env.mjs", "@/env"],
+                message: envMjsMessage,
             }],
         }],
     },
@@ -97,24 +149,20 @@ export default defineConfig([{
         }],
     },
 }, {
-    // Date text must render identically on the server (UTC machine) and in the
-    // visitor's browser, or hydration breaks (React error #418) and printed
-    // days go wrong near midnight. Raw toLocaleDateString/Intl.DateTimeFormat
-    // default to the machine's timezone and locale, so they are confined to
-    // src/lib/formatters — everything else calls its helpers, which pin a
-    // timezone and an hour cycle.
-    files: ["src/**/*.{ts,tsx}"],
-    ignores: ["src/lib/formatters/**"],
+    files: ["src/**/*.{ts,tsx,mjs}"],
     rules: {
-        "no-restricted-syntax": ["error", {
-            selector: "CallExpression[callee.property.name='toLocaleDateString']",
-            message: "toLocaleDateString renders in the machine's timezone and locale, which differ between server and browser. Use formatDate/formatNumericDate/localCalendarDate from @/lib/formatters/time.",
-        }, {
-            selector: "CallExpression[callee.property.name='toLocaleTimeString']",
-            message: "toLocaleTimeString renders in the machine's timezone and locale, which differ between server and browser. Use formatDateTime/formatNumericDateTime from @/lib/formatters/time.",
-        }, {
-            selector: "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat']",
-            message: "Intl.DateTimeFormat defaults to the machine's timezone, which differs between server and browser. Use a formatter from @/lib/formatters/time.",
-        }],
+        "no-restricted-syntax": ["error", ...dateFormattingSelectors, ...zodNamespaceImportSelectors, useClientEnvSelector],
+    },
+}, {
+    files: ["src/lib/formatters/**"],
+    rules: {
+        "no-restricted-syntax": ["error", ...zodNamespaceImportSelectors, useClientEnvSelector],
+    },
+}, {
+    // The zod import rule holds for every zod import: the shared UI package
+    // renders in client bundles, and tests and scripts are code that agents copy.
+    files: ["packages/*/src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx,mjs}"],
+    rules: {
+        "no-restricted-syntax": ["error", ...zodNamespaceImportSelectors],
     },
 }]);

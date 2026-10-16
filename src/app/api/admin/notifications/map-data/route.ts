@@ -1,23 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import { getNotificationMapData } from '@/lib/db/notifications';
 
 export async function GET(request: NextRequest) {
-    await withUserAuthorizedToEdit({});
+    try {
+        await withUserAuthorizedToEdit({});
 
-    const searchParams = request.nextUrl.searchParams;
-    const meetingId = searchParams.get('meetingId');
-    const cityId = searchParams.get('cityId');
+        const searchParams = request.nextUrl.searchParams;
+        const meetingId = searchParams.get('meetingId');
+        const cityId = searchParams.get('cityId');
 
-    if (!meetingId || !cityId) {
-        return NextResponse.json(
-            { error: 'meetingId and cityId are required' },
-            { status: 400 }
-        );
+        if (!meetingId || !cityId) {
+            return NextResponse.json(
+                { error: 'meetingId and cityId are required' },
+                { status: 400 }
+            );
+        }
+
+        const result = await getNotificationMapData(meetingId, cityId);
+
+        return NextResponse.json(result);
+    } catch (error) {
+        return handleApiError(error, 'Failed to fetch notification map data');
     }
-
-    const result = await getNotificationMapData(meetingId, cityId);
-
-    return NextResponse.json(result);
 }
 

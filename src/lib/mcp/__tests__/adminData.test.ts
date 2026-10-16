@@ -204,7 +204,7 @@ describe('populate_city', () => {
 describe('start_task', () => {
     it('is refused for a city that the caller does not administer', async () => {
         asCityAdmin('athens');
-        await expect(mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'transcribe' })).rejects.toThrow(ForbiddenError);
+        await expect(mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'transcribe', force: false })).rejects.toThrow(ForbiddenError);
         expect(startMeetingTask).not.toHaveBeenCalled();
     });
 
@@ -280,7 +280,7 @@ describe('permission matrix', () => {
     const cityScoped = {
         create_meeting: (id: McpIdentityArg) => mcpCreateMeeting(id, MEETING),
         update_meeting: (id: McpIdentityArg) => mcpUpdateMeeting(id, { cityId: 'argos', meetingId: 'm1', sessionNumber: 4 }),
-        start_task: (id: McpIdentityArg) => mcpStartTask(id, { cityId: 'argos', meetingId: 'm1', type: 'transcribe' }),
+        start_task: (id: McpIdentityArg) => mcpStartTask(id, { cityId: 'argos', meetingId: 'm1', type: 'transcribe', force: false }),
         create_agenda_upload_url: (id: McpIdentityArg) => mcpCreateAgendaUploadUrl(id, { cityId: 'argos', identifier: '2026-10-15', format: 'pdf' }),
     };
     const superadminOnly = {

@@ -49,7 +49,7 @@ import path from 'path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus, type Prisma } from '@prisma/client';
-import { z } from 'zod';
+import * as z from 'zod';
 import prisma from '@/lib/db/prisma';
 import { updateMeetingRecord, type MeetingRecordFields } from '@/lib/db/meetingLifecycle';
 import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
@@ -64,11 +64,11 @@ type RowState = Patch & { postponedTo: string | null };
 const empty = z.literal('').transform(() => null);
 /** A person edits the CSV before the apply, so every value is checked before the first write. */
 const values = z.object({
-    scheduleStatus: z.nativeEnum(MeetingScheduleStatus),
-    kind: empty.or(z.nativeEnum(MeetingKind)),
+    scheduleStatus: z.enum(MeetingScheduleStatus),
+    kind: empty.or(z.enum(MeetingKind)),
     urgent: z.enum(['yes', '']).transform((v) => v === 'yes'),
     sessionNumber: empty.or(z.string().regex(/^[1-9]\d{0,2}$/, 'a whole number').transform(Number)),
-    format: empty.or(z.nativeEnum(MeetingFormat)),
+    format: empty.or(z.enum(MeetingFormat)),
     postponedTo: empty.or(z.string().regex(/^\S+$/, 'a meeting id')),
 });
 

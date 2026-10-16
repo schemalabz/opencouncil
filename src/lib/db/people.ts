@@ -1,6 +1,6 @@
 "use server";
 import { Person, VoicePrint } from '@prisma/client';
-import type { PersonRoleData } from '@/lib/zod-schemas/person';
+import type { PersonRoleOutput } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
@@ -38,7 +38,7 @@ export async function createPerson(data: {
     name_short_en: string;
     image: string | null;
     profileUrl: string | null;
-    roles: PersonRoleData[];
+    roles: PersonRoleOutput[];
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ cityId: data.cityId });
     try {
@@ -83,7 +83,7 @@ export async function editPerson(id: string, data: {
     name_short_en: string;
     image?: string | null;
     profileUrl: string | null;
-    roles: PersonRoleData[];
+    roles: PersonRoleOutput[];
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ personId: id });
     try {

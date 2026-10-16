@@ -1,34 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
-import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
-import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
+import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
-
-const getMeetingsQuerySchema = z.object({
-    limit: z.string()
-        .optional()
-        .transform((val) => val ? parseInt(val, 10) : undefined)
-        .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
-            message: "Limit must be a number between 1 and 100"
-        }),
-    from: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'from' date" })
-        .transform((val) => val ? new Date(val) : undefined),
-    to: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'to' date" })
-        .transform((val) => val ? new Date(val) : undefined),
-    includeUnreleased: z.string()
-        .optional()
-        .transform((val) => val === 'true'),
-});
+import { resolveCityDateRange } from '@/lib/dates/cityDateRange';
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -46,9 +26,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             ...(processAgenda && { processAgendaStatus }),
         }, { status: 201 });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to create meeting');
     }
 }
@@ -59,7 +36,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
 
-        const { limit, from, to, includeUnreleased } = getMeetingsQuerySchema.parse(queryParams);
+        const { limit, from, to, includeUnreleased } = meetingListQuerySchema.parse(queryParams);
 
         // includeUnreleased requires auth (service key or authorized user)
         if (includeUnreleased) {
@@ -69,8 +46,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const meetings = await getCouncilMeetingsForCity(params.cityId, {
             includeUnreleased,
             limit,
-            from,
-            to,
+            ...await resolveCityDateRange(params.cityId, { from, to }),
         });
 
         // An editor gets the rows as they are, links included, for the admin
@@ -79,15 +55,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         if (includeUnreleased) {
             return NextResponse.json(meetings);
         }
-        const city = await getCityNameEnAndTimezone(params.cityId);
-        const timezone = city?.timezone ?? DEFAULT_TIMEZONE;
+        const timezone = (await getCityTimezone(params.cityId)) ?? DEFAULT_TIMEZONE;
         const dates = await originalScheduledDates(params.cityId, meetings);
         return NextResponse.json(meetings.map(meeting =>
             toPublicApiMeeting(hideLinks(meeting), { timezone, postponedFromDate: dates.get(meeting.id) ?? null })));
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to fetch meetings');
     }
 }

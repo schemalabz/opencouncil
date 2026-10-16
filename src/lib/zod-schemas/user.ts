@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { PHONE_REJECTION_CODES, normalizeMobilePhone } from '@/lib/utils/phone';
 
 // --- Profile (self-service) ---
@@ -15,7 +15,7 @@ const phoneField = z
         if (value === null) return null;
         const parsed = normalizeMobilePhone(value);
         if (!parsed.ok) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: PHONE_REJECTION_CODES[parsed.reason] });
+            ctx.addIssue({ code: 'custom', message: PHONE_REJECTION_CODES[parsed.reason] });
             return z.NEVER;
         }
         return parsed.e164;
@@ -34,8 +34,6 @@ const profileFields = {
 
 export const updateProfileSchema = z.object(profileFields).partial();
 
-export type UpdateProfileData = z.infer<typeof updateProfileSchema>;
-
 // --- Admin user management (superadmin only) ---
 
 const administersEntrySchema = z.object({
@@ -44,11 +42,11 @@ const administersEntrySchema = z.object({
     personId: z.string().nullable().optional(),
 }).refine(
     data => [data.cityId, data.partyId, data.personId].filter(Boolean).length === 1,
-    { message: "Exactly one of cityId, partyId, or personId must be provided" }
+    { error: "Exactly one of cityId, partyId, or personId must be provided" }
 );
 
 const adminUserFields = {
-    email: z.string().trim().toLowerCase().email("Invalid email address"),
+    email: z.string().trim().toLowerCase().pipe(z.email("Invalid email address")),
     name: z.string().trim().min(1, "Name cannot be empty").nullable(),
     isSuperAdmin: z.boolean(),
     administers: z.array(administersEntrySchema).optional(),
@@ -63,6 +61,3 @@ export const updateAdminUserSchema = z.object({
     id: z.string().min(1, "User ID is required"),
     ...adminUserFields,
 }).partial().required({ id: true });
-
-export type CreateAdminUserData = z.infer<typeof createAdminUserSchema>;
-export type UpdateAdminUserData = z.infer<typeof updateAdminUserSchema>;
