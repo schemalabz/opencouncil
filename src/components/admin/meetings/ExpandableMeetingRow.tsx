@@ -3,7 +3,12 @@
 import { format } from "date-fns";
 import React from "react";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
-import type { DocumentSendSummary } from "@/lib/db/documentSends";
+import type { DocumentChip } from "@/lib/documents/status";
+import { DocumentChipBadge, DocumentChips, recipientsLine } from "@/components/admin/documents/DocumentChips";
+import { visibleDocumentChips } from "@/lib/documents/status";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SendDocumentButton } from "@/components/admin/documents/SendDocumentButton";
+import { DOCUMENT_NAMES } from "@/lib/documents/settings";
 import { MeetingStage, MeetingStatus } from "@/lib/meetingStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +25,7 @@ import {
     Landmark,
     Clock,
     Loader2,
+    Mail,
 } from "lucide-react";
 import { MeetingExportButtons } from "@/components/meetings/MeetingExportButtons";
 import { MeetingDataCore } from "@/lib/getMeetingData";
@@ -37,7 +43,7 @@ interface ExpandableMeetingRowProps {
     isSelected: boolean;
     onSelect: (checked: boolean) => void;
     decisionCounts?: { linked: number; eligible: number };
-    documentSends: DocumentSendSummary[];
+    documentChips: DocumentChip[];
 }
 
 export function ExpandableMeetingRow({
@@ -46,7 +52,7 @@ export function ExpandableMeetingRow({
     isSelected,
     onSelect,
     decisionCounts,
-    documentSends,
+    documentChips,
 }: ExpandableMeetingRowProps) {
     const [meetingStage, setMeetingStage] = React.useState<MeetingStage>('scheduled');
     const [meetingStatus, setMeetingStatus] = React.useState<MeetingStatus | null>(null);
@@ -80,8 +86,11 @@ export function ExpandableMeetingRow({
             });
     }, [selectedCityId, meeting.id, pollingFetched, pollingLoading]);
 
+    const sentDocuments = visibleDocumentChips(documentChips);
+
     // Expanded content
     const expandedContent = (
+        <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Meeting Details */}
             <Card className="shadow-sm">
@@ -221,6 +230,48 @@ export function ExpandableMeetingRow({
                     </div>
                 </CardContent>
             </Card>
+
+        </div>
+
+            {/* Documents the body sends to the municipality: one row each, across the width */}
+            {sentDocuments.length > 0 && (
+                <Card className="shadow-sm">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            Documents
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <TooltipProvider>
+                            <ul className="divide-y divide-border">
+                                {sentDocuments.map((chip) => (
+                                    <li key={chip.document} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+                                        <span className="w-24 shrink-0 font-medium">{DOCUMENT_NAMES[chip.document].en}</span>
+                                        <DocumentChipBadge chip={chip} />
+                                        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={recipientsLine(chip.recipientEmails)}>
+                                            {recipientsLine(chip.recipientEmails)}
+                                        </span>
+                                        {chip.state !== 'pending' && (
+                                            <div className="ml-auto shrink-0">
+                                                <SendDocumentButton
+                                                    cityId={selectedCityId}
+                                                    meetingId={meeting.id}
+                                                    document={chip.document}
+                                                    isSent={chip.state === 'sent' || chip.state === 'sentIncomplete'}
+                                                    allowResend
+                                                    size="sm"
+                                                    compact
+                                                />
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </TooltipProvider>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 
@@ -294,13 +345,9 @@ export function ExpandableMeetingRow({
                 </div>
             </TableCell>
 
-            {/* Transcript Sent Status */}
-            <TableCell className="w-16 text-center">
-                <div className="flex items-center justify-center">
-                    {documentSends.some(send => send.document === 'transcript' && send.status === 'sent') && (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                    )}
-                </div>
+            {/* Documents sent to the municipality */}
+            <TableCell className="w-56">
+                <DocumentChips chips={documentChips} />
             </TableCell>
 
             {/* Subjects Count */}

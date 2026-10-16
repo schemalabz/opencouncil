@@ -8,6 +8,23 @@ import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
 import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
 import type { DocumentSendRule } from '@/lib/documents/settings';
 
+export const documentSendSummarySelect = {
+    id: true,
+    document: true,
+    status: true,
+    trigger: true,
+    automatic: true,
+    recipientEmails: true,
+    complete: true,
+    missingSubjectIds: true,
+    sentAt: true,
+    failureReason: true,
+    createdAt: true,
+} satisfies Prisma.DocumentSendSelect;
+
+/** One send as the admin pages show it. */
+export type DocumentSendSummary = Prisma.DocumentSendGetPayload<{ select: typeof documentSendSummarySelect }>;
+
 export const documentSendSettingSelect = {
     document: true,
     enabled: true,
@@ -63,37 +80,6 @@ export async function replaceDocumentSendSettings(
             });
         }
     });
-}
-
-export const documentSendSummarySelect = {
-    id: true,
-    document: true,
-    status: true,
-    trigger: true,
-    automatic: true,
-    recipientEmails: true,
-    complete: true,
-    missingSubjectIds: true,
-    sentAt: true,
-    failureReason: true,
-    createdAt: true,
-} satisfies Prisma.DocumentSendSelect;
-
-/** One send as the admin pages show it. */
-export type DocumentSendSummary = Prisma.DocumentSendGetPayload<{ select: typeof documentSendSummarySelect }>;
-
-/** The sends of every meeting of a city, newest first, keyed by meeting id. */
-export async function getDocumentSendsForCity(cityId: string): Promise<Record<string, DocumentSendSummary[]>> {
-    const sends = await prisma.documentSend.findMany({
-        where: { cityId },
-        select: { ...documentSendSummarySelect, councilMeetingId: true },
-        orderBy: { createdAt: 'desc' },
-    });
-    const byMeeting: Record<string, DocumentSendSummary[]> = {};
-    for (const { councilMeetingId, ...send } of sends) {
-        (byMeeting[councilMeetingId] ??= []).push(send);
-    }
-    return byMeeting;
 }
 
 /** The meeting as the document payload builders read it. */
@@ -168,7 +154,7 @@ export const readinessMeetingSelect = {
     administrativeBody: { select: { documentSendSettings: { select: documentSendSettingSelect } } },
     taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, select: { id: true }, take: 1 },
     subjects: { where: DECISION_ELIGIBLE_SUBJECT_WHERE, select: { id: true, decision: { select: { id: true } } } },
-    documentSends: { select: { document: true, status: true, automatic: true } },
+    documentSends: { select: documentSendSummarySelect, orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.CouncilMeetingSelect;
 
 /** Everything the readiness rules read about one meeting, in one query. */
@@ -213,5 +199,13 @@ export async function getSubjectLabels(subjectIds: string[]): Promise<Array<{ id
         where: { id: { in: subjectIds } },
         select: { id: true, agendaItemIndex: true, name: true, agendaItemTitle: true },
         orderBy: [{ agendaItemIndex: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    });
+}
+
+/** The readiness facts of every meeting of a city, for the admin list. */
+export async function getReadinessFactsForCity(cityId: string): Promise<ReadinessFacts[]> {
+    return prisma.councilMeeting.findMany({
+        where: { cityId },
+        select: readinessMeetingSelect,
     });
 }
