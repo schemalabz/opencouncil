@@ -254,6 +254,19 @@ describe('MCP meeting tools report the record of a meeting - integration', () =>
         expect(meeting.note).toMatch(/cancelled/)
     })
 
+    test('get_meeting shows the stored municipal minutes to an administrator only (#876)', async () => {
+        await prisma.councilMeeting.update({
+            where: { cityId_id: { cityId: 'athens', id: 'mar26_2026' } },
+            data: { municipalMinutesUrl: 'https://example.com/minutes.pdf' },
+        })
+        const forAdmin = await asRequest(() => mcpGetMeeting('athens', 'mar26_2026', SERVICE))
+        expect(forAdmin.municipalMinutesUrl).toBe('https://example.com/minutes.pdf')
+
+        const forReader = await asRequest(() => mcpGetMeeting('athens', 'mar26_2026', ANON))
+        expect(forReader).not.toHaveProperty('municipalMinutesUrl')
+        expect(JSON.stringify(forReader)).not.toContain('minutes.pdf')
+    })
+
     test('get_meeting of the new meeting carries the original date, not the id', async () => {
         const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar19_2026', SERVICE))
         expect(meeting.postponedFromDate).toBe('2026-03-12T16:00:00.000Z')

@@ -397,6 +397,9 @@
         "meetingAgenda": "Meeting Agenda",
         "meetingAgendaPlaceholder": "Agenda URL or file",
         "meetingAgendaDescription": "Provide a URL or upload a file with the meeting agenda.",
+        "meetingMunicipalMinutes": "Municipal minutes",
+        "meetingMunicipalMinutesPlaceholder": "Minutes URL or file (PDF or DOCX)",
+        "meetingMunicipalMinutesDescription": "The municipality's own verbatim minutes. The transcript is corrected from them and the meeting skips the human review.",
         "processAgenda": "Run pipeline",
         "processAgendaDescription": "Automatically parse the agenda into structured items after creation.",
         "formErrors": "Please fix the following errors:"

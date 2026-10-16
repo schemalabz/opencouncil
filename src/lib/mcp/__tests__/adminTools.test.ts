@@ -4,18 +4,21 @@
 // it validates a call with the input schema of the tool.
 jest.mock('../adminData', () => ({
     mcpCreateAgendaUploadUrl: jest.fn().mockResolvedValue({}),
+    mcpCreateDocumentUploadUrl: jest.fn().mockResolvedValue({}),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
-    mcpCreateMeeting: jest.fn(),
+    mcpCreateMeeting: jest.fn().mockResolvedValue({}),
+    mcpListTranscriptEdits: jest.fn().mockResolvedValue({}),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
-    mcpStartTask: jest.fn(),
-    mcpUpdateMeeting: jest.fn(),
+    mcpRevertTranscriptEdit: jest.fn().mockResolvedValue({}),
+    mcpStartTask: jest.fn().mockResolvedValue({}),
+    mcpUpdateMeeting: jest.fn().mockResolvedValue({}),
 }));
 // auth.ts reaches Prisma, and through it env.mjs, which jest does not transform.
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
-import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting } from '@/lib/mcp/adminData';
+import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateDocumentUploadUrl, mcpCreateMeeting, mcpListTranscriptEdits, mcpPopulateCity, mcpRevertTranscriptEdit, mcpStartTask, mcpUpdateMeeting } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
 
 /** A real McpServer with the tools of a superadmin. Only the handlers are stubs. */
@@ -145,6 +148,9 @@ describe('link inputs take http(s) only', () => {
         ['update_meeting', 'agendaUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
         ['start_task', 'videoUrl', { cityId: 'chania', meetingId: 'm1', type: 'transcribe' }, mcpStartTask as jest.Mock],
         ['start_task', 'agendaUrl', { cityId: 'chania', meetingId: 'm1', type: 'processAgenda' }, mcpStartTask as jest.Mock],
+        ['create_meeting', 'municipalMinutesUrl', MEETING, mcpCreateMeeting as jest.Mock],
+        ['update_meeting', 'municipalMinutesUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
+        ['start_task', 'municipalMinutesUrl', { cityId: 'chania', meetingId: 'm1', type: 'fixFromMinutes' }, mcpStartTask as jest.Mock],
     ];
 
     it.each(cases)('%s refuses a javascript: %s', async (tool, field, args, handler) => {
@@ -158,5 +164,48 @@ describe('link inputs take http(s) only', () => {
         const result = await mcp.call(tool, { ...args, [field]: 'https://example.com/file' });
         expect(result.isError).toBeFalsy();
         expect(handler).toHaveBeenCalledWith(null, expect.objectContaining({ [field]: 'https://example.com/file' }));
+    });
+});
+
+describe('the municipal minutes through the SDK (#876)', () => {
+    it('uploads a document of either kind, and refuses an unknown kind', async () => {
+        const result = await mcp.call('create_document_upload_url', { cityId: 'chania', identifier: '2026-10-15', kind: 'municipalMinutes' });
+        expect(result.isError).toBeFalsy();
+        expect(mcpCreateDocumentUploadUrl).toHaveBeenCalledWith(null, { cityId: 'chania', identifier: '2026-10-15', format: 'pdf', kind: 'municipalMinutes' });
+
+        const refused = await mcp.call('create_document_upload_url', { cityId: 'chania', identifier: '2026-10-15', kind: 'sheet' });
+        expect(refused.isError).toBe(true);
+        expect(mcpCreateDocumentUploadUrl).toHaveBeenCalledTimes(1);
+    });
+
+    it('creates a meeting with the minutes', async () => {
+        const result = await mcp.call('create_meeting', {
+            cityId: 'chania', dateTime: '2024-03-12T18:00:00+02:00',
+            youtubeUrl: 'https://www.youtube.com/watch?v=abc', municipalMinutesUrl: 'https://example.com/minutes.pdf',
+        });
+        expect(result.isError).toBeFalsy();
+        expect(mcpCreateMeeting).toHaveBeenCalledWith(null, expect.objectContaining({ municipalMinutesUrl: 'https://example.com/minutes.pdf' }));
+    });
+
+    it('starts fixFromMinutes with the minutes, and refuses the minutes on another step', async () => {
+        const result = await mcp.call('start_task', { cityId: 'chania', meetingId: 'mar12_2024', type: 'fixFromMinutes', municipalMinutesUrl: 'https://example.com/minutes.pdf' });
+        expect(result.isError).toBeFalsy();
+        expect(mcpStartTask).toHaveBeenCalledWith(null, { cityId: 'chania', meetingId: 'mar12_2024', type: 'fixFromMinutes', force: false, municipalMinutesUrl: 'https://example.com/minutes.pdf' });
+
+        const refused = await mcp.call('start_task', { cityId: 'chania', meetingId: 'mar12_2024', type: 'transcribe', municipalMinutesUrl: 'https://example.com/minutes.pdf' });
+        expect(refused.isError).toBe(true);
+        expect(refused.content[0].text).toMatch(/municipalMinutesUrl applies to fixFromMinutes only/);
+        expect(mcpStartTask).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists the edits of one run and reverts one', async () => {
+        await mcp.call('list_transcript_edits', { cityId: 'chania', meetingId: 'mar12_2024', taskId: 'task-1' });
+        expect(mcpListTranscriptEdits).toHaveBeenCalledWith(null, { cityId: 'chania', meetingId: 'mar12_2024', taskId: 'task-1' });
+
+        await mcp.call('revert_transcript_edit', { cityId: 'chania', meetingId: 'mar12_2024', editId: 'edit-1' });
+        expect(mcpRevertTranscriptEdit).toHaveBeenCalledWith(null, { cityId: 'chania', meetingId: 'mar12_2024', editId: 'edit-1' });
+
+        const refused = await mcp.call('revert_transcript_edit', { cityId: 'chania', meetingId: 'mar12_2024' });
+        expect(refused.isError).toBe(true);
     });
 });

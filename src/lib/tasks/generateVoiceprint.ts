@@ -15,6 +15,11 @@ const VOICEPRINT_DURATION = 30;
  * person's voiceprint: the completed reviews of each segment's meeting.
  */
 const voiceprintCandidateTagInclude = {
+    // Whether the voice itself vouches for the name: a voiceprint opinion on the same person.
+    identifications: {
+        where: { method: 'voiceprint' },
+        select: { personId: true },
+    },
     speakerSegments: {
         include: {
             meeting: {
@@ -34,20 +39,37 @@ type VoiceprintCandidateTag = Prisma.SpeakerTagGetPayload<{ include: typeof voic
 /**
  * Whether a tag's audio may become its person's voiceprint.
  *
- * A name only the transcript gave is unreviewed, and a voiceprint built on a
- * wrong one would make the voiceprint method repeat the transcript's mistake in
- * every later meeting. Such a tag counts once the review of its meeting is
- * complete: the reviewer read the name and left it, which is how a reviewer
- * confirms one.
+ * A name that no voice vouches for is unreviewed, and a voiceprint built on a
+ * wrong one would make the voiceprint method repeat that mistake in every
+ * later meeting. Those are the names the transcript or the municipal minutes
+ * gave on their own, and a `both` where they agreed with each other but no
+ * voiceprint opinion names the person (#876). Such a tag counts once the human
+ * review of its meeting is complete: the reviewer read the name and left it,
+ * which is how a reviewer confirms one. A correction from the minutes stands
+ * in for the review elsewhere, never here, so a backfilled meeting feeds no
+ * voiceprint until a person reviews it.
  *
  * The review must be later than the tag. A re-transcribe replaces every tag,
  * and a review of the earlier transcript says nothing about the new ones.
  */
 function isVoiceprintSource(tag: VoiceprintCandidateTag): boolean {
-    if (tag.personSetBy !== 'transcript') return true;
+    if (!voiceIsUnconfirmed(tag)) return true;
     return tag.speakerSegments.some(segment =>
         segment.meeting.taskStatuses.some(review => review.createdAt > tag.createdAt)
     );
+}
+
+/** The tag's person rests on text alone: no reviewer set it and no voiceprint opinion names them. */
+function voiceIsUnconfirmed(tag: VoiceprintCandidateTag): boolean {
+    switch (tag.personSetBy) {
+        case 'transcript':
+        case 'minutes':
+            return true;
+        case 'both':
+            return !tag.identifications.some(identification => identification.personId === tag.personId);
+        default:
+            return false;
+    }
 }
 
 /** The segments a person's voiceprint may be cut from, without the review data they were chosen by. */

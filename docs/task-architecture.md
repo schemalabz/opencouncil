@@ -337,7 +337,7 @@ export const TASK_CONFIG = {
 } as const;
 ```
 
-The system will automatically derive the task type and include it in the appropriate categories.
+The system will automatically derive the task type and include it in the appropriate categories. A task can take the place of a required step. It then names that step in `standsInFor`, as `fixFromMinutes` does for `humanReview` and `transcriptSent`. `getMeetingTaskStatus` reads the step as done when the task succeeded.
 
 ### 2. Define Types
 In `src/lib/apiTypes.ts`, create interfaces for the task's request and result:

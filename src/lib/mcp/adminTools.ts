@@ -4,8 +4,11 @@ import type { McpAdminAccess } from './adminAccess';
 import {
     mcpCreateAgendaUploadUrl,
     mcpCreateCity,
+    mcpCreateDocumentUploadUrl,
     mcpCreateMeeting,
+    mcpListTranscriptEdits,
     mcpPopulateCity,
+    mcpRevertTranscriptEdit,
     mcpStartTask,
     mcpUpdateMeeting,
 } from './adminData';
@@ -13,6 +16,9 @@ import {
     agendaUploadUrlToolInput,
     createCityToolInput,
     createMeetingToolInput,
+    documentUploadUrlToolInput,
+    listTranscriptEditsToolInput,
+    revertTranscriptEditToolInput,
     startTaskToolInput,
     updateMeetingToolInput,
 } from './adminToolSchemas';
@@ -48,7 +54,10 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'Call list_meetings first with the same date: a second call creates a second meeting. '
                 + 'Pass administrativeBodyId (see get_city): the meeting list of the site shows the council '
                 + 'by default and hides a meeting that has no body. The meeting has no name to set: the site '
-                + 'derives its title from the kind and the session number. Confirm the details with the user before you call.',
+                + 'derives its title from the kind and the session number. To backfill a past meeting from the '
+                + "municipality's own verbatim minutes, pass municipalMinutesUrl with the recording: the transcript "
+                + 'is then corrected from the minutes and the meeting needs no human review. '
+                + 'Confirm the details with the user before you call.',
             inputSchema: createMeetingToolInput,
         },
         (args, ctx: ServerContext) => run(() => mcpCreateMeeting(identityFromContext(ctx), args))
@@ -62,8 +71,8 @@ function registerMeetingAdminTools(server: McpServer) {
             _meta: category('admin'),
             description:
                 'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
-                + 'date, video URL, agenda URL, administrative body, kind, urgency, session number, status, format or place. A field that '
-                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. The name '
+                + 'date, video URL, agenda URL, municipal minutes URL, administrative body, kind, urgency, session number, status, format or place. A field that '
+                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl, municipalMinutesUrl or administrativeBodyId. The name '
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
                 + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
                 + 'to a body that they do not administer. It cannot link a meeting to a postponed '
@@ -75,21 +84,70 @@ function registerMeetingAdminTools(server: McpServer) {
     );
 
     server.registerTool(
+        'create_document_upload_url',
+        {
+            title: 'Create document upload URL',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Get a short-lived URL to upload a document of a meeting to the file storage of OpenCouncil, '
+                + 'in a municipality that you administer: the agenda, or the municipality\'s own verbatim minutes. '
+                + 'Use it when the file has no stable public URL: an email attachment, a chat attachment, a download '
+                + 'link that expires. Send the file with a PUT to `uploadUrl`, with the returned `headers`, within '
+                + '`expiresIn` seconds. The file is then public at `publicUrl`: pass it as agendaUrl or '
+                + 'municipalMinutesUrl to create_meeting or update_meeting. A PDF or a .docx file: the task server '
+                + 'reads these two formats only.',
+            inputSchema: documentUploadUrlToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpCreateDocumentUploadUrl(identityFromContext(ctx), args))
+    );
+
+    // The name of earlier releases, kept for one release: the same call with kind agenda.
+    server.registerTool(
         'create_agenda_upload_url',
         {
             title: 'Create agenda upload URL',
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Get a short-lived URL to upload the agenda of a meeting to the file storage of OpenCouncil, '
-                + 'in a municipality that you administer. Use it when the file has no stable public URL: an email '
-                + 'attachment, a chat attachment, a download link that expires. Send the file with a PUT to '
-                + '`uploadUrl`, with the returned `headers`, within `expiresIn` seconds. The file is then public '
-                + 'at `publicUrl`: pass it as agendaUrl to create_meeting or update_meeting. A PDF or a .docx '
-                + 'file: the agenda processing reads these two formats only.',
+                'Get a short-lived URL to upload the agenda of a meeting. The same as create_document_upload_url '
+                + 'with kind agenda; prefer that tool.',
             inputSchema: agendaUploadUrlToolInput,
         },
         (args, ctx: ServerContext) => run(() => mcpCreateAgendaUploadUrl(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'list_transcript_edits',
+        {
+            title: 'List transcript edits',
+            annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'The record of every change to the transcript of a meeting in a municipality that you administer: '
+                + 'the text before and after, who made it (a person, or a task run: fixTranscript or fixFromMinutes), '
+                + 'and for a change from the municipal minutes, the page and the speaker label of the turn it came from. '
+                + 'Each edit carries a url that opens the recording at that moment. Pass taskId (from the tasks of '
+                + 'get_meeting) to see what one run changed; omit it for the whole history, oldest first. '
+                + 'Use it to check a backfilled meeting and to find a wrong change to revert.',
+            inputSchema: listTranscriptEditsToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpListTranscriptEdits(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'revert_transcript_edit',
+        {
+            title: 'Revert a transcript edit',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Put the text from before one edit back, in a municipality that you administer. The utterance gets '
+                + 'the beforeText of the edit, recorded as a new edit by you: nothing is deleted, and no task rewrites '
+                + 'the utterance again. The speaker is unchanged. Confirm with the user before you call.',
+            inputSchema: revertTranscriptEditToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpRevertTranscriptEdit(identityFromContext(ctx), args))
     );
 }
 
@@ -104,7 +162,9 @@ function registerTaskAdminTools(server: McpServer) {
                 'Start one step of the processing pipeline for a meeting in a municipality, or of an administrative body, that you administer, '
                 + 'as the admin page of the meeting does. The steps, in order: `processAgenda` reads the subjects '
                 + 'from the agenda PDF; `transcribe` turns the video into a transcript (and starts fixTranscript '
-                + 'on its own when it finishes); `fixTranscript` corrects the transcript; `summarize` writes the '
+                + 'on its own when it finishes); `fixTranscript` corrects the transcript; `fixFromMinutes` corrects it '
+                + "from the municipality's own minutes and starts summarize on its own (it runs by itself after "
+                + 'fixTranscript when the meeting has municipalMinutesUrl); `summarize` writes the '
                 + 'subjects and summaries from the transcript. Each step spends real money on the task server and '
                 + 'takes minutes: confirm with the user before you call, and read get_meeting first — its `tasks` '
                 + 'list shows what ran, what is running and what failed. A step that is running is refused: wait '

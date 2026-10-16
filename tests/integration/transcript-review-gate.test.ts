@@ -89,11 +89,17 @@ describe('TRANSCRIPT_PUBLIC_WHERE', () => {
         await createMeeting(CITY, { id: 'unreviewed', administrativeBodyId: reviewed, released: true })
         await createMeeting(CITY, { id: 'reviewed', administrativeBodyId: reviewed, released: true })
         await createTaskStatus('reviewed', CITY, { type: 'humanReview', status: 'succeeded' })
+        // Corrected from the municipal minutes, which stand in for the review (#876).
+        await createMeeting(CITY, { id: 'from-minutes', administrativeBodyId: reviewed, released: true })
+        await createTaskStatus('from-minutes', CITY, { type: 'fixFromMinutes', status: 'succeeded' })
+        // A run that failed unlocks nothing.
+        await createMeeting(CITY, { id: 'minutes-failed', administrativeBodyId: reviewed, released: true })
+        await createTaskStatus('minutes-failed', CITY, { type: 'fixFromMinutes', status: 'failed' })
 
         const ids = (await prisma.councilMeeting.findMany({ where: { cityId: CITY, ...TRANSCRIPT_PUBLIC_WHERE }, select: { id: true } }))
             .map((m) => m.id).sort()
-        expect(ids).toEqual(['no-body', 'public', 'reviewed'])
-        for (const id of ['public', 'no-body', 'unreviewed', 'reviewed']) {
+        expect(ids).toEqual(['from-minutes', 'no-body', 'public', 'reviewed'])
+        for (const id of ['public', 'no-body', 'unreviewed', 'reviewed', 'from-minutes', 'minutes-failed']) {
             const meeting = await getPublicMeeting(CITY, id, 'greece')
             expect([id, transcriptIsPublic(meeting!)]).toEqual([id, ids.includes(id)])
         }

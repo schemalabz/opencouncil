@@ -9,6 +9,7 @@ import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
 import { requestSummarizeInternal } from "./summarizeInternal";
+import { startMinutesCorrectionIfDue } from "./fixFromMinutesInternal";
 import { withUserAuthorizedToEdit } from "../auth";
 import { taskScope } from "./types";
 import { after } from "next/server";
@@ -171,4 +172,13 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // callback must not wait on Gemini, and minutes of Gemini calls must
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
+
+    // A backfill whose correction from the minutes was refused while this
+    // summary ran continues now (#876). The summary is saved, so a failure
+    // here must not fail it: autoTriggerTask alerts on a refused start.
+    try {
+        await startMinutesCorrectionIfDue(taskId, 'summarize');
+    } catch (error) {
+        console.error(`Could not check the minutes correction after summarize task ${taskId}:`, error);
+    }
 }

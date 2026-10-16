@@ -421,6 +421,82 @@ export interface FixTranscriptResult {
 }
 
 /*
+ * Fix From Minutes (#876)
+ *
+ * Corrects a transcript from the municipality's own verbatim minutes and
+ * names the speakers from the labels of those minutes. The shapes are the
+ * contract with the task server (src/types.ts in opencouncil-tasks): change
+ * them together.
+ */
+
+export interface FixFromMinutesRequest extends RequestOnTranscript {
+    /** The municipality's minutes document, a PDF or a DOCX. */
+    municipalMinutesUrl: string;
+    /** YYYY-MM-DD in the city's time zone, to pick the meeting inside a document that holds several. */
+    meetingDate: string;
+    /** As the municipality prints it. Null when the record has none: the date alone picks the section. */
+    sessionNumber: number | null;
+}
+
+/** Where a correction's wording came from: the turn of the minutes that aligned with the utterance. */
+export interface MinutesSource {
+    /** 1-based page of the document the turn starts on; 1 for a document without pages (DOCX). */
+    page: number;
+    /** The speaker label of the turn as the minutes print it. */
+    label: string;
+    /** 0-based index of the turn in the section, after the model check. */
+    turnIndex: number;
+}
+
+export interface FixFromMinutesReport {
+    document: {
+        /** The section of the document that was read; null when the document holds one meeting only. */
+        section: { page: number; pages: number } | null;
+        /** Share (0–1) of the section's text that falls inside a speaker turn, after the model check. */
+        coverage: number;
+        checkAdded: number;
+        checkRemoved: number;
+        checkDropped: number;
+        /** Model calls that failed. The parser's turns stand in their range. */
+        checkFailedChunks: number;
+    };
+    alignment: {
+        turns: number;
+        alignedTurns: number;
+        turnsUnderGate: number;
+        utterancesUnmatched: number;
+    };
+    corrections: {
+        utterancesChanged: number;
+        substitutions: number;
+        insertionsSkipped: number;
+        deletionsSkipped: number;
+    };
+    speakers: {
+        actionable: number;
+        contested: { speakerTagId: string; people: { personId: string; share: number; from: number; to: number }[] }[];
+        disagreements: { speakerTagId: string; opinions: { method: 'voiceprint' | 'transcript' | 'minutes'; personId: string }[] }[];
+        unresolvedLabels: string[];
+    };
+}
+
+export interface FixFromMinutesResult {
+    updateUtterances: {
+        utteranceId: string;
+        text: string;
+        markUncertain: false;
+        source: MinutesSource;
+    }[];
+    /**
+     * One per speaker tag the minutes name. Same shape as the transcript hints;
+     * confidence is the purity. Absent when the pass did not run (no roster or
+     * no speaker tag ids): the opinions of an earlier run then stay as they are.
+     */
+    speakerHints?: SpeakerHint[];
+    report: FixFromMinutesReport;
+}
+
+/*
  * Summarize
  */
 

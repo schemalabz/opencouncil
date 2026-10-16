@@ -2,18 +2,19 @@ import 'server-only';
 import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
+import { REVIEWED_TRANSCRIPT_TASK_TYPES } from '@/lib/tasks/types';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {
     administrativeBody: { select: { showUnreviewedTranscript: true } },
-    taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, take: 1, select: { id: true } },
+    taskStatuses: { where: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' }, take: 1, select: { id: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 
 export const publicMeetingSelect = {
     id: true, cityId: true, name: true, name_en: true, kind: true, sessionNumber: true, urgent: true, dateTime: true,
     city: { select: { id: true, name: true, name_en: true, timezone: true, realm: true, logoImage: true } },
     administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
-    taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, take: 1, select: { id: true } },
+    taskStatuses: { where: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' }, take: 1, select: { id: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 export type PublicMeeting = Prisma.CouncilMeetingGetPayload<{ select: typeof publicMeetingSelect }>;
 
@@ -31,7 +32,8 @@ type TranscriptGateFields = Pick<PublicMeeting, 'taskStatuses'> & {
 
 /**
  * May a reader read the transcript of this released meeting? A body that
- * hides unreviewed transcripts shows one only after the human review. Every
+ * hides unreviewed transcripts shows one only after the human review, or the
+ * correction from the municipal minutes that stands in for it. Every
  * path that gives transcript text to a reader asks this, or its database
  * form `TRANSCRIPT_PUBLIC_WHERE`.
  */
@@ -57,7 +59,7 @@ export const TRANSCRIPT_PUBLIC_WHERE = {
     OR: [
         { administrativeBody: null },
         { administrativeBody: { showUnreviewedTranscript: true } },
-        { taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } } },
+        { taskStatuses: { some: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' } } },
     ],
 } satisfies Prisma.CouncilMeetingWhereInput;
 

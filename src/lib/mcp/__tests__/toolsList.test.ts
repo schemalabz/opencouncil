@@ -39,7 +39,7 @@ const PUBLIC_TOOLS = [
     'get_party', 'get_transcript',
 ];
 const HIGHLIGHT_TOOLS = ['create_highlight', 'generate_highlight_video', 'list_highlights', 'set_highlight_showcase', 'get_highlight'];
-const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
+const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_document_upload_url', 'create_agenda_upload_url', 'list_transcript_edits', 'revert_transcript_edit', 'start_task'];
 const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
 
 const USER: McpIdentity = { type: 'user', userId: 'u1' };

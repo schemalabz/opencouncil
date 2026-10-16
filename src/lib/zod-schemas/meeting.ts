@@ -31,6 +31,11 @@ export const baseMeetingFields = {
     agendaUrl: webUrl({
         error: vmsg('invalidAgendaUrl'),
     }),
+    // The municipality's own verbatim minutes (#876). A meeting that has them
+    // is corrected from them in place of the human review.
+    municipalMinutesUrl: webUrl({
+        error: vmsg('invalidMunicipalMinutesUrl'),
+    }).meta({ description: "The municipality's own verbatim minutes (πρακτικά), a PDF or a DOCX. A meeting that has them is corrected from them, with no human review." }),
     administrativeBodyId: z.string().min(1),
 
     // The facts of the record (MEETING_RECORD_INPUT_KEYS) and the link to the
@@ -66,6 +71,7 @@ export const meetingSchema = z.object({
     date: baseMeetingFields.date.transform((str) => new Date(str)),
     youtubeUrl: blankToNull(baseMeetingFields.youtubeUrl.or(z.literal(''))),
     agendaUrl: blankToNull(baseMeetingFields.agendaUrl.or(z.literal(''))),
+    municipalMinutesUrl: blankToNull(baseMeetingFields.municipalMinutesUrl.or(z.literal(''))),
     // Optional on create: when omitted, the POST handler auto-generates a
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
@@ -128,6 +134,9 @@ export const meetingFormSchema = meetingSchema.extend({
     }).optional().or(z.literal("")),
     // The inputs hold text. The request reads an empty one as a clear.
     agendaUrl: baseMeetingFields.agendaUrl.optional().or(z.literal('')),
+    // Attaching the minutes is the choice to correct the transcript from them
+    // and skip the review (#876).
+    municipalMinutesUrl: baseMeetingFields.municipalMinutesUrl.optional().or(z.literal('')),
     // Empty on create: the API makes the id from the date and adds _2, _3 when
     // the day already has a meeting. A typed id is sent as it is.
     meetingId: z.string().optional(),

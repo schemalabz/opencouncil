@@ -9,7 +9,8 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
-import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, X, Edit2 } from "lucide-react";
+import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, ScrollText, X, Edit2 } from "lucide-react";
+import type { SpeakerSuggestionSource } from "@/lib/speakerIdentifications";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,13 +40,13 @@ interface PersonDisplayProps {
 /** Someone the speaker identifications suggest, and why (the reason arrives localized). */
 export type PersonSuggestion = {
     person: PersonWithRelations;
-    source: 'voiceprint' | 'transcript' | 'both';
+    source: SpeakerSuggestionSource;
     reason: string;
     /** The transcript line(s) the name rests on, quoted as the task gave them, so a reviewer can check the name. */
     evidence?: string | null;
 };
 
-const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: CheckCheck };
+const SUGGESTION_ICONS: Record<SpeakerSuggestionSource, typeof AudioLines> = { voiceprint: AudioLines, transcript: FileText, minutes: ScrollText, both: CheckCheck };
 
 /** A selected value no picker item carries: cmdk selects the first item only while the value is empty. */
 const NO_PRESELECTION = 'no-preselection';

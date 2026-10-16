@@ -25,6 +25,13 @@ export interface TaskConfig {
   scope: 'meeting' | 'city';
   discordAlertMode?: DiscordAlertMode;
   /**
+   * Required steps that a success of this task satisfies. fixFromMinutes
+   * takes the place of the human review and of the transcript email on a
+   * meeting that has the municipality's minutes: the meeting reaches "ready"
+   * without them, and no review row is written.
+   */
+  standsInFor?: readonly string[];
+  /**
    * The task runs per highlight, per person or per poll, so two of them on
    * one meeting at the same time are expected. Every other task is one per
    * meeting: startTask refuses a second one while the first still runs.
@@ -44,6 +51,11 @@ export const TASK_CONFIG = {
   fixTranscript: {
     scope: 'meeting',
     requiredForPipeline: true,
+  },
+  fixFromMinutes: {
+    requiredForPipeline: false,
+    scope: 'meeting',
+    standsInFor: ['humanReview', 'transcriptSent'],
   },
   humanReview: {
     scope: 'city',
@@ -142,6 +154,25 @@ export function getDiscordAlertMode(taskType: string): DiscordAlertMode {
 export const CORE_PROCESSING_TASKS = Object.entries(TASK_CONFIG)
   .filter(([_, config]) => config.requiredForPipeline)
   .map(([key]) => key as MeetingTaskType);
+
+/**
+ * The task types whose success counts as a success of `taskType`: the type
+ * itself, and every type that stands in for it.
+ */
+export function taskTypesSatisfying(taskType: MeetingTaskType): MeetingTaskType[] {
+  const standIns = (Object.entries(TASK_CONFIG) as [MeetingTaskType, TaskConfig][])
+    .filter(([_, config]) => config.standsInFor?.includes(taskType))
+    .map(([key]) => key);
+  return [taskType, ...standIns];
+}
+
+/**
+ * The task types whose success makes a transcript reviewed for its readers:
+ * the human review, and fixFromMinutes, which takes its place (#876). Every
+ * query that gates a transcript on the review reads this list, never the
+ * literal type, so a stand-in unlocks the transcript where the review does.
+ */
+export const REVIEWED_TRANSCRIPT_TASK_TYPES = taskTypesSatisfying('humanReview');
 
 // Task type for UI components
 export type Task = {
