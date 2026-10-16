@@ -17,11 +17,11 @@ export async function PUT(
         const body = await request.json();
 
         // An admin of the body, not of the city, changes the YouTube channel
-        // and the contact emails and nothing else (#828).
+        // and nothing else (#828).
         if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
-            const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
-            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
+            const { youtubeChannelUrl } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl });
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             return NextResponse.json(updatedBody);
         }
@@ -40,7 +40,7 @@ export async function PUT(
             return NextResponse.json(confirmed);
         }
 
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         // A field that the request leaves out keeps its value.
         const updatedBody = await editAdministrativeBody(params.bodyId, {
@@ -48,7 +48,6 @@ export async function PUT(
             name_en,
             type,
             youtubeChannelUrl,
-            contactEmails,
             notificationBehavior,
             showUnreviewedTranscript,
             diavgeiaUnitIds,

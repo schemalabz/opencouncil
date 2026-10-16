@@ -47,7 +47,6 @@ const BODY: AdministrativeBodyWithSettings = {
     place: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    contactEmails: ['secretary@example.org'],
     notificationBehavior: 'NOTIFICATIONS_APPROVAL',
     showUnreviewedTranscript: true,
     diavgeiaUnitIds: ['81689'],
@@ -82,7 +81,7 @@ describe('AdministrativeBodiesList', () => {
         const [url, init] = fetchMock.mock.calls[0];
         expect(url).toBe('/api/cities/athens/administrative-bodies/b1');
         expect(init.method).toBe('PUT');
-        expect(JSON.parse(init.body)).toMatchObject({ name: 'Δημοτικό Συμβούλιο', contactEmails: ['secretary@example.org'], diavgeiaUnitIds: '81689' });
+        expect(JSON.parse(init.body)).toMatchObject({ name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: '81689' });
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 });

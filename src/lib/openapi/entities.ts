@@ -72,7 +72,6 @@ export const AdministrativeBodySchema = z.object({
 export const AdministrativeBodyWithSettingsSchema = AdministrativeBodySchema.extend({
     notificationBehavior: notificationBehaviorSchema,
     showUnreviewedTranscript: z.boolean(),
-    contactEmails: z.array(z.string()),
     diavgeiaUnitIds: z.array(z.string()).meta({
         description: 'Diavgeia scopes polled for the decisions of the body, each `unit[:signer]`.',
     }),

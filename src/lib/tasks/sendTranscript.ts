@@ -13,6 +13,8 @@ import { revalidateTag } from 'next/cache';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { checkTaskIdempotency } from './tasks';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { getDocumentSendSetting } from '@/lib/db/documentSends';
+import { recipientsFor } from '@/lib/documents/settings';
 
 export interface SendTranscriptResult {
     success: boolean;
@@ -58,10 +60,10 @@ export async function sendTranscriptToMunicipality(
             return { success: false, error };
         }
 
-        // Check if contact emails are configured
-        const contactEmails = meeting.administrativeBody?.contactEmails || [];
+        const setting = await getDocumentSendSetting(meeting.administrativeBodyId, 'transcript');
+        const contactEmails = recipientsFor(setting, meeting.dateTime);
         if (contactEmails.length === 0) {
-            console.log(`[sendTranscript] No contact emails configured for administrative body, skipping: ${cityId}/${meetingId}`);
+            console.log(`[sendTranscript] The transcript setting does not cover the meeting, skipping: ${cityId}/${meetingId}`);
             return { success: true, skipped: true };
         }
 

@@ -125,7 +125,7 @@ maybe('seed pipeline end to end', () => {
         await prisma.$executeRawUnsafe(`UPDATE "City" SET geometry = ST_GeomFromText('POLYGON((23.7 37.9, 23.8 37.9, 23.8 38.0, 23.7 37.9))', 4326)`)
         // An admin who confirms the decision conventions leaves a user id in them; a rule removes it.
         const council = await createAdministrativeBody(athens.id, {
-            id: 'athens-council', name: 'Council', contactEmails: ['dimos@athens.gr'],
+            id: 'athens-council', name: 'Council',
             decisionConventions: { provenance: { source: 'manual', confirmedBy: 'user-admin-1', confirmedAt: '2026-10-01T00:00:00.000Z' } },
         })
         const committee = await createAdministrativeBody(athens.id, { id: 'athens-committee', name: 'Committee', type: 'committee' })
@@ -164,10 +164,14 @@ maybe('seed pipeline end to end', () => {
         // the newest released council meeting, so without the content filter it would
         // take the first rank of council's window and push m1 out.
         await createMeeting(athens.id, { id: 'm6', name: 'Meeting 6', dateTime: new Date(2026, 0, 3, 12), released: true, administrativeBodyId: council.id })
-        // A transcriptSent task stores the addresses the notification went to. They
-        // are the addresses the AdministrativeBody rule removes, so a masking rule
-        // removes this key too.
+        // A transcriptSent task stores the addresses the transcript went to. They
+        // are the addresses of the private document send tables, so a masking rule
+        // removes this key.
         await createTaskStatus('m1', athens.id, { type: 'transcriptSent', status: 'completed', requestBody: JSON.stringify({ recipientEmails: ['a@b.gr'] }) })
+        // The back office addresses of a body live in its document send settings,
+        // and each send records them again. Both tables are private.
+        await prisma.documentSendSetting.create({ data: { administrativeBodyId: council.id, document: 'transcript', enabled: true, recipientEmails: ['dimos@athens.gr'] } })
+        await prisma.documentSend.create({ data: { cityId: athens.id, councilMeetingId: 'm1', document: 'transcript', status: 'sent', trigger: 'review', automatic: true, recipientEmails: ['dimos@athens.gr'] } })
         // A voiceprint is a biometric identifier, so VoicePrint is a private table.
         // The generateVoiceprint task holds the same embedding in the "voiceprint" key
         // of its response, and a masking rule removes that key. The audio URL and the
@@ -301,6 +305,8 @@ maybe('seed pipeline end to end', () => {
         expect(manifest.counts.Highlight).toBe(2)
         expect(manifest.counts.DecisionCandidate).toBe(1)
         expect(manifest.counts.VoicePrint).toBe(0)
+        expect(manifest.counts.DocumentSendSetting).toBe(0)
+        expect(manifest.counts.DocumentSend).toBe(0)
         expect(manifest.counts.City).toBe(2)
         expect(manifest.counts.Decision).toBe(2)
         expect(manifest.counts.AttendanceEvent).toBe(3)
@@ -382,9 +388,12 @@ maybe('seed pipeline end to end', () => {
         const restored = new Client({ connectionString: verifyUrls.subset })
         await restored.connect()
         try {
-            const bodies = await restored.query<{ contactEmails: string[] }>('SELECT "contactEmails" FROM "AdministrativeBody"')
+            const bodies = await restored.query<{ id: string }>('SELECT id FROM "AdministrativeBody"')
             expect(bodies.rows).toHaveLength(2)
-            expect(bodies.rows.every((r) => r.contactEmails.length === 0)).toBe(true)
+            const sendSettings = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "DocumentSendSetting"')
+            expect(sendSettings.rows[0].n).toBe('0')
+            const sends = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "DocumentSend"')
+            expect(sends.rows[0].n).toBe('0')
             const tasks = await restored.query<{ type: string; requestBody: string; responseBody: string | null }>('SELECT type, "requestBody", "responseBody" FROM "TaskStatus"')
             expect(tasks.rows).toHaveLength(9)
             expect(tasks.rows.every((r) => !r.requestBody.includes('callbackUrl'))).toBe(true)
