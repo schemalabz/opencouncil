@@ -46,6 +46,8 @@ jest.mock('@/lib/discord', () => ({
     sendPollDecisionsBatchCompletedAlert: jest.fn(),
 }));
 jest.mock('@/lib/tasks/registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
+// The poll callback sends the documents that are ready; these tests read the poll request only.
+jest.mock('@/lib/documents/automatic', () => ({ sendReadyDocuments: jest.fn() }));
 jest.mock('@/lib/tasks/tasks', () => ({ startTask: (...args: unknown[]) => mockStartTask(...args) }));
 jest.mock('@/lib/db/people', () => ({ getPeopleForMeeting: jest.fn().mockResolvedValue([]) }));
 

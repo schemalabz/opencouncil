@@ -4,7 +4,9 @@
 import "server-only";
 import { DocumentKind, Prisma } from '@prisma/client';
 import prisma from './prisma';
-import type { DocumentSendRule } from '@/lib/documents/settings';
+import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
+import { RESULT_PERSISTING_STAGE } from '@/lib/tasks/resultStage';
+import { STALE_PENDING_MINUTES, type DocumentSendRule } from '@/lib/documents/settings';
 import {
     documentSendSettingSelect,
     type DocumentSendSettingRow,
@@ -13,6 +15,9 @@ import {
     documentMeetingInclude,
     type DocumentMeeting,
     type DocumentSendClaim,
+    readinessMeetingSelect,
+    type ReadinessFacts,
+    type CandidateCursor,
 } from './types/documentSend';
 
 /** The settings of a body, one per document that has a row. */
@@ -136,4 +141,102 @@ export async function settleDocumentSend(
     // stale must not turn sent beside the newer claim that took its slot.
     const result = await prisma.documentSend.updateMany({ where: { id, status: { in: ['pending', 'sending'] } }, data: outcome });
     return result.count > 0;
+}
+
+export { STALE_PENDING_MINUTES };
+
+/**
+ * Whether a decision poll of the meeting is writing its results now. The
+ * poll links the decisions first and writes their excerpts, votes and
+ * attendance after, so minutes rendered in between would lack them. A poll
+ * that stopped writing more than STALE_PENDING_MINUTES ago died, and holds
+ * nothing.
+ */
+export async function isDecisionPollWriting(cityId: string, meetingId: string): Promise<boolean> {
+    const writing = await prisma.taskStatus.findFirst({
+        where: {
+            cityId,
+            councilMeetingId: meetingId,
+            type: 'pollDecisions',
+            stage: RESULT_PERSISTING_STAGE,
+            status: { notIn: ['succeeded', 'failed'] },
+            updatedAt: { gte: new Date(Date.now() - STALE_PENDING_MINUTES * 60 * 1000) },
+        },
+        select: { id: true },
+    });
+    return writing !== null;
+}
+
+/**
+ * Release the claims whose sender died before the email: a pending row older
+ * than STALE_PENDING_MINUTES becomes failed, which frees the automatic slot of
+ * the unique index for the next run. A sending row stays: its email may have
+ * gone out. Returns how many it released.
+ */
+export async function failStaleDocumentSends(now: Date = new Date()): Promise<number> {
+    const result = await prisma.documentSend.updateMany({
+        where: { status: 'pending', createdAt: { lt: new Date(now.getTime() - STALE_PENDING_MINUTES * 60 * 1000) } },
+        data: { status: 'failed', failureReason: 'stale' },
+    });
+    return result.count;
+}
+
+export async function getReadinessFacts(cityId: string, meetingId: string): Promise<ReadinessFacts | null> {
+    return prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        select: readinessMeetingSelect,
+    });
+}
+
+/** The cron looks this far back. The review hook covers a meeting reviewed later than this. */
+export const DOCUMENT_SEND_WINDOW_DAYS = 120;
+
+/** How many candidates one query reads. The cron reads the next page until its batch is full. */
+export const CANDIDATE_PAGE_SIZE = 200;
+
+/**
+ * One page of the meetings the cron evaluates for one document: held,
+ * reviewed, a first part, in the window, of a body with the document switched
+ * on, and with no send of that document pending or sent, automatic or by
+ * hand. Oldest first, so the most overdue meeting goes out first when the
+ * batch is full.
+ *
+ * A page can hold meetings that never send (they wait, or their attempts are
+ * used up), so the cron reads on past them with `after`.
+ */
+export async function findDocumentSendCandidates(
+    document: DocumentKind,
+    now: Date = new Date(),
+    after: CandidateCursor | null = null,
+): Promise<ReadinessFacts[]> {
+    return prisma.councilMeeting.findMany({
+        where: {
+            ...TAKES_PLACE_WHERE,
+            continuationOfId: null,
+            dateTime: { gte: new Date(now.getTime() - DOCUMENT_SEND_WINDOW_DAYS * 24 * 60 * 60 * 1000), lte: now },
+            administrativeBody: { documentSendSettings: { some: { document, enabled: true } } },
+            taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } },
+            documentSends: { none: { document, status: { not: 'failed' } } },
+            ...(after && {
+                OR: [
+                    { dateTime: { gt: after.dateTime } },
+                    { dateTime: after.dateTime, cityId: { gt: after.cityId } },
+                    { dateTime: after.dateTime, cityId: after.cityId, id: { gt: after.id } },
+                ],
+            }),
+        },
+        select: readinessMeetingSelect,
+        orderBy: [{ dateTime: 'asc' }, { cityId: 'asc' }, { id: 'asc' }],
+        take: CANDIDATE_PAGE_SIZE,
+    });
+}
+
+/** The agenda index and the title of the given subjects, for the incomplete minutes email. */
+export async function getSubjectLabels(subjectIds: string[]): Promise<Array<{ id: string; agendaItemIndex: number | null; name: string; agendaItemTitle: string | null }>> {
+    if (subjectIds.length === 0) return [];
+    return prisma.subject.findMany({
+        where: { id: { in: subjectIds } },
+        select: { id: true, agendaItemIndex: true, name: true, agendaItemTitle: true },
+        orderBy: [{ agendaItemIndex: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    });
 }

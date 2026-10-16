@@ -22,6 +22,7 @@ import { meetingNameSelect } from '@/lib/db/types';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { notifySubscribersOfTask } from '@/lib/notifications/meetingNotifications';
 import { isNewsPhase } from '@/lib/notifications/freshness';
+import { RESULT_PERSISTING_STAGE } from './resultStage';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -241,11 +242,8 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     return newTask;
 }
 
-/**
- * The stage a task shows between the arrival of its result and the end of the
- * handler that writes it. The panel shows the stage of a pending task.
- */
-export const RESULT_PERSISTING_STAGE = 'persisting results';
+// The document sends read the stage from the data layer, which must not load this module.
+export { RESULT_PERSISTING_STAGE };
 
 /**
  * How long a claim (a pending task with a payload) is left alone before a

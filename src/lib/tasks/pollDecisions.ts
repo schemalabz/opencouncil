@@ -29,6 +29,7 @@ import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 import { normalizeAda } from "@/lib/utils/ada";
+import { sendReadyDocuments } from "@/lib/documents/automatic";
 
 /** A manual poll either starts, or finds one already running for the meeting. */
 export type PollStart =
@@ -1246,6 +1247,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // hold it open while their polls start.
     const followUps = [...meetingsWithNewCandidates];
     if (followUps.length > 0) after(() => pollMeetingsWithNewCandidates(task.cityId, followUps));
+
+    // The last decision of the meeting may have arrived: the minutes go out
+    // as soon as they are complete, not at the next cron run (#874).
+    after(() => sendReadyDocuments(task.cityId, task.councilMeetingId));
 }
 
 /**

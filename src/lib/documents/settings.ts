@@ -10,6 +10,13 @@ import { DocumentKind } from '@prisma/client';
  */
 export const MINUTES_THRESHOLD_DAYS = 10;
 
+/**
+ * How long a claim may stand before its sender counts as dead. A pending claim
+ * that old is released for the next run. A sending claim that old may have
+ * gone out, and the admin list asks an operator to check it.
+ */
+export const STALE_PENDING_MINUTES = 30;
+
 /** Every document, in the order the settings section and the admin list show them. */
 export const DOCUMENT_KINDS = Object.values(DocumentKind) as DocumentKind[];
 
