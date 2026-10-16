@@ -25,6 +25,11 @@ export const meetingSchema = z.object({
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
+    // The municipality's own verbatim minutes (#876). A meeting that has them
+    // is corrected from them in place of the human review.
+    municipalMinutesUrl: z.string().url({
+        message: "Invalid municipal minutes URL.",
+    }).optional().or(z.literal("")),
     // Optional on create: when omitted, the POST handler auto-generates a
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.

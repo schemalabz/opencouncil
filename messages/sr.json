@@ -397,6 +397,9 @@
         "meetingAgenda": "Дневни ред седнице",
         "meetingAgendaPlaceholder": "URL или датотека дневног реда",
         "meetingAgendaDescription": "Наведите URL или отпремите датотеку са дневним редом седнице.",
+        "meetingMunicipalMinutes": "Записник општине",
+        "meetingMunicipalMinutesPlaceholder": "URL или датотека записника (PDF или DOCX)",
+        "meetingMunicipalMinutesDescription": "Дословни записник који води општина. Транскрипт се исправља према њему и седница не пролази људску проверу.",
         "processAgenda": "Покрени обраду",
         "processAgendaDescription": "Аутоматски рашчлани дневни ред у структуриране тачке након креирања.",
         "formErrors": "Молимо исправите следеће грешке:"

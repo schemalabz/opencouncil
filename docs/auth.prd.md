@@ -70,7 +70,7 @@ A body admin can do these things for the meetings of their bodies:
 
 - Create, edit and release a meeting.
 - Upload the recording and the agenda.
-- Start the tasks `processAgenda`, `transcribe`, `fixTranscript`, `summarize`
+- Start the tasks `processAgenda`, `transcribe`, `fixTranscript`, `fixFromMinutes`, `summarize`
   and `generateHighlight`.
 - Replay or delete the rows of those five tasks. `taskScope` in
   `src/lib/tasks/types.ts` sets this rule.

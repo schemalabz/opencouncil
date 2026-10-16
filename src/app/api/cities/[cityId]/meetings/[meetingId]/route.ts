@@ -58,7 +58,7 @@ export async function PUT(
         // The URL names the meeting, and an edit queues no agenda task. The
         // facts of the record come from MEETING_RECORD_INPUT_KEYS, as on create.
         const input = meetingSchema.parse(body);
-        const { date, youtubeUrl, agendaUrl, administrativeBodyId, postponedFromId, continuationOfId } = input;
+        const { date, youtubeUrl, agendaUrl, municipalMinutesUrl, administrativeBodyId, postponedFromId, continuationOfId } = input;
 
         const current = await getCouncilMeetingDirect(params.cityId, params.meetingId);
         if (!current) {
@@ -83,6 +83,7 @@ export async function PUT(
             dateTime: date,
             youtubeUrl: emptyToNull(youtubeUrl),
             agendaUrl: emptyToNull(agendaUrl),
+            municipalMinutesUrl: emptyToNull(municipalMinutesUrl),
             ...(nextBodyId !== undefined && { administrativeBodyId: nextBodyId }),
         });
 

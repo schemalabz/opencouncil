@@ -21,7 +21,7 @@ type Client = Prisma.TransactionClient | PrismaClient;
  * derived, so `name` and `name_en` are not among them: nothing writes them.
  */
 export type MeetingRecordFields = Pick<CouncilMeeting,
-    | 'dateTime' | 'youtubeUrl' | 'agendaUrl' | 'administrativeBodyId'
+    | 'dateTime' | 'youtubeUrl' | 'agendaUrl' | 'municipalMinutesUrl' | 'administrativeBodyId'
     | 'scheduleStatus' | 'scheduleStatusReason' | 'kind' | 'urgent' | 'sessionNumber' | 'format'
     | 'closedToPublic' | 'place' | 'postponedFromId' | 'continuationOfId'>;
 

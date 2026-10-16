@@ -21,6 +21,8 @@ export type NewMeetingInput = {
     date: Date;
     youtubeUrl?: string | null;
     agendaUrl?: string | null;
+    /** The municipality's own verbatim minutes: the meeting is corrected from them in place of the review (#876). */
+    municipalMinutesUrl?: string | null;
     /** Omit to generate a unique id from the date. */
     meetingId?: string;
     administrativeBodyId?: string | null;
@@ -39,7 +41,7 @@ export async function createMeetingWithEffects(
     cityId: string,
     input: NewMeetingInput
 ): Promise<{ meeting: CouncilMeetingWithAdminBody; processAgendaStatus?: ProcessAgendaOutcome }> {
-    const { date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId } = input;
+    const { date, youtubeUrl, agendaUrl, municipalMinutesUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId } = input;
     const record = pickRecordInput(input);
 
     let meetingId = input.meetingId || (await generateUniqueMeetingId(cityId, date));
@@ -51,6 +53,7 @@ export async function createMeetingWithEffects(
         cityId,
         youtubeUrl: youtubeUrl || null,
         agendaUrl: agendaUrl || null,
+        municipalMinutesUrl: municipalMinutesUrl || null,
         released: false as const,
         muxPlaybackId: null,
         administrativeBodyId: administrativeBodyId || null,

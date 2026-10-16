@@ -7,6 +7,7 @@ import { ApiError, BadRequestError, ConflictError, NotFoundError } from '@/lib/a
 import { requestProcessAgendaInternal } from './processAgendaInternal';
 import { requestTranscribeInternal } from './transcribeInternal';
 import { requestFixTranscriptInternal } from './fixTranscriptInternal';
+import { requestFixFromMinutesInternal } from './fixFromMinutesInternal';
 import { requestSummarizeInternal } from './summarizeInternal';
 import { PipelineBusyError, TaskAlreadyExistsError } from './types';
 import type { MeetingTaskRequest } from './startableTasks';
@@ -41,6 +42,7 @@ export async function startMeetingTask(
         select: {
             youtubeUrl: true,
             agendaUrl: true,
+            municipalMinutesUrl: true,
             _count: { select: { speakerSegments: true } },
         },
     });
@@ -68,6 +70,13 @@ export async function startMeetingTask(
             case 'fixTranscript': {
                 if (!transcribed) throw new BadRequestError('The meeting has no transcript to fix. Start transcribe first.');
                 return await requestFixTranscriptInternal(meetingId, cityId, { force });
+            }
+            case 'fixFromMinutes': {
+                if (!transcribed) throw new BadRequestError('The meeting has no transcript to correct. Start transcribe first.');
+                if (!request.municipalMinutesUrl && !meeting.municipalMinutesUrl) {
+                    throw new BadRequestError('The meeting has no municipal minutes. Pass municipalMinutesUrl, or set it with update_meeting.');
+                }
+                return await requestFixFromMinutesInternal(meetingId, cityId, { force, municipalMinutesUrl: request.municipalMinutesUrl });
             }
             case 'summarize': {
                 if (!transcribed) throw new BadRequestError('The meeting has no transcript to summarize. Start transcribe first.');

@@ -4,6 +4,7 @@ import { NotificationPreference, Petition, City, Topic, User, Location, Prisma }
 import { auth } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
+import { isPastMeetingForNotifications, NOTIFICATION_MAX_MEETING_AGE_DAYS } from '@/lib/notifications/pastMeeting';
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
@@ -760,6 +761,12 @@ export async function createNotificationsForMeeting(
 
         if (!meeting) {
             throw new Error(`Meeting ${meetingId} not found`);
+        }
+
+        // Whatever the body's notificationBehavior says (see pastMeeting.ts).
+        if (isPastMeetingForNotifications(meeting.dateTime)) {
+            console.log(`No ${type} notifications for meeting ${meetingId}: it is older than ${NOTIFICATION_MAX_MEETING_AGE_DAYS} days`);
+            return { notificationsCreated: 0, subjectsTotal: meeting.subjects.length, notificationIds: [] };
         }
 
         // Get all users with notification preferences for this city

@@ -246,6 +246,10 @@ model CouncilMeeting {
   dateTime  DateTime
   youtubeUrl String?
   agendaUrl String?
+  // The municipality's own verbatim minutes (πρακτικά), a PDF or a DOCX. A
+  // meeting that has them is corrected from them (fixFromMinutes) in place of
+  // the human review. Not the minutes that lib/minutes generates from our data.
+  municipalMinutesUrl String?
   videoUrl String?
   audioUrl String?
   muxPlaybackId String?
@@ -353,6 +357,7 @@ model TaskStatus {
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
   attendanceEvents AttendanceEvent[]
+  utteranceEdits UtteranceEdit[]
 
   @@index([councilMeetingId, cityId])
 }
@@ -439,7 +444,8 @@ model SpeakerTag {
 enum SpeakerAssignmentSource {
   voiceprint // the voiceprint match alone
   transcript // the transcript identification alone
-  both       // the two methods agreed
+  minutes    // the municipal minutes identification alone
+  both       // two or more methods agreed
   user       // a reviewer; automatic passes never overwrite it
 }
 
@@ -479,6 +485,7 @@ model SpeakerIdentification {
 enum SpeakerIdentificationMethod {
   voiceprint // the transcribe task matched the voice to a stored voiceprint
   transcript // the fixTranscript task read who is speaking from the text alone
+  minutes    // the fixFromMinutes task read the speaker labels of the municipal minutes
 }
 
 model SpeakerSegment {
@@ -1308,10 +1315,17 @@ model UtteranceEdit {
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // The task run that made a task edit, so the changes of fixTranscript and
+  // of fixFromMinutes can be told apart and listed per run. Null on a user
+  // edit, and on task edits from before the column existed.
+  taskId String?
+  task   TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([utteranceId])
+  @@index([taskId])
 }
 
 model Role {

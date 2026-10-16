@@ -5,10 +5,14 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
 import {
+    DOCUMENT_KINDS,
     mcpCreateAgendaUploadUrl,
     mcpCreateCity,
+    mcpCreateDocumentUploadUrl,
     mcpCreateMeeting,
+    mcpListTranscriptEdits,
     mcpPopulateCity,
+    mcpRevertTranscriptEdit,
     mcpStartTask,
     mcpUpdateMeeting,
 } from './adminData';
@@ -80,12 +84,19 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'Call list_meetings first with the same date: a second call creates a second meeting. '
                 + 'Pass administrativeBodyId (see get_city): the meeting list of the site shows the council '
                 + 'by default and hides a meeting that has no body. The meeting has no name to set: the site '
-                + 'derives its title from the kind and the session number. Confirm the details with the user before you call.',
+                + 'derives its title from the kind and the session number. To backfill a past meeting from the '
+                + "municipality's own verbatim minutes, pass municipalMinutesUrl with the recording: the transcript "
+                + 'is then corrected from the minutes and the meeting needs no human review. '
+                + 'Confirm the details with the user before you call.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 dateTime: isoDateTime,
                 youtubeUrl: z.url().optional().describe('URL of the meeting video'),
                 agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
+                municipalMinutesUrl: z.url().optional()
+                    .describe("URL of the municipality's own verbatim minutes (πρακτικά), a PDF or a DOCX. "
+                        + 'Upload one with create_document_upload_url. A meeting that has them is corrected from them '
+                        + 'after fixTranscript, with no human review'),
                 administrativeBodyId: z.string().min(1).optional()
                     .describe('The body that meets (council, committee, community). See get_city'),
                 processAgenda: z.boolean().default(false)
@@ -107,8 +118,8 @@ function registerMeetingAdminTools(server: McpServer) {
             _meta: category('admin'),
             description:
                 'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
-                + 'date, video URL, agenda URL, administrative body, kind, urgency, session number, status, format or place. A field that '
-                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. The name '
+                + 'date, video URL, agenda URL, municipal minutes URL, administrative body, kind, urgency, session number, status, format or place. A field that '
+                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl, municipalMinutesUrl or administrativeBodyId. The name '
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
                 + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
                 + 'to a body that they do not administer. It cannot link a meeting to a postponed '
@@ -120,6 +131,8 @@ function registerMeetingAdminTools(server: McpServer) {
                 dateTime: isoDateTime.optional(),
                 youtubeUrl: z.url().nullable().optional(),
                 agendaUrl: z.url().nullable().optional(),
+                municipalMinutesUrl: z.url().nullable().optional()
+                    .describe("The municipality's own verbatim minutes. Set it before transcribe to backfill the meeting from them"),
                 administrativeBodyId: z.string().min(1).nullable().optional(),
                 ...meetingRecordInput,
             }),
@@ -127,6 +140,39 @@ function registerMeetingAdminTools(server: McpServer) {
         (args, ctx: ServerContext) => run(() => mcpUpdateMeeting(identityFromContext(ctx), args))
     );
 
+    const documentUploadInput = {
+        cityId: z.string().min(1),
+        identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
+            .describe('Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
+                + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only'),
+        format: z.enum(['pdf', 'docx']).default('pdf')
+            .describe('The format of the file that you will upload. The answer carries the matching Content-Type'),
+    };
+
+    server.registerTool(
+        'create_document_upload_url',
+        {
+            title: 'Create document upload URL',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Get a short-lived URL to upload a document of a meeting to the file storage of OpenCouncil, '
+                + 'in a municipality that you administer: the agenda, or the municipality\'s own verbatim minutes. '
+                + 'Use it when the file has no stable public URL: an email attachment, a chat attachment, a download '
+                + 'link that expires. Send the file with a PUT to `uploadUrl`, with the returned `headers`, within '
+                + '`expiresIn` seconds. The file is then public at `publicUrl`: pass it as agendaUrl or '
+                + 'municipalMinutesUrl to create_meeting or update_meeting. A PDF or a .docx file: the task server '
+                + 'reads these two formats only.',
+            inputSchema: z.object({
+                ...documentUploadInput,
+                kind: z.enum(Object.keys(DOCUMENT_KINDS) as [keyof typeof DOCUMENT_KINDS, ...(keyof typeof DOCUMENT_KINDS)[]])
+                    .describe('agenda: the invitation with the agenda. municipalMinutes: the verbatim minutes the municipality wrote'),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpCreateDocumentUploadUrl(identityFromContext(ctx), args))
+    );
+
+    // The name of earlier releases, kept for one release: the same call with kind agenda.
     server.registerTool(
         'create_agenda_upload_url',
         {
@@ -134,22 +180,52 @@ function registerMeetingAdminTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Get a short-lived URL to upload the agenda of a meeting to the file storage of OpenCouncil, '
-                + 'in a municipality that you administer. Use it when the file has no stable public URL: an email '
-                + 'attachment, a chat attachment, a download link that expires. Send the file with a PUT to '
-                + '`uploadUrl`, with the returned `headers`, within `expiresIn` seconds. The file is then public '
-                + 'at `publicUrl`: pass it as agendaUrl to create_meeting or update_meeting. A PDF or a .docx '
-                + 'file: the agenda processing reads these two formats only.',
-            inputSchema: z.object({
-                cityId: z.string().min(1),
-                identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
-                    .describe('Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
-                        + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only'),
-                format: z.enum(['pdf', 'docx']).default('pdf')
-                    .describe('The format of the file that you will upload. The answer carries the matching Content-Type'),
-            }),
+                'Get a short-lived URL to upload the agenda of a meeting. The same as create_document_upload_url '
+                + 'with kind agenda; prefer that tool.',
+            inputSchema: z.object(documentUploadInput),
         },
         (args, ctx: ServerContext) => run(() => mcpCreateAgendaUploadUrl(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'list_transcript_edits',
+        {
+            title: 'List transcript edits',
+            annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'The record of every change to the transcript of a meeting in a municipality that you administer: '
+                + 'the text before and after, who made it (a person, or a task run: fixTranscript or fixFromMinutes), '
+                + 'and for a change from the municipal minutes, the page and the speaker label of the turn it came from. '
+                + 'Each edit carries a url that opens the recording at that moment. Pass taskId (from the tasks of '
+                + 'get_meeting) to see what one run changed; omit it for the whole history, oldest first. '
+                + 'Use it to check a backfilled meeting and to find a wrong change to revert.',
+            inputSchema: z.object({
+                cityId: z.string().min(1),
+                meetingId: z.string().min(1),
+                taskId: z.string().min(1).optional().describe('The run whose edits to list'),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpListTranscriptEdits(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'revert_transcript_edit',
+        {
+            title: 'Revert a transcript edit',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Put the text from before one edit back, in a municipality that you administer. The utterance gets '
+                + 'the beforeText of the edit, recorded as a new edit by you: nothing is deleted, and no task rewrites '
+                + 'the utterance again. The speaker is unchanged. Confirm with the user before you call.',
+            inputSchema: z.object({
+                cityId: z.string().min(1),
+                meetingId: z.string().min(1),
+                editId: z.string().min(1).describe('The id of the edit, from list_transcript_edits'),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpRevertTranscriptEdit(identityFromContext(ctx), args))
     );
 }
 
@@ -164,7 +240,9 @@ function registerTaskAdminTools(server: McpServer) {
                 'Start one step of the processing pipeline for a meeting in a municipality, or of an administrative body, that you administer, '
                 + 'as the admin page of the meeting does. The steps, in order: `processAgenda` reads the subjects '
                 + 'from the agenda PDF; `transcribe` turns the video into a transcript (and starts fixTranscript '
-                + 'on its own when it finishes); `fixTranscript` corrects the transcript; `summarize` writes the '
+                + 'on its own when it finishes); `fixTranscript` corrects the transcript; `fixFromMinutes` corrects it '
+                + "from the municipality's own minutes and starts summarize on its own (it runs by itself after "
+                + 'fixTranscript when the meeting has municipalMinutesUrl); `summarize` writes the '
                 + 'subjects and summaries from the transcript. Each step spends real money on the task server and '
                 + 'takes minutes: confirm with the user before you call, and read get_meeting first — its `tasks` '
                 + 'list shows what ran, what is running and what failed. A step that is running is refused: wait '
@@ -182,12 +260,15 @@ function registerTaskAdminTools(server: McpServer) {
                         + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds'),
                 agendaUrl: z.url().optional()
                     .describe('processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting'),
+                municipalMinutesUrl: z.url().optional()
+                    .describe("fixFromMinutes only: the municipality's minutes. Defaults to the municipalMinutesUrl of the meeting. "
+                        + 'A URL passed here is STORED on the meeting'),
                 additionalInstructions: z.string().min(1).optional()
                     .describe('summarize only: free-text guidance for the summary, e.g. what to pay attention to'),
             }).superRefine((args, ctx) => {
                 // An option of another step would be dropped without a word,
                 // and the caller would believe it was used.
-                const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', additionalInstructions: 'summarize' } as const;
+                const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', municipalMinutesUrl: 'fixFromMinutes', additionalInstructions: 'summarize' } as const;
                 for (const [option, step] of Object.entries(belongsTo)) {
                     if (args[option as keyof typeof belongsTo] !== undefined && args.type !== step) {
                         ctx.addIssue({ code: 'custom', path: [option], message: `${option} applies to ${step} only` });

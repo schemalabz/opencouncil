@@ -15,7 +15,7 @@ import {
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
-import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
+import { getFixFromMinutesReport, getTasksForMeetingDirect, type MeetingTaskRow } from '@/lib/db/tasksInternal';
 import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
@@ -341,6 +341,20 @@ export async function mcpListMeetings(
     };
 }
 
+/**
+ * The task rows as the tools report them. The newest succeeded fixFromMinutes
+ * run carries its report: the operator reads there what the minutes changed
+ * and which speakers the methods disagree on (#876).
+ */
+async function summarizeMeetingTasks(tasks: MeetingTaskRow[]) {
+    const newestMinutesRun = tasks.find(task => task.type === 'fixFromMinutes' && task.status === 'succeeded');
+    const report = newestMinutesRun ? await getFixFromMinutesReport(newestMinutesRun.id) : null;
+    return tasks.map(task => ({
+        ...mcpTaskSummary(task),
+        ...(task.id === newestMinutesRun?.id && report && { report }),
+    }));
+}
+
 export async function mcpGetMeeting(cityId: string, meetingId: string, identity: McpIdentity) {
     const visible = await requireVisibleMeeting(cityId, meetingId, identity);
 
@@ -391,7 +405,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
-        ...(tasks && { tasks: tasks.map(mcpTaskSummary) }),
+        ...(tasks && { tasks: await summarizeMeetingTasks(tasks) }),
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.

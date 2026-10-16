@@ -1,11 +1,12 @@
 /**
- * Applies the transcript speaker hints a fixTranscript result carries.
+ * Applies the speaker hints a fixTranscript result carries (method
+ * `transcript`), or a fixFromMinutes result (method `minutes`).
  *
  * NOT in a "use server" file: this writes speaker assignments, and must not be
  * callable as a Server Action. It runs on the task-server callback only.
  */
 import "server-only";
-import { Prisma } from '@prisma/client';
+import { Prisma, type SpeakerIdentificationMethod } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { SpeakerHint } from '@/lib/apiTypes';
 import { AUTOMATIC_SOURCES, isReviewerAssignment, reconcileSpeakerIdentifications, MethodIdentification } from '@/lib/speakerIdentifications';
@@ -45,8 +46,8 @@ const identifiedTagSelect = {
     },
 } satisfies Prisma.SpeakerTagSelect;
 
-/** What a hint stores as the tag's transcript identification. */
-function transcriptIdentification(hint: SpeakerHint) {
+/** What a hint stores as the tag's identification for its method. */
+function hintIdentification(hint: SpeakerHint) {
     return {
         personId: hint.personId,
         // Only an explicit yes: a hint that does not say is one nobody acts on.
@@ -58,12 +59,12 @@ function transcriptIdentification(hint: SpeakerHint) {
 }
 
 /**
- * Stores the transcript identification of every speaker tag of the task's
+ * Stores the identification of `method` for every speaker tag of the task's
  * meeting, and assigns the person the identifications add up to (see
  * reconcileSpeakerIdentifications).
  *
  * - The hints describe the whole meeting: a tag the result does not name loses
- *   the transcript identification an earlier run gave it.
+ *   the identification of this method that an earlier run gave it.
  * - A superseded result never gets here: handleFixTranscriptResult ignores it
  *   whole, since its tag ids and opinions describe a transcript that is gone.
  * - A reviewer's tag keeps its person: every edit records itself on the tag,
@@ -80,7 +81,11 @@ function transcriptIdentification(hint: SpeakerHint) {
  *   raw SPEAKER_<n> label, which only ever stood behind a person's name: readers
  *   see an unknown speaker, as for any speaker nobody has identified.
  */
-export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHint[]): Promise<void> {
+export async function applySpeakerHints(
+    taskId: string,
+    speakerHints: SpeakerHint[],
+    method: Exclude<SpeakerIdentificationMethod, 'voiceprint'> = 'transcript'
+): Promise<void> {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
         select: { cityId: true, councilMeetingId: true },
@@ -121,24 +126,24 @@ export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHin
     let assigned = 0;
     for (const tag of tags) {
         const hint = hintByTagId.get(tag.id);
-        const given = hint ? transcriptIdentification(hint) : null;
-        const previous = tag.identifications.find(identification => identification.method === 'transcript') ?? null;
-        const otherMethods: MethodIdentification[] = tag.identifications.filter(identification => identification.method !== 'transcript');
+        const given = hint ? hintIdentification(hint) : null;
+        const previous = tag.identifications.find(identification => identification.method === method) ?? null;
+        const otherMethods: MethodIdentification[] = tag.identifications.filter(identification => identification.method !== method);
 
-        // The transcript's opinion is stored as given, whoever owns the tag.
+        // The method's opinion is stored as given, whoever owns the tag.
         if (given) {
             const unchanged = previous !== null
                 && (Object.keys(given) as (keyof typeof given)[]).every(key => given[key] === previous[key]);
             if (!unchanged) {
                 await prisma.speakerIdentification.upsert({
-                    where: { speakerTagId_method: { speakerTagId: tag.id, method: 'transcript' } },
-                    create: { speakerTagId: tag.id, method: 'transcript', ...given },
+                    where: { speakerTagId_method: { speakerTagId: tag.id, method } },
+                    create: { speakerTagId: tag.id, method, ...given },
                     update: given,
                 });
                 stored++;
             }
         } else if (previous) {
-            await prisma.speakerIdentification.deleteMany({ where: { speakerTagId: tag.id, method: 'transcript' } });
+            await prisma.speakerIdentification.deleteMany({ where: { speakerTagId: tag.id, method } });
             stored++;
         }
 
@@ -146,7 +151,7 @@ export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHin
 
         const assignment = reconcileSpeakerIdentifications([
             ...otherMethods,
-            ...(given ? [{ method: 'transcript' as const, personId: given.personId, actionable: given.actionable }] : []),
+            ...(given ? [{ method, personId: given.personId, actionable: given.actionable }] : []),
         ]);
         if (assignment.personId === tag.personId && assignment.personSetBy === tag.personSetBy) continue;
 
@@ -163,7 +168,7 @@ export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHin
 
     const dropped = speakerHints.length - tags.filter(tag => hintByTagId.has(tag.id)).length;
     console.log(
-        `Speaker hints for ${cityId}/${meetingId}: ${speakerHints.length} received, ${stored} identifications stored or removed, ` +
+        `${method} speaker hints for ${cityId}/${meetingId}: ${speakerHints.length} received, ${stored} identifications stored or removed, ` +
         `${assigned} assignments changed${reviewCompleted ? ' (none allowed: the review is complete)' : ''}` +
         `${dropped > 0 ? `, ${dropped} dropped (unknown tag or person)` : ''}`
     );
