@@ -3,7 +3,7 @@ import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
@@ -35,7 +35,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     // Generate OG image URL
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, pageType: 'people' });
 
-    return {
+    return withCanonicalUrl(`/${params.cityId}/people`, {
         title: t('title', { cityName }),
         description,
         keywords: [...(t.raw('keywords') as string[]), cityName, 'OpenCouncil'],
@@ -61,13 +61,12 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(`/${params.cityId}/people`),
         other: {
             'people:count': peopleCount.toString(),
             'people:parties': partiesCount.toString(),
             'people:city': city.name,
         }
-    };
+    });
 }
 
 export default async function PeoplePage(

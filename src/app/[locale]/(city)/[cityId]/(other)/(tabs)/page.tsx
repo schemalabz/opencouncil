@@ -8,7 +8,7 @@ import { CouncilBand } from "@/components/cities/overview/CouncilBand";
 import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
 import { HOT_PERIODS, HOT_SCOPES, isBeyondPeriod, readPeriod, readScope, type HotScope } from "@/lib/utils/hotTopicFilters";
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
@@ -38,18 +38,17 @@ export async function generateMetadata(
     const t = await getTranslations({ locale, namespace: 'metadata.city' });
 
     if (!city) {
-        return {
+        return withCanonicalUrl(`/${cityId}`, {
             title: t('notFoundTitle'),
             description: t('notFoundDescription'),
-            alternates: await buildCanonicalAlternates(`/${cityId}`),
-        };
+        });
     }
 
     const cityName = getLocalizedName(city, locale);
     const description = t('description', { cityName });
     const ogImageUrl = buildOgImageUrl(locale, { cityId });
 
-    return {
+    return withCanonicalUrl(`/${cityId}`, {
         title: `${cityName} | OpenCouncil`,
         description,
         keywords: [cityName, ...(t.raw('keywords') as string[]), "OpenCouncil"],
@@ -75,8 +74,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(`/${cityId}`),
-    };
+    });
 }
 
 /**

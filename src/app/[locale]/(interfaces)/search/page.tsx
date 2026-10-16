@@ -2,7 +2,7 @@
 import { default as SearchPageComponent } from "@/components/search/SearchPage";
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
 
@@ -12,7 +12,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
 
     const ogImageUrl = buildOgImageUrl(locale, { pageType: 'search' });
 
-    return {
+    return withCanonicalUrl('/search', {
         title: "Αναζήτηση | OpenCouncil",
         description,
         keywords: [
@@ -50,13 +50,12 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildCanonicalAlternates('/search'),
         other: {
             'search:type': 'intelligent',
             'search:scope': 'municipal-councils',
             'search:features': 'transcripts,statistics,people',
         }
-    };
+    });
 }
 
 export default async function SearchPage(props: { params: Promise<{ locale: string }> }) {

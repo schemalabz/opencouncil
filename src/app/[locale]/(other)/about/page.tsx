@@ -2,7 +2,7 @@ import About from "@/components/about/AboutPage"
 import { Metadata } from "next"
 import { getTranslations } from 'next-intl/server'
 import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang'
+import { withCanonicalUrl } from '@/lib/utils/hreflang'
 import { getRealm } from '@/lib/realm.server'
 import { getRealmBaseUrl, getRealmStage } from '@/lib/realm'
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl'
@@ -28,7 +28,7 @@ export async function generateMetadata(
 
     const ogImageUrl = buildOgImageUrl(locale, { pageType: 'about' });
 
-    return {
+    return withCanonicalUrl('/about', {
         title,
         description,
         keywords,
@@ -55,13 +55,12 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         },
-        alternates: await buildCanonicalAlternates('/about'),
         other: {
             'about:mission': 'transparency',
             'about:technology': 'artificial-intelligence',
             'about:focus': 'municipal-councils',
         }
-    };
+    });
 }
 
 /**

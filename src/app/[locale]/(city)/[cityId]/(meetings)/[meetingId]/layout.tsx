@@ -25,7 +25,7 @@ import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
 import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
@@ -94,10 +94,9 @@ export async function generateMetadata(
 
     const imageUrl = buildOgImageUrl(locale, { meetingId, cityId });
 
-    return {
+    return withCanonicalUrl(`/${cityId}/${meetingId}`, {
         title: optimizedTitle,
         description,
-        alternates: await buildCanonicalAlternates(`/${cityId}/${meetingId}`),
         openGraph: {
             title: optimizedTitle,
             description,
@@ -116,7 +115,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         }
-    };
+    });
 }
 
 export default async function CouncilMeetingPage(

@@ -1,12 +1,11 @@
 import { Metadata } from "next";
 import DocumentViewer from "@/components/static/DocumentViewer";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 
 export async function generateMetadata(): Promise<Metadata> {
-    return {
+    return withCanonicalUrl('/privacy', {
         title: "Ενημέρωση για την επεξεργασία δεδομένων προσωπικού χαρακτήρα | OpenCouncil",
-        alternates: await buildCanonicalAlternates('/privacy'),
-    };
+    });
 }
 
 const sections = [
