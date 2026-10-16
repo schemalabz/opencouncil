@@ -8,8 +8,10 @@ import prisma from '@/lib/db/prisma'
 import { BadRequestError } from '@/lib/api/errors'
 import { addBodyAdmin, removeBodyAdmin } from '@/lib/db/bodyAdmins'
 import { editPerson } from '@/lib/db/people'
+import { GET as listMeetings } from '@/app/api/cities/[cityId]/meetings/route'
+import { NextRequest } from 'next/server'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createUser } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createMeeting, createUser } from '../helpers/factories'
 import { __setSessionEmail } from '../mocks/auth'
 
 jest.mock('@/lib/auth/invite', () => ({ sendInviteEmail: jest.fn().mockResolvedValue(true) }))
@@ -127,6 +129,26 @@ describe('body admins', () => {
             await expect(editPerson(councillor.id, { ...details, roles: [{ ...role, administrativeBodyId: bodyId }] }))
                 .rejects.toThrow('outside the bodies you administer')
             expect(await prisma.role.count({ where: { personId: councillor.id, name: 'Mayor' } })).toBe(1)
+        })
+    })
+
+    describe('the meeting list with includeUnreleased', () => {
+        const request = () => new NextRequest(`http://localhost/api/cities/${CITY}/meetings?includeUnreleased=true`)
+        const params = { params: Promise.resolve({ cityId: CITY }) }
+
+        it("gives a body admin the drafts of their body and no other", async () => {
+            const otherBody = await createAdministrativeBody(CITY, { name: 'Other', name_en: 'Other', type: 'committee' })
+            await createMeeting(CITY, { id: 'ours', administrativeBodyId: bodyId, released: false })
+            await createMeeting(CITY, { id: 'theirs', administrativeBodyId: otherBody.id, released: false })
+            await createMeeting(CITY, { id: 'public', administrativeBodyId: otherBody.id, released: true })
+            const response = await listMeetings(request(), params)
+            expect(response.status).toBe(200)
+            expect((await response.json() as { id: string }[]).map(meeting => meeting.id).sort()).toEqual(['ours', 'public'])
+        })
+
+        it('refuses a reader', async () => {
+            __setSessionEmail(null)
+            expect((await listMeetings(request(), params)).status).toBe(401)
         })
     })
 })
