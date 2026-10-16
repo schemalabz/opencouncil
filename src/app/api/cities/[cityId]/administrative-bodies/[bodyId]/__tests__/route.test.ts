@@ -86,13 +86,13 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId]', () => {
     it('clears the channel and the Diavgeia units that an update sends empty', async () => {
         const response = await put({ name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council', youtubeChannelUrl: '', diavgeiaUnitIds: '' });
         expect(response.status).toBe(200);
-        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ youtubeChannelUrl: null, diavgeiaUnitIds: [] }));
+        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ youtubeChannelUrl: null, diavgeiaUnitIds: [] }), undefined);
     });
 
     it('updates the body for a request without confirmConventions', async () => {
         const response = await put({ name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council', diavgeiaUnitIds: '81689' });
         expect(response.status).toBe(200);
-        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: ['81689'] }));
+        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: ['81689'] }), undefined);
         expect(confirmDecisionConventions).not.toHaveBeenCalled();
     });
 });
@@ -112,7 +112,7 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of
 
         expect(response.status).toBe(200);
         expect(guard).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
-        expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null });
+        expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null }, undefined);
         expect(editAdministrativeBody).not.toHaveBeenCalled();
     });
 
@@ -140,5 +140,60 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of
         expect(response.status).toBe(status);
         expect(await response.json()).toEqual({ error: error.message });
         expect(editAdministrativeBodyContacts).not.toHaveBeenCalled();
+    });
+});
+
+describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] with document send settings', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(true);
+        (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    const BODY = { name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' };
+
+    // A body admin reaches the contacts path (#828), which carries the settings too (#874)
+    it('lets an admin of the body replace its document send settings, and nothing else', async () => {
+        (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(false);
+        const settings = [{ document: 'minutes', enabled: true, recipientEmails: ['minutes@example.org'] }];
+
+        const response = await put({ name: 'Renamed', youtubeChannelUrl: '', documentSendSettings: settings });
+
+        expect(response.status).toBe(200);
+        expect(withUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
+        expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null }, settings);
+        expect(editAdministrativeBody).not.toHaveBeenCalled();
+    });
+
+    it('replaces the document send settings of the body', async () => {
+        const settings = [
+            { document: 'transcript', enabled: false, recipientEmails: [] },
+            { document: 'minutes', enabled: true, recipientEmails: ['minutes@example.org'] },
+        ];
+
+        const response = await put({ ...BODY, documentSendSettings: settings });
+
+        expect(response.status).toBe(200);
+        expect(isUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ name: 'Δημοτικό Συμβούλιο' }), settings);
+    });
+
+    it('refuses an enabled document without a recipient', async () => {
+        const response = await put({ ...BODY, documentSendSettings: [{ document: 'minutes', enabled: true, recipientEmails: [] }] });
+
+        expect(response.status).toBe(400);
+        const { error } = await response.json();
+        expect(error.map((issue: { path: unknown[] }) => issue.path)).toEqual([['documentSendSettings', 0, 'recipientEmails']]);
+        expect(editAdministrativeBody).not.toHaveBeenCalled();
+    });
+
+    it('rejects a recipient that is not an address', async () => {
+        const response = await put({
+            ...BODY,
+            documentSendSettings: [{ document: 'minutes', enabled: true, recipientEmails: ['not-an-address'] }],
+        });
+
+        expect(response.status).toBe(400);
+        expect(editAdministrativeBody).not.toHaveBeenCalled();
     });
 });

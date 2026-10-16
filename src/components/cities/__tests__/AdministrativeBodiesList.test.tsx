@@ -84,4 +84,22 @@ describe('AdministrativeBodiesList', () => {
         expect(JSON.parse(init.body)).toMatchObject({ name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: '81689' });
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+
+    it('keeps an invalid address in view after its document is switched off, and saves nothing', async () => {
+        renderList(<AdministrativeBodiesList cityId="athens" bodies={[BODY]} onUpdate={jest.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
+
+        const minutes = await screen.findByRole('switch', { name: 'Minutes' });
+        fireEvent.click(minutes);
+        fireEvent.change(screen.getByPlaceholderText('grammateia@municipality.gr'), { target: { value: 'not-an-address' } });
+        fireEvent.click(minutes);
+        expect(screen.queryByPlaceholderText('grammateia@municipality.gr')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+        // The check fails on the hidden field: the field comes back with its message
+        expect(await screen.findByPlaceholderText('grammateia@municipality.gr')).toHaveValue('not-an-address');
+        expect(screen.getByText(enValidation.invalidEmail)).toBeInTheDocument();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
 });

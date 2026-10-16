@@ -84,7 +84,7 @@ A body admin can also do these things:
 - Add and edit the members of their bodies. Every role in the payload must be
   on a body that they hold. `getRoleLimitForCity` and
   `validateRolesForBodyAdmin` apply this rule.
-- Change the YouTube channel and the contact emails of their body.
+- Change the YouTube channel and the document send settings of their body.
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 

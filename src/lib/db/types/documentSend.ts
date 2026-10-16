@@ -1,7 +1,7 @@
 // The shared Prisma shapes of the document sends (#874): the selects of the
 // queries in src/lib/db/documentSends.ts and the types derived from them.
 import type { Prisma } from '@prisma/client';
-import { publicAdministrativeBodyRelation } from './administrativeBody';
+import { publicAdministrativeBodyRelation, type AdministrativeBodyWithSettings } from './administrativeBody';
 
 export const documentSendSettingSelect = {
     document: true,
@@ -42,3 +42,13 @@ export type DocumentSendClaim = Pick<
     Prisma.DocumentSendUncheckedCreateInput,
     'cityId' | 'councilMeetingId' | 'document' | 'trigger' | 'automatic' | 'recipientEmails' | 'complete' | 'missingSubjectIds'
 >;
+
+export const administrativeBodyWithSendSettingsInclude = {
+    documentSendSettings: { select: documentSendSettingSelect },
+} satisfies Prisma.AdministrativeBodyInclude;
+
+/** A body with its "Αποστολή Εγγράφων" settings, as the body form edits it. */
+export type AdministrativeBodyWithSendSettings = Omit<
+    Prisma.AdministrativeBodyGetPayload<{ include: typeof administrativeBodyWithSendSettingsInclude }>,
+    'decisionConventions'
+> & Pick<AdministrativeBodyWithSettings, 'decisionConventions'>;
