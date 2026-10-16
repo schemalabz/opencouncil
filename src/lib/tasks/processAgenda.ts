@@ -5,6 +5,7 @@ import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
+import { taskScope } from "./types";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
@@ -21,7 +22,7 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
 }: {
     force?: boolean;
 } = {}) {
-    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
+    await withUserAuthorizedToEdit(taskScope({ type: 'processAgenda', cityId, councilMeetingId }));
     return requestProcessAgendaInternal(agendaUrl, councilMeetingId, cityId, { force });
 }
 

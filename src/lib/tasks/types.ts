@@ -15,6 +15,14 @@ export type TaskBlockedReason = 'already_succeeded' | 'already_running';
 
 export interface TaskConfig {
   requiredForPipeline: boolean;
+  /**
+   * Who starts, replays and deletes the task (#828). 'meeting': the editors
+   * of its meeting, the admin of the meeting's body among them. 'city': the
+   * city's admins only, because the task takes a step that a body admin may
+   * not: human review and the transcript it sends, decision polling, and
+   * voiceprints. A new task type does not compile until it decides.
+   */
+  scope: 'meeting' | 'city';
   discordAlertMode?: DiscordAlertMode;
   /**
    * The task runs per highlight, per person or per poll, so two of them on
@@ -26,32 +34,41 @@ export interface TaskConfig {
 
 export const TASK_CONFIG = {
   processAgenda: {
+    scope: 'meeting',
     requiredForPipeline: false,
   },
   transcribe: {
+    scope: 'meeting',
     requiredForPipeline: true,
   },
   fixTranscript: {
+    scope: 'meeting',
     requiredForPipeline: true,
   },
   humanReview: {
+    scope: 'city',
     requiredForPipeline: true,
   },
   transcriptSent: {
+    scope: 'city',
     requiredForPipeline: true,
   },
   summarize: {
+    scope: 'meeting',
     requiredForPipeline: true,
   },
   generateHighlight: {
+    scope: 'meeting',
     requiredForPipeline: false,
     concurrentRuns: true,
   },
   generateVoiceprint: {
+    scope: 'city',
     requiredForPipeline: false,
     concurrentRuns: true,
   },
   pollDecisions: {
+    scope: 'city',
     requiredForPipeline: false,
     discordAlertMode: 'none',
     concurrentRuns: true,
@@ -61,22 +78,17 @@ export const TASK_CONFIG = {
 // Derive MeetingTaskType from the configuration
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
 
-/**
- * The tasks that an admin of a meeting's body runs (#828). The others are the
- * city's: human review and the transcript it sends, decision polling, and
- * voiceprints. Replaying or deleting one of those rows would rewrite a step
- * that a body admin may not take.
- */
-const BODY_ADMIN_TASK_TYPES: ReadonlySet<string> = new Set<MeetingTaskType>([
-  'processAgenda', 'transcribe', 'fixTranscript', 'summarize', 'generateHighlight',
-]);
+function isMeetingTaskType(type: string): type is MeetingTaskType {
+    return type in TASK_CONFIG;
+}
 
 /**
- * The authorization scope of a task: its meeting for a task that a body admin
- * runs, so that an admin of the meeting's body passes, and its city otherwise.
+ * The authorization scope of a task, from the scope of its type (TaskConfig):
+ * its meeting for a task that a body admin runs, and its city otherwise. The
+ * entry points that start a task and the replay and delete paths all read it.
  */
 export function taskScope(task: { type: string; cityId: string; councilMeetingId: string | null }): { cityId: string; councilMeetingId?: string } {
-    return task.councilMeetingId && BODY_ADMIN_TASK_TYPES.has(task.type)
+    return task.councilMeetingId && isMeetingTaskType(task.type) && TASK_CONFIG[task.type].scope === 'meeting'
         ? { cityId: task.cityId, councilMeetingId: task.councilMeetingId }
         : { cityId: task.cityId };
 }

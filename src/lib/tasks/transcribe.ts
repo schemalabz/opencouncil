@@ -10,7 +10,7 @@ import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
-import { PipelineBusyError, TaskAlreadyExistsError } from './types';
+import { PipelineBusyError, TaskAlreadyExistsError, taskScope } from './types';
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
 // payload; 4 significant figures is far finer than the ASR signal warrants.
@@ -25,7 +25,7 @@ const round4 = (v: number | null | undefined) => (v == null ? null : Number(v.to
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, options: {
     force?: boolean;
 } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
-    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
+    await withUserAuthorizedToEdit(taskScope({ type: 'transcribe', cityId, councilMeetingId }));
 
     try {
         await requestTranscribeInternal(youtubeUrl, councilMeetingId, cityId, options);
