@@ -65,6 +65,17 @@ jest.mock('../../db/documentSends', () => ({
   getDocumentSendSetting: (...args: unknown[]) => mockGetDocumentSendSetting(...args),
 }));
 
+const mockSendReadyDocuments = jest.fn();
+const mockDocumentsAfterReview = jest.fn();
+jest.mock('../../documents/automatic', () => ({
+  sendReadyDocuments: (...args: unknown[]) => mockSendReadyDocuments(...args),
+  documentsAfterReview: (...args: unknown[]) => mockDocumentsAfterReview(...args),
+}));
+
+// after() needs a request scope; the test runs what the action schedules
+const mockAfter = jest.fn();
+jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (fn: () => unknown) => mockAfter(fn) }));
+
 jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
 }));
@@ -96,6 +107,17 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     mockRequestSummarize.mockResolvedValue({ id: 'summarize-task-1' });
     mockSendTaskAdminAlert.mockResolvedValue(undefined);
     mockSendTranscriptToMunicipality.mockResolvedValue({ success: true });
+    mockSendReadyDocuments.mockResolvedValue([]);
+  });
+
+  // The minutes wait for the review; the dialog must not wait for the DOCX
+  it('schedules the automatic documents after the response, whatever the reviewer chose', async () => {
+    await markHumanReviewComplete(CITY_ID, MEETING_ID);
+
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockSendReadyDocuments).not.toHaveBeenCalled();
+    await mockAfter.mock.calls[0][0]();
+    expect(mockSendReadyDocuments).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
   });
 
   it('starts summarize when the reviewer opts in', async () => {
@@ -278,6 +300,17 @@ describe('getReviewCompletionState', () => {
     allowBoth();
     mockMeetingFindUnique.mockResolvedValue(meetingWithBody(true));
     mockGetDocumentSendSetting.mockResolvedValue(transcriptSetting);
+    mockDocumentsAfterReview.mockResolvedValue([]);
+  });
+
+  it('tells the reviewer what goes out on its own after the review', async () => {
+    const minutes = { document: 'minutes', recipientEmails: ['clerk@example.gov'], readiness: { state: 'complete' } };
+    mockDocumentsAfterReview.mockResolvedValue([minutes]);
+
+    const state = await getReviewCompletionState(CITY_ID, MEETING_ID);
+
+    expect(mockDocumentsAfterReview).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    expect(state.automaticDocuments).toEqual([minutes]);
   });
 
   it('refuses a caller without edit rights before it reads the meeting', async () => {
@@ -290,6 +323,7 @@ describe('getReviewCompletionState', () => {
   it('reports the recipients, the notification behavior and the release state', async () => {
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       transcriptRecipients: ['clerk@example.gov'],
+      automaticDocuments: [],
       administrativeBodyName: 'City Council',
       notificationBehavior: 'NOTIFICATIONS_AUTO',
       summarizeAvailability: 'available',
@@ -340,6 +374,7 @@ describe('getReviewCompletionState', () => {
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       transcriptRecipients: [],
+      automaticDocuments: [],
       administrativeBodyName: null,
       notificationBehavior: null,
       summarizeAvailability: 'available',

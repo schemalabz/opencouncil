@@ -56,6 +56,14 @@
       "label": "Envoyer la transcription à la commune",
       "help": "À : {toEmail}",
       "cc": "CC : {ccEmails}"
+    },
+    "automatic": {
+      "minutes": {
+        "now": "Le procès-verbal part maintenant vers {toEmail} : chaque point a sa décision.",
+        "nowIncomplete": "Le procès-verbal provisoire part maintenant vers {toEmail} : {count, plural, one {un point n'a} other {# points n'ont}} pas encore de décision.",
+        "later": "Le procès-verbal partira vers {toEmail} quand chaque point aura sa décision, au plus tard le {dueDate}.",
+        "noAgenda": "Le procès-verbal partira vers {toEmail} quand les points de la séance seront enregistrés."
+      }
     }
   },
   "stats": {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { Bell, BellOff, Clock, LucideIcon } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Bell, BellOff, Clock, FileText, LucideIcon } from 'lucide-react';
+import { formatDate } from '@/lib/formatters/time';
 import { NotificationBehavior } from '@prisma/client';
 import { Separator } from '@/components/ui/separator';
 import { CheckboxCard } from '@/components/ui/checkbox-card';
@@ -49,13 +50,14 @@ export function ReviewCompletionOptions({
     separatorClassName = 'my-2',
 }: ReviewCompletionOptionsProps) {
     const t = useTranslations('reviews.completeDialog');
+    const locale = useLocale();
     const { state, sendTranscript, setSendTranscript, runSummarize, setRunSummarize } = completion;
 
     if (!state) {
         return null;
     }
 
-    const { transcriptRecipients, administrativeBodyName, notificationBehavior, summarizeAvailability } = state;
+    const { transcriptRecipients, automaticDocuments, administrativeBodyName, notificationBehavior, summarizeAvailability } = state;
     const [primaryEmail, ...ccEmails] = transcriptRecipients;
 
     const canSummarize = summarizeAvailability === 'available';
@@ -117,6 +119,25 @@ export function ReviewCompletionOptions({
                         }
                     />
                 )}
+
+                {/* The body's setting decides these; the reviewer is told, not asked */}
+                {automaticDocuments.map(({ document, recipientEmails, readiness }) => (
+                    <div key={document} className="flex items-start gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
+                        <FileText className="h-4 w-4 shrink-0 mt-0.5" />
+                        <span>
+                            {readiness.state === 'complete' && t(`automatic.${document}.now`, { toEmail: recipientEmails[0] ?? '' })}
+                            {readiness.state === 'incomplete' && t(`automatic.${document}.nowIncomplete`, {
+                                toEmail: recipientEmails[0] ?? '',
+                                count: readiness.missingSubjectIds.length,
+                            })}
+                            {readiness.state === 'wait' && readiness.reason === 'decisions' && t(`automatic.${document}.later`, {
+                                toEmail: recipientEmails[0] ?? '',
+                                dueDate: readiness.dueAt ? formatDate(readiness.dueAt, undefined, locale) : '',
+                            })}
+                            {readiness.state === 'wait' && readiness.reason === 'agenda' && t(`automatic.${document}.noAgenda`, { toEmail: recipientEmails[0] ?? '' })}
+                        </span>
+                    </div>
+                ))}
             </div>
         </>
     );

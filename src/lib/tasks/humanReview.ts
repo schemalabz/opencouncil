@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
+import { after } from 'next/server';
 import { NotificationBehavior, TaskStatus } from '@prisma/client';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { checkTaskIdempotency, type TaskIdempotencyResult } from './tasks';
@@ -13,6 +14,7 @@ import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
 import { meetingLabelInCity, type MeetingNameFields } from '@/lib/meetingName';
 import { getDocumentSendSetting } from '@/lib/db/documentSends';
 import { recipientsFor } from '@/lib/documents/settings';
+import { documentsAfterReview, sendReadyDocuments, type DocumentAfterReview } from '@/lib/documents/automatic';
 
 /**
  * Whether the summarize task can start for a meeting.
@@ -37,6 +39,8 @@ const SUMMARIZE_AVAILABILITY: Record<
 export interface ReviewCompletionState {
     /** The recipients of the transcript, from the body's send setting. Empty when the setting does not cover the meeting. */
     transcriptRecipients: string[];
+    /** The documents that go out on their own once the review completes, and when. Empty when none does. */
+    automaticDocuments: DocumentAfterReview[];
     administrativeBodyName: string | null;
     /** Notification behavior of the administrative body. null when the meeting has no body. */
     notificationBehavior: NotificationBehavior | null;
@@ -100,11 +104,15 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
         throw new Error(`Council meeting ${cityId}/${meetingId} not found`);
     }
 
-    const transcriptSetting = await getDocumentSendSetting(meeting.administrativeBody?.id ?? null, 'transcript');
+    const [transcriptSetting, automaticDocuments] = await Promise.all([
+        getDocumentSendSetting(meeting.administrativeBody?.id ?? null, 'transcript'),
+        documentsAfterReview(cityId, meetingId),
+    ]);
     const blockedReason = summarizeIdempotency.blockedReason;
 
     return {
         transcriptRecipients: recipientsFor(transcriptSetting),
+        automaticDocuments,
         administrativeBodyName: meeting.administrativeBody?.name || null,
         notificationBehavior: meeting.administrativeBody?.notificationBehavior || null,
         summarizeAvailability: blockedReason ? SUMMARIZE_AVAILABILITY[blockedReason] : 'available',
@@ -152,6 +160,10 @@ export async function markHumanReviewComplete(
     // started. A revalidation before them repopulates the cache without those tasks,
     // and no later event corrects it until the backend reports a result.
     revalidateMeeting(cityId, meetingId);
+
+    // The review was the gate the minutes waited for. Through after(): the
+    // dialog says that they go out, it does not wait for the DOCX (#874).
+    after(() => sendReadyDocuments(cityId, meetingId));
 
     return { review: created, followUps };
 }
