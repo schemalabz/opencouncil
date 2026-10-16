@@ -53,6 +53,8 @@ export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     OUT_OF_AGENDA_PLACED_FIRST: 'info',
     VOTE_BY_ABSENT_MEMBER: 'warning',
     NO_VOTE_RESULT: 'error',
+    UNPLACEABLE_VOTE: 'warning',
+    PARTY_VOTE_UNRESOLVED: 'warning',
 };
 
 /** Worse first. Private: what callers need is "which of these is worse", below. */
@@ -126,13 +128,15 @@ export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     IMPLIED_CHANGE: ['presence'],
     PRESENCE_UNKNOWN: ['presence'],
     NO_ROLL_CALL: ['write'],
-    SOURCES_DISAGREE: ['presence', 'votes'],
+    SOURCES_DISAGREE: ['resolve', 'presence', 'votes'],
     LIST_DROPS_PRESENT: ['presence'],
     LIST_ADDS_ABSENT: ['presence'],
     LIST_CUT: ['presence'],
     TALLY_MISMATCH: ['votes'],
     VOTE_BY_ABSENT_MEMBER: ['votes'],
     NO_STORED_FACTS: ['write'],
+    UNPLACEABLE_VOTE: ['read'],
+    PARTY_VOTE_UNRESOLVED: ['votes'],
 };
 
 /** The codes a step can raise, in the order `ISSUE_CODES` declares them. */

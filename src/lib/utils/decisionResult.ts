@@ -16,12 +16,14 @@ export interface ResultInput {
  * The counts stay out of the word: a clerk reading down the column wants
  * "Ομόφωνα", and the numbers come back beside it when the row is hovered.
  * `none` and `noVote` both render as a dash but are different facts — nothing
- * is linked yet, versus a decision whose document records no vote — and only
- * the second one explains itself.
+ * is linked and nothing states a vote, versus a decision whose document records
+ * no vote — and only the second one explains itself. A vote the sheet or the
+ * transcript states counts before any document is linked (issue #807): the
+ * word comes from the rows, whatever source wrote them.
  */
 export function resultKey(input: ResultInput): ResultKey {
     if (input.withdrawn) return 'withdrawn';
-    if (!input.hasDecision) return 'none';
+    if (!input.hasDecision && input.votes.length === 0) return 'none';
     const result = calculateVoteResult(input.votes.map(v => ({ voteType: v.voteType })));
     if (result.totalVotes === 0) return 'noVote';
     if (result.isUnanimous) return 'unanimous';
