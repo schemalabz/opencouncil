@@ -10,8 +10,6 @@ import { STALE_PENDING_MINUTES, type DocumentSendRule } from '@/lib/documents/se
 import {
     documentSendSettingSelect,
     type DocumentSendSettingRow,
-    documentSendSummarySelect,
-    type DocumentSendSummary,
     documentMeetingInclude,
     type DocumentMeeting,
     type DocumentSendClaim,
@@ -66,20 +64,6 @@ export async function replaceDocumentSendSettings(
             });
         }
     });
-}
-
-/** The sends of every meeting of a city, newest first, keyed by meeting id. */
-export async function getDocumentSendsForCity(cityId: string): Promise<Record<string, DocumentSendSummary[]>> {
-    const sends = await prisma.documentSend.findMany({
-        where: { cityId },
-        select: { ...documentSendSummarySelect, councilMeetingId: true },
-        orderBy: { createdAt: 'desc' },
-    });
-    const byMeeting: Record<string, DocumentSendSummary[]> = {};
-    for (const { councilMeetingId, ...send } of sends) {
-        (byMeeting[councilMeetingId] ??= []).push(send);
-    }
-    return byMeeting;
 }
 
 export async function getMeetingForDocumentSend(cityId: string, meetingId: string): Promise<DocumentMeeting | null> {
@@ -238,5 +222,13 @@ export async function getSubjectLabels(subjectIds: string[]): Promise<Array<{ id
         where: { id: { in: subjectIds } },
         select: { id: true, agendaItemIndex: true, name: true, agendaItemTitle: true },
         orderBy: [{ agendaItemIndex: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+    });
+}
+
+/** The readiness facts of every meeting of a city, for the admin list. */
+export async function getReadinessFactsForCity(cityId: string): Promise<ReadinessFacts[]> {
+    return prisma.councilMeeting.findMany({
+        where: { cityId },
+        select: readinessMeetingSelect,
     });
 }

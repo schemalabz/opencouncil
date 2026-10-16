@@ -65,7 +65,7 @@ export const readinessMeetingSelect = {
     administrativeBody: { select: { documentSendSettings: { select: documentSendSettingSelect } } },
     taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, select: { id: true }, take: 1 },
     subjects: { where: DECISION_ELIGIBLE_SUBJECT_WHERE, select: { id: true, decision: { select: { id: true } } } },
-    documentSends: { select: { document: true, status: true, automatic: true } },
+    documentSends: { select: documentSendSummarySelect, orderBy: { createdAt: 'desc' as const } },
     _count: { select: { subjects: { where: AGENDA_SUBJECT_WHERE } } },
 } satisfies Prisma.CouncilMeetingSelect;
 
