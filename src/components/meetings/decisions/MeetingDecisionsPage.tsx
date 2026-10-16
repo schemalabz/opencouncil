@@ -8,11 +8,14 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { MinutesSendLine } from './rail/MinutesSendLine';
+import type { DocumentState } from '@/lib/documents/status';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
 import type { AdaLookupOutcome, AdministrativeBodySettings } from '@/lib/db/types';
 import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/actions/decisions';
+import { getDocumentState } from '@/lib/actions/documentSends';
 import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
@@ -46,7 +49,7 @@ import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
 import { buildAttendance, buildSubjectRollCall } from '@/lib/minutes/builders';
-import { downloadFromUrl } from '@/lib/export/download';
+import { downloadFromUrl, generateMinutesFileName } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
@@ -154,8 +157,10 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
     return new DecisionWriteError(causeFromPayload(payload), `HTTP ${response.status}`);
 };
 
-export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
+export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: minutesSendAtLoad }: {
     isSuperAdmin: boolean;
+    /** Where the minutes stand with the back office of the body, at the server render. Null when the body does not send its minutes. */
+    minutesSend: DocumentState | null;
     /** The settings of the meeting's body. The page reads them for an editor; the public meeting does not carry them. */
     bodySettings: Pick<AdministrativeBodySettings, 'diavgeiaUnitIds' | 'decisionConventions'> | null;
 }) {
@@ -311,6 +316,23 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
 
     useEffect(() => { fetchMinutes(); }, [fetchMinutes]);
 
+    // The send state came with the server render, and a router refresh brings
+    // it again. In between, a poll that lands may send the minutes, and a send
+    // in flight ends without telling the page: both ask the server again.
+    const [minutesSend, setMinutesSend] = useState(minutesSendAtLoad);
+    useEffect(() => { setMinutesSend(minutesSendAtLoad); }, [minutesSendAtLoad]);
+    const refreshMinutesSend = useCallback(async () => {
+        if (!minutesSendAtLoad) return;
+        const next = await getDocumentState(meeting.cityId, meeting.id, 'minutes').catch(() => null);
+        if (next) setMinutesSend(next);
+    }, [minutesSendAtLoad, meeting.cityId, meeting.id]);
+
+    useEffect(() => {
+        if (minutesSend?.state !== 'pending') return;
+        const timer = setInterval(() => { void refreshMinutesSend(); }, 10_000);
+        return () => clearInterval(timer);
+    }, [minutesSend?.state, refreshMinutesSend]);
+
     // A poll runs on another service, so nothing tells the page when it lands.
     // While one is in flight the page asks again every ten seconds and, the
     // moment the task is gone, reloads decisions and minutes together — a
@@ -322,10 +344,10 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
             const next = await getPollingHistoryForMeeting(meeting.cityId, meeting.id).catch(() => null);
             if (!next) return;
             setPollingStatus(next);
-            if (!next.pendingTaskId) await Promise.all([fetchDecisions(), fetchMinutes()]);
+            if (!next.pendingTaskId) await Promise.all([fetchDecisions(), fetchMinutes(), refreshMinutesSend()]);
         }, 10_000);
         return () => clearInterval(timer);
-    }, [pollingStatus?.pendingTaskId, meeting.cityId, meeting.id, fetchDecisions, fetchMinutes]);
+    }, [pollingStatus?.pendingTaskId, meeting.cityId, meeting.id, fetchDecisions, fetchMinutes, refreshMinutesSend]);
 
     const minutesById = useMemo(
         () => new Map<string, MinutesSubject>((minutes?.subjects ?? []).map(s => [s.subjectId, s])),
@@ -727,7 +749,8 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
      */
     const refreshAfterWrite = async (changesDecision: boolean): Promise<void> => {
         if (changesDecision) {
-            await Promise.all([fetchDecisions(), fetchMinutes()]);
+            // A linked decision can complete the minutes, so their send line moves too
+            await Promise.all([fetchDecisions(), fetchMinutes(), refreshMinutesSend()]);
             return;
         }
         await fetchDecisions();
@@ -1110,7 +1133,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
 
     const handleExportDocx = async () => {
         try {
-            await downloadFromUrl(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`, `minutes-${city.id}-${meeting.id}.docx`);
+            await downloadFromUrl(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`, generateMinutesFileName(city.id, meeting.id));
             toast({ title: t('minutes.exportSuccess') });
         } catch {
             toast({ title: t('minutes.exportError'), variant: 'destructive' });
@@ -1717,6 +1740,9 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                         onRederive={handleRederive}
                         isRederiving={isRederiving}
                         onExplainDerivation={explainDerivation}
+                        minutesSend={minutesSend && (
+                            <MinutesSendLine minutes={minutesSend} cityId={meeting.cityId} meetingId={meeting.id} timezone={city.timezone} isSuperAdmin={isSuperAdmin} />
+                        )}
                         auditMode={auditMode}
                         onAuditModeChange={setAuditMode}
                         conventions={conventionsPanel}

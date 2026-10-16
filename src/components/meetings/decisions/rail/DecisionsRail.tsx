@@ -61,6 +61,7 @@ export function DecisionsRail({
     onRederive,
     isRederiving,
     onExplainDerivation,
+    minutesSend,
 }: {
     /** Null while the minutes have not loaded (or failed to): the presence,
      * attendance-changes and discussion-order cards render nothing then. */
@@ -103,6 +104,8 @@ export function DecisionsRail({
     /** Opens the page's derivation glossary from the issues card. Superadmin-only,
      * so the page passes it to one and withholds it from everyone else. */
     onExplainDerivation?: () => void;
+    /** The minutes card's line about the send to the back office, when the body sends its minutes. */
+    minutesSend?: React.ReactNode;
 }) {
     const tPage = useTranslations('admin.decisionsPage');
     const tCommon = useTranslations('Common');
@@ -118,6 +121,7 @@ export function DecisionsRail({
                 onRederive={onRederive}
                 isRederiving={isRederiving}
                 showRederive={isSuperAdmin && auditMode}
+                send={minutesSend}
             />
             <DecisionsTableCard onExport={onExportDecisionsTable} />
             {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} />}

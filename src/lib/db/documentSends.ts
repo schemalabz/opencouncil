@@ -4,82 +4,63 @@
 import "server-only";
 import { DocumentKind, Prisma } from '@prisma/client';
 import prisma from './prisma';
+import { lockKey } from './advisoryLock';
 import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
-import { RESULT_PERSISTING_STAGE } from '@/lib/tasks/resultStage';
-import { STALE_PENDING_MINUTES, type DocumentSendRule } from '@/lib/documents/settings';
+import { CLAIM_REPLAY_AFTER_MS, RESULT_PERSISTING_STAGE } from '@/lib/tasks/resultStage';
+import { staleBefore } from '@/lib/documents/settings';
+import type { DocumentSendSettingInput } from '@/lib/zod-schemas/administrativeBody';
 import {
     documentSendSettingSelect,
     type DocumentSendSettingRow,
-    documentSendSummarySelect,
-    type DocumentSendSummary,
     documentMeetingInclude,
     type DocumentMeeting,
     type DocumentSendClaim,
+    DOCUMENT_SLOT_TAKEN_WHERE,
     readinessMeetingSelect,
     type ReadinessFacts,
     type CandidateCursor,
+    documentSendSummarySelect,
+    type MeetingSentDocuments,
 } from './types/documentSend';
-
-/** The settings of a body, one per document that has a row. */
-export async function getDocumentSendSettings(administrativeBodyId: string): Promise<DocumentSendSettingRow[]> {
-    return prisma.documentSendSetting.findMany({
-        where: { administrativeBodyId },
-        select: documentSendSettingSelect,
-    });
-}
 
 /** The setting of one document of a body, or null when the body has none. */
 export async function getDocumentSendSetting(
     administrativeBodyId: string | null,
-    document: DocumentKind,
+    kind: DocumentKind,
 ): Promise<DocumentSendSettingRow | null> {
     if (!administrativeBodyId) return null;
     return prisma.documentSendSetting.findUnique({
-        where: { administrativeBodyId_document: { administrativeBodyId, document } },
+        where: { administrativeBodyId_kind: { administrativeBodyId, kind } },
         select: documentSendSettingSelect,
     });
 }
 
 /**
- * Write the settings of a body, one row per document in the input. A document
- * that is switched on now gets enabledAt = now, so the switch never emails the
- * archive; a document that stays on keeps its enabledAt, and a document that
- * is switched off keeps it too, for the record.
+ * Write the settings of a body, one row per document in the input, inside the
+ * caller's transaction: the body form saves the body and its settings as one.
+ * A document that is switched on now gets enabledAt = now, so the switch
+ * never emails the archive; a document that stays on keeps its enabledAt, and
+ * a document that is switched off keeps it too, for the record.
  */
 export async function replaceDocumentSendSettings(
+    tx: Prisma.TransactionClient,
     administrativeBodyId: string,
-    settings: Array<Pick<DocumentSendRule, 'enabled' | 'recipientEmails'> & { document: DocumentKind }>,
+    settings: DocumentSendSettingInput[],
 ): Promise<void> {
     const now = new Date();
-    await prisma.$transaction(async (tx) => {
-        const existing = await tx.documentSendSetting.findMany({
-            where: { administrativeBodyId },
-            select: { document: true, enabled: true },
+    const existing = await tx.documentSendSetting.findMany({
+        where: { administrativeBodyId },
+        select: { kind: true, enabled: true },
+    });
+    const wasEnabled = new Map(existing.map(row => [row.kind, row.enabled]));
+    for (const { kind, enabled, recipientEmails } of settings) {
+        const switchedOn = enabled && !wasEnabled.get(kind);
+        await tx.documentSendSetting.upsert({
+            where: { administrativeBodyId_kind: { administrativeBodyId, kind } },
+            create: { administrativeBodyId, kind, enabled, recipientEmails, enabledAt: now },
+            update: { enabled, recipientEmails, ...(switchedOn ? { enabledAt: now } : {}) },
         });
-        const wasEnabled = new Map(existing.map(row => [row.document, row.enabled]));
-        for (const { document, enabled, recipientEmails } of settings) {
-            const switchedOn = enabled && !wasEnabled.get(document);
-            await tx.documentSendSetting.upsert({
-                where: { administrativeBodyId_document: { administrativeBodyId, document } },
-                create: { administrativeBodyId, document, enabled, recipientEmails, enabledAt: enabled ? now : null },
-                update: { enabled, recipientEmails, ...(switchedOn ? { enabledAt: now } : {}) },
-            });
-        }
-    });
-}
-
-/** The sends of every meeting of a city, newest first, keyed by meeting id. */
-export async function getDocumentSendsForCity(cityId: string): Promise<Record<string, DocumentSendSummary[]>> {
-    const sends = await prisma.documentSend.findMany({
-        where: { cityId },
-        select: { ...documentSendSummarySelect, councilMeetingId: true },
-        orderBy: { createdAt: 'desc' },
-    });
-    const byMeeting: Record<string, DocumentSendSummary[]> = {};
-    for (const { councilMeetingId, ...send } of sends) {
-        (byMeeting[councilMeetingId] ??= []).push(send);
     }
-    return byMeeting;
 }
 
 export async function getMeetingForDocumentSend(cityId: string, meetingId: string): Promise<DocumentMeeting | null> {
@@ -99,19 +80,25 @@ export async function getMeetingForDocumentSend(cityId: string, meetingId: strin
  * an automatic claim sees a manual claim that committed just before it. The
  * partial unique index stays as the guard between two automatic claims.
  */
-export async function claimDocumentSend(claim: DocumentSendClaim): Promise<{ id: string } | 'taken'> {
+export async function claimDocumentSend({ missingSubjectIds, ...claim }: DocumentSendClaim): Promise<{ id: string } | 'taken'> {
     try {
         return await prisma.$transaction(async (tx) => {
-            const lockKey = `documentSend:${claim.cityId}:${claim.councilMeetingId}:${claim.document}`;
-            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-            if (claim.automatic) {
+            await lockKey(tx, `documentSend:${claim.cityId}:${claim.councilMeetingId}:${claim.kind}`);
+            if (claim.trigger !== 'manual') {
                 const existing = await tx.documentSend.findFirst({
-                    where: { cityId: claim.cityId, councilMeetingId: claim.councilMeetingId, document: claim.document, status: { not: 'failed' } },
+                    where: { cityId: claim.cityId, councilMeetingId: claim.councilMeetingId, kind: claim.kind, ...DOCUMENT_SLOT_TAKEN_WHERE },
                     select: { id: true },
                 });
                 if (existing) return 'taken' as const;
             }
-            return tx.documentSend.create({ data: { ...claim, status: 'pending' }, select: { id: true } });
+            return tx.documentSend.create({
+                data: {
+                    ...claim,
+                    status: 'pending',
+                    missingSubjects: { create: missingSubjectIds.map(subjectId => ({ subjectId })) },
+                },
+                select: { id: true },
+            });
         });
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -143,26 +130,24 @@ export async function settleDocumentSend(
     return result.count > 0;
 }
 
-export { STALE_PENDING_MINUTES };
-
 /**
  * Whether a task of the meeting is writing what the documents render now. A
  * decision poll links the decisions first and writes their excerpts, votes
- * and attendance after. A summarize adds the subjects discussed outside the
- * agenda and the discussion tags when it ends. Minutes rendered in between
- * would lack them. A task that stopped reporting more than
- * STALE_PENDING_MINUTES ago died, and holds nothing.
+ * and attendance after: it holds while it persists, for as long as a replay
+ * leaves its claim alone (CLAIM_REPLAY_AFTER_MS). A summarize run after an
+ * earlier one rewrites the subjects outside the agenda and the discussion
+ * tags: it holds while it reported in the last STALE_PENDING_MINUTES. The
+ * minutes wait for the first summarize through the readiness rule itself.
  */
-export async function isMeetingBeingWritten(cityId: string, meetingId: string): Promise<boolean> {
+export async function isMeetingBeingWritten(cityId: string, meetingId: string, now: Date = new Date()): Promise<boolean> {
     const writing = await prisma.taskStatus.findFirst({
         where: {
             cityId,
             councilMeetingId: meetingId,
             status: { notIn: ['succeeded', 'failed'] },
-            updatedAt: { gte: new Date(Date.now() - STALE_PENDING_MINUTES * 60 * 1000) },
             OR: [
-                { type: 'pollDecisions', stage: RESULT_PERSISTING_STAGE },
-                { type: 'summarize' },
+                { type: 'pollDecisions', stage: RESULT_PERSISTING_STAGE, updatedAt: { gte: new Date(now.getTime() - CLAIM_REPLAY_AFTER_MS) } },
+                { type: 'summarize', updatedAt: { gte: staleBefore(now) } },
             ],
         },
         select: { id: true },
@@ -178,7 +163,7 @@ export async function isMeetingBeingWritten(cityId: string, meetingId: string): 
  */
 export async function failStaleDocumentSends(now: Date = new Date()): Promise<number> {
     const result = await prisma.documentSend.updateMany({
-        where: { status: 'pending', createdAt: { lt: new Date(now.getTime() - STALE_PENDING_MINUTES * 60 * 1000) } },
+        where: { status: 'pending', createdAt: { lt: staleBefore(now) } },
         data: { status: 'failed', failureReason: 'stale' },
     });
     return result.count;
@@ -208,7 +193,7 @@ export const CANDIDATE_PAGE_SIZE = 200;
  * used up), so the cron reads on past them with `after`.
  */
 export async function findDocumentSendCandidates(
-    document: DocumentKind,
+    kind: DocumentKind,
     now: Date = new Date(),
     after: CandidateCursor | null = null,
 ): Promise<ReadinessFacts[]> {
@@ -217,9 +202,9 @@ export async function findDocumentSendCandidates(
             ...TAKES_PLACE_WHERE,
             continuationOfId: null,
             dateTime: { gte: new Date(now.getTime() - DOCUMENT_SEND_WINDOW_DAYS * 24 * 60 * 60 * 1000), lte: now },
-            administrativeBody: { documentSendSettings: { some: { document, enabled: true } } },
+            administrativeBody: { documentSendSettings: { some: { kind, enabled: true } } },
             taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } },
-            documentSends: { none: { document, status: { not: 'failed' } } },
+            documentSends: { none: { kind, ...DOCUMENT_SLOT_TAKEN_WHERE } },
             ...(after && {
                 OR: [
                     { dateTime: { gt: after.dateTime } },
@@ -234,12 +219,20 @@ export async function findDocumentSendCandidates(
     });
 }
 
-/** The agenda index and the title of the given subjects, for the incomplete minutes email. */
-export async function getSubjectLabels(subjectIds: string[]): Promise<Array<{ id: string; agendaItemIndex: number | null; name: string; agendaItemTitle: string | null }>> {
-    if (subjectIds.length === 0) return [];
-    return prisma.subject.findMany({
-        where: { id: { in: subjectIds } },
-        select: { id: true, agendaItemIndex: true, name: true, agendaItemTitle: true },
-        orderBy: [{ agendaItemIndex: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
+/**
+ * The latest send that went out of each document of every meeting of a city,
+ * keyed by meeting id. The admin list marks the documents that went out.
+ */
+export async function getSentDocumentsForCity(cityId: string): Promise<MeetingSentDocuments> {
+    const sends = await prisma.documentSend.findMany({
+        where: { cityId, status: 'sent' },
+        select: { ...documentSendSummarySelect, councilMeetingId: true },
+        orderBy: { createdAt: 'desc' },
     });
+    const byMeeting: MeetingSentDocuments = {};
+    for (const { councilMeetingId, ...send } of sends) {
+        const ofMeeting = (byMeeting[councilMeetingId] ??= []);
+        if (!ofMeeting.some(earlier => earlier.kind === send.kind)) ofMeeting.push(send);
+    }
+    return byMeeting;
 }
