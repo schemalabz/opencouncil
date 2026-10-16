@@ -20,6 +20,7 @@ export const subjectDecisionSelect = {
     updatedAt: true,
     excerpt: true,
     references: true,
+    summary: true,
     voteResultPhrase: true,
     mayorPresent: true,
     declaredItemNumber: true,
