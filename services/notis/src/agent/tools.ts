@@ -74,7 +74,8 @@ export const CLIENT_TOOLS = [
       "Remember something you owe this reader — a follow-up you promised, an update " +
       "they asked you to watch for. It stays in front of you on every future wake, " +
       "however long the conversation gets, until you resolve it. Use it whenever you " +
-      "tell them you will come back to them.",
+      "tell them you will come back to them. Never for the meetings of a city outside " +
+      "their profile: you are not woken for it, so the promise cannot be kept.",
     input_schema: {
       type: "object" as const,
       properties: {

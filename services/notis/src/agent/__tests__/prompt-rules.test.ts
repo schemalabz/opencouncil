@@ -41,6 +41,12 @@ describe("system prompt rules from the 2026-10 conversation review", () => {
     expect(system).toContain("never «ασχολήθηκε με»");
   });
 
+  it("never promises to watch a city outside the reader's subscription", () => {
+    expect(system).toContain("you are woken only for meetings of the cities in <user_profile>");
+    expect(system).toContain("never record_commitment about its meetings");
+    expect(system).toContain("once they add it, you write about it too");
+  });
+
   it("names the four signals that always update the profile", () => {
     expect(system).toContain("Four things are lasting whatever words carry them");
     expect(system).toContain("«όχι μόνο τα δικά μου θέματα»");
