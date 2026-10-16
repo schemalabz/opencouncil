@@ -2,7 +2,11 @@ import { Prisma, SpeakerContribution } from '@prisma/client';
 import type { PersonWithRelations } from '../people';
 import { publicAdministrativeBodyRelation } from './administrativeBody';
 
-/** A meeting's transcript is reviewed when it has one of these task statuses. */
+/**
+ * A person reviewed a meeting's transcript when it has one of these task
+ * statuses. A stand-in for the review (fixFromMinutes) does not match: it
+ * confirms no speaker name.
+ */
 export const humanReviewSucceededWhere = { type: 'humanReview', status: 'succeeded' } satisfies Prisma.TaskStatusWhereInput;
 
 /**

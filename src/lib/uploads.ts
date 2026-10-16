@@ -1,10 +1,11 @@
 import "server-only";
+import { createHash } from 'crypto';
 import { env } from '@/env.mjs';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { mintHmacToken, verifyHmacToken } from '@/lib/hmacToken';
 import {
-    completeMultipartUpload, constructPublicUrl, listUploadedParts, objectKey, objectSize, presignPart, presignPut,
-    startMultipartUpload, type UploadedPart,
+    completeMultipartUpload, constructPublicUrl, listUploadedParts, objectKey, objectKeyPrefix, objectSize, presignPart,
+    presignPut, startMultipartUpload, type UploadedPart,
 } from '@/lib/s3';
 import { isS3NotFound } from '@opencouncil/subject-images/store';
 import {
@@ -17,7 +18,8 @@ import type { CompleteUploadRequest } from '@/lib/zod-schemas/upload';
  * alike. The caller authorizes the config first; these functions check the
  * file against its kind, name it, and sign the URLs.
  *
- * A file of one part goes up in one PUT, which makes it public itself. A
+ * A file of one part goes up in one PUT, which sets its ACL itself: public,
+ * or private for a private kind (see UPLOAD_KINDS). A
  * bigger file goes up in parts, and the upload ends with completeUpload,
  * which joins them. One part is at most 1 GiB: few enough URLs for an
  * assistant to copy, and small enough for a browser to send again.
@@ -36,6 +38,23 @@ const completionValue = (key: string, uploadId: string, sizeBytes: number) => `$
 const readableBytes = (bytes: number) =>
     bytes >= 1024 ** 3 ? `${bytes / 1024 ** 3} GiB` : `${bytes / 1024 ** 2} MiB`;
 
+/**
+ * What names the meeting of a private file in its key: a digest of the exact
+ * city id, meeting id and kind. The readable parts of the name cannot name
+ * it: a key part writes `m.a` and `m-a` the same way, and `_` both joins the
+ * parts and occurs inside an id. The digest has no key, so a file stays
+ * readable for its meeting after a change of secrets.
+ */
+const meetingUploadDigest = (cityId: string, councilMeetingId: string, kind: UploadKind) =>
+    createHash('sha256').update(JSON.stringify([cityId, councilMeetingId, kind])).digest('hex').slice(0, 32);
+
+/** The parts of the key of a private file: the readable name, then the digest of its meeting. */
+const privateUploadParts = (cityId: string, councilMeetingId: string, kind: UploadKind) =>
+    [...uploadNameParts({ cityId, councilMeetingId, kind }), meetingUploadDigest(cityId, councilMeetingId, kind)];
+
+/** What objectKey puts after the parts: the random part and the extension. */
+const KEY_END = /^[0-9a-f]{8}\.[a-z0-9]+$/;
+
 /** The refusal of a file that its kind does not take; `got` is its format or its extension. */
 export function formatRefusal(kind: UploadKind, got: string): BadRequestError {
     return new BadRequestError(`An upload of kind ${kind} takes ${UPLOAD_KINDS[kind].formats.join(' or ')}, not ${got}`);
@@ -50,22 +69,31 @@ export async function startUpload(config: UploadConfig, format: UploadFormat, si
             + `(${kind.maxBytes} bytes), not ${sizeBytes} bytes`);
     }
 
+    const publicRead = !('private' in kind);
+    if (!publicRead && !config.councilMeetingId) {
+        throw new BadRequestError(`An upload of kind ${config.kind} needs the id of its meeting: only that meeting `
+            + 'can read the file. Create the meeting first.');
+    }
+
     const { contentType, extension } = UPLOAD_FORMATS[format];
-    const key = objectKey('uploads', uploadNameParts(config), extension);
+    const parts = !publicRead && config.councilMeetingId
+        ? privateUploadParts(config.cityId, config.councilMeetingId, config.kind)
+        : uploadNameParts(config);
+    const key = objectKey('uploads', parts, extension);
     const publicUrl = constructPublicUrl(env.DO_SPACES_BUCKET, key);
 
     if (sizeBytes <= UPLOAD_PART_BYTES) {
         return {
             key, publicUrl, method: 'PUT',
-            headers: { 'Content-Type': contentType, 'x-amz-acl': 'public-read' },
+            headers: { 'Content-Type': contentType, ...(publicRead ? { 'x-amz-acl': 'public-read' } : {}) },
             partSize: sizeBytes,
-            parts: [{ partNumber: 1, uploadUrl: await presignPut(key, contentType, sizeBytes, SINGLE_PUT_SECONDS) }],
+            parts: [{ partNumber: 1, uploadUrl: await presignPut(key, contentType, sizeBytes, SINGLE_PUT_SECONDS, { publicRead }) }],
             expiresIn: SINGLE_PUT_SECONDS,
             completion: null,
         };
     }
 
-    const uploadId = await startMultipartUpload(key, contentType);
+    const uploadId = await startMultipartUpload(key, contentType, { publicRead });
     const partCount = Math.ceil(sizeBytes / UPLOAD_PART_BYTES);
     const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1);
     return {
@@ -79,6 +107,17 @@ export async function startUpload(config: UploadConfig, format: UploadFormat, si
         expiresIn: PART_URL_SECONDS,
         completion: { uploadId, token: mintHmacToken(COMPLETION_DOMAIN, completionValue(key, uploadId, sizeBytes)) },
     };
+}
+
+/**
+ * Whether an upload of this private kind for this meeting made the key. Only
+ * the editors of the meeting and a city admin can make such a key: a meeting
+ * id is unique in its city, and the key carries the digest of the exact ids.
+ * The key of a public kind carries no digest, so it never passes.
+ */
+export function isMeetingUpload(key: string, meeting: { cityId: string; id: string }, kind: UploadKind): boolean {
+    const start = objectKeyPrefix('uploads', privateUploadParts(meeting.cityId, meeting.id, kind));
+    return key.startsWith(start) && KEY_END.test(key.slice(start.length));
 }
 
 /** The size of a part: the part size, or the rest of the file for the last part. */

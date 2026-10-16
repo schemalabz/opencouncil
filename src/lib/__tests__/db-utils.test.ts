@@ -20,6 +20,11 @@ jest.mock('../db/meetings', () => ({
     // which does not exist on the task-server callback path.
     getCouncilMeeting: jest.fn(),
 }));
+jest.mock('@/lib/s3', () => ({
+    bucketKeyOf: (url: string) => url.startsWith('https://bucket.test/') ? url.slice('https://bucket.test/'.length) : null,
+    presignGet: jest.fn(async (key: string) => `https://bucket.test/${key}?signed`),
+}));
+jest.mock('@/lib/uploads', () => ({ isMeetingUpload: jest.fn() }));
 
 import prisma from '../db/prisma';
 import { getTranscript } from '../db/transcript';
@@ -28,7 +33,9 @@ import { getPartiesForCity } from '../db/parties';
 import { getTopics } from '../db/topics';
 import { getCity } from '../db/cities';
 import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
-import { getFixTranscriptRequestBody, getRequestOnTranscriptRequestBody } from '../db/utils';
+import { getFixFromMinutesRequestBody, getFixTranscriptRequestBody, getRequestOnTranscriptRequestBody } from '../db/utils';
+import { presignGet } from '@/lib/s3';
+import { isMeetingUpload } from '@/lib/uploads';
 import { roleWithRelationsInclude } from '@/lib/db/types';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
@@ -322,5 +329,56 @@ describe('getFixTranscriptRequestBody', () => {
 
         await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
         expect(mockGetTranscript).toHaveBeenLastCalledWith(MEETING_ID, CITY_ID, { joinAdjacentSameSpeakerSegments: true, joinSameSpeakerTagOnly: false });
+    });
+});
+
+describe('getFixFromMinutesRequestBody', () => {
+    const OWN_KEY = 'uploads/city-1_meeting-1_municipalMinutes_0a1b2c3d.pdf';
+    const withMinutes = (municipalMinutesUrl: string) => mockGetCouncilMeetingDirect.mockResolvedValue({
+        id: MEETING_ID,
+        cityId: CITY_ID,
+        administrativeBodyId: ADMIN_BODY_ID,
+        dateTime: MEETING_DATE,
+        administrativeBody: { id: ADMIN_BODY_ID, name: 'City Council' },
+        municipalMinutesUrl,
+        sessionNumber: 12,
+    } as NonNullable<Awaited<ReturnType<typeof getCouncilMeetingDirect>>>);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        setupCommonMocks();
+        mockGetTranscript.mockResolvedValue([]);
+        mockGetPeopleWhoMaySpeak.mockResolvedValue([]);
+        mockCity({ id: CITY_ID, name: 'Test City', language: 'el', realm: 'greece', timezone: 'Europe/Athens' });
+    });
+
+    it('sends a signed URL of the minutes uploaded for the meeting, which stay private in the bucket', async () => {
+        withMinutes(`https://bucket.test/${OWN_KEY}`);
+        jest.mocked(isMeetingUpload).mockReturnValue(true);
+
+        const result = await getFixFromMinutesRequestBody(MEETING_ID, CITY_ID);
+
+        expect(isMeetingUpload).toHaveBeenCalledWith(OWN_KEY, expect.objectContaining({ id: MEETING_ID, cityId: CITY_ID, administrativeBodyId: ADMIN_BODY_ID }), 'municipalMinutes');
+        expect(presignGet).toHaveBeenCalledWith(OWN_KEY, 24 * 60 * 60);
+        expect(result.municipalMinutesUrl).toBe(`https://bucket.test/${OWN_KEY}?signed`);
+        expect(result.meetingDate).toBe('2024-06-15');
+        expect(result.sessionNumber).toBe(12);
+    });
+
+    it('refuses to sign a file of our bucket that was not uploaded for the meeting', async () => {
+        withMinutes('https://bucket.test/uploads/city-1_meeting-2_municipalMinutes_0a1b2c3d.pdf');
+        jest.mocked(isMeetingUpload).mockReturnValue(false);
+
+        await expect(getFixFromMinutesRequestBody(MEETING_ID, CITY_ID)).rejects.toThrow(/not uploaded for this meeting/);
+        expect(presignGet).not.toHaveBeenCalled();
+    });
+
+    it('sends a URL outside our bucket as it is', async () => {
+        withMinutes('https://example.gov.gr/praktika.pdf');
+
+        const result = await getFixFromMinutesRequestBody(MEETING_ID, CITY_ID);
+
+        expect(result.municipalMinutesUrl).toBe('https://example.gov.gr/praktika.pdf');
+        expect(presignGet).not.toHaveBeenCalled();
     });
 });

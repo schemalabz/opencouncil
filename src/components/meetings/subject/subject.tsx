@@ -448,7 +448,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                             meeting={meeting}
                                             speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
                                             isIntroducer={!!contribution.speakerId && contribution.speakerId === introducedBy?.id}
-                                            speakerUnverified={!taskStatus.humanReview}
+                                            speakerUnverified={!taskStatus.reviewedByPerson}
                                         />
                                     ))}
                                 </div>

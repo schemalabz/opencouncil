@@ -54,7 +54,7 @@ export async function PUT(
         // facts of the record come from MEETING_RECORD_INPUT_KEYS, as on create.
         // A pasted agenda is extracted after the response, as on create.
         const input = meetingSchema.parse(body);
-        const { date, youtubeUrl, agendaUrl, agendaText, administrativeBodyId, postponedFromId, continuationOfId } = input;
+        const { date, youtubeUrl, agendaUrl, agendaText, municipalMinutesUrl, administrativeBodyId, postponedFromId, continuationOfId } = input;
 
         const current = await getCouncilMeetingDirect(params.cityId, params.meetingId);
         if (!current) {
@@ -80,6 +80,7 @@ export async function PUT(
             youtubeUrl,
             agendaUrl,
             agendaText,
+            municipalMinutesUrl,
             ...(nextBodyId !== undefined && { administrativeBodyId: nextBodyId }),
         });
 

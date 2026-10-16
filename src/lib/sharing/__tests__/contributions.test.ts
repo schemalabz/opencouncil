@@ -8,7 +8,7 @@ const findReferences = prisma.utterance.findMany as jest.Mock;
 const findFirst = prisma.utterance.findFirst as jest.Mock;
 const fixture = {
     id: 'contribution', text: 'Πρόταση [πηγή](REF:UTTERANCE:u1) και [άγνωστη](REF:UTTERANCE:bad).', speakerId: null, speakerName: 'Άννα', speaker: null,
-    subject: { id: 'subject', name: 'Πλατεία', councilMeeting: { id: 'meeting', cityId: 'city', administrativeBody: { showUnreviewedTranscript: true }, taskStatuses: [] } },
+    subject: { id: 'subject', name: 'Πλατεία', councilMeeting: { id: 'meeting', cityId: 'city', administrativeBody: { showUnreviewedTranscript: true }, taskStatuses: [], _count: { taskStatuses: 0 } } },
 };
 
 describe('public contribution references', () => {
@@ -31,6 +31,14 @@ describe('public contribution references', () => {
         expect(result?.playbackUrl).toBeNull();
         expect(findReferences).not.toHaveBeenCalled();
         expect(findFirst).not.toHaveBeenCalled();
+    });
+    it('keeps the speaker unverified after the correction from the minutes, until a person reviews', async () => {
+        const withMeeting = (meeting: object) => ({ ...fixture, subject: { ...fixture.subject, councilMeeting: { ...fixture.subject.councilMeeting, ...meeting } } });
+        // The stand-in row makes the transcript reviewed; the count holds the reviews of a person only.
+        findContribution.mockResolvedValue(withMeeting({ taskStatuses: [{ id: 'minutes-run' }], _count: { taskStatuses: 0 } }));
+        expect((await getPublicContribution('contribution', 'greece', 'el'))?.speakerUnverified).toBe(true);
+        findContribution.mockResolvedValue(withMeeting({ taskStatuses: [{ id: 'review' }], _count: { taskStatuses: 1 } }));
+        expect((await getPublicContribution('contribution', 'greece', 'el'))?.speakerUnverified).toBe(false);
     });
     it('caps and deduplicates references before querying', async () => {
         findContribution.mockResolvedValue({ ...fixture, text: Array.from({ length: 120 }, (_, i) => `[source](REF:UTTERANCE:u${i})`).join(' ') });

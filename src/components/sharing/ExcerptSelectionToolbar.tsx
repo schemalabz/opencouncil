@@ -28,7 +28,7 @@ export const EXCERPT_SHARE_EVENT = 'oc:share-excerpt';
 export type ExcerptShareEventDetail = { range: Range | null; utteranceId: string } | { utteranceIds: string[] };
 export function useExcerptSources(textLocale?: AppLocale) {
     const { transcript, getPerson, getSpeakerTag, speakerTags, taskStatus } = useCouncilMeetingData();
-    const reviewed = Boolean(taskStatus.humanReview);
+    const namesReviewed = Boolean(taskStatus.reviewedByPerson);
     const uiLocale = useLocale();
     const locale = textLocale ?? uiLocale;
     return useMemo<ExcerptSource[]>(() => transcript.flatMap(segment => {
@@ -38,9 +38,9 @@ export function useExcerptSources(textLocale?: AppLocale) {
             id: utterance.id, text: localizeText(utterance.text, locale), startTimestamp: utterance.startTimestamp, drift: utterance.drift,
             speakerTagId: tag.id, personId: tag.personId,
             speakerName: person ? getLocalizedName(person, locale) : null,
-            speakerUnverified: speakerIsUnverified(tag, reviewed),
+            speakerUnverified: speakerIsUnverified(tag, namesReviewed),
         }));
-    }), [transcript, getPerson, getSpeakerTag, speakerTags, locale, reviewed]);
+    }), [transcript, getPerson, getSpeakerTag, speakerTags, locale, namesReviewed]);
 }
 
 export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootRef: RefObject<HTMLDivElement | null>; disabled: boolean; editable: boolean }) {

@@ -6,7 +6,7 @@ import { ALL_SCOPE } from '@/lib/utils/bodyTier';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { extractUtteranceIds } from '@/lib/utils/references';
-import { publicSubjectSelect, transcriptIsPublic } from './publicContent';
+import { publicSubjectSelect, speakerNamesReviewed, transcriptIsPublic } from './publicContent';
 import { localePath, validSourceId } from '@/lib/sharing/excerptSelector';
 import { contributionSubjectPath } from '@/lib/sharing/contributionUrl';
 
@@ -44,7 +44,7 @@ export async function getPublicContribution(id: string, realm: Realm, locale: st
         speakerName: contribution.speaker ? getLocalizedName(contribution.speaker, locale) : contribution.speakerName ? localizeText(contribution.speakerName, locale) : null,
         speakerImage: contribution.speaker?.image ?? null,
         /** The speaker comes from the AI until the human review (issue #982). */
-        speakerUnverified: meeting.taskStatuses.length === 0,
+        speakerUnverified: !speakerNamesReviewed(meeting),
         referenceLinks: Object.fromEntries(references.map(ref => [ref.id, `${transcriptUrl}?t=${Math.floor(ref.startTimestamp)}#${ref.id}`])),
         playbackUrl: timestamp !== null ? `${transcriptUrl}?t=${Math.floor(timestamp)}` : null,
         subjectUrl: contributionSubjectPath(locale, meeting.cityId, meeting.id, subject.id, contribution.id),

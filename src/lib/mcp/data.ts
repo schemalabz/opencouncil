@@ -26,7 +26,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import { getTranscript } from '@/lib/db/transcript';
 import { getMeetingTaskStatus } from '@/lib/db/tasks';
-import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
+import { getFixFromMinutesReport, getTasksForMeetingDirect, type MeetingTaskRow } from '@/lib/db/tasksInternal';
 import { normalizeText } from '@/lib/utils';
 import { NEWS_PHASES, type NewsPhase } from '@/lib/notifications/freshness';
 import { getTaskNotificationOutcome } from '@/lib/notifications/meetingNotifications';
@@ -423,6 +423,20 @@ function meetingNote(
         + 'processing, or the meeting may never have been recorded.';
 }
 
+/**
+ * The task rows as the tools report them. The newest succeeded fixFromMinutes
+ * run carries its report: the operator reads there what the minutes changed
+ * and which speakers the methods disagree on (#876).
+ */
+async function summarizeMeetingTasks(tasks: MeetingTaskRow[]) {
+    const newestMinutesRun = tasks.find(task => task.type === 'fixFromMinutes' && task.status === 'succeeded');
+    const report = newestMinutesRun ? await getFixFromMinutesReport(newestMinutesRun.id) : null;
+    return tasks.map(task => ({
+        ...mcpTaskSummary(task),
+        ...(task.id === newestMinutesRun?.id && report && { report }),
+    }));
+}
+
 export async function mcpGetMeeting(cityId: string, meetingId: string, identity: McpIdentity) {
     const visible = await requireVisibleMeeting(cityId, meetingId, identity);
 
@@ -488,8 +502,12 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         hasTranscript: transcribed,
         summarized,
         released: visible.released,
+        // For the administrators who see the tasks: the minutes that the next
+        // fixFromMinutes reads (#876). Not for readers: a municipality can hand
+        // us minutes it does not publish.
         ...(tasks && {
-            tasks: tasks.map(mcpTaskSummary),
+            municipalMinutesUrl: meeting.municipalMinutesUrl,
+            tasks: await summarizeMeetingTasks(tasks),
             // What processAgenda and summarize would do with email if they succeeded now, read before start_task.
             notifications: Object.fromEntries(await Promise.all((Object.keys(NEWS_PHASES) as NewsPhase[]).map(async (phase) =>
                 [phase, notificationOutcomeEn(await getTaskNotificationOutcome(cityId, meetingId, phase), phase)]))),

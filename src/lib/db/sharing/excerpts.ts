@@ -4,7 +4,7 @@ import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { localizeText } from '@/lib/serbian';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { getPublicMeeting, transcriptIsPublic, type PublicMeeting } from './publicContent';
+import { getPublicMeeting, speakerNamesReviewed, transcriptIsPublic, type PublicMeeting } from './publicContent';
 import { canonicalExcerpt, MAX_EXCERPT_UTTERANCES, selectExcerptRuns, type ExcerptRun, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 import { majoritySubject, nearestSubject } from '@/lib/sharing/passageSubject';
 import { speakerIsUnverified } from '@/lib/speakerIdentifications';
@@ -80,12 +80,13 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     });
     if (sources[0]?.id !== first.id || sources[sources.length - 1]?.id !== last.id) return { status: 'invalid' };
     const isReviewed = meeting.taskStatuses.length > 0;
+    const namesReviewed = speakerNamesReviewed(meeting);
     const runs = selectExcerptRuns(sources.map(source => {
         const tag = source.speakerSegment.speakerTag;
         return {
             id: source.id, text: localizeText(source.text, selector.textLocale), speakerTagId: tag.id, personId: tag.personId,
             speakerName: tag.person ? getLocalizedName(tag.person, selector.textLocale) : null,
-            speakerUnverified: speakerIsUnverified(tag, isReviewed),
+            speakerUnverified: speakerIsUnverified(tag, namesReviewed),
         };
     }));
     if (!runs) return { status: 'invalid' };

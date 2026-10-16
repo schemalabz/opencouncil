@@ -1,5 +1,6 @@
 {
     "invalidAgendaUrl": "Μη έγκυρο URL ημερήσιας διάταξης.",
+    "invalidMunicipalMinutesUrl": "Μη έγκυρο URL πρακτικών του Δήμου.",
     "invalidMediaUrl": "Μη έγκυρο URL πολυμέσων.",
     "meetingDateRequired": "Η ημερομηνία της συνεδρίασης είναι υποχρεωτική.",
     "meetingTimeRequired": "Η ώρα της συνεδρίασης είναι υποχρεωτική.",

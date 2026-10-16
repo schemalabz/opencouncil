@@ -62,6 +62,8 @@ interface PostponementCandidate {
     administrativeBodyId: string | null;
     administrativeBody: { name: string; name_en: string } | null;
     postponedFromId: string | null;
+    /** The editor list carries it; the page payload hides it (hideLinks). */
+    municipalMinutesUrl?: string | null;
 }
 
 interface AddMeetingFormProps {
@@ -103,6 +105,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
             time: meeting ? localClockTime(new Date(meeting.dateTime), timezone) : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
+            municipalMinutesUrl: meeting?.municipalMinutesUrl || "",
             meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
@@ -176,6 +179,18 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
         }
     }, [currentLink, form])
 
+    // The municipal minutes, like the link: the page payload hides them, so an
+    // edit reads them from the editor list, and keeps what the first list showed.
+    const [knownMinutes, setKnownMinutes] = useState<string | null>(null)
+    const listedMinutes = cityMeetings.find(m => m.id === meeting?.id)?.municipalMinutesUrl ?? null
+    if (listedMinutes && listedMinutes !== knownMinutes) setKnownMinutes(listedMinutes)
+    const currentMinutes = listedMinutes ?? knownMinutes ?? meeting?.municipalMinutesUrl ?? null
+    useEffect(() => {
+        if (currentMinutes && !form.formState.dirtyFields.municipalMinutesUrl) {
+            form.resetField('municipalMinutesUrl', { defaultValue: currentMinutes })
+        }
+    }, [currentMinutes, form])
+
     async function onSubmit(values: z.output<typeof meetingFormSchema>) {
         setIsSubmitting(true)
         setFormError(null)
@@ -203,6 +218,9 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                     ...meetingRequestFields(values, { linkChanged: Boolean(form.formState.dirtyFields.postponedFromId), greekCodeFacts }),
                     youtubeUrl: values.youtubeUrl,
                     ...agendaRequestFields(values),
+                    // Sent only when the admin changed it: the field starts empty
+                    // until the editor list arrives, and an empty field clears.
+                    municipalMinutesUrl: form.formState.dirtyFields.municipalMinutesUrl ? values.municipalMinutesUrl : undefined,
                     // A later part of a meeting has no kind, no number and no urgency
                     // of its own; the form edits none (the continuation form is a follow-up).
                     ...(meeting?.continuationOfId ? { kind: undefined, sessionNumber: undefined, urgent: undefined } : {}),
@@ -543,6 +561,43 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                                             </FormDescription>
                                         </>
                                     )}
+                                    <FormMessage />
+                                </FormItem>
+                            )
+                        }}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="municipalMinutesUrl"
+                        render={({ field }) => {
+                            const administrativeBodyId = uploadBodyId(form.watch('administrativeBodyId'))
+
+                            // The task reads only the minutes uploaded for the saved meeting, and the server
+                            // can give a new meeting another id than the form, so a file waits for the save.
+                            return (
+                                <FormItem>
+                                    <FormLabel>{t('meetingMunicipalMinutes')}</FormLabel>
+                                    <FormControl>
+                                        {meeting ? (
+                                            <LinkOrDrop
+                                                {...field}
+                                                placeholder={t('meetingMunicipalMinutesPlaceholder')}
+                                                onUrlChange={(url) => field.onChange(url)}
+                                                config={{
+                                                    cityId,
+                                                    councilMeetingId: meeting.id,
+                                                    kind: 'municipalMinutes',
+                                                    administrativeBodyId,
+                                                }}
+                                            />
+                                        ) : (
+                                            <Input {...field} placeholder={t('meetingMunicipalMinutesUrlPlaceholder')} />
+                                        )}
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingMunicipalMinutesDescription')}
+                                        {!meeting && ` ${t('meetingMunicipalMinutesUploadAfterSave')}`}
+                                    </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )

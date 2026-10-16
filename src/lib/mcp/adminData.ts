@@ -10,6 +10,7 @@ import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetails
 import { pickRecordInput } from '@/lib/meetingLifecycleRules';
 import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
 import { completeUpload, startUpload } from '@/lib/uploads';
+import { listTranscriptEdits, revertTranscriptEdit } from '@/lib/db/utteranceEdits';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS, cityLanguageSchema } from '@/lib/zod-schemas/city';
 import { ALL_REALMS, REALMS, getRealmDisplayName } from '@/lib/realm';
@@ -23,6 +24,8 @@ import type {
     CreateMeetingToolArgs,
     CreateTopicsToolArgs,
     CreateUploadUrlToolArgs,
+    ListTranscriptEditsToolArgs,
+    RevertTranscriptEditToolArgs,
     StartTaskToolArgs,
     UpdateMeetingToolArgs,
     UpdateCityToolArgs,
@@ -71,6 +74,7 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
         date: new Date(args.dateTime),
         youtubeUrl: args.youtubeUrl,
         agendaUrl: args.agendaUrl,
+        municipalMinutesUrl: args.municipalMinutesUrl,
         administrativeBodyId: args.administrativeBodyId,
         processAgenda: args.processAgenda,
         postponedFromId: args.postponedFromId,
@@ -90,7 +94,11 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
         url: meetingUrl(meeting.cityId, meeting.id),
         ...(processAgendaStatus && { processAgendaStatus }),
         next: 'The meeting is saved as a draft: only administrators see it, and no subscriber is notified '
-            + 'until it is released. Use start_task for processing and update_meeting with released for publication.',
+            + 'until it is released. '
+            + (meeting.municipalMinutesUrl
+                ? 'Start transcribe with start_task: fixTranscript, fixFromMinutes and summarize follow on their own, '
+                    + 'and the meeting needs no human review. Use update_meeting with released for publication.'
+                : 'Use start_task for processing and update_meeting with released for publication.'),
     };
 }
 
@@ -139,6 +147,7 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
         ...(args.dateTime !== undefined && { dateTime: new Date(args.dateTime) }),
         ...(args.youtubeUrl !== undefined && { youtubeUrl: args.youtubeUrl }),
         ...(args.agendaUrl !== undefined && { agendaUrl: args.agendaUrl }),
+        ...(args.municipalMinutesUrl !== undefined && { municipalMinutesUrl: args.municipalMinutesUrl }),
         ...(args.administrativeBodyId !== undefined && { administrativeBodyId: args.administrativeBodyId }),
         ...pickRecordInput(args),
     };
@@ -158,6 +167,7 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
         dateTime: meeting.dateTime.toISOString(),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
+        municipalMinutesUrl: meeting.municipalMinutesUrl,
         administrativeBody: meeting.administrativeBody?.name ?? null,
         released: meeting.released,
         url: meetingUrl(meeting.cityId, meeting.id),
@@ -180,6 +190,8 @@ export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArg
         meetingId,
         // The transcribe core stores the video it was given on the meeting.
         ...(request.type === 'transcribe' && request.videoUrl && { youtubeUrl: request.videoUrl }),
+        // So does the fixFromMinutes core with the minutes it was given.
+        ...(request.type === 'fixFromMinutes' && request.municipalMinutesUrl && { municipalMinutesUrl: request.municipalMinutesUrl }),
         url: meetingUrl(cityId, meetingId),
         // Fixed text, not a read of the meeting: the job is already submitted, and the
         // agent decides before it starts, from get_meeting's live `notifications`.
@@ -194,6 +206,9 @@ const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
     agenda: 'pass publicUrl as agendaUrl to create_meeting or update_meeting.',
     recording: 'pass publicUrl as youtubeUrl (the recording of the meeting) to create_meeting or update_meeting, '
         + 'or as videoUrl to start_task with type transcribe.',
+    municipalMinutes: 'pass publicUrl as municipalMinutesUrl to update_meeting of the same meeting, '
+        + 'or to start_task with type fixFromMinutes. The file stays private: nobody can read it at publicUrl, '
+        + 'and the task server gets a signed URL for this meeting only.',
 };
 
 /**
@@ -203,9 +218,15 @@ const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
 export async function mcpCreateUploadUrl(identity: McpIdentity, args: CreateUploadUrlToolArgs) {
     await requireCityAdmin(identity, args.cityId);
     await requireRealmCity(args.cityId);
+    if (args.kind === 'municipalMinutes' && !args.meetingId) {
+        throw new BadRequestError('Minutes need a meetingId: the task server reads only the minutes that were uploaded '
+            + 'for their meeting. Create the meeting first.');
+    }
+    if (args.meetingId) await requireVisibleMeeting(args.cityId, args.meetingId, identity);
 
     const plan = await startUpload(
-        { cityId: args.cityId, kind: args.kind, identifier: args.identifier }, args.format, args.sizeBytes,
+        { cityId: args.cityId, kind: args.kind, identifier: args.identifier, councilMeetingId: args.meetingId },
+        args.format, args.sizeBytes,
     );
     const next = plan.completion
         ? 'Split the file into parts of partSize bytes, e.g. `split -b <partSize> -d -a 3 --numeric-suffixes=1 '
@@ -213,7 +234,7 @@ export async function mcpCreateUploadUrl(identity: McpIdentity, args: CreateUplo
             + 'partNumber, with no headers, within expiresIn seconds. Then call complete_upload with cityId, key, '
             + 'sizeBytes and the two completion fields: the file does not exist until then. After that, '
         : 'Send the file with a PUT to the uploadUrl of part 1, with exactly these headers, within expiresIn '
-            + 'seconds. Without the x-amz-acl header the file stays private. Then ';
+            + `seconds.${'x-amz-acl' in plan.headers ? ' Without the x-amz-acl header the file stays private.' : ''} Then `;
     return { ...plan, next: next + UPLOAD_NEXT_STEP[args.kind] };
 }
 
@@ -227,8 +248,44 @@ export async function mcpCompleteUpload(identity: McpIdentity, args: CompleteUpl
     const done = await completeUpload(args);
     return {
         ...done,
-        next: 'The file is public at publicUrl. Use it as the next step of create_upload_url said: agendaUrl for an '
-            + 'agenda, youtubeUrl or the videoUrl of start_task for a recording.',
+        next: 'The file is at publicUrl: public for an agenda or a recording, private for minutes. Use it as the next '
+            + 'step of create_upload_url said: agendaUrl for an agenda, youtubeUrl or the videoUrl of start_task for a '
+            + 'recording, municipalMinutesUrl of the same meeting for minutes.',
+    };
+}
+
+// --- Transcript edits ----------------------------------------------------
+
+/** What a listed edit carries, with the moment in the recording to open. */
+function describeEdit(cityId: string, meetingId: string, edit: Awaited<ReturnType<typeof listTranscriptEdits>>[number]) {
+    return {
+        ...edit,
+        createdAt: edit.createdAt.toISOString(),
+        url: `${meetingUrl(cityId, meetingId)}/transcript?t=${Math.floor(edit.startTimestamp)}`,
+    };
+}
+
+export async function mcpListTranscriptEdits(identity: McpIdentity, args: ListTranscriptEditsToolArgs) {
+    await requireMeetingAdmin(identity, args.cityId, args.meetingId);
+    await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    const edits = await listTranscriptEdits(args.cityId, args.meetingId, args.taskId);
+    return {
+        cityId: args.cityId,
+        meetingId: args.meetingId,
+        count: edits.length,
+        edits: edits.map(edit => describeEdit(args.cityId, args.meetingId, edit)),
+    };
+}
+
+export async function mcpRevertTranscriptEdit(identity: McpIdentity, args: RevertTranscriptEditToolArgs) {
+    await requireMeetingAdmin(identity, args.cityId, args.meetingId);
+    await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    const userId = identity?.userId ?? null;
+    const revert = await revertTranscriptEdit(args.cityId, args.meetingId, args.editId, userId);
+    revalidateAfterResponse({ tags: [`city:${args.cityId}:meetings`] });
+    return {
+        ...describeEdit(args.cityId, args.meetingId, revert),
+        next: 'The text from before the edit is back, recorded as your edit. The speaker of the utterance is unchanged.',
     };
 }
 
