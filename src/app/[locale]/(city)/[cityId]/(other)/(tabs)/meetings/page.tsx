@@ -4,7 +4,7 @@ import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getPublicAdministrativeBodiesForCityCached } from "@/lib/cache";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
@@ -26,11 +26,10 @@ export async function generateMetadata(
     const t = await getTranslations({ locale, namespace: 'metadata.meetings' });
 
     if (!city) {
-        return {
+        return withCanonicalUrl(`/${cityId}/meetings`, {
             title: t('notFoundTitle'),
             description: t('notFoundDescription'),
-            alternates: await buildCanonicalAlternates(`/${cityId}/meetings`),
-        };
+        });
     }
 
     const cityName = getLocalizedName(city, locale);
@@ -38,7 +37,7 @@ export async function generateMetadata(
     const description = t('description', { cityName, meetingsCount: city._count.councilMeetings });
     const ogImageUrl = buildOgImageUrl(locale, { cityId });
 
-    return {
+    return withCanonicalUrl(`/${cityId}/meetings`, {
         title,
         description,
         keywords: [cityName, ...(t.raw('keywords') as string[]), "OpenCouncil"],
@@ -64,8 +63,7 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(`/${cityId}/meetings`),
-    };
+    });
 }
 
 

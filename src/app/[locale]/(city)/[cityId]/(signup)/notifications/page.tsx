@@ -10,7 +10,7 @@ import { getCity } from "@/lib/db/cities";
 import { getSignupPreference } from "@/lib/db/signup";
 import { getTopics } from "@/lib/db/topics";
 import { getRealm } from "@/lib/realm.server";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
@@ -25,12 +25,11 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
     const title = t("metaTitle");
     const description = t("metaDescription");
-    return {
+    return withCanonicalUrl(`/${cityId}/notifications`, {
         title,
         description,
         ...signupOpenGraph(locale, title, description, buildOgImageUrl(locale, { pageType: "notifications", cityId })),
-        alternates: await buildCanonicalAlternates(`/${cityId}/notifications`),
-    };
+    });
 }
 
 interface PageProps {

@@ -1,15 +1,14 @@
 import { Metadata } from 'next';
 import ReactSwagger from '@/components/ReactSwagger';
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getCurrentUser } from '@/lib/auth';
 import { getOpenApiSpec } from '@/lib/openapi';
 import { filterSpecByAccessLevel, getUserAccessLevel } from '@/lib/utils/openapi';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
+  return withCanonicalUrl('/docs', {
     title: 'API | OpenCouncil',
-    alternates: await buildCanonicalAlternates('/docs'),
-  };
+  });
 }
 
 export default async function ApiDoc() {

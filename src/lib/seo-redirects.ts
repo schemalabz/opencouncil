@@ -88,7 +88,7 @@ const inLatTree = (pathname: string) => {
  *
  * - Cookie-gated, so crawlers (cookieless) always see the canonical tree:
  *   unprefixed Cyrillic, with the /lat variant canonicalised back to it (no
- *   hreflang cluster is emitted anywhere — see `buildCanonicalAlternates`).
+ *   hreflang cluster is emitted anywhere — see `withCanonicalUrl`).
  *   A 302 rather than a 301 because the response varies by cookie, so it must
  *   never be treated as permanent; no effect on indexing either way.
  * - Any explicit locale prefix wins over the cookie (`/lat` needs no

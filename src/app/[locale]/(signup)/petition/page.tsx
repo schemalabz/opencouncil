@@ -8,7 +8,7 @@ import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 import { getPetitionedMapCitiesCached } from "@/lib/db/cities";
 import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
@@ -17,12 +17,11 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
     const [{ locale }, t] = await Promise.all([props.params, getTranslations("petition")]);
     const title = t("metaTitle");
     const description = t("metaDescription");
-    return {
+    return withCanonicalUrl("/petition", {
         title,
         description,
         ...signupOpenGraph(locale, title, description, buildOgImageUrl(locale, { pageType: "petition" })),
-        alternates: await buildCanonicalAlternates("/petition"),
-    };
+    });
 }
 
 /**
