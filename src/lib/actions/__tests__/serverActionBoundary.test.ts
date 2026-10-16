@@ -34,7 +34,6 @@ const LEGACY_CLIENT_IMPORTS = new Set([
     'src/components/admin/reviews/MarkReviewCompleteButton.tsx -> tasks/humanReview',
     'src/components/admin/reviews/ReviewSessionsBreakdown.tsx -> db/reviews',
     'src/components/admin/reviews/ReviewsTable.tsx -> db/reviews',
-    'src/components/admin/reviews/SendTranscriptButton.tsx -> tasks/sendTranscript',
     'src/components/admin/tasks/ActiveTasks.tsx -> db/tasks',
     'src/components/admin/tasks/BatchRerunActions.tsx -> tasks/batchRerun',
     'src/components/admin/topics/topics-table.tsx -> db/topics',

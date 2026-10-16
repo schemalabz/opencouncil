@@ -14,8 +14,10 @@ export interface DocumentSendRule {
 }
 
 /**
- * Whether the setting covers a meeting: it is on, and the meeting was held at
- * or after the switch-on. Switching a document on never emails the archive.
+ * Whether the switch-on of the setting covers a meeting: it is on, and the
+ * meeting was held at or after the switch-on. Only the automatic sends ask
+ * this (see evaluateReadiness): switching a document on never emails the
+ * archive, but a person may still send any meeting's document by hand.
  */
 export function settingAppliesTo(setting: DocumentSendRule | null | undefined, meetingDate: Date): boolean {
     if (!setting || !setting.enabled) return false;
@@ -23,9 +25,16 @@ export function settingAppliesTo(setting: DocumentSendRule | null | undefined, m
 }
 
 /**
- * The recipients of a meeting's document: the first address is To, the rest
- * are CC. Empty when the setting does not cover the meeting.
+ * The recipients of a document of the body: the first address is To, the rest
+ * are CC. Empty when the document is switched off. Whether a given meeting's
+ * document goes out is the readiness rule's question, not this one's.
  */
-export function recipientsFor(setting: DocumentSendRule | null | undefined, meetingDate: Date): string[] {
-    return settingAppliesTo(setting, meetingDate) ? setting!.recipientEmails : [];
+export function recipientsFor(setting: DocumentSendRule | null | undefined): string[] {
+    return setting?.enabled ? setting.recipientEmails : [];
 }
+
+/** What each document is called: in Greek for the emails, in English for the admin alerts. */
+export const DOCUMENT_NAMES = {
+    transcript: { el: 'Απομαγνητοφώνηση', en: 'Transcript' },
+    minutes: { el: 'Πρακτικά', en: 'Minutes' },
+} as const satisfies Record<DocumentKind, { el: string; en: string }>;

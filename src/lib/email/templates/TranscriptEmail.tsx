@@ -1,56 +1,34 @@
 import * as React from 'react';
 import { Section, Text, Link } from '@react-email/components';
 import { BaseTemplate } from '../components/BaseTemplate';
+import { backOfficeLink, backOfficeText, ContactLine } from '../components/BackOfficeEmail';
 import { formatDate } from '@/lib/formatters/time';
+import { DOCUMENT_NAMES } from '@/lib/documents/settings';
 
 interface TranscriptEmailProps {
     administrativeBodyName: string;
     meetingDate: Date;
+    /** The meeting's city timezone, for the date. */
+    timeZone: string;
+    contactPhone: string;
     transcriptUrl: string;
 }
 
 export const TranscriptEmail = ({
     administrativeBodyName,
     meetingDate,
+    timeZone,
+    contactPhone,
     transcriptUrl,
-}: TranscriptEmailProps): React.ReactElement => {
-    const previewText = `Απομαγνητοφώνηση: ${administrativeBodyName}`;
-
-    const meetingDateFormatted = formatDate(meetingDate);
-
-    return (
-        <BaseTemplate previewText={previewText}>
-            <Section>
-                <Text
-                    style={{
-                        color: '#374151',
-                        fontSize: '16px',
-                        lineHeight: '24px',
-                        margin: '24px 0',
-                    }}
-                >
-                    Επισυνάπτουμε παρακάτω την{' '}
-                    <Link
-                        href={transcriptUrl}
-                        style={{ color: '#2563eb', textDecoration: 'underline' }}
-                    >
-                        απομαγνητοφώνηση
-                    </Link>{' '}
-                    της συνεδρίασης ({administrativeBodyName}) που πραγματοποιήθηκε στις {meetingDateFormatted}.
-                </Text>
-
-                <Text
-                    style={{
-                        color: '#6b7280',
-                        fontSize: '13px',
-                        lineHeight: '20px',
-                        marginTop: '32px',
-                        marginBottom: '0',
-                    }}
-                >
-                    Για ό,τι χρειαστείτε, είμαστε στην διάθεσή σας στο 2111980212.
-                </Text>
-            </Section>
-        </BaseTemplate>
-    );
-};
+}: TranscriptEmailProps): React.ReactElement => (
+    <BaseTemplate previewText={`${DOCUMENT_NAMES.transcript.el}: ${administrativeBodyName}`}>
+        <Section>
+            <Text style={backOfficeText}>
+                Επισυνάπτουμε παρακάτω την{' '}
+                <Link href={transcriptUrl} style={backOfficeLink}>απομαγνητοφώνηση</Link>{' '}
+                της συνεδρίασης ({administrativeBodyName}) που πραγματοποιήθηκε στις {formatDate(meetingDate, timeZone)}.
+            </Text>
+            <ContactLine contactPhone={contactPhone} />
+        </Section>
+    </BaseTemplate>
+);

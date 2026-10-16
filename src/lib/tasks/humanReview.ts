@@ -7,7 +7,7 @@ import { checkTaskIdempotency, type TaskIdempotencyResult } from './tasks';
 import { revalidateMeeting } from '@/lib/cache';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
 import { sendHumanReviewCompletedAdminAlert } from '@/lib/discord';
-import { sendTranscriptToMunicipality } from './sendTranscript';
+import { sendTranscript } from '@/lib/documents/transcript';
 import { requestSummarize } from './summarize';
 import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
 import { meetingLabelInCity, type MeetingNameFields } from '@/lib/meetingName';
@@ -104,7 +104,7 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
     const blockedReason = summarizeIdempotency.blockedReason;
 
     return {
-        transcriptRecipients: recipientsFor(transcriptSetting, meeting.dateTime),
+        transcriptRecipients: recipientsFor(transcriptSetting),
         administrativeBodyName: meeting.administrativeBody?.name || null,
         summarizeAvailability: blockedReason ? SUMMARIZE_AVAILABILITY[blockedReason] : 'available',
         summarizeNotifications: notificationOutcome({
@@ -261,17 +261,17 @@ async function runReviewFollowUps(
 
 /**
  * Send the transcript to the municipality and report the outcome.
- * sendTranscriptToMunicipality reports a failure in its result and never throws,
+ * sendTranscript reports a failure in its result and never throws,
  * so an unreported failure would leave the reviewer with a success message.
  */
 async function sendReviewedTranscript(
     cityId: string,
     meetingId: string
 ): Promise<ReviewFollowUpOutcomes['transcript']> {
-    const result = await sendTranscriptToMunicipality(cityId, meetingId);
+    const result = await sendTranscript(cityId, meetingId, { trigger: 'review', automatic: true });
 
     if (result.skipped) {
-        console.log(`[humanReview] Transcript sending skipped (no recipients) for ${cityId}/${meetingId}`);
+        console.log(`[humanReview] Transcript sending skipped (switched off, or already sent) for ${cityId}/${meetingId}`);
         return 'skipped';
     }
 
