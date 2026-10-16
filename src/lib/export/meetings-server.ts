@@ -5,6 +5,8 @@ import { getTranscript } from '@/lib/db/transcript';
 import { getCity } from '@/lib/db/cities';
 import { getPeopleForCity } from '@/lib/db/people';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
+import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
+import type { MinutesData } from '@/lib/minutes/types';
 import { getRoleTitles } from '@/i18n/roleTitles';
 import { NotFoundError } from '@/lib/api/errors';
 
@@ -45,4 +47,10 @@ export async function generateMeetingDocxBuffer(
     const blob = await doc.save();
     const arrayBuffer = await blob.arrayBuffer();
     return Buffer.from(arrayBuffer);
+}
+
+/** The minutes DOCX of a meeting as a buffer: the decisions page export and the minutes email send the same bytes. */
+export async function generateMinutesDocxBuffer(data: MinutesData): Promise<Buffer> {
+    const blob = await renderMinutesDocx(data);
+    return Buffer.from(await blob.arrayBuffer());
 }

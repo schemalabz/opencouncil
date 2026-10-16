@@ -78,6 +78,18 @@ jest.mock('../tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
+const mockSendReadyDocuments = jest.fn().mockResolvedValue([]);
+const mockWaitsForPoll = jest.fn().mockReturnValue(false);
+jest.mock('../../documents/automatic', () => ({
+  sendReadyDocuments: (...args: unknown[]) => mockSendReadyDocuments(...args),
+  waitsForPoll: (...args: unknown[]) => mockWaitsForPoll(...args),
+}));
+
+const mockPollDecisionsForMeeting = jest.fn().mockResolvedValue(undefined);
+jest.mock('../pollDecisions', () => ({
+  pollDecisionsForMeeting: (...args: unknown[]) => mockPollDecisionsForMeeting(...args),
+}));
+
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
@@ -130,16 +142,62 @@ describe('handleSummarizeResult — replaces stale data on success', () => {
     jest.clearAllMocks();
   });
 
-  it('schedules the subject illustrations with after(), once the subjects are saved', async () => {
+  it('schedules the subject illustrations and the document sends with after(), once the subjects are saved', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     // Scheduled, not started: the work must outlive the response, not escape it.
     expect(mockGenerateImagesForMeeting).not.toHaveBeenCalled();
-    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockSendReadyDocuments).not.toHaveBeenCalled();
+    expect(mockAfter).toHaveBeenCalledTimes(2);
     expect(mockAfter.mock.invocationCallOrder[0]).toBeGreaterThan(mockSaveSubjectsForMeeting.mock.invocationCallOrder[0]);
 
     await mockAfter.mock.calls[0][0]();
     expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    // The minutes waited for the subjects this run saved (#874)
+    await mockAfter.mock.calls[1][0]();
+    expect(mockSendReadyDocuments).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+  });
+
+  describe('the minutes that wait for a poll after the summarize', () => {
+    const outcomes = [{ document: 'minutes', readiness: { state: 'wait', reason: 'poll', dueAt: null }, result: { success: true, skipped: true } }];
+    const runDocumentHook = async () => {
+      await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+      await mockAfter.mock.calls[1][0]();
+    };
+
+    beforeEach(() => {
+      mockSendReadyDocuments.mockResolvedValue(outcomes);
+    });
+
+    afterEach(() => {
+      mockSendReadyDocuments.mockResolvedValue([]);
+      mockWaitsForPoll.mockReturnValue(false);
+      mockPollDecisionsForMeeting.mockResolvedValue(undefined);
+    });
+
+    it('starts one silent decision poll of the meeting when a document waits for it', async () => {
+      mockWaitsForPoll.mockReturnValue(true);
+      await runDocumentHook();
+      expect(mockWaitsForPoll).toHaveBeenCalledWith(outcomes);
+      expect(mockPollDecisionsForMeeting).toHaveBeenCalledTimes(1);
+      expect(mockPollDecisionsForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { silent: true });
+      expect(mockPollDecisionsForMeeting.mock.invocationCallOrder[0]).toBeGreaterThan(mockSendReadyDocuments.mock.invocationCallOrder[0]);
+    });
+
+    it('starts no poll when no document waits for one', async () => {
+      mockWaitsForPoll.mockReturnValue(false);
+      await runDocumentHook();
+      expect(mockPollDecisionsForMeeting).not.toHaveBeenCalled();
+    });
+
+    it('logs a poll that cannot start, and does not throw', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockWaitsForPoll.mockReturnValue(true);
+      mockPollDecisionsForMeeting.mockRejectedValue(new Error('task server down'));
+      await expect(runDocumentHook()).resolves.toBeUndefined();
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('Could not start the decision poll'), expect.any(Error));
+      consoleError.mockRestore();
+    });
   });
 
   it('deletes the topic labels of the meeting', async () => {

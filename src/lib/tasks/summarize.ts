@@ -14,6 +14,8 @@ import { taskScope } from "./types";
 import { after } from "next/server";
 import * as z from "zod";
 import { generateImagesForMeeting } from "../subjectImages";
+import { sendReadyDocuments, waitsForPoll } from "../documents/automatic";
+import { pollDecisionsForMeeting } from "./pollDecisions";
 
 // A Server Action has no runtime types. Both fields land in the summarize
 // prompt, so they are bounded here.
@@ -155,4 +157,14 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // callback must not wait on Gemini, and minutes of Gemini calls must
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
+
+    // The minutes waited for these subjects (#874). When they are due with
+    // subjects still missing, one poll first looks for the decisions of the
+    // subjects added here; its own hook then sends.
+    after(async () => {
+        const outcomes = await sendReadyDocuments(councilMeeting.cityId, councilMeeting.id);
+        if (!waitsForPoll(outcomes)) return;
+        await pollDecisionsForMeeting(councilMeeting.cityId, councilMeeting.id, { silent: true })
+            .catch(error => console.error(`[summarize] Could not start the decision poll for the minutes of ${councilMeeting.cityId}/${councilMeeting.id}:`, error));
+    });
 }

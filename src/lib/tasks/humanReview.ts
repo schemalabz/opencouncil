@@ -1,19 +1,21 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
+import { after } from 'next/server';
 import { TaskStatus } from '@prisma/client';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { checkTaskIdempotency, type TaskIdempotencyResult } from './tasks';
 import { revalidateMeeting } from '@/lib/cache';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
 import { sendHumanReviewCompletedAdminAlert } from '@/lib/discord';
-import { sendTranscript } from '@/lib/documents/transcript';
+import { sendDocument } from '@/lib/documents/send';
 import { requestSummarize } from './summarize';
 import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
 import { meetingLabelInCity, type MeetingNameFields } from '@/lib/meetingName';
 import { notificationOutcome, type NotificationOutcome } from '@/lib/notifications/freshness';
 import { getDocumentSendSetting } from '@/lib/db/documentSends';
 import { recipientsFor } from '@/lib/documents/settings';
+import { documentsAfterReview, sendReadyDocuments, type DocumentAfterReview } from '@/lib/documents/automatic';
 
 /**
  * Whether the summarize task can start for a meeting.
@@ -38,7 +40,11 @@ const SUMMARIZE_AVAILABILITY: Record<
 export interface ReviewCompletionState {
     /** The recipients of the transcript, from the body's send setting. Empty when the setting does not cover the meeting. */
     transcriptRecipients: string[];
+    /** The documents that go out on their own once the review completes, and when. Empty when none does. */
+    automaticDocuments: DocumentAfterReview[];
     administrativeBodyName: string | null;
+    /** The meeting's city timezone, for the dates the dialog prints. */
+    timezone: string;
     summarizeAvailability: SummarizeAvailability;
     /** What a summarize that succeeds now does with email notifications: the rule the task callback acts on. */
     summarizeNotifications: NotificationOutcome;
@@ -82,6 +88,7 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
                 released: true,
                 dateTime: true,
                 scheduleStatus: true,
+                city: { select: { timezone: true } },
                 administrativeBody: {
                     select: {
                         id: true,
@@ -100,12 +107,17 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
         throw new Error(`Council meeting ${cityId}/${meetingId} not found`);
     }
 
-    const transcriptSetting = await getDocumentSendSetting(meeting.administrativeBody?.id ?? null, 'transcript');
+    const [transcriptSetting, automaticDocuments] = await Promise.all([
+        getDocumentSendSetting(meeting.administrativeBody?.id ?? null, 'transcript'),
+        documentsAfterReview(cityId, meetingId),
+    ]);
     const blockedReason = summarizeIdempotency.blockedReason;
 
     return {
         transcriptRecipients: recipientsFor(transcriptSetting),
+        automaticDocuments,
         administrativeBodyName: meeting.administrativeBody?.name || null,
+        timezone: meeting.city.timezone,
         summarizeAvailability: blockedReason ? SUMMARIZE_AVAILABILITY[blockedReason] : 'available',
         summarizeNotifications: notificationOutcome({
             released: meeting.released,
@@ -156,6 +168,10 @@ export async function markHumanReviewComplete(
     // started. A revalidation before them repopulates the cache without those tasks,
     // and no later event corrects it until the backend reports a result.
     revalidateMeeting(cityId, meetingId);
+
+    // The review was the gate the minutes waited for. Through after(): the
+    // dialog says that they go out, it does not wait for the DOCX (#874).
+    after(() => sendReadyDocuments(cityId, meetingId));
 
     return { review: created, followUps };
 }
@@ -261,14 +277,14 @@ async function runReviewFollowUps(
 
 /**
  * Send the transcript to the municipality and report the outcome.
- * sendTranscript reports a failure in its result and never throws,
+ * sendDocument reports a failure in its result and never throws,
  * so an unreported failure would leave the reviewer with a success message.
  */
 async function sendReviewedTranscript(
     cityId: string,
     meetingId: string
 ): Promise<ReviewFollowUpOutcomes['transcript']> {
-    const result = await sendTranscript(cityId, meetingId, { trigger: 'review', automatic: true });
+    const result = await sendDocument(cityId, meetingId, 'transcript', { by: 'review' });
 
     if (result.skipped) {
         console.log(`[humanReview] Transcript sending skipped (switched off, or already sent) for ${cityId}/${meetingId}`);

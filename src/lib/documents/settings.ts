@@ -1,6 +1,7 @@
 // Pure rules of the document send settings. The body form, the review dialog
 // and the sender read them, so this module must stay free of server-only imports.
 import { DocumentKind } from '@prisma/client';
+import type { DocumentSendSettingRow } from '@/lib/db/types/documentSend';
 
 /**
  * The minutes go out no later than this many calendar days after the meeting,
@@ -11,16 +12,31 @@ import { DocumentKind } from '@prisma/client';
  */
 export const MINUTES_THRESHOLD_DAYS = 5;
 
+/**
+ * How long a claim may stand before its sender counts as dead. A pending claim
+ * that old is released for the next run. A sending claim that old may have
+ * gone out, and the decisions page asks an operator to check it.
+ */
+export const STALE_PENDING_MINUTES = 30;
+
+/**
+ * How many times the automatic paths try one document of one meeting. A fault
+ * that persists (a render that throws, an address the provider refuses) then
+ * stops costing a failed row and a Discord alert every day; the decisions page
+ * shows the send as failed, and an operator can still send it by hand.
+ */
+export const MAX_AUTOMATIC_ATTEMPTS = 3;
+
+/** The moment before which a claim made at `createdAt` counts as stale. */
+export function staleBefore(now: Date): Date {
+    return new Date(now.getTime() - STALE_PENDING_MINUTES * 60 * 1000);
+}
+
 /** Every document, in the order the settings section and the admin list show them. */
 export const DOCUMENT_KINDS = Object.values(DocumentKind) as DocumentKind[];
 
 /** The fields of a setting that decide whether a meeting's document is sent, and where. */
-export interface DocumentSendRule {
-    enabled: boolean;
-    /** Null on a setting that predates the switch (see the schema): it covers every meeting. */
-    enabledAt: Date | null;
-    recipientEmails: string[];
-}
+export type DocumentSendRule = Omit<DocumentSendSettingRow, 'kind'>;
 
 /**
  * Whether the switch-on of the setting covers a meeting: it is on, and the
@@ -30,7 +46,7 @@ export interface DocumentSendRule {
  */
 export function settingAppliesTo(setting: DocumentSendRule | null | undefined, meetingDate: Date): boolean {
     if (!setting || !setting.enabled) return false;
-    return setting.enabledAt === null || meetingDate.getTime() >= setting.enabledAt.getTime();
+    return meetingDate.getTime() >= setting.enabledAt.getTime();
 }
 
 /**
@@ -40,6 +56,12 @@ export function settingAppliesTo(setting: DocumentSendRule | null | undefined, m
  */
 export function recipientsFor(setting: DocumentSendRule | null | undefined): string[] {
     return setting?.enabled ? setting.recipientEmails : [];
+}
+
+/** The recipients as an email takes them: the first address is To, the rest are CC. */
+export function splitRecipients(recipientEmails: string[]): { to: string | null; cc: string[] } {
+    const [to = null, ...cc] = recipientEmails;
+    return { to, cc };
 }
 
 /** What each document is called: in Greek for the emails, in English for the admin alerts. */

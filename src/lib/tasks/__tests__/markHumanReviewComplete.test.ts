@@ -43,8 +43,8 @@ jest.mock('../summarize', () => ({
   requestSummarize: (...args: unknown[]) => mockRequestSummarize(...args),
 }));
 
-jest.mock('../../documents/transcript', () => ({
-  sendTranscript: (...args: unknown[]) => mockSendTranscriptToMunicipality(...args),
+jest.mock('../../documents/send', () => ({
+  sendDocument: (...args: unknown[]) => mockSendTranscriptToMunicipality(...args),
 }));
 
 jest.mock('../../discord', () => ({
@@ -64,6 +64,17 @@ const mockGetDocumentSendSetting = jest.fn();
 jest.mock('../../db/documentSends', () => ({
   getDocumentSendSetting: (...args: unknown[]) => mockGetDocumentSendSetting(...args),
 }));
+
+const mockSendReadyDocuments = jest.fn();
+const mockDocumentsAfterReview = jest.fn();
+jest.mock('../../documents/automatic', () => ({
+  sendReadyDocuments: (...args: unknown[]) => mockSendReadyDocuments(...args),
+  documentsAfterReview: (...args: unknown[]) => mockDocumentsAfterReview(...args),
+}));
+
+// after() needs a request scope; the test runs what the action schedules
+const mockAfter = jest.fn();
+jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (fn: () => unknown) => mockAfter(fn) }));
 
 jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
@@ -96,6 +107,17 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     mockRequestSummarize.mockResolvedValue({ id: 'summarize-task-1' });
     mockSendTaskAdminAlert.mockResolvedValue(undefined);
     mockSendTranscriptToMunicipality.mockResolvedValue({ success: true });
+    mockSendReadyDocuments.mockResolvedValue([]);
+  });
+
+  // The minutes wait for the review; the dialog must not wait for the DOCX
+  it('schedules the automatic documents after the response, whatever the reviewer chose', async () => {
+    await markHumanReviewComplete(CITY_ID, MEETING_ID);
+
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockSendReadyDocuments).not.toHaveBeenCalled();
+    await mockAfter.mock.calls[0][0]();
+    expect(mockSendReadyDocuments).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
   });
 
   it('starts summarize when the reviewer opts in', async () => {
@@ -171,7 +193,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
 
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { runSummarize: true, sendTranscript: true });
 
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, 'transcript', { by: 'review' });
   });
 
   it('writes no second review record when the review already completed', async () => {
@@ -200,7 +222,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { runSummarize: true, sendTranscript: true });
 
     expect(mockRequestSummarize).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, 'transcript', { by: 'review' });
   });
 
   it('fails when the meeting does not exist', async () => {
@@ -227,7 +249,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
   it('sends the transcript when the reviewer opts in', async () => {
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { sendTranscript: true });
 
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, 'transcript', { by: 'review' });
   });
 
   // The outcomes are the only signal the reviewer gets that a follow-up did not run
@@ -265,13 +287,14 @@ describe('getReviewCompletionState', () => {
     released,
     dateTime: new Date(Date.now() - daysAgo * DAY),
     scheduleStatus: 'scheduled',
+    city: { timezone: 'Europe/Athens' },
     administrativeBody: {
       id: 'body-1',
       name: 'City Council',
       notificationBehavior: 'NOTIFICATIONS_AUTO',
     },
   });
-  const transcriptSetting = { document: 'transcript', enabled: true, enabledAt: null, recipientEmails: ['clerk@example.gov'] };
+  const transcriptSetting = { kind: 'transcript', enabled: true, enabledAt: new Date('2026-01-01T00:00:00Z'), recipientEmails: ['clerk@example.gov'] };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -280,6 +303,17 @@ describe('getReviewCompletionState', () => {
     allowBoth();
     mockMeetingFindUnique.mockResolvedValue(meetingWithBody(true));
     mockGetDocumentSendSetting.mockResolvedValue(transcriptSetting);
+    mockDocumentsAfterReview.mockResolvedValue([]);
+  });
+
+  it('tells the reviewer what goes out on its own after the review', async () => {
+    const minutes = { document: 'minutes', recipientEmails: ['clerk@example.gov'], readiness: { state: 'complete' } };
+    mockDocumentsAfterReview.mockResolvedValue([minutes]);
+
+    const state = await getReviewCompletionState(CITY_ID, MEETING_ID);
+
+    expect(mockDocumentsAfterReview).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    expect(state.automaticDocuments).toEqual([minutes]);
   });
 
   it('refuses a caller without edit rights before it reads the meeting', async () => {
@@ -292,7 +326,9 @@ describe('getReviewCompletionState', () => {
   it('reports the recipients and what a summarize now does with notifications', async () => {
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       transcriptRecipients: ['clerk@example.gov'],
+      automaticDocuments: [],
       administrativeBodyName: 'City Council',
+      timezone: 'Europe/Athens',
       summarizeAvailability: 'available',
       summarizeNotifications: { kind: 'sends' },
     });
@@ -347,12 +383,14 @@ describe('getReviewCompletionState', () => {
   });
 
   it('reports a meeting without an administrative body as having no recipients', async () => {
-    mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', administrativeBody: null });
+    mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', city: { timezone: 'America/Toronto' }, administrativeBody: null });
     mockGetDocumentSendSetting.mockResolvedValue(null);
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       transcriptRecipients: [],
+      automaticDocuments: [],
       administrativeBodyName: null,
+      timezone: 'America/Toronto',
       summarizeAvailability: 'available',
       summarizeNotifications: { kind: 'none', reason: 'noBody' },
     });
