@@ -74,4 +74,11 @@ describe('processTaskResponse', () => {
     await expect(processTaskResponse('transcribe', 'task-1')).rejects.toThrow('Not authorized');
     expect(mockHandler).not.toHaveBeenCalled();
   });
+
+  // The gate checks the stored type. A caller who names another type could
+  // otherwise run a city-only handler on a task of their meeting.
+  it('refuses a type that differs from the stored one', async () => {
+    await expect(processTaskResponse('pollDecisions', 'task-1')).rejects.toThrow('is a transcribe task, not pollDecisions');
+    expect(mockHandler).not.toHaveBeenCalled();
+  });
 });

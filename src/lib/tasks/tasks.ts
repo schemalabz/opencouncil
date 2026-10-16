@@ -442,9 +442,15 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
     // admin from replaying a result onto another city's meeting.
     await withUserAuthorizedToEdit(taskScope(task));
 
-    const handler = taskHandlers[taskType];
+    // The gate checked the stored type, so the handler must be that type's.
+    // A body admin could otherwise name a city-only type and run its handler
+    // on a task of their meeting.
+    if (taskType !== task.type) {
+        throw new Error(`Task ${taskId} is a ${task.type} task, not ${taskType}`);
+    }
+    const handler = taskHandlers[task.type];
     if (!handler) {
-        throw new Error(`Unsupported task type: ${taskType}`);
+        throw new Error(`Unsupported task type: ${task.type}`);
     }
 
     // Only a task whose result arrived has anything to replay. The success
