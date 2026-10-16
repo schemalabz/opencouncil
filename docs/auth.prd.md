@@ -100,7 +100,9 @@ A body admin cannot do these things:
 - Delete a meeting.
 - Complete a human review.
 - Send the transcript.
-- Send notifications.
+- Send notifications directly. The `processAgenda` and `summarize` tasks
+  create notifications. The notification behavior of the body decides what
+  happens with them, and only a superadmin sets it.
 - Poll decisions.
 - Run or delete voiceprint tasks.
 - Edit parties.
