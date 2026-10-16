@@ -13,3 +13,7 @@ CREATE UNIQUE INDEX "Administers_userId_cityId_partyId_personId_administrativeBo
 -- The key above never rejects a duplicate body row, because its other columns
 -- are NULL and Postgres treats NULLs as distinct. One row per account and body.
 CREATE UNIQUE INDEX "Administers_user_body_key" ON "Administers"("userId", "administrativeBodyId") WHERE "administrativeBodyId" IS NOT NULL;
+
+-- Exactly one scope per row. The user form refines this in zod; the database
+-- holds it for every writer. Every existing row already has one scope.
+ALTER TABLE "Administers" ADD CONSTRAINT "Administers_one_scope_check" CHECK (num_nonnulls("cityId", "partyId", "personId", "administrativeBodyId") = 1);

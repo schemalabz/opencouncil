@@ -1240,6 +1240,12 @@ model Administers {
   personId  String?
   /// An admin of one administrative body: its meetings, its members and its
   /// own contact settings, and nothing else in the city (#828).
+  /// The migration adds two rules that this schema cannot state: a check
+  /// constraint keeps exactly one of cityId, partyId, personId and
+  /// administrativeBodyId set, and the partial unique index
+  /// Administers_user_body_key allows one row per user and body. The
+  /// @@unique below never rejects a row, because its other columns are NULL
+  /// and Postgres treats NULLs as distinct.
   administrativeBodyId String?
   
   city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
