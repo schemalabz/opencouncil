@@ -7,7 +7,7 @@ import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
-import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
+import { hideLinks, hideMinutesOutsideScope, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { resolveDateRange } from '@/lib/dates/dayBounds';
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -68,10 +68,11 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         });
 
         // An editor gets the rows as they are, links included, for the admin
-        // form. The public list never names the meeting that a new meeting
-        // replaced: it gets the date instead.
+        // form, and the municipal minutes of the meetings they edit only. The
+        // public list never names the meeting that a new meeting replaced: it
+        // gets the date instead.
         if (includeUnreleased) {
-            return NextResponse.json(meetings);
+            return NextResponse.json(hideMinutesOutsideScope(meetings, unreleased));
         }
         const dates = await originalScheduledDates(params.cityId, meetings);
         return NextResponse.json(meetings.map(meeting =>

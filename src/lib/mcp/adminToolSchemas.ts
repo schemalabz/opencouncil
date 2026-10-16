@@ -62,6 +62,10 @@ export const createMeetingToolInput = z.object({
     dateTime: meetingDateTime,
     youtubeUrl: baseMeetingFields.youtubeUrl.optional().meta({ description: 'URL of the meeting video' }),
     agendaUrl: baseMeetingFields.agendaUrl.optional().meta({ description: 'URL of the agenda PDF' }),
+    municipalMinutesUrl: baseMeetingFields.municipalMinutesUrl.optional()
+        .meta({ description: "URL of the municipality's own verbatim minutes (πρακτικά), a PDF or a DOCX. "
+            + 'Upload one with create_document_upload_url. A meeting that has them is corrected from them '
+            + 'after fixTranscript, with no human review' }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.optional()
         .meta({ description: 'The body that meets (council, committee, community). See get_city' }),
     processAgenda: z.boolean().default(false)
@@ -79,6 +83,8 @@ export const updateMeetingToolInput = z.object({
     dateTime: meetingDateTime.optional(),
     youtubeUrl: baseMeetingFields.youtubeUrl.nullable().optional(),
     agendaUrl: baseMeetingFields.agendaUrl.nullable().optional(),
+    municipalMinutesUrl: baseMeetingFields.municipalMinutesUrl.nullable().optional()
+        .meta({ description: "The municipality's own verbatim minutes. Set it before transcribe to backfill the meeting from them" }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional(),
     ...meetingRecordInput,
 });
@@ -94,6 +100,15 @@ export const agendaUploadUrlToolInput = z.object({
 });
 export type AgendaUploadUrlToolArgs = z.output<typeof agendaUploadUrlToolInput>;
 
+/** What a document is to a meeting. adminData maps each kind to a file name and a field. */
+export const DOCUMENT_KIND_NAMES = ['agenda', 'municipalMinutes'] as const;
+
+export const documentUploadUrlToolInput = agendaUploadUrlToolInput.extend({
+    kind: z.enum(DOCUMENT_KIND_NAMES)
+        .meta({ description: 'agenda: the invitation with the agenda. municipalMinutes: the verbatim minutes the municipality wrote' }),
+});
+export type DocumentUploadUrlToolArgs = z.output<typeof documentUploadUrlToolInput>;
+
 export const startTaskToolInput = z.object({
     cityId: z.string().min(1),
     meetingId: z.string().min(1),
@@ -105,12 +120,15 @@ export const startTaskToolInput = z.object({
             + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds' }),
     agendaUrl: webUrl().optional()
         .meta({ description: 'processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting' }),
+    municipalMinutesUrl: webUrl().optional()
+        .meta({ description: "fixFromMinutes only: the municipality's minutes. Defaults to the municipalMinutesUrl of the meeting. "
+            + 'A URL passed here is STORED on the meeting' }),
     additionalInstructions: z.string().min(1).optional()
         .meta({ description: 'summarize only: free-text guidance for the summary, e.g. what to pay attention to' }),
 }).superRefine((args, ctx) => {
     // An option of another step would be dropped without a word,
     // and the caller would believe it was used.
-    const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', additionalInstructions: 'summarize' } as const;
+    const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', municipalMinutesUrl: 'fixFromMinutes', additionalInstructions: 'summarize' } as const;
     for (const [option, step] of Object.entries(belongsTo)) {
         if (args[option as keyof typeof belongsTo] !== undefined && args.type !== step) {
             ctx.addIssue({ code: 'custom', path: [option], message: `${option} applies to ${step} only` });
@@ -118,6 +136,20 @@ export const startTaskToolInput = z.object({
     }
 });
 export type StartTaskToolArgs = z.output<typeof startTaskToolInput>;
+
+export const listTranscriptEditsToolInput = z.object({
+    cityId: z.string().min(1),
+    meetingId: z.string().min(1),
+    taskId: z.string().min(1).optional().meta({ description: 'The run whose edits to list' }),
+});
+export type ListTranscriptEditsToolArgs = z.output<typeof listTranscriptEditsToolInput>;
+
+export const revertTranscriptEditToolInput = z.object({
+    cityId: z.string().min(1),
+    meetingId: z.string().min(1),
+    editId: z.string().min(1).meta({ description: 'The id of the edit, from list_transcript_edits' }),
+});
+export type RevertTranscriptEditToolArgs = z.output<typeof revertTranscriptEditToolInput>;
 
 export const createCityToolInput = z.object({
     id: cityIdSchema.meta({ description: 'URL slug: lowercase letters a-z and dashes only, e.g. "chania"' }),

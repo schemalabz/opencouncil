@@ -6,13 +6,17 @@ import type { MeetingTaskType } from './types';
  * Steps that must not run at the same time on one meeting. A transcribe
  * replaces the segments when its result arrives; a fixTranscript or a
  * summarize that ran meanwhile worked on rows that are gone by then, and the
- * money it cost is lost with them. The rule holds in both directions and
- * `force` does not lift it.
+ * money it cost is lost with them. The two correction steps edit the same
+ * text, so neither runs beside the other. A summarize that ran beside
+ * fixFromMinutes would save a summary of the text before the correction, and
+ * the summarize that the correction starts would be refused as running. The
+ * rule holds in both directions and `force` does not lift it.
  */
 const EXCLUSIVE_WITH: Partial<Record<MeetingTaskType, readonly MeetingTaskType[]>> = {
-    transcribe: ['fixTranscript', 'summarize'],
-    fixTranscript: ['transcribe'],
-    summarize: ['transcribe'],
+    transcribe: ['fixTranscript', 'fixFromMinutes', 'summarize'],
+    fixTranscript: ['transcribe', 'fixFromMinutes'],
+    fixFromMinutes: ['transcribe', 'fixTranscript', 'summarize'],
+    summarize: ['transcribe', 'fixFromMinutes'],
 };
 
 /**

@@ -61,6 +61,8 @@ interface PostponementCandidate {
     administrativeBodyId: string | null;
     administrativeBody: { name: string; name_en: string } | null;
     postponedFromId: string | null;
+    /** The editor list carries it; the page payload hides it (hideLinks). */
+    municipalMinutesUrl?: string | null;
 }
 
 interface AddMeetingFormProps {
@@ -95,6 +97,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
+            municipalMinutesUrl: meeting?.municipalMinutesUrl || "",
             meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
@@ -159,6 +162,18 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
         }
     }, [currentLink, form])
 
+    // The municipal minutes, like the link: the page payload hides them, so an
+    // edit reads them from the editor list, and keeps what the first list showed.
+    const [knownMinutes, setKnownMinutes] = useState<string | null>(null)
+    const listedMinutes = cityMeetings.find(m => m.id === meeting?.id)?.municipalMinutesUrl ?? null
+    if (listedMinutes && listedMinutes !== knownMinutes) setKnownMinutes(listedMinutes)
+    const currentMinutes = listedMinutes ?? knownMinutes ?? meeting?.municipalMinutesUrl ?? null
+    useEffect(() => {
+        if (currentMinutes && !form.formState.dirtyFields.municipalMinutesUrl) {
+            form.resetField('municipalMinutesUrl', { defaultValue: currentMinutes })
+        }
+    }, [currentMinutes, form])
+
     async function onSubmit(values: z.output<typeof meetingFormSchema>) {
         setIsSubmitting(true)
         setFormError(null)
@@ -185,6 +200,9 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                 body: JSON.stringify({
                     youtubeUrl: values.youtubeUrl,
                     agendaUrl: values.agendaUrl,
+                    // Sent only when the admin changed it: the field starts empty
+                    // until the editor list arrives, and an empty field clears.
+                    municipalMinutesUrl: form.formState.dirtyFields.municipalMinutesUrl ? values.municipalMinutesUrl : undefined,
                     meetingId: meetingIdForRequest(values.meetingId, Boolean(meeting)),
                     processAgenda: values.processAgenda,
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
@@ -503,6 +521,38 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                     </FormControl>
                                     <FormDescription>
                                         {t('meetingAgendaDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )
+                        }}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="municipalMinutesUrl"
+                        render={({ field }) => {
+                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
+                            const administrativeBodyId = uploadBodyId(form.watch('administrativeBodyId'))
+
+                            return (
+                                <FormItem>
+                                    <FormLabel>{t('meetingMunicipalMinutes')}</FormLabel>
+                                    <FormControl>
+                                        <LinkOrDrop
+                                            {...field}
+                                            placeholder={t('meetingMunicipalMinutesPlaceholder')}
+                                            onUrlChange={(url) => field.onChange(url)}
+                                            config={meetingId ? {
+                                                cityId,
+                                                identifier: meetingId,
+                                                councilMeetingId: meeting?.id,
+                                                suffix: 'municipalMinutes',
+                                                administrativeBodyId,
+                                            } : undefined}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingMunicipalMinutesDescription')}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
