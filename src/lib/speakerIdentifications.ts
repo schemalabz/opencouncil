@@ -9,11 +9,15 @@ import type { SpeakerAssignmentSource, SpeakerIdentificationMethod } from '@pris
  * - The transcript identification comes from the fixTranscript task, which reads
  *   who is speaking from the text alone (the chair giving the floor by name,
  *   roll calls, self-introductions). It never sees the voiceprint matches.
+ * - The minutes identification comes from the fixFromMinutes task, which reads
+ *   the speaker labels of the municipality's own minutes, aligned with the
+ *   transcript (#876).
  *
  * Each method decides for itself, on the task server, whether it would act on
  * its opinion (`actionable`). This module decides what the opinions add up to
- * by comparing identities only: it thresholds no score. It is pure, so the task
- * handler and the reviewer's editor apply exactly the same rules.
+ * by comparing identities only: it thresholds no score, and it ranks no method
+ * above another. It is pure, so the task handler and the reviewer's editor
+ * apply exactly the same rules.
  */
 
 /** One method's opinion on a speaker, as the rules need it. */
@@ -29,44 +33,58 @@ export type SpeakerAssignment = {
     personSetBy: SpeakerAssignmentSource | null;
 };
 
+/** The methods, in the order the picker lists them. */
+export const SPEAKER_IDENTIFICATION_METHODS = ['voiceprint', 'transcript', 'minutes'] as const satisfies readonly SpeakerIdentificationMethod[];
+
 const opinionOf = <T extends Pick<MethodIdentification, 'method'>>(identifications: T[], method: SpeakerIdentificationMethod): T | null =>
     identifications.find(identification => identification.method === method) ?? null;
 
-/** The person a method names, when the method would act on the name by itself. */
-const actionablePersonId = (identification: MethodIdentification | null): string | null =>
-    identification?.actionable ? identification.personId : null;
+/** The opinions a method would act on by itself, one per method, in method order. */
+const actionableOpinions = (identifications: MethodIdentification[]): MethodIdentification[] =>
+    SPEAKER_IDENTIFICATION_METHODS
+        .map(method => opinionOf(identifications, method))
+        .filter((identification): identification is MethodIdentification => identification?.actionable === true);
+
+/**
+ * The person that the actionable opinions settle on, or null.
+ *
+ * - One person named by every actionable opinion: that person.
+ * - A person named by more actionable opinions than any other (two of three):
+ *   that person. One method is wrong, and two agree.
+ * - A tie between different people (one against one, or three different):
+ *   nobody. No name is better than a wrong one; the editor alerts the reviewer,
+ *   who decides (see speakerIdentificationsDisagree).
+ */
+function settledPersonId(actionable: MethodIdentification[]): string | null {
+    if (actionable.length === 0) return null;
+    const votes = new Map<string, number>();
+    for (const { personId } of actionable) votes.set(personId, (votes.get(personId) ?? 0) + 1);
+    const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+    const [leader, runnerUp] = ranked;
+    return runnerUp && runnerUp[1] === leader[1] ? null : leader[0];
+}
 
 /**
  * Who the speaker is, going by the identifications alone.
  *
- * - Both methods name the same person: that person. Agreement corroborates the
- *   voiceprint, even when the transcript would not act on the name alone.
- * - Both would act, on different people: nobody. One of them is wrong, and no
- *   name is better than a wrong one; the editor alerts the reviewer, who
- *   decides (see speakerIdentificationsDisagree).
- * - Only the voiceprint would act: the voiceprint's person. A name the
- *   transcript would not act on does not unseat a match.
- * - Only the transcript would act: the transcript's person.
- * - Otherwise nobody.
+ * The person the actionable opinions settle on (see settledPersonId) is
+ * assigned. `personSetBy` names the one method behind the name, or `both` when
+ * two or more methods name the person: agreement corroborates a method, even
+ * from an opinion that would not act alone. Otherwise nobody.
  */
 export function reconcileSpeakerIdentifications(identifications: MethodIdentification[]): SpeakerAssignment {
-    if (speakerIdentificationsDisagree(identifications)) {
+    const personId = settledPersonId(actionableOpinions(identifications));
+    if (personId === null) {
         return { personId: null, personSetBy: null };
     }
-    const voiceprintPersonId = actionablePersonId(opinionOf(identifications, 'voiceprint'));
-    const transcript = opinionOf(identifications, 'transcript');
-    if (voiceprintPersonId) {
-        return { personId: voiceprintPersonId, personSetBy: transcript?.personId === voiceprintPersonId ? 'both' : 'voiceprint' };
-    }
-    const transcriptPersonId = actionablePersonId(transcript);
-    return transcriptPersonId ? { personId: transcriptPersonId, personSetBy: 'transcript' } : { personId: null, personSetBy: null };
+    const agreeing = identifications.filter(identification => identification.personId === personId);
+    return { personId, personSetBy: agreeing.length > 1 ? 'both' : agreeing[0].method };
 }
 
-/** Both methods would act, and they name different people. */
+/** Two or more methods would act, and no person has more of their votes than another. */
 export function speakerIdentificationsDisagree(identifications: MethodIdentification[]): boolean {
-    const voiceprintPersonId = actionablePersonId(opinionOf(identifications, 'voiceprint'));
-    const transcriptPersonId = actionablePersonId(opinionOf(identifications, 'transcript'));
-    return Boolean(voiceprintPersonId && transcriptPersonId && voiceprintPersonId !== transcriptPersonId);
+    const actionable = actionableOpinions(identifications);
+    return actionable.length > 1 && settledPersonId(actionable) === null;
 }
 
 /**
@@ -74,7 +92,7 @@ export function speakerIdentificationsDisagree(identifications: MethodIdentifica
  * to the next pass; anything else is a reviewer's. The one list both
  * isReviewerAssignment and the guarded write in applySpeakerHints read.
  */
-export const AUTOMATIC_SOURCES = ['voiceprint', 'transcript', 'both'] as const satisfies readonly SpeakerAssignmentSource[];
+export const AUTOMATIC_SOURCES = ['voiceprint', 'transcript', 'minutes', 'both'] as const satisfies readonly SpeakerAssignmentSource[];
 
 const isAutomaticSource = (source: SpeakerAssignmentSource): boolean =>
     (AUTOMATIC_SOURCES as readonly SpeakerAssignmentSource[]).includes(source);
@@ -95,49 +113,60 @@ type ShownIdentification = Omit<MethodIdentification, 'personId'> & {
     evidence?: string | null;
 };
 
+export type SpeakerSuggestionSource = SpeakerIdentificationMethod | 'both';
+
 export type SpeakerSuggestion = ({ personId: string; name?: never } | { personId: null; name: string }) & {
-    /** Which method suggests the identity; 'both' when the two agree. */
-    source: 'voiceprint' | 'transcript' | 'both';
-    /** The transcript line(s) the name rests on, when the transcript gave any. */
+    /** Which method suggests the identity; 'both' when two or more agree. */
+    source: SpeakerSuggestionSource;
+    /** The line(s) the name rests on, when a method gave any. */
     evidence: string | null;
 };
 
-/** What the two methods add up to, for telling a reviewer at a glance. */
-export type SpeakerIdentificationsStatus = 'agree' | 'disagree' | 'voiceprintOnly' | 'transcriptOnly';
+/** What the methods add up to, for telling a reviewer at a glance. */
+export type SpeakerIdentificationsStatus = 'agree' | 'disagree' | 'voiceprintOnly' | 'transcriptOnly' | 'minutesOnly';
 
 /**
  * Whether the methods agree, differ, or only one has an opinion; null when
- * neither has one. Different people or a person and visitor label count as
- * 'disagree', even when the transcript would not act: the picker shows both.
- * The amber alert remains specific to two actionable roster-person opinions
- * (see speakerIdentificationsDisagree).
+ * none has one. Different people, or a person and a visitor label, count as
+ * 'disagree' here, even when a method would not act on its name: the picker
+ * shows every name. Only a disagreement the methods would act on raises the
+ * alert (see speakerIdentificationsDisagree).
  */
 export function speakerIdentificationsStatus(identifications: ShownIdentification[]): SpeakerIdentificationsStatus | null {
     const suggestions = listSpeakerSuggestions(identifications);
     if (suggestions.length > 1) return 'disagree';
     const source = suggestions[0]?.source;
-    return source === 'both' ? 'agree' : source === 'voiceprint' ? 'voiceprintOnly' : source === 'transcript' ? 'transcriptOnly' : null;
+    if (!source) return null;
+    return source === 'both' ? 'agree' : `${source}Only`;
 }
 
 /**
  * The people or visitor labels suggested for a speaker, for the reviewer's
- * picker: one entry when the methods agree or only one has an opinion, two when
- * they differ. Unlike reconcileSpeakerIdentifications, a name the transcript
- * would not act on is listed too — a reviewer can judge it, where an automatic
- * pass must not. This does not change the automatic person reconciliation policy.
+ * picker: one entry per identity, in method order. An identity two or more
+ * methods give is listed once, as 'both', with the first evidence any of them
+ * gave. Unlike reconcileSpeakerIdentifications, a name a method would not act
+ * on is listed too: a reviewer can judge it, where an automatic pass must not.
  */
 export function listSpeakerSuggestions(identifications: ShownIdentification[]): SpeakerSuggestion[] {
-    const voiceprint = opinionOf(identifications, 'voiceprint');
-    const transcript = opinionOf(identifications, 'transcript');
-    if (voiceprint?.personId && transcript && voiceprint.personId === transcript.personId) {
-        return [{ personId: voiceprint.personId, source: 'both', evidence: transcript.evidence ?? null }];
+    const suggestions: SpeakerSuggestion[] = [];
+    for (const method of SPEAKER_IDENTIFICATION_METHODS) {
+        const opinion = opinionOf(identifications, method);
+        if (!opinion) continue;
+        const metadata = { source: method, evidence: opinion.evidence ?? null };
+        let suggestion: SpeakerSuggestion;
+        if (opinion.personId !== null) suggestion = { personId: opinion.personId, ...metadata };
+        else if (opinion.name?.trim()) suggestion = { personId: null, name: opinion.name, ...metadata };
+        else continue;
+
+        const existing = suggestions.find(other => other.personId === suggestion.personId && other.name === suggestion.name);
+        if (existing) {
+            existing.source = 'both';
+            existing.evidence ??= suggestion.evidence;
+        } else {
+            suggestions.push(suggestion);
+        }
     }
-    return [voiceprint, transcript].flatMap((opinion): SpeakerSuggestion[] => {
-        if (!opinion) return [];
-        const metadata = { source: opinion.method, evidence: opinion.evidence ?? null };
-        if (opinion.personId !== null) return [{ personId: opinion.personId, ...metadata }];
-        return opinion.name?.trim() ? [{ personId: null, name: opinion.name, ...metadata }] : [];
-    });
+    return suggestions;
 }
 
 /** An alternative to the displayed identity that no reviewer has decided on. */

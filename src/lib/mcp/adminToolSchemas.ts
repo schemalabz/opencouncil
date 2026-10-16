@@ -75,6 +75,11 @@ export const createMeetingToolInput = z.object({
     dateTime: meetingDateTime,
     youtubeUrl: baseMeetingFields.youtubeUrl.optional().meta({ description: 'URL of the meeting video' }),
     agendaUrl: baseMeetingFields.agendaUrl.optional().meta({ description: 'URL of the agenda PDF' }),
+    municipalMinutesUrl: baseMeetingFields.municipalMinutesUrl.optional()
+        .meta({ description: "URL of the municipality's own verbatim minutes (πρακτικά), a PDF or a DOCX. "
+            + 'To upload a file, create the meeting first, then upload it with create_upload_url and its meetingId, '
+            + 'and set it with update_meeting. A meeting that has them is corrected from them '
+            + 'after fixTranscript, with no human review' }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.optional()
         .meta({ description: 'The body that meets (council, committee, community). See get_city' }),
     processAgenda: z.boolean().default(false)
@@ -92,6 +97,8 @@ export const updateMeetingToolInput = z.object({
     dateTime: meetingDateTime.optional(),
     youtubeUrl: baseMeetingFields.youtubeUrl.nullable().optional(),
     agendaUrl: baseMeetingFields.agendaUrl.nullable().optional(),
+    municipalMinutesUrl: baseMeetingFields.municipalMinutesUrl.nullable().optional()
+        .meta({ description: "The municipality's own verbatim minutes. Set it before transcribe to backfill the meeting from them" }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional(),
     ...meetingRecordInput,
 });
@@ -101,17 +108,21 @@ export type UpdateMeetingToolArgs = z.output<typeof updateMeetingToolInput>;
  * The kinds of meeting file an assistant can upload: the ones that an MCP
  * tool then takes as a URL. A decision has no MCP tool that reads it yet.
  */
-export const MCP_UPLOAD_KINDS = ['agenda', 'recording'] as const satisfies readonly UploadKind[];
+export const MCP_UPLOAD_KINDS = ['agenda', 'recording', 'municipalMinutes'] as const satisfies readonly UploadKind[];
 
 export const createUploadUrlToolInput = z.object({
     cityId: z.string().min(1),
     kind: z.enum(MCP_UPLOAD_KINDS)
-        .meta({ description: 'What the file is: the agenda of a meeting, or the recording (the video) of a meeting' }),
+        .meta({ description: 'What the file is: the agenda of a meeting, the recording (the video) of a meeting, '
+            + "or municipalMinutes, the municipality's own verbatim minutes (πρακτικά) of a meeting" }),
     identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
         .meta({ description: 'Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
             + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only' }),
+    meetingId: z.string().min(1).optional()
+        .meta({ description: 'The meeting the file is for. Minutes need it, and then it names the file in place of '
+            + 'identifier: the task server reads only the minutes that were uploaded for their meeting' }),
     format: z.enum(UPLOAD_FORMAT_NAMES)
-        .meta({ description: 'The format of the file: pdf or docx for an agenda, mp4 or mov for a recording. '
+        .meta({ description: 'The format of the file: pdf or docx for an agenda or minutes, mp4 or mov for a recording. '
             + 'The answer carries the matching Content-Type' }),
     sizeBytes: uploadSizeBytes
         .meta({ description: 'The exact size of the file in bytes, e.g. from `wc -c < <file>`. It decides '
@@ -140,12 +151,15 @@ export const startTaskToolInput = z.object({
             + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds' }),
     agendaUrl: webUrl().optional()
         .meta({ description: 'processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting' }),
+    municipalMinutesUrl: webUrl().optional()
+        .meta({ description: "fixFromMinutes only: the municipality's minutes. Defaults to the municipalMinutesUrl of the meeting. "
+            + 'A URL passed here is STORED on the meeting' }),
     additionalInstructions: z.string().min(1).optional()
         .meta({ description: 'summarize only: free-text guidance for the summary, e.g. what to pay attention to' }),
 }).superRefine((args, ctx) => {
     // An option of another step would be dropped without a word,
     // and the caller would believe it was used.
-    const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', additionalInstructions: 'summarize' } as const;
+    const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', municipalMinutesUrl: 'fixFromMinutes', additionalInstructions: 'summarize' } as const;
     for (const [option, step] of Object.entries(belongsTo)) {
         if (args[option as keyof typeof belongsTo] !== undefined && args.type !== step) {
             ctx.addIssue({ code: 'custom', path: [option], message: `${option} applies to ${step} only` });
@@ -153,6 +167,20 @@ export const startTaskToolInput = z.object({
     }
 });
 export type StartTaskToolArgs = z.output<typeof startTaskToolInput>;
+
+export const listTranscriptEditsToolInput = z.object({
+    cityId: z.string().min(1),
+    meetingId: z.string().min(1),
+    taskId: z.string().min(1).optional().meta({ description: 'The run whose edits to list' }),
+});
+export type ListTranscriptEditsToolArgs = z.output<typeof listTranscriptEditsToolInput>;
+
+export const revertTranscriptEditToolInput = z.object({
+    cityId: z.string().min(1),
+    meetingId: z.string().min(1),
+    editId: z.string().min(1).meta({ description: 'The id of the edit, from list_transcript_edits' }),
+});
+export type RevertTranscriptEditToolArgs = z.output<typeof revertTranscriptEditToolInput>;
 
 export const createCityToolInput = z.object({
     id: cityIdSchema.meta({ description: 'URL slug: lowercase letters a-z and dashes only, e.g. "chania"' }),

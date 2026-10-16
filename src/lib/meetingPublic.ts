@@ -1,4 +1,5 @@
 import type { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import type { UnreleasedScope } from '@/lib/unreleased';
 import { formatRules } from '@/lib/meetingLifecycleRules';
 import { meetingDisplayName, meetingLabel, type MeetingNameFields } from '@/lib/meetingName';
 
@@ -21,9 +22,35 @@ export function effectivePlace(
     return meeting.place ?? meeting.administrativeBody?.place ?? null;
 }
 
-/** A row for a server-rendered page or a public list: the same shape, with no link to another meeting. */
-export function hideLinks<T extends { postponedFromId: string | null; continuationOfId: string | null }>(row: T): T {
-    return { ...row, postponedFromId: null, continuationOfId: null };
+/**
+ * A row for a server-rendered page or a public list: the same shape, with no
+ * link to another meeting and no municipal minutes. A municipality can hand
+ * us minutes that it does not publish (#876), so their URL is for the
+ * administrators of the meeting only; the edit form reads it from the editor
+ * list. Every public payload of a meeting goes through here.
+ */
+export function hideLinks<T extends { postponedFromId: string | null; continuationOfId: string | null; municipalMinutesUrl?: string | null }>(row: T): T {
+    return {
+        ...row,
+        postponedFromId: null,
+        continuationOfId: null,
+        ...('municipalMinutesUrl' in row && { municipalMinutesUrl: null }),
+    };
+}
+
+/**
+ * The editor rows of a list, with the municipal minutes only where the
+ * caller edits the meeting. A body admin reads the released meetings of every
+ * body of the city, and the minutes of another body may be unpublished (#876).
+ * A meeting with no body is the city's, so only a city editor reads its minutes.
+ */
+export function hideMinutesOutsideScope<T extends { administrativeBodyId: string | null; municipalMinutesUrl: string | null }>(
+    rows: T[],
+    scope: UnreleasedScope,
+): T[] {
+    if (scope.all) return rows;
+    const editable = new Set(scope.bodyIds);
+    return rows.map(row => row.administrativeBodyId && editable.has(row.administrativeBodyId) ? row : { ...row, municipalMinutesUrl: null });
 }
 
 type RecordSource = {
@@ -60,12 +87,13 @@ export function publicRecordFields(meeting: RecordSource, postponedFromDate: Dat
 type ApiMeetingSource = MeetingNameFields & RecordSource & {
     postponedFromId: string | null;
     continuationOfId: string | null;
+    municipalMinutesUrl?: string | null;
     continuationOf?: unknown;
     hiddenByPostponement?: boolean;
     administrativeBody?: (MeetingNameFields['administrativeBody'] & { place?: string | null }) | null;
 };
 
-type ReplacedKeys = 'postponedFromId' | 'continuationOfId' | 'continuationOf' | 'hiddenByPostponement' | 'name' | 'name_en' | 'place';
+type ReplacedKeys = 'postponedFromId' | 'continuationOfId' | 'continuationOf' | 'hiddenByPostponement' | 'municipalMinutesUrl' | 'name' | 'name_en' | 'place';
 
 export type PublicApiMeeting<T extends ApiMeetingSource> = Omit<T, ReplacedKeys>
     & ReturnType<typeof publicRecordFields>
@@ -75,7 +103,7 @@ export type PublicApiMeeting<T extends ApiMeetingSource> = Omit<T, ReplacedKeys>
  * A meeting in a public API response. `name` and `name_en` hold the label,
  * which a client can print on its own, as it did before the names were
  * derived. `title` and `title_en` hold the short title. The links to other
- * meetings are left out.
+ * meetings and the municipal minutes are left out.
  */
 export function toPublicApiMeeting<T extends ApiMeetingSource>(
     row: T,
@@ -83,7 +111,7 @@ export function toPublicApiMeeting<T extends ApiMeetingSource>(
 ): PublicApiMeeting<T> {
     const {
         postponedFromId: _postponed, continuationOfId: _continuation, continuationOf: _firstPart, hiddenByPostponement: _hidden,
-        name: _name, name_en: _nameEn, place: _place, ...rest
+        municipalMinutesUrl: _minutes, name: _name, name_en: _nameEn, place: _place, ...rest
     } = row;
     return {
         ...rest,

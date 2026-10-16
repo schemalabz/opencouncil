@@ -474,10 +474,33 @@ describe('create_upload_url', () => {
             cityId: 'argos', kind: 'agenda', identifier: '2026-10-15', format: 'pdf', sizeBytes: 300_000,
         });
 
-        expect(startUpload).toHaveBeenCalledWith({ cityId: 'argos', kind: 'agenda', identifier: '2026-10-15' }, 'pdf', 300_000);
+        expect(startUpload).toHaveBeenCalledWith({ cityId: 'argos', kind: 'agenda', identifier: '2026-10-15', councilMeetingId: undefined }, 'pdf', 300_000);
         expect(result).toMatchObject(PLAN);
         expect(result.next).toMatch(/exactly these headers/);
         expect(result.next).toMatch(/agendaUrl to create_meeting/);
+    });
+
+    it('names minutes by their meeting, so that the task of that meeting can read them', async () => {
+        asCityAdmin('argos');
+        (startUpload as jest.Mock).mockResolvedValue({ ...PLAN, headers: { 'Content-Type': 'application/pdf' } });
+        const result = await mcpCreateUploadUrl(ADMIN_TOKEN, {
+            cityId: 'argos', kind: 'municipalMinutes', identifier: '2026-10-15', meetingId: 'm1', format: 'pdf', sizeBytes: 300_000,
+        });
+
+        expect(requireVisibleMeeting).toHaveBeenCalledWith('argos', 'm1', ADMIN_TOKEN);
+        expect(startUpload).toHaveBeenCalledWith(
+            { cityId: 'argos', kind: 'municipalMinutes', identifier: '2026-10-15', councilMeetingId: 'm1' }, 'pdf', 300_000,
+        );
+        expect(result.next).not.toMatch(/x-amz-acl/);
+        expect(result.next).toMatch(/update_meeting of the same meeting/);
+    });
+
+    it('refuses minutes with no meeting', async () => {
+        asCityAdmin('argos');
+        await expect(mcpCreateUploadUrl(ADMIN_TOKEN, {
+            cityId: 'argos', kind: 'municipalMinutes', identifier: '2026-10-15', format: 'pdf', sizeBytes: 300_000,
+        })).rejects.toThrow(BadRequestError);
+        expect(startUpload).not.toHaveBeenCalled();
     });
 
     it('tells how to send the parts and to complete them, when the file goes up in parts', async () => {

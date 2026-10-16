@@ -3,8 +3,8 @@ import { env } from '@/env.mjs';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { mintHmacToken, verifyHmacToken } from '@/lib/hmacToken';
 import {
-    completeMultipartUpload, constructPublicUrl, listUploadedParts, objectKey, objectSize, presignPart, presignPut,
-    startMultipartUpload, type UploadedPart,
+    completeMultipartUpload, constructPublicUrl, listUploadedParts, objectKey, objectKeyPrefix, objectSize, presignPart,
+    presignPut, startMultipartUpload, type UploadedPart,
 } from '@/lib/s3';
 import { isS3NotFound } from '@opencouncil/subject-images/store';
 import {
@@ -17,7 +17,8 @@ import type { CompleteUploadRequest } from '@/lib/zod-schemas/upload';
  * alike. The caller authorizes the config first; these functions check the
  * file against its kind, name it, and sign the URLs.
  *
- * A file of one part goes up in one PUT, which makes it public itself. A
+ * A file of one part goes up in one PUT, which sets its ACL itself: public,
+ * or private for a private kind (see UPLOAD_KINDS). A
  * bigger file goes up in parts, and the upload ends with completeUpload,
  * which joins them. One part is at most 1 GiB: few enough URLs for an
  * assistant to copy, and small enough for a browser to send again.
@@ -53,19 +54,20 @@ export async function startUpload(config: UploadConfig, format: UploadFormat, si
     const { contentType, extension } = UPLOAD_FORMATS[format];
     const key = objectKey('uploads', uploadNameParts(config), extension);
     const publicUrl = constructPublicUrl(env.DO_SPACES_BUCKET, key);
+    const publicRead = !('private' in kind);
 
     if (sizeBytes <= UPLOAD_PART_BYTES) {
         return {
             key, publicUrl, method: 'PUT',
-            headers: { 'Content-Type': contentType, 'x-amz-acl': 'public-read' },
+            headers: { 'Content-Type': contentType, ...(publicRead ? { 'x-amz-acl': 'public-read' } : {}) },
             partSize: sizeBytes,
-            parts: [{ partNumber: 1, uploadUrl: await presignPut(key, contentType, sizeBytes, SINGLE_PUT_SECONDS) }],
+            parts: [{ partNumber: 1, uploadUrl: await presignPut(key, contentType, sizeBytes, SINGLE_PUT_SECONDS, { publicRead }) }],
             expiresIn: SINGLE_PUT_SECONDS,
             completion: null,
         };
     }
 
-    const uploadId = await startMultipartUpload(key, contentType);
+    const uploadId = await startMultipartUpload(key, contentType, { publicRead });
     const partCount = Math.ceil(sizeBytes / UPLOAD_PART_BYTES);
     const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1);
     return {
@@ -79,6 +81,16 @@ export async function startUpload(config: UploadConfig, format: UploadFormat, si
         expiresIn: PART_URL_SECONDS,
         completion: { uploadId, token: mintHmacToken(COMPLETION_DOMAIN, completionValue(key, uploadId, sizeBytes)) },
     };
+}
+
+/**
+ * Whether an upload of this kind for this meeting made the key. Only the
+ * editors of the meeting and a city admin can make such a key: a meeting id
+ * is unique in its city.
+ */
+export function isMeetingUpload(key: string, meeting: { cityId: string; id: string }, kind: UploadKind): boolean {
+    const parts = uploadNameParts({ cityId: meeting.cityId, councilMeetingId: meeting.id, kind });
+    return key.startsWith(objectKeyPrefix('uploads', parts));
 }
 
 /** The size of a part: the part size, or the rest of the file for the last part. */
