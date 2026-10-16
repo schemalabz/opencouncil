@@ -1115,6 +1115,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         data: {
                             excerpt: decision.excerpt || null,
                             references: decision.references || null,
+                            summary: decision.summary || null,
                             // A decision with no ΑΔΑ carries the number its clerk
                             // typed from the document; the reading only fills a gap.
                             ...(extractedDecisionNumber && (existingDecision.ada || !existingDecision.decisionNumber)

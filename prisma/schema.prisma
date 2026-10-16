@@ -631,6 +631,11 @@ model Subject {
   id        String   @id  @default(cuid())
   name      String
   description String
+  // What the body decided, in one or two plain sentences read off the transcript.
+  // summarize writes it on the day of the transcript, so the Πίνακας αποφάσεων has
+  // a summary before the decision document arrives. No reference links. Null when
+  // the transcript shows no outcome, or on subjects summarized before the field.
+  outcome   String?
 
   cityId String
   councilMeetingId String
@@ -720,6 +725,10 @@ model Decision {
   // Fields extracted from the actual decision PDF content
   excerpt    String?   @db.Text  // Decision body text (markdown) — "ΑΠΟΦΑΣΙΖΕΙ…"
   references String?   @db.Text  // Legal bases from "αφού έλαβε υπόψη" section (markdown)
+  // One or two plain sentences of what the document decides, written by the extractor
+  // with the excerpt. The Πίνακας αποφάσεων prints it over Subject.outcome, because the
+  // document is the official record. Cleared with the extraction.
+  summary    String?   @db.Text
 
   /// What this document states about its vote and the audit of one reading. The
   /// phrase is the document's statement; the outcome is never stored, it is a count

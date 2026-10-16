@@ -499,6 +499,8 @@ export async function saveSubjectsForMeeting(
                         ? incoming.agendaItemIndex
                         : null,
                     description: incoming.description,
+                    // undefined leaves the stored outcome alone; null clears it.
+                    outcome: incoming.outcome,
                     // undefined leaves the stored title alone; null clears it.
                     agendaItemTitle: incoming.agendaItemTitle,
                     // undefined leaves the stored section alone (summarize); null
@@ -572,6 +574,7 @@ export async function saveSubjectsForMeeting(
                 data: {
                     name: subject.name,
                     description: subject.description,
+                    outcome: subject.outcome,
                     agendaItemTitle: subject.agendaItemTitle,
                     agendaSectionIndex: subject.agendaSection?.index,
                     agendaSectionTitle: subject.agendaSection?.title,
