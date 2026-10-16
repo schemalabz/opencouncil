@@ -16,7 +16,9 @@
             "moveToPreviousSegment": "Déplacer vers le segment précédent",
             "moveToNextSegment": "Déplacer vers le segment suivant",
             "shareFromHere": "Partager à partir d'ici",
-            "extractSegment": "Extraire le segment"
+            "extractSegment": "Extraire le segment",
+            "deleteUtterance": "Supprimer l'énoncé",
+            "deleteSelectedUtterances": "Supprimer la sélection ({count})"
         },
         "toasts": {
             "moveUtterances": "Déplacer les énoncés ?",

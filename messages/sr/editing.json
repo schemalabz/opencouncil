@@ -151,6 +151,15 @@
         "invalidOperationTitle": "Неважећа операција",
         "invalidOperationExtractAll": "Није могуће издвојити све исказе. Уместо тога користите „Промените говорника“.",
         "reviewCompleted": "Преглед је завршен",
-        "reviewCompletedDescription": "Преглед транскрипта је означен као завршен."
+        "reviewCompletedDescription": "Преглед транскрипта је означен као завршен.",
+        "deletionSuccess": "{count, plural, one {Обрисан је # исказ} few {Обрисана су # исказа} other {Обрисано је # исказа}}",
+        "deletionError": "Брисање изабраних исказа није успело",
+        "bulkDeleteConfirmTitle": "Обрисати изабрано?",
+        "bulkDeleteConfirmDesc": "Да ли сте сигурни да желите да обришете {count, plural, one {# исказ} few {# исказа} other {# исказа}}? Ова радња се не може опозвати.",
+        "common": {
+            "cancel": "Откажи",
+            "deleting": "Брисање...",
+            "delete": "Обриши"
+        }
     }
 }
