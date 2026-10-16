@@ -946,8 +946,7 @@
     "transcribe": "Transcrite",
     "fixTranscript": "Correction automatique",
     "humanReview": "Révisée par un humain",
-    "summarize": "Résumée",
-    "transcriptSent": "Transcription envoyée"
+    "summarize": "Résumée"
   },
   "AdministrativeBodiesList": {
     "addNew": "Ajouter un nouvel élément",

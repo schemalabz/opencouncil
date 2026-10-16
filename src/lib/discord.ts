@@ -5,7 +5,7 @@
  * city's realm; the runtime-agnostic primitives live in `discord-core.ts`.
  */
 
-import type { Realm } from '@prisma/client';
+import type { DocumentKind, DocumentSendTrigger, Realm } from '@prisma/client';
 import { env } from '@/env.mjs';
 import { formatDate, formatDateTime, formatWeekday } from '@/lib/formatters/time';
 import { formatDurationMs } from '@/lib/formatters/time';
@@ -15,6 +15,7 @@ import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { sendAdminAlert, truncateField } from '@/lib/discord-core';
 import type { ReviewerInfo } from '@/lib/db/reviews';
 import type { PollDecisionsMeetingResult } from '@/lib/tasks/pollDecisions';
+import { DOCUMENT_NAMES } from '@/lib/documents/settings';
 
 /** Satisfied structurally by every alert payload, so no call site builds one. */
 type MeetingRef = { cityId: string; meetingId: string };
@@ -566,20 +567,29 @@ export async function sendHumanReviewCompletedAdminAlert(data: {
 /**
  * Send admin alert when a transcript is successfully sent to a municipality
  */
-export async function sendTranscriptSentAdminAlert(data: {
+/**
+ * A document went out to the body's back office (see src/lib/documents/send.ts).
+ */
+export async function sendDocumentSentAdminAlert(data: {
+    document: DocumentKind;
     cityId: string;
     cityName: string;
     meetingId: string;
     meetingName: string;
     recipientEmails: string[];
     administrativeBodyName: string;
+    trigger: DocumentSendTrigger;
+    /** Subjects without a decision when the minutes went out; 0 for a complete document. */
+    missingSubjects: number;
 }): Promise<void> {
     const meetingPageUrl = await meetingUrl(data);
+    const name = DOCUMENT_NAMES[data.document].en;
+    const incomplete = data.missingSubjects > 0;
 
     await sendAdminAlert({
-        title: `📧 Transcript Sent - ${data.cityId}`,
-        description: `Transcript email sent for ${data.meetingId}`,
-        color: 0x2ecc71, // Green
+        title: `📧 ${name} Sent${incomplete ? ' (incomplete)' : ''} - ${data.cityId}`,
+        description: `${name} email sent for ${data.meetingId} (trigger: ${data.trigger})`,
+        color: incomplete ? 0xf39c12 : 0x2ecc71, // Orange when incomplete, green otherwise
         fields: [
             {
                 name: 'Municipality',
@@ -601,6 +611,11 @@ export async function sendTranscriptSentAdminAlert(data: {
                 value: data.recipientEmails.join(', '),
                 inline: false,
             },
+            ...(incomplete ? [{
+                name: 'Subjects without a decision',
+                value: String(data.missingSubjects),
+                inline: true,
+            }] : []),
             {
                 name: 'View Meeting',
                 value: `[Open in OpenCouncil](${meetingPageUrl})`,
@@ -788,16 +803,18 @@ export async function sendPollDecisionsBatchCompletedAlert(data: {
 /**
  * Send admin alert when transcript sending fails
  */
-export async function sendTranscriptSendFailedAdminAlert(data: {
+export async function sendDocumentSendFailedAdminAlert(data: {
+    document: DocumentKind;
     cityId: string;
     meetingId: string;
     error: string;
 }): Promise<void> {
     const meetingPageUrl = await meetingUrl(data);
+    const name = DOCUMENT_NAMES[data.document].en;
 
     await sendAdminAlert({
-        title: `❌ Transcript Send Failed - ${data.cityId}`,
-        description: `Failed to send transcript for ${data.meetingId}`,
+        title: `❌ ${name} Send Failed - ${data.cityId}`,
+        description: `Failed to send the ${name.toLowerCase()} for ${data.meetingId}`,
         color: 0xff0000, // Red
         fields: [
             {

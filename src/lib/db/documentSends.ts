@@ -33,3 +33,77 @@ export async function getDocumentSendSetting(
         select: documentSendSettingSelect,
     });
 }
+
+export const documentSendSummarySelect = {
+    id: true,
+    document: true,
+    status: true,
+    trigger: true,
+    automatic: true,
+    recipientEmails: true,
+    complete: true,
+    missingSubjectIds: true,
+    sentAt: true,
+    failureReason: true,
+    createdAt: true,
+} satisfies Prisma.DocumentSendSelect;
+
+/** One send as the admin pages show it. */
+export type DocumentSendSummary = Prisma.DocumentSendGetPayload<{ select: typeof documentSendSummarySelect }>;
+
+/** The sends of every meeting of a city, newest first, keyed by meeting id. */
+export async function getDocumentSendsForCity(cityId: string): Promise<Record<string, DocumentSendSummary[]>> {
+    const sends = await prisma.documentSend.findMany({
+        where: { cityId },
+        select: { ...documentSendSummarySelect, councilMeetingId: true },
+        orderBy: { createdAt: 'desc' },
+    });
+    const byMeeting: Record<string, DocumentSendSummary[]> = {};
+    for (const { councilMeetingId, ...send } of sends) {
+        (byMeeting[councilMeetingId] ??= []).push(send);
+    }
+    return byMeeting;
+}
+
+/** The meeting as the document payload builders read it. */
+export type DocumentMeeting = Prisma.CouncilMeetingGetPayload<{ include: { city: true; administrativeBody: true } }>;
+
+export async function getMeetingForDocumentSend(cityId: string, meetingId: string): Promise<DocumentMeeting | null> {
+    return prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        include: { administrativeBody: true, city: true },
+    });
+}
+
+export type DocumentSendClaim = Pick<
+    Prisma.DocumentSendUncheckedCreateInput,
+    'cityId' | 'councilMeetingId' | 'document' | 'trigger' | 'automatic' | 'recipientEmails' | 'complete' | 'missingSubjectIds'
+>;
+
+/**
+ * Claim a send: insert its pending row. An automatic claim fails on the
+ * partial unique index when another automatic row of the same meeting and
+ * document is pending or sent; that is the one guard against a double send,
+ * and the caller then sends nothing.
+ */
+export async function claimDocumentSend(claim: DocumentSendClaim): Promise<{ id: string } | 'taken'> {
+    try {
+        return await prisma.documentSend.create({ data: { ...claim, status: 'pending' }, select: { id: true } });
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return 'taken';
+        }
+        throw error;
+    }
+}
+
+/** Record how a claimed send ended. */
+export async function settleDocumentSend(
+    id: string,
+    outcome: { status: 'sent'; sentAt: Date } | { status: 'failed'; failureReason: string },
+): Promise<boolean> {
+    // Only a claim that is still pending: a claim the cron released as stale
+    // must not turn sent beside the newer claim that took its slot.
+    const result = await prisma.documentSend.updateMany({ where: { id, status: 'pending' }, data: outcome });
+    return result.count > 0;
+}

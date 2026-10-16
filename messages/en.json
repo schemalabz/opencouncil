@@ -951,8 +951,7 @@
         "transcribe": "Transcribed",
         "fixTranscript": "Automatic correction",
         "humanReview": "Human reviewed",
-        "summarize": "Summarized",
-        "transcriptSent": "Transcript sent"
+        "summarize": "Summarized"
     },
     "AdministrativeBodiesList": {
         "addNew": "Add New",
