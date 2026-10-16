@@ -151,7 +151,7 @@
     "terra-draw": "^1.36.0",
     "terra-draw-mapbox-gl-adapter": "^1.4.0",
     "tsx": "^4.23.15",
-    "uuid": "^11.1.1",
+    "uuid": "^14.0.3",
     "vaul": "^0.9.1",
     "video.js": "^8.24.1",
     "yargs": "^17.7.2",
