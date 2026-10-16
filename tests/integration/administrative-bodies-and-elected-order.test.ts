@@ -2,7 +2,7 @@
 import * as z from 'zod'
 import prisma from '@/lib/db/prisma'
 import { paths } from '@/lib/openapi'
-import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities'
+import { AdministrativeBodyWithSendSettingsSchema, AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities'
 import { GET as listBodies, POST as createBody } from '@/app/api/cities/[cityId]/administrative-bodies/route'
 import { PUT as updateBody } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route'
 import { POST as updateElectedOrder } from '@/app/api/cities/[cityId]/roles/elected-order/route'
@@ -107,7 +107,7 @@ describe('administrative body and elected order routes', () => {
 
         const listed = await listBodies(new Request(`http://localhost/api/cities/${cityId}/administrative-bodies`) as never, { params: Promise.resolve({ cityId }) })
         expect(listed.status).toBe(200)
-        expectDocumented(await listed.json(), z.array(AdministrativeBodyWithSettingsSchema))
+        expectDocumented(await listed.json(), z.array(AdministrativeBodyWithSendSettingsSchema))
 
         // The answer is normalized; the stored row is not rewritten.
         const stored = await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })

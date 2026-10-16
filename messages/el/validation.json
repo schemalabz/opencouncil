@@ -27,6 +27,7 @@
     "youtubeChannelUrl": "Πρέπει να είναι URL καναλιού YouTube: https://www.youtube.com/@handle ή https://www.youtube.com/channel/UC…",
     "invalidEmail": "Πρέπει να είναι έγκυρη διεύθυνση email",
     "invalidEmailList": "Όλες οι καταχωρήσεις πρέπει να είναι έγκυρες διευθύνσεις email",
+    "documentRecipientRequired": "Συμπληρώστε τη διεύθυνση που λαμβάνει το έγγραφο",
     "roleEndBeforeStart": "Η ημερομηνία λήξης δεν μπορεί να είναι πριν από την ημερομηνία έναρξης.",
     "recipientNameMin2": "Το όνομα του παραλήπτη πρέπει να έχει τουλάχιστον 2 χαρακτήρες.",
     "platformPriceNonNegative": "Η τιμή της πλατφόρμας πρέπει να είναι θετικός αριθμός.",

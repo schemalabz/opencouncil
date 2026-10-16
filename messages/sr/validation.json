@@ -27,6 +27,7 @@
     "youtubeChannelUrl": "Мора бити URL YouTube канала: https://www.youtube.com/@handle или https://www.youtube.com/channel/UC…",
     "invalidEmail": "Мора бити исправна адреса е-поште",
     "invalidEmailList": "Сви уноси морају бити исправне адресе е-поште",
+    "documentRecipientRequired": "Унесите адресу која прима документ",
     "roleEndBeforeStart": "Датум завршетка не сме бити пре датума почетка.",
     "recipientNameMin2": "Име примаоца мора имати најмање 2 знака.",
     "platformPriceNonNegative": "Цена платформе мора бити позитиван број.",
