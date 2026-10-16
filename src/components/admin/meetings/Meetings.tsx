@@ -9,7 +9,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { MeetingDecisionCounts } from "@/lib/db/decisions";
-import type { DocumentSendSummary } from "@/lib/db/types";
+import type { MeetingSentDocuments } from "@/lib/db/types";
 import { BadgePicker, BadgePickerOption } from "@/components/ui/badge-picker";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
@@ -23,11 +23,11 @@ interface MeetingsProps {
     currentCityName: string;
     selectedCityId: string;
     decisionCounts: MeetingDecisionCounts;
-    documentSends: Record<string, DocumentSendSummary[]>;
+    sentDocuments: MeetingSentDocuments;
     cityHasDiavgeiaUid: boolean;
 }
 
-export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, documentSends, cityHasDiavgeiaUid }: MeetingsProps) {
+export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, sentDocuments, cityHasDiavgeiaUid }: MeetingsProps) {
     const tCommon = useTranslations('Common');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
@@ -212,7 +212,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p className="max-w-xs">
-                                                        Transcript Sent - Shows whether the transcript has been emailed to the municipality.
+                                                        Documents Sent - Shows which documents (transcript, minutes) have been emailed to the municipality. Hover a mark for the time and the recipients.
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -231,7 +231,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                                         isSelected={selectedMeetingIds.has(meeting.id)}
                                         onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
                                         decisionCounts={decisionCounts[meeting.id]}
-                                        documentSends={documentSends[meeting.id] ?? []}
+                                        sentDocuments={sentDocuments[meeting.id] ?? []}
                                     />
                                 ))}
                             </TableBody>

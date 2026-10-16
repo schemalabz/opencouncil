@@ -9,6 +9,7 @@ import decisionsTable from '../../../../../messages/el/decisionsTable.json';
 import el from '../../../../../messages/el.json';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import type { DerivationOutput, Issue } from '@/lib/derivation/types';
+import type { DocumentState } from '@/lib/documents/status';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 /**
@@ -146,6 +147,11 @@ jest.mock('@/lib/tasks/pollDecisions', () => ({
 }));
 
 jest.mock('@/lib/actions/adaLookups', () => ({ readAdaLookup: jest.fn() }));
+// The send button of the minutes line refreshes the router after a send
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
+// The minutes line's send button reaches the server action; the page tests never send
+const mockGetDocumentState = jest.fn(async (..._args: unknown[]): Promise<DocumentState | null> => null);
+jest.mock('@/lib/actions/documentSends', () => ({ previewDocumentSend: jest.fn(), sendDocumentNow: jest.fn(), getDocumentState: (...a: unknown[]) => mockGetDocumentState(...a) }));
 
 // LinkOrDrop uploads through the network; here it is a plain URL field.
 jest.mock('@/components/ui/link-or-drop', () => ({
@@ -200,7 +206,7 @@ afterAll(() => { global.fetch = originalFetch; });
 const renderPage = async () => {
     render(
         <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-            <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} />
+            <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} minutesSend={null} />
         </NextIntlClientProvider>,
     );
     await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
@@ -641,7 +647,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
     const renderAsSuperAdmin = async () => {
         render(
             <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
+                <MeetingDecisionsPage isSuperAdmin bodySettings={null} minutesSend={null} />
             </NextIntlClientProvider>,
         );
         await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
@@ -674,7 +680,7 @@ describe('MeetingDecisionsPage — from the issues card to the subject', () => {
     const renderAsSuperAdmin = async () => {
         render(
             <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
+                <MeetingDecisionsPage isSuperAdmin bodySettings={null} minutesSend={null} />
             </NextIntlClientProvider>,
         );
         await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
@@ -884,6 +890,60 @@ describe('MeetingDecisionsPage — looking up a typed ΑΔΑ', () => {
                 await act(async () => { jest.advanceTimersByTime(10_000); });
             }
             expect(await screen.findByText(SEARCH_FAILED)).toBeInTheDocument();
+        });
+    });
+});
+
+describe('MeetingDecisionsPage — the minutes send line follows the server', () => {
+    const waiting: DocumentState = {
+        document: 'minutes', state: 'waiting', missingCount: 0, recipientEmails: ['grammateia@example.gr'],
+        sentAt: null, trigger: null, waitReason: 'decisions', dueAt: new Date('2026-10-14T21:00:00Z'), failureReason: null, earlierSentAt: null,
+    };
+    const sent: DocumentState = { ...waiting, state: 'sent', waitReason: null, dueAt: null, sentAt: new Date('2026-10-12T08:00:00Z'), trigger: 'complete' };
+
+    afterEach(() => { mockPendingTaskId = null; mockGetDocumentState.mockReset(); mockGetDocumentState.mockResolvedValue(null); });
+
+    /** The ten-second waits run on jest's clock. */
+    const withFakeTimers = async (run: () => Promise<void>) => {
+        jest.useFakeTimers();
+        try { await run(); } finally { jest.useRealTimers(); }
+    };
+
+    it('asks the server for the send state again when a poll lands: the poll may have sent the minutes', async () => {
+        // A poll runs when the page opens; the watch sees it end ten seconds later
+        mockPendingTaskId = 't0';
+        mockGetDocumentState.mockResolvedValue(sent);
+        await withFakeTimers(async () => {
+            render(
+                <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+                    <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} minutesSend={waiting} />
+                </NextIntlClientProvider>,
+            );
+            await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
+            expect(screen.getByText(/στέλνονται αυτόματα/)).toBeInTheDocument();
+            expect(mockGetDocumentState).not.toHaveBeenCalled();
+
+            mockPendingTaskId = null;
+            await act(async () => { jest.advanceTimersByTime(10_000); });
+            expect(mockGetDocumentState).toHaveBeenCalledWith(CITY_ID, MEETING_ID, 'minutes');
+            expect(await screen.findByText(/στάλθηκαν/)).toBeInTheDocument();
+        });
+    });
+
+    it('follows a send in flight until it ends, and offers the button again', async () => {
+        mockGetDocumentState.mockResolvedValue(sent);
+        await withFakeTimers(async () => {
+            render(
+                <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+                    <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} minutesSend={{ ...waiting, state: 'pending', waitReason: null, dueAt: null }} />
+                </NextIntlClientProvider>,
+            );
+            await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
+            expect(screen.queryByRole('button', { name: 'Αποστολή στη γραμματεία' })).not.toBeInTheDocument();
+
+            await act(async () => { jest.advanceTimersByTime(10_000); });
+            expect(await screen.findByText(/στάλθηκαν/)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Αποστολή στη γραμματεία' })).toBeInTheDocument();
         });
     });
 });

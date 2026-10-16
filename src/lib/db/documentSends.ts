@@ -10,14 +10,14 @@ import { STALE_PENDING_MINUTES, type DocumentSendRule } from '@/lib/documents/se
 import {
     documentSendSettingSelect,
     type DocumentSendSettingRow,
-    documentSendSummarySelect,
-    type DocumentSendSummary,
     documentMeetingInclude,
     type DocumentMeeting,
     type DocumentSendClaim,
     readinessMeetingSelect,
     type ReadinessFacts,
     type CandidateCursor,
+    documentSendSummarySelect,
+    type MeetingSentDocuments,
 } from './types/documentSend';
 
 /** The settings of a body, one per document that has a row. */
@@ -66,20 +66,6 @@ export async function replaceDocumentSendSettings(
             });
         }
     });
-}
-
-/** The sends of every meeting of a city, newest first, keyed by meeting id. */
-export async function getDocumentSendsForCity(cityId: string): Promise<Record<string, DocumentSendSummary[]>> {
-    const sends = await prisma.documentSend.findMany({
-        where: { cityId },
-        select: { ...documentSendSummarySelect, councilMeetingId: true },
-        orderBy: { createdAt: 'desc' },
-    });
-    const byMeeting: Record<string, DocumentSendSummary[]> = {};
-    for (const { councilMeetingId, ...send } of sends) {
-        (byMeeting[councilMeetingId] ??= []).push(send);
-    }
-    return byMeeting;
 }
 
 export async function getMeetingForDocumentSend(cityId: string, meetingId: string): Promise<DocumentMeeting | null> {
@@ -242,4 +228,22 @@ export async function getSubjectLabels(subjectIds: string[]): Promise<Array<{ id
         select: { id: true, agendaItemIndex: true, name: true, agendaItemTitle: true },
         orderBy: [{ agendaItemIndex: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
     });
+}
+
+/**
+ * The latest send that went out of each document of every meeting of a city,
+ * keyed by meeting id. The admin list marks the documents that went out.
+ */
+export async function getSentDocumentsForCity(cityId: string): Promise<MeetingSentDocuments> {
+    const sends = await prisma.documentSend.findMany({
+        where: { cityId, status: 'sent' },
+        select: { ...documentSendSummarySelect, councilMeetingId: true },
+        orderBy: { createdAt: 'desc' },
+    });
+    const byMeeting: MeetingSentDocuments = {};
+    for (const { councilMeetingId, ...send } of sends) {
+        const ofMeeting = (byMeeting[councilMeetingId] ??= []);
+        if (!ofMeeting.some(earlier => earlier.document === send.document)) ofMeeting.push(send);
+    }
+    return byMeeting;
 }

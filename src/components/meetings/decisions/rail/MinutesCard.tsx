@@ -1,5 +1,6 @@
 "use client";
 
+import type * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText, Download, Loader2, RefreshCw } from 'lucide-react';
 import { CtaButton } from '@/components/ui/cta-button';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
  * will carry, not that the meeting is wrong. It therefore counts the minutes
  * snapshot, which is what the preview and the DOCX render — never the
  * decisions payload, which answers a different request. */
-export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, onRederive, isRederiving, showRederive }: {
+export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, onRederive, isRederiving, showRederive, send }: {
     onPreview: () => void;
     onExport: () => void;
     previewDisabled: boolean;
@@ -31,6 +32,8 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
      * its meeting on its own; the button is staff repair for the changes that
      * do not, which `rederiveHint` names. */
     showRederive: boolean;
+    /** Where the minutes stand with the back office, and the send by hand. Absent when the body does not send its minutes. */
+    send?: React.ReactNode;
 }) {
     const tPage = useTranslations('admin.decisionsPage');
     const t = useTranslations('admin.adminActions');
@@ -86,6 +89,8 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
                     </div>
                 )}
             </div>
+
+            {send}
 
             <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground">{tPage('rail.minutesProvenance')}</p>
         </RailCard>
