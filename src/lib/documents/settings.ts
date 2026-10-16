@@ -2,6 +2,15 @@
 // and the sender read them, so this module must stay free of server-only imports.
 import { DocumentKind } from '@prisma/client';
 
+/**
+ * The minutes go out no later than this many calendar days after the meeting,
+ * complete or not. The team chose 5 days in the review of #887: the back
+ * office gets the minutes sooner, and more of them go out provisional, with
+ * the steps to link the missing decisions. Calendar days: a working-day rule
+ * needs a holiday calendar we do not have.
+ */
+export const MINUTES_THRESHOLD_DAYS = 5;
+
 /** Every document, in the order the settings section and the admin list show them. */
 export const DOCUMENT_KINDS = Object.values(DocumentKind) as DocumentKind[];
 

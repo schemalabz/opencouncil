@@ -12,9 +12,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const { cityId } = params;
 
         // The route has no auth of its own (the proxy skips /api), so the
-        // body's settings go only to an editor of the city: the body form in
-        // the city form edits them. Everyone else, a body admin included,
-        // gets the public fields of every body.
+        // body's settings, with the addresses of its back office, go only to
+        // an editor of the city: the body form in the city form edits them.
+        // Everyone else, a body admin included, gets the public fields of
+        // every body.
         const administrativeBodies = await isUserAuthorizedToEdit({ cityId })
             ? await getAdministrativeBodiesForCity(cityId)
             : await getPublicAdministrativeBodiesForCity(cityId);
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds ?? [],
             place,
-        });
+        }, documentSendSettings);
 
         revalidateTag(`city:${cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${cityId}/people`);
