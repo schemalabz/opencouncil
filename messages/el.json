@@ -971,12 +971,6 @@
         "place": "Αίθουσα συνεδριάσεων",
         "placePlaceholder": "π.χ. Αίθουσα Δημοτικού Συμβουλίου, Δημαρχείο",
         "placeDescription": "Εκεί συνεδριάζει το όργανο κατά κανόνα. Η σελίδα κάθε δια ζώσης συνεδρίασης τη δείχνει, εκτός αν η συνεδρίαση έχει δικό της τόπο.",
-        "contactEmailPrimary": "Email Παραλήπτη (To)",
-        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-        "contactEmailPrimaryDescription": "Κύριο email παραλήπτη για αποστολή απομαγνητοφωνήσεων.",
-        "contactEmailsCC": "Κοινοποίηση (CC)",
-        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-        "contactEmailsCCDescription": "Επιπλέον emails κοινοποίησης (διαχωρισμένα με κόμμα).",
         "notificationBehavior": "Συμπεριφορά Ενημερώσεων",
         "notificationBehaviorDescription": "Επιλέξτε τη συμπεριφορά των ενημερώσεων για συνεδριάσεις αυτού του οργάνου.",
         "notificationBehaviorOptions": {

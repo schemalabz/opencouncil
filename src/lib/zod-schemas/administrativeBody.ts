@@ -33,7 +33,6 @@ const youtubeChannelUrl = z.union([youtubeChannelUrlValue, z.literal('')])
 export const administrativeBodySchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl,
-    contactEmails: z.array(z.string().email()).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
@@ -46,30 +45,18 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change these two fields and no other.
+// who may change the YouTube channel and no other field (#828).
 // An absent field stays as it is. An empty string or null clears the channel.
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal(''), z.null()])
         .optional()
         .transform(val => val === '' ? null : val),
-    contactEmails: z.array(z.string().email()).optional(),
 });
 
-// Frontend form schema (React Hook Form). The form edits the contact emails as
-// a primary address plus a comma-separated CC list, and joins them on submit.
+// Frontend form schema (React Hook Form).
 export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl,
-    contactEmailPrimary: z.union([
-        z.string().email({ message: "Must be a valid email address" }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmailsCC: z.string().optional().refine(val => {
-        if (!val || val.trim() === '') return true;
-        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
-        const emailSchema = z.string().email();
-        return emails.every(email => emailSchema.safeParse(email).success);
-    }, { message: "All entries must be valid email addresses" }),
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),

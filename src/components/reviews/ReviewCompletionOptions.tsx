@@ -55,8 +55,8 @@ export function ReviewCompletionOptions({
         return null;
     }
 
-    const { contactEmails, administrativeBodyName, notificationBehavior, summarizeAvailability } = state;
-    const [primaryEmail, ...ccEmails] = contactEmails;
+    const { transcriptRecipients, administrativeBodyName, notificationBehavior, summarizeAvailability } = state;
+    const [primaryEmail, ...ccEmails] = transcriptRecipients;
 
     const canSummarize = summarizeAvailability === 'available';
     const notification = NOTIFICATION_OUTCOME[notificationBehavior ?? 'NOTIFICATIONS_DISABLED'];
@@ -99,7 +99,7 @@ export function ReviewCompletionOptions({
                     }
                 />
 
-                {contactEmails.length > 0 && (
+                {transcriptRecipients.length > 0 && (
                     <CheckboxCard
                         checked={sendTranscript}
                         onCheckedChange={setSendTranscript}

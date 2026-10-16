@@ -18,11 +18,11 @@ export async function PUT(
         const body = await request.json();
 
         // An admin of the body, not of the city, changes the YouTube channel
-        // and the contact emails and nothing else (#828).
+        // and nothing else (#828).
         if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
-            const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
-            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
+            const { youtubeChannelUrl } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl });
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             return NextResponse.json(updatedBody);
         }
@@ -40,14 +40,13 @@ export async function PUT(
         }
 
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
             name_en,
             type,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
-            contactEmails: contactEmails || [],
             notificationBehavior: notificationBehavior,
             ...(showUnreviewedTranscript !== undefined && { showUnreviewedTranscript }),
             diavgeiaUnitIds: diavgeiaUnitIds || [],

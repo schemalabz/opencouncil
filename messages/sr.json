@@ -976,12 +976,6 @@
         "place": "Сала за седнице",
         "placePlaceholder": "нпр. Сала скупштине, Градска кућа",
         "placeDescription": "Где орган по правилу заседа. Страница сваке седнице уживо то приказује, осим ако седница има своје место.",
-        "contactEmailPrimary": "Имејл примаоца (To)",
-        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-        "contactEmailPrimaryDescription": "Примарни имејл примаоца за слање транскрипата.",
-        "contactEmailsCC": "Копија (CC)",
-        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-        "contactEmailsCCDescription": "Додатни имејлови за копију (одвојени зарезима).",
         "notificationBehavior": "Понашање обавештења",
         "notificationBehaviorDescription": "Изаберите понашање обавештења за седнице овог тела.",
         "notificationBehaviorOptions": {

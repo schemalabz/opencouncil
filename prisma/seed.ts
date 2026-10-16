@@ -587,10 +587,19 @@ async function seedCities(cities: any[]) {
 async function seedAdministrativeBodies(bodies: any[]) {
   console.log(`Seeding ${bodies.length} administrative bodies...`)
 
+  // A dump from before #874 carries the contactEmails column. Those addresses
+  // are the body's transcript send setting now.
+  const rows = bodies.map(({ contactEmails, ...body }) => body)
   await prisma.administrativeBody.createMany({
-    data: bodies,
+    data: rows,
     skipDuplicates: true,
   })
+  const transcriptSettings = bodies
+    .filter(body => Array.isArray(body.contactEmails) && body.contactEmails.length > 0)
+    .map(body => ({ administrativeBodyId: body.id, document: 'transcript' as const, enabled: true, recipientEmails: body.contactEmails }))
+  if (transcriptSettings.length > 0) {
+    await prisma.documentSendSetting.createMany({ data: transcriptSettings, skipDuplicates: true })
+  }
   track('Administrative Bodies', bodies.length)
 }
 

@@ -37,7 +37,6 @@ interface AdministrativeBody {
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
     place?: string | null;
-    contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
     showUnreviewedTranscript?: boolean;
     diavgeiaUnitIds?: string[];
@@ -62,8 +61,6 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         place: body?.place || "",
-        contactEmailPrimary: body?.contactEmails?.[0] || "",
-        contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
@@ -97,16 +94,6 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         const method = editingBody ? 'PUT' : 'POST'
 
         try {
-            // Combine primary + CC emails into a single array for API
-            const contactEmailsArray: string[] = [];
-            if (values.contactEmailPrimary) {
-                contactEmailsArray.push(values.contactEmailPrimary);
-            }
-            if (values.contactEmailsCC) {
-                const ccEmails = values.contactEmailsCC.split(',').map(e => e.trim()).filter(e => e !== '');
-                contactEmailsArray.push(...ccEmails);
-            }
-
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -114,9 +101,6 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 },
                 body: JSON.stringify({
                     ...values,
-                    contactEmailPrimary: undefined,
-                    contactEmailsCC: undefined,
-                    contactEmails: contactEmailsArray,
                     // The conventions are written by their own Confirm button.
                     decisionConventions: undefined,
                 }),
@@ -269,46 +253,6 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         </FormControl>
                                         <FormDescription>
                                             {t('placeDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailPrimary"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailPrimary')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailPrimaryPlaceholder')}
-                                                type="email"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailPrimaryDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailsCC"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailsCC')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailsCCPlaceholder')}
-                                                type="text"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailsCCDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

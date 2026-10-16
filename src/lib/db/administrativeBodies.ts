@@ -73,9 +73,9 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
 export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null }): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
-        const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place } = bodyData;
+        const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         const newBody = await prisma.administrativeBody.create({
-            data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
+            data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
         });
         return newBody;
     } catch (error) {
@@ -97,10 +97,10 @@ export async function editAdministrativeBody(
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
     try {
         // Only the fields an editor may change. A caller's cityId or conventions never reach the row.
-        const { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place } = bodyData;
+        const { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         const updatedBody = await prisma.administrativeBody.update({
             where: { id },
-            data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
+            data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
         });
         return updatedBody;
     } catch (error) {
@@ -110,13 +110,13 @@ export async function editAdministrativeBody(
 }
 
 /**
- * The two settings a body admin may change (#828): where the body's
- * recordings live and who receives its transcripts. The name, the type, the
- * notification behaviour and the Diavgeia scopes stay with the city admin.
+ * The setting a body admin may change (#828): where the body's recordings
+ * live. The name, the type, the notification behaviour and the Diavgeia
+ * scopes stay with the city admin.
  */
 export async function editAdministrativeBodyContacts(
     id: string,
-    { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
+    { youtubeChannelUrl }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl'>>
 ): Promise<AdministrativeBody> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
@@ -127,7 +127,7 @@ export async function editAdministrativeBodyContacts(
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
     return prisma.administrativeBody.update({
         where: { id },
-        data: { youtubeChannelUrl, contactEmails },
+        data: { youtubeChannelUrl },
     });
 }
 

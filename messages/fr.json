@@ -971,12 +971,6 @@
     "place": "Salle des séances",
     "placePlaceholder": "p. ex. Salle du conseil, Hôtel de ville",
     "placeDescription": "Là où l’organe siège en règle générale. La page de chaque séance en présentiel l’affiche, sauf si la séance a son propre lieu.",
-    "contactEmailPrimary": "E-mail du destinataire (À)",
-    "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-    "contactEmailPrimaryDescription": "E-mail principal du destinataire pour l'envoi des transcriptions.",
-    "contactEmailsCC": "Copie (CC)",
-    "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-    "contactEmailsCCDescription": "E-mails de copie supplémentaires (séparés par des virgules).",
     "notificationBehavior": "Comportement des notifications",
     "notificationBehaviorDescription": "Choisissez le comportement des notifications pour les séances de cet organe.",
     "notificationBehaviorOptions": {
