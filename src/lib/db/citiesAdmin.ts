@@ -1,26 +1,9 @@
 import "server-only";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './cityListing';
 import type { City } from "@prisma/client";
 import prisma from "./prisma";
 import type { CityWithCounts } from "./cities";
 
-// Mirrors CITY_COUNT_SELECT / CITY_ORDER_BY in cities.ts. Duplicated rather than
-// imported because cities.ts is a "use server" module and may only export async
-// functions (Next.js server-action constraint).
-const CITY_COUNT_SELECT = {
-    select: {
-        persons: true,
-        parties: true,
-        councilMeetings: {
-            where: { released: true },
-        },
-    },
-};
-
-const CITY_ORDER_BY = [
-    // supported > demo > pending, by CityStatus declaration order
-    { status: 'desc' as const },
-    { name: 'asc' as const },
-];
 
 /**
  * Every city regardless of status — the superadmin-equivalent view, without

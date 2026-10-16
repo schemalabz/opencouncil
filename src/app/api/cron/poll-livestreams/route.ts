@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env.mjs";
 import { pollLivestreamsForRecentMeetings } from "@/lib/tasks/pollLivestreams";
+import { transcribeUnattendedMeetings } from "@/lib/tasks/unattendedTranscription";
 
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
@@ -22,7 +23,12 @@ export async function GET(request: NextRequest) {
     // ?dryRun=1 logs decisions without triggering transcription or posting alerts.
     const dryRun = request.nextUrl.searchParams.get("dryRun") === "1";
 
-    const result = await pollLivestreamsForRecentMeetings({ dryRun });
+    // The same tick starts the recordings that a body with no operator saved
+    // before its meeting (#829); the matcher above needs a channel, this does not.
+    const [result, unattended] = await Promise.all([
+        pollLivestreamsForRecentMeetings({ dryRun }),
+        transcribeUnattendedMeetings({ dryRun }),
+    ]);
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, unattended });
 }

@@ -58,6 +58,8 @@
         "adminBodyType_council": "City Council",
         "adminBodyType_committee": "Municipal Committee",
         "adminBodyType_community": "Communities",
+        "adminBodyType_youthCouncil": "Youth Council",
+        "showYouthCouncils": "Youth councils",
         "allPeople": "All",
         "allBodies": "All",
         "backToHome": "Back to home",
@@ -266,6 +268,8 @@
         "supportBadgeUnofficialRegion": "No official region support",
         "supportBadgeShortOfficial": "Official support",
         "supportBadgeShortUnofficial": "No official support",
+        "supportBadgeShortYouthOnly": "Youth council only",
+        "supportBadgeYouthOnly": "No official support from the municipality. Only its youth council publishes its meetings here.",
         "supportBadgeLearnMore": "Who pays for OpenCouncil?"
     },
     "EmbedConfigurator": {
@@ -383,6 +387,12 @@
         },
         "closedToPublic": "Closed to the public",
         "closedToPublicDescription": "Readers see that the meeting was held behind closed doors.",
+        "noRecording": "No recording",
+        "noRecordingDescription": "The meeting was held with no recording. The page promises no video and no transcript.",
+        "agendaAsLink": "Link or file",
+        "agendaAsText": "Paste the text",
+        "agendaTextPlaceholder": "Paste the items of the agenda here, as the invitation lists them.",
+        "agendaTextDescription": "The items are extracted from the text after you save. They replace the subjects the meeting already has.",
         "place": "Place",
         "placeDescription": "Only when it differs from the hall of the body.",
         "administrativeBody": "Administrative Body",
@@ -392,7 +402,8 @@
         "administrativeBodyType": {
             "council": "City Council",
             "committee": "Municipal Committee",
-            "community": "Municipal Community"
+            "community": "Municipal Community",
+            "youthCouncil": "Municipal Youth Council"
         },
         "meetingAgenda": "Meeting Agenda",
         "meetingAgendaPlaceholder": "Agenda URL or file",
@@ -562,6 +573,7 @@
         "roleEnDescription": "Enter the member's role in English.",
         "image": "Image",
         "imageDescription": "Upload an image for the member.",
+        "imageOwnersOnly": "Only the member adds their photo, from their own account.",
         "failedToSavePerson": "Failed to save member.",
         "unexpectedError": "Unexpected error.",
         "submitting": "Submitting...",
@@ -865,6 +877,7 @@
             "byAdmin": "Recorded by {recorder}, on {date}. The person cannot change it from their profile.",
             "unknownAccount": "a deleted account",
             "recordHint": "Record it only if the person gave their consent in writing, on a printed form with a physical signature. The person will see it on their profile, but will not be able to change it.",
+            "ownOnlyHint": "This person sits on a youth council only: the consent comes from their own account alone. No consent is recorded on their behalf.",
             "withdrawHint": "Withdraw it when the person asks. The consent period stays in the history.",
             "record": "Record consent",
             "withdraw": "Withdraw consent",
@@ -968,7 +981,8 @@
         "types": {
             "council": "City Council",
             "committee": "Municipal Committee",
-            "community": "Municipal Community"
+            "community": "Municipal Community",
+            "youthCouncil": "Municipal Youth Council"
         },
         "youtubeChannelUrl": "YouTube Channel URL",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",

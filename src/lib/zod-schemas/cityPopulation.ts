@@ -38,7 +38,7 @@ export const cityPopulationSchema = z.object({
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object(baseAdministrativeBodyFields))
         .min(1, { message: 'Add at least one administrative body, e.g. the council.' })
-        .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
+        .describe('Administrative bodies like council, committees, communities, youth councils. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
         image: optionalText.describe("URL to person's photo"),

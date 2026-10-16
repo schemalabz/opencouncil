@@ -27,7 +27,7 @@ import { format, parse, setHours, setMinutes } from "date-fns"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
-import { COUNCIL_ONLY_KINDS, OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
+import { AGENDA_TEXT_MAX_LENGTH, COUNCIL_ONLY_KINDS, OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
 import { meetingLabel } from '@/lib/meetingName'
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
 import { Textarea } from '../ui/textarea'
@@ -60,6 +60,9 @@ const formSchema = z.object({
     meetingId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
     processAgenda: z.boolean().default(true),
+    // The agenda as a link or a file, or as pasted text (#829, lib/agendaText.ts).
+    agendaMode: z.enum(['link', 'text']),
+    agendaText: z.string().max(AGENDA_TEXT_MAX_LENGTH).optional(),
     // Null until somebody states it: processAgenda can read it from the invitation.
     kind: z.nativeEnum(MeetingKind).nullable(),
     urgent: z.boolean(),
@@ -70,6 +73,7 @@ const formSchema = z.object({
         .optional(),
     format: z.nativeEnum(MeetingFormat).nullable(),
     closedToPublic: z.boolean(),
+    noRecording: z.boolean(),
     place: z.string().max(200).optional(),
     postponedFromId: z.string().optional(),
 })
@@ -128,6 +132,8 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
+            agendaMode: 'link',
+            agendaText: "",
             kind: meeting?.kind ?? null,
             urgent: meeting?.urgent ?? false,
             scheduleStatus: meeting?.scheduleStatus ?? MeetingScheduleStatus.scheduled,
@@ -135,6 +141,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             sessionNumber: meeting?.sessionNumber?.toString() ?? "",
             format: meeting?.format ?? null,
             closedToPublic: meeting?.closedToPublic ?? false,
+            noRecording: meeting?.noRecording ?? false,
             place: meeting?.place ?? "",
             postponedFromId: meeting?.postponedFromId ?? "none",
         },
@@ -144,6 +151,8 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     // A meeting with no body reads as the council's.
     const isCouncil = !selectedBody || selectedBody.type === 'council'
     const scheduleStatus = form.watch('scheduleStatus')
+    const noRecording = form.watch('noRecording')
+    const agendaMode = form.watch('agendaMode')
     // The page payload of a meeting hides its link to the postponed meeting,
     // so an edit reads the current link from the editor list.
     // The first list holds the edited meeting (the window is around its date).
@@ -207,13 +216,15 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             dateTime.setSeconds(0)
             dateTime.setMilliseconds(0)
 
+            // The agenda mode and the text are the form's; the API gets the text as agendaText.
+            const { agendaMode: _agendaMode, agendaText: _agendaText, ...requestValues } = values
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ...values,
+                    ...requestValues,
                     meetingId: meetingIdForRequest(values.meetingId, Boolean(meeting)),
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
                     // item) — it must not reach the API, where any truthy value is
@@ -221,6 +232,12 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                     // null clears the body; an omitted field would keep it.
                     administrativeBodyId: values.administrativeBodyId === 'none' ? null : values.administrativeBodyId,
                     ...meetingRequestFields(values, { linkChanged: Boolean(form.formState.dirtyFields.postponedFromId), greekCodeFacts }),
+                    // A meeting with no recording has no video. A pasted agenda
+                    // takes the place of the link, and the task of the link.
+                    youtubeUrl: values.noRecording ? '' : values.youtubeUrl,
+                    agendaUrl: values.agendaMode === 'text' ? '' : values.agendaUrl,
+                    agendaText: values.agendaMode === 'text' ? values.agendaText?.trim() || null : null,
+                    processAgenda: values.agendaMode === 'link' && values.processAgenda,
                     // A later part of a meeting has no kind, no number and no urgency
                     // of its own; the form edits none (the continuation form is a follow-up).
                     ...(meeting?.continuationOfId ? { kind: undefined, sessionNumber: undefined, urgent: undefined } : {}),
@@ -299,7 +316,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                         )}
                                         {administrativeBodies.map((body) => (
                                             <SelectItem key={body.id} value={body.id}>
-                                                {body.name} ({t(`administrativeBodyType.${body.type.toLowerCase()}`)})
+                                                {body.name} ({t(`administrativeBodyType.${body.type}`)})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -482,24 +499,28 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                             return (
                                 <FormItem>
                                     <FormLabel>{t('meetingVideo')}</FormLabel>
-                                    <FormControl>
-                                        <LinkOrDrop
-                                            {...field}
-                                            placeholder="https://... (YouTube, Vimeo, etc.)"
-                                            onUrlChange={(url) => field.onChange(url)}
-                                            config={meetingId ? {
-                                                cityId,
-                                                identifier: meetingId,
-                                                councilMeetingId: meeting?.id,
-                                                suffix: 'recording',
-                                                administrativeBodyId,
-                                            } : undefined}
-                                        />
-                                    </FormControl>
-                                    <YouTubePreview url={field.value || ""} />
-                                    <FormDescription>
-                                        {t('meetingVideoDescription')}
-                                    </FormDescription>
+                                    {!noRecording && (
+                                        <>
+                                            <FormControl>
+                                                <LinkOrDrop
+                                                    {...field}
+                                                    placeholder="https://... (YouTube, Vimeo, etc.)"
+                                                    onUrlChange={(url) => field.onChange(url)}
+                                                    config={meetingId ? {
+                                                        cityId,
+                                                        identifier: meetingId,
+                                                        councilMeetingId: meeting?.id,
+                                                        suffix: 'recording',
+                                                        administrativeBodyId,
+                                                    } : undefined}
+                                                />
+                                            </FormControl>
+                                            <YouTubePreview url={field.value || ""} />
+                                            <FormDescription>
+                                                {t('meetingVideoDescription')}
+                                            </FormDescription>
+                                        </>
+                                    )}
                                     <FormMessage />
                                 </FormItem>
                             )
@@ -514,30 +535,57 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
 
                             return (
                                 <FormItem>
-                                    <FormLabel>{t('meetingAgenda')}</FormLabel>
-                                    <FormControl>
-                                        <LinkOrDrop
-                                            {...field}
-                                            placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
-                                            onUrlChange={(url) => field.onChange(url)}
-                                            config={meetingId ? {
-                                                cityId,
-                                                identifier: meetingId,
-                                                councilMeetingId: meeting?.id,
-                                                suffix: 'agenda',
-                                                administrativeBodyId,
-                                            } : undefined}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        {t('meetingAgendaDescription')}
-                                    </FormDescription>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <FormLabel>{t('meetingAgenda')}</FormLabel>
+                                        <div className="flex gap-1" role="group" aria-label={t('meetingAgenda')}>
+                                            <Button type="button" size="sm" variant={agendaMode === 'link' ? 'secondary' : 'ghost'} onClick={() => form.setValue('agendaMode', 'link')}>
+                                                {t('agendaAsLink')}
+                                            </Button>
+                                            <Button type="button" size="sm" variant={agendaMode === 'text' ? 'secondary' : 'ghost'} onClick={() => form.setValue('agendaMode', 'text')}>
+                                                {t('agendaAsText')}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    {agendaMode === 'link' ? (
+                                        <>
+                                            <FormControl>
+                                                <LinkOrDrop
+                                                    {...field}
+                                                    placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
+                                                    onUrlChange={(url) => field.onChange(url)}
+                                                    config={meetingId ? {
+                                                        cityId,
+                                                        identifier: meetingId,
+                                                        councilMeetingId: meeting?.id,
+                                                        suffix: 'agenda',
+                                                        administrativeBodyId,
+                                                    } : undefined}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                {t('meetingAgendaDescription')}
+                                            </FormDescription>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Textarea
+                                                value={form.watch('agendaText') ?? ''}
+                                                onChange={event => form.setValue('agendaText', event.target.value)}
+                                                placeholder={t('agendaTextPlaceholder')}
+                                                maxLength={AGENDA_TEXT_MAX_LENGTH}
+                                                rows={10}
+                                            />
+                                            <FormDescription>
+                                                {t('agendaTextDescription')}
+                                            </FormDescription>
+                                        </>
+                                    )}
                                     <FormMessage />
                                 </FormItem>
                             )
                         }}
                     />
-                    {!meeting && (
+                    {!meeting && agendaMode === 'link' && (
                         <FormField
                             control={form.control}
                             name="processAgenda"
@@ -633,6 +681,27 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                 <div className="space-y-1 leading-none">
                                     <FormLabel>{t('closedToPublic')}</FormLabel>
                                     <FormDescription>{t('closedToPublicDescription')}</FormDescription>
+                                </div>
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="noRecording"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={(checked) => {
+                                            field.onChange(checked === true)
+                                            if (checked === true) form.setValue('youtubeUrl', '')
+                                        }}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>{t('noRecording')}</FormLabel>
+                                    <FormDescription>{t('noRecordingDescription')}</FormDescription>
                                 </div>
                             </FormItem>
                         )}

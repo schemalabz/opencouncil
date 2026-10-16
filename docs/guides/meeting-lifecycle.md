@@ -74,6 +74,7 @@ The stages above describe the processing pipeline. The meeting record also holds
 * **Urgency** (`urgent`): the invitation convenes the meeting urgently («Έκτακτη»). Urgency is not a kind. Every body can hold an urgent meeting of any kind. The form shows it as a checkbox, unchecked by default. A later part of a continued meeting has no urgency of its own, as it has no kind and no number.
 * **Session number** (`sessionNumber`): the number that the municipality prints. It is not unique. A cancelled meeting keeps its number, and the new meeting after a postponement takes the same number. processAgenda reads it from the invitation; the platform never computes it.
 * **Format and place** (`format`, `closedToPublic`, `place`): `format` is null until somebody states it or reads it from the invitation, like the kind. A meeting of unstated format is expected as usual: it can have a stream and a transcript. A meeting without its own `place` shows the `place` of its administrative body. A format that has no place, such as a remote meeting, shows no place. `closedToPublic` is a fact that the meeting page shows to readers. A closed meeting is still recorded and transcribed, and readers get it like any other meeting. To keep the material of a meeting private, an admin unreleases the meeting.
+* **No recording** (`noRecording`): the body states that no recording of the meeting exists (#829). The page then promises no video and no transcript, and the pipelines skip the meeting, as for a meeting held by circulation. It differs from `closedToPublic`: a closed meeting is still recorded. A body that records only some of its meetings sets it in the meeting form.
 * **Links**: the new meeting after a postponement points to the postponed meeting (`postponedFromId`). A later part of a meeting points to its first part (`continuationOfId`). The continuation has its column and its checks only; the form and the page for it are a follow-up.
 
 The kind, the urgency and the session number come from the Greek Code. They are facts of a city of the `greece` realm only (`recordsGreekCodeFacts`). A write that sets one of them for a city of another realm fails with the rule `greekRealmOnly`. The form does not show the three fields there. The status, the links, the format, the closed flag and the place apply in every realm. A meeting of another realm keeps its stored name. A new meeting there reads as the city's word for "meeting" and the date, for example «Séance 27/04/2026». Support for the rules of another realm comes when that realm needs it.
@@ -116,6 +117,23 @@ processAgenda (task version 7) reads the meetings of the agenda and their subjec
 Only a Greek city is checked and filled (`recordsGreekCodeFacts`): the record follows the Greek Code, and the identity check compares names as Greek text. On the 651 agendas of the archive it refuses none.
 
 The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the archive backfill shares.
+
+### The pipeline of a body with no operator
+
+A secondary body, such as a youth council, runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/bodyTier.ts` names the rule, and four places read it:
+
+* A recording starts the transcription. The meeting write starts it after the response when the meeting has started. A link saved before the meeting waits for the cron: `transcribeUnattendedMeetings` in `src/lib/tasks/unattendedTranscription.ts` runs on the livestream tick and starts the transcription three hours after the start of the meeting, with retries up to a cap.
+* The livestream matcher takes the meetings of such a body as candidates without the agenda task.
+* The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
+* The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleasedWithEffects`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
+
+The notifications and the Discord alerts follow their own rules: a secondary body starts with its notifications off, and a failed trigger still alerts the operators.
+
+### The agenda as pasted text
+
+A body with no PDF of its agenda pastes the text into the meeting form (#829). The form sends `agendaText` in place of `agendaUrl`. After the response, `src/lib/agendaText.ts` asks the model for the items and saves them as the subjects of the meeting, with the same pruning rule as the processAgenda task. The extraction is lighter than the task: it names the items, their topic and who brings them, and pins no location. A failure is logged, and the admin pastes the text again.
+
+The saved agenda has the effects of the task. The extraction writes a succeeded `processAgenda` task row, with the pasted text in its request and the subjects in its response. The task list shows the row. A re-run replays the subjects from it. The Notis view `notis_meeting_events` reads the row as the agenda event of the meeting. The extraction then creates the before-meeting notifications of the body, as the task callback does, through `notifyMeetingSubjects` in `src/lib/notifications/meetingTask.ts`.
 
 ### The write path and the visibility rules
 

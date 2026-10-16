@@ -94,7 +94,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const agendaPill = meeting.agendaUrl
         ? pill('agenda', tMeeting('agendaDocument'), 'agenda_pdf', meeting.agendaUrl, FileText, { external: true })
         : null;
-    const notifyPill = !city.supportsNotifications
+    // A body with its notifications off sends none, so the strip must not
+    // promise a subscriber an update, nor invite a reader to wait for one.
+    const notifyPill = !city.supportsNotifications || meeting.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED'
         ? null
         : preference
             ? <span key="notified" className="text-xs text-muted-foreground">{tMeeting('notificationComing')}</span>
@@ -159,7 +161,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             break;
         }
         case 'noRecording':
-            text = t('strip.byCirculation');
+            text = t(`strip.${presentation.type === 'noRecording' ? presentation.reason : 'byCirculation'}`);
             actions = [agendaPill];
             break;
     }

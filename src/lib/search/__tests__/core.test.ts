@@ -409,7 +409,7 @@ describe('searchSubjectsInRealm — failure alert', () => {
 });
 
 describe('searchRelatedSubjectsInRealm', () => {
-    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null };
 
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
@@ -428,7 +428,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'city', 'greece', 'primary', '0.93', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
     });
@@ -438,7 +438,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece', '0.93', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'other', 'greece', 'primary', '0.93', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,

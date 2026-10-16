@@ -48,6 +48,8 @@ const meetingRecordInput = {
     format: z.enum(OFFERED_FORMATS).nullable().optional().describe('How the meeting takes place. Null (the default on create): not stated yet, the meeting is expected as usual'),
     closedToPublic: z.boolean().optional()
         .describe('The council decided to meet behind closed doors. Readers see this fact. The meeting is still recorded and transcribed'),
+    noRecording: z.boolean().optional()
+        .describe('The body states that the meeting was not recorded: no video and no transcription, the agenda stays'),
     place: z.string().max(200).nullable().optional()
         .describe('Where the meeting takes place, when it is not the usual hall of the body'),
 } satisfies Record<(typeof MEETING_RECORD_INPUT_KEYS)[number], z.ZodType>;
@@ -87,7 +89,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 youtubeUrl: z.url().optional().describe('URL of the meeting video'),
                 agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
                 administrativeBodyId: z.string().min(1).optional()
-                    .describe('The body that meets (council, committee, community). See get_city'),
+                    .describe('The body that meets (council, committee, community, youthCouncil). See get_city'),
                 processAgenda: z.boolean().default(false)
                     .describe('Also queue the task that extracts the subjects from the agenda PDF. Needs agendaUrl'),
                 ...meetingRecordInput,
