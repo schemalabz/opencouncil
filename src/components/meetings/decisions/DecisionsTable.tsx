@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { getWithdrawnLabel, sectionHeadingAt, type RecordSection } from '@/lib/utils/subjects';
 import type { ResultKey } from '@/lib/utils/decisionResult';
+import { RESULT_MESSAGE_KEY } from '@/lib/decisionsTable/rows';
 import { QuietButton } from '@/components/meetings/decisions/controls';
 import { Chip } from '@/components/meetings/decisions/RecordRow';
 import { AuditLine } from '@/components/meetings/decisions/AuditLine';
@@ -195,33 +196,12 @@ const CHANGE_ACTION =
     + ' md:[@media(hover:hover)]:opacity-0 md:[@media(hover:hover)]:group-hover:opacity-100';
 
 /**
- * Literal message keys for every non-withdrawn `ResultKey`. The
- * `Record<Exclude<ResultKey, 'withdrawn'>, string>` type is what keeps this
- * map complete: TypeScript rejects the map if a union member has no value,
- * so it grows whenever `ResultKey` grows.
- *
- * `t(RESULT_MESSAGE_KEY[row.result])` passes a dynamic property lookup to
- * `t`, not a string literal, so this is not a `table.result.${row.result}`
- * interpolation — the "every computed group is registered in
- * COMPUTED_GROUPS" guard never triggers on it. That also means the five
- * strings in this map are not literal calls the repo's key scanner
- * (`translation-key-references.test.ts`) can read, unlike `Subject.categories.`.
- * A typo in one of them is caught by nothing; only the `Record` type above
- * guarantees every member gets a key at all.
- */
-const RESULT_MESSAGE_KEY: Record<Exclude<ResultKey, 'withdrawn'>, string> = {
-    unanimous: 'table.result.unanimous',
-    majority: 'table.result.majority',
-    rejected: 'table.result.rejected',
-    none: 'table.result.none',
-    noVote: 'table.result.noVote',
-};
-
-/**
  * The Αποτέλεσμα cell: the one word a posted Πίνακας αποφάσεων carries, with
- * the counts behind it kept out of the way until the row is hovered.
+ * the counts behind it kept out of the way until the row is hovered. The word
+ * comes from the `decisionsTable` namespace the public table reads too, so the
+ * two tables cannot name one result differently.
  */
-function ResultCell({ row, t, tSubject }: { row: TableRow; t: T; tSubject: T }) {
+function ResultCell({ row, tResult, tSubject }: { row: TableRow; tResult: T; tSubject: T }) {
     return (
         <span className="relative block">
             <span
@@ -234,7 +214,7 @@ function ResultCell({ row, t, tSubject }: { row: TableRow; t: T; tSubject: T }) 
             >
                 {row.result === 'withdrawn'
                     ? getWithdrawnLabel(tSubject, row.subject)
-                    : t(RESULT_MESSAGE_KEY[row.result])}
+                    : tResult(RESULT_MESSAGE_KEY[row.result])}
             </span>
             {row.voteCounts && <span className={VOTE_COUNTS}>{row.voteCounts}</span>}
         </span>
@@ -523,6 +503,7 @@ export function DecisionsTable({
     onExplainDerivation,
 }: DecisionsTableProps) {
     const t = useTranslations('admin.decisionsPage');
+    const tResult = useTranslations('decisionsTable');
     const tSubject = useTranslations('Subject');
     const [expanded, setExpanded] = useState(false);
 
@@ -666,7 +647,7 @@ export function DecisionsTable({
                                 </div>
                                 <StackBreak />
                                 <div role="cell" className="order-4 text-right md:order-none md:text-left">
-                                    <ResultCell row={row} t={t} tSubject={tSubject} />
+                                    <ResultCell row={row} tResult={tResult} tSubject={tSubject} />
                                 </div>
                                 <div role="cell" className="order-3 flex grow justify-start md:order-none md:justify-end">
                                     <NumberCell
