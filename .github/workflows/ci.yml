@@ -70,6 +70,15 @@ jobs:
 
       - run: npm ci
 
+      # The seed pipeline's e2e suite needs greenmask, zstd, and the PostgreSQL 16
+      # client tools. They come from the flake, so CI runs the versions that
+      # flake.lock pins for the dev shell and the seed-pipeline app.
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - run: echo "$(nix build .#seed-tools --no-link --print-out-paths)/bin" >> "$GITHUB_PATH"
+
       # Both generated clients: the contract suites exercise the main views
       # AND the notis queue against real PostgreSQL containers.
       - run: npm run prisma:generate

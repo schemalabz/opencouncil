@@ -33,6 +33,8 @@ npx prisma migrate dev --name <migration_name> --create-only
 ```
 This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
 
+**New models and personal data**: the seed pipeline ships content tables to developers and previews, and never ships private tables. When you add a Prisma model, add it to `scripts/seed-pipeline/tables.json` as `content` (public record) or `private` (personal data). `src/lib/seed-pipeline/tables.test.ts` fails until you do. If you are not sure, choose `private` and say so in the pull request. When you add a column with personal data to a content table, add a masking rule for it in the same file. When a code path writes rows of a private person into a content table (as reader addresses go into `Location`), add a `delete-when` rule for those rows. No test catches these cases. See `scripts/seed-pipeline/README.md`.
+
 ### Direct Database Access
 
 When you need to query the database directly (e.g. to find test data, verify state, or debug):

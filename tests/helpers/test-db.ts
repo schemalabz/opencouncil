@@ -1,6 +1,7 @@
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers'
 import { execFileSync } from 'child_process'
 import path from 'path'
+import { Client } from 'pg'
 
 type TestDbState = {
     container?: StartedTestContainer
@@ -125,6 +126,47 @@ export async function ensureTestDb(): Promise<{ databaseUrl: string }> {
     }
 
     return { databaseUrl }
+}
+
+/**
+ * `ensureTestDb()` builds the test database with `prisma db push`, which never
+ * creates `_prisma_migrations`. Some tests need that table to exist, so create
+ * it here with Prisma's own DDL, without applying an actual migration.
+ */
+export async function ensureMigrationsTable(databaseUrl: string): Promise<void> {
+    const client = new Client({ connectionString: databaseUrl })
+    await client.connect()
+    try {
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS public._prisma_migrations (
+                id varchar(36) PRIMARY KEY, checksum varchar(64) NOT NULL, finished_at timestamptz, migration_name varchar(255) NOT NULL,
+                logs text, rolled_back_at timestamptz, started_at timestamptz NOT NULL DEFAULT now(), applied_steps_count integer NOT NULL DEFAULT 0)
+        `)
+    } finally {
+        await client.end()
+    }
+}
+
+/**
+ * An empty database next to the test database, in the same container, for
+ * tools that need a second target (the seed pipeline's scratch and verify).
+ * The returned URL carries no query string. `ensureTestDb` appends Prisma's
+ * `?schema=public`, and libpq refuses that as an unknown URI query parameter.
+ */
+export async function createSiblingDatabase(name: string): Promise<string> {
+    const { databaseUrl } = await ensureTestDb()
+    const admin = new Client({ connectionString: databaseUrl })
+    await admin.connect()
+    try {
+        await admin.query(`DROP DATABASE IF EXISTS "${name}"`)
+        await admin.query(`CREATE DATABASE "${name}"`)
+    } finally {
+        await admin.end()
+    }
+    const url = new URL(databaseUrl)
+    url.pathname = `/${name}`
+    url.search = ''
+    return url.toString()
 }
 
 export async function resetDatabase(prisma: { $executeRawUnsafe: (q: string) => Promise<any> }) {
