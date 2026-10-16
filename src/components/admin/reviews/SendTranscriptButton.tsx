@@ -35,7 +35,7 @@ export function SendTranscriptButton({
   const [showDialog, setShowDialog] = useState(false);
   // Reuses the loader of the completion dialog: same recipients, same stale-response guard
   const completion = useReviewCompletion(cityId, meetingId, showDialog);
-  const contactEmails = completion.state?.contactEmails ?? [];
+  const contactEmails = completion.state?.transcriptRecipients ?? [];
 
   const handleSendTranscript = async () => {
     setError(null);
@@ -99,7 +99,7 @@ export function SendTranscriptButton({
           <DialogHeader>
             <DialogTitle>Send Transcript?</DialogTitle>
             <DialogDescription>
-              This will email the transcript (DOCX) to the municipality&apos;s configured contact emails.
+              This will email the transcript (DOCX) to the recipients in the body&apos;s document send settings.
             </DialogDescription>
           </DialogHeader>
           {completion.isLoading ? (
@@ -107,11 +107,11 @@ export function SendTranscriptButton({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : completion.error ? (
-            // A failed load must not read as a municipality without contact emails
+            // A failed load must not read as a body without recipients
             <p className="text-sm text-destructive py-2">{completion.error}</p>
           ) : contactEmails.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">
-              No contact emails configured for this administrative body.
+              The transcript send setting of this administrative body does not cover this meeting.
             </p>
           ) : (
             <div className="p-4 border rounded-lg space-y-1 text-sm text-muted-foreground">

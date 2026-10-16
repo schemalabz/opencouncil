@@ -41,7 +41,7 @@ const base = 'http://localhost'
 
 // The municipality's settings for the body. A reader of the public API must
 // get none of them: not the field names, and not the values.
-const SENSITIVE_FIELDS = ['contactEmails', 'notificationBehavior', 'diavgeiaUnitIds', 'decisionConventions', 'showUnreviewedTranscript']
+const SENSITIVE_FIELDS = ['documentSendSettings', 'recipientEmails', 'notificationBehavior', 'diavgeiaUnitIds', 'decisionConventions', 'showUnreviewedTranscript']
 const CONTACT_EMAILS = ['transcripts.clerk@municipality.example', 'secretary.private@municipality.example']
 const DIAVGEIA_SCOPE = '84655:100010590'
 const CONVENTIONS_MARKER = 'conventions-marker-roll-call'
@@ -118,12 +118,14 @@ describe('public reads return only the public fields of an administrative body',
         await createCity({ id: cityId })
         const body = await createAdministrativeBody(cityId, {
             name: BODY_NAME,
-            contactEmails: CONTACT_EMAILS,
             notificationBehavior: 'NOTIFICATIONS_AUTO',
             diavgeiaUnitIds: [DIAVGEIA_SCOPE],
             decisionConventions: { marker: CONVENTIONS_MARKER },
             showUnreviewedTranscript: false,
             youtubeChannelUrl: 'https://www.youtube.com/@council',
+        })
+        await prisma.documentSendSetting.create({
+            data: { administrativeBodyId: body.id, document: 'transcript', enabled: true, recipientEmails: CONTACT_EMAILS },
         })
         const party = await prisma.party.create({
             data: { cityId, name: 'Party', name_en: 'Party', name_short: 'PA', name_short_en: 'PA', colorHex: '#123456' },

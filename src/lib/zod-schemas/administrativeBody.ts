@@ -37,7 +37,6 @@ const youtubeChannelUrlRequest = blankToNull(z.union([youtubeChannelUrlValue, z.
 export const administrativeBodySchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl: youtubeChannelUrlRequest,
-    contactEmails: z.array(z.email()).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
@@ -47,10 +46,9 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change these two fields and no other.
+// who may change the YouTube channel and no other field (#828).
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: youtubeChannelUrlRequest,
-    contactEmails: z.array(z.email()).optional(),
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision
@@ -68,22 +66,11 @@ export const updateAdministrativeBodyRequestSchema = z.discriminatedUnion('confi
     administrativeBodySchema.extend({ confirmConventions: z.literal(false).optional() }),
 ]);
 
-// Frontend form schema (React Hook Form). The form edits the contact emails as
-// a primary address plus a comma-separated CC list, and joins them on submit.
+// Frontend form schema (React Hook Form).
 export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
     // Sent as it is: the request reads an empty field as a clear.
     youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal('')]).optional(),
-    contactEmailPrimary: z.union([
-        z.email({ error: vmsg('invalidEmail') }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmailsCC: z.string().optional().refine(val => {
-        if (!val || val.trim() === '') return true;
-        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
-        const emailSchema = z.email();
-        return emails.every(email => emailSchema.safeParse(email).success);
-    }, { error: vmsg('invalidEmailList') }),
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),

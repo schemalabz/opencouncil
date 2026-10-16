@@ -4,11 +4,11 @@ import type { DecisionConventions } from '@/lib/decisionConventions';
 /**
  * The fields of an administrative body that anyone may read.
  *
- * The rest of the row holds the municipality's settings for the body: the
- * addresses that receive its transcripts, its notification behaviour, whether
- * an unreviewed transcript shows, its Diavgeia scopes and its decision
- * conventions. Only an admin of the city, an admin of the body and the
- * server's own tasks read those.
+ * The rest of the row holds the municipality's settings for the body: its
+ * notification behaviour, whether an unreviewed transcript shows, its Diavgeia
+ * scopes and its decision conventions. Only an admin of the city, an admin of
+ * the body and the server's own tasks read those, as they alone read the
+ * document send settings of the body.
  *
  * `youtubeChannelUrl` is the municipality's public channel. The meeting page,
  * the embed card and the notification page link to it. `place` is the hall

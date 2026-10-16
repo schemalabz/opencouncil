@@ -222,9 +222,9 @@ describe('getAdministrativeBodiesForCity', () => {
 
     it('gives an editor the full rows', async () => {
         mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
-        mockFindMany.mockResolvedValue([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
+        mockFindMany.mockResolvedValue([{ id: 'b1', diavgeiaUnitIds: ['81689'] }]);
 
-        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'], decisionConventions: null }]);
+        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', diavgeiaUnitIds: ['81689'], decisionConventions: null }]);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
     });
 
@@ -248,13 +248,13 @@ describe('editAdministrativeBodyContacts', () => {
 
     it('answers stored conventions with the current anchor names', async () => {
         const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
-        mockUpdate.mockResolvedValue({ id: 'b1', contactEmails: ['clerk@example.org'], decisionConventions: legacy });
+        mockUpdate.mockResolvedValue({ id: 'b1', youtubeChannelUrl: 'https://www.youtube.com/@council', decisionConventions: legacy });
 
-        const body = await editAdministrativeBodyContacts('b1', { contactEmails: ['clerk@example.org'] });
+        const body = await editAdministrativeBodyContacts('b1', { youtubeChannelUrl: 'https://www.youtube.com/@council' });
 
         expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
-        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: undefined, contactEmails: ['clerk@example.org'] });
+        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: 'https://www.youtube.com/@council' });
     });
 });
 

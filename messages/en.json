@@ -994,12 +994,6 @@
         "place": "Meeting hall",
         "placePlaceholder": "e.g. Council Hall, Town Hall",
         "placeDescription": "Where the body meets as a rule. The page of every in-person meeting shows it, unless the meeting has its own place.",
-        "contactEmailPrimary": "Recipient Email (To)",
-        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-        "contactEmailPrimaryDescription": "Primary recipient email for sending transcripts.",
-        "contactEmailsCC": "Carbon Copy (CC)",
-        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-        "contactEmailsCCDescription": "Additional CC emails (comma-separated).",
         "notificationBehavior": "Notification Behavior",
         "notificationBehaviorDescription": "Choose the notification behavior for meetings of this body.",
         "notificationBehaviorOptions": {
