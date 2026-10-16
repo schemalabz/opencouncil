@@ -6,7 +6,7 @@ describe('taskScope', () => {
 
     it('gives the meeting scope to the tasks that a body admin runs, and no other', () => {
         expect(meetingTypes.sort()).toEqual(['fixTranscript', 'generateHighlight', 'processAgenda', 'summarize', 'transcribe']);
-        expect(cityTypes.sort()).toEqual(['generateVoiceprint', 'humanReview', 'pollDecisions', 'transcriptSent']);
+        expect(cityTypes.sort()).toEqual(['generateVoiceprint', 'humanReview', 'pollDecisions']);
     });
 
     it.each(meetingTypes)('scopes a %s task to its meeting', (type) => {

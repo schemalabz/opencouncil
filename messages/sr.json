@@ -969,8 +969,7 @@
         "transcribe": "Транскрибовано",
         "fixTranscript": "Аутоматска исправка",
         "humanReview": "Прегледано од стране човека",
-        "summarize": "Сажето",
-        "transcriptSent": "Транскрипт послат"
+        "summarize": "Сажето"
     },
     "AdministrativeBodiesList": {
         "addNew": "Додај ново",

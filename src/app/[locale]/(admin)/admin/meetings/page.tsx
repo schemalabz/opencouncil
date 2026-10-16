@@ -1,6 +1,8 @@
 import { getCities } from "@/lib/db/cities";
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetingsList";
 import { getDecisionCountsForCity, MeetingDecisionCounts } from "@/lib/db/decisions";
+import { getDocumentSendsForCity } from "@/lib/db/documentSends";
+import type { DocumentSendSummary } from "@/lib/db/types";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
@@ -19,11 +21,13 @@ export default async function AdminMeetingsPage(props: PageProps) {
 
     let meetings: CouncilMeetingWithAdminBodyAndSubjects[] = [];
     let decisionCounts: MeetingDecisionCounts = {};
+    let documentSends: Record<string, DocumentSendSummary[]> = {};
     let cityHasDiavgeiaUid = false;
     if (selectedCityId) {
-        [meetings, decisionCounts] = await Promise.all([
+        [meetings, decisionCounts, documentSends] = await Promise.all([
             getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
             getDecisionCountsForCity(selectedCityId),
+            getDocumentSendsForCity(selectedCityId),
         ]);
         cityHasDiavgeiaUid = !!cities.find(c => c.id === selectedCityId)?.diavgeiaUid;
     }
@@ -47,6 +51,7 @@ export default async function AdminMeetingsPage(props: PageProps) {
                 currentCityName={currentCityName}
                 selectedCityId={selectedCityId}
                 decisionCounts={decisionCounts}
+                documentSends={documentSends}
                 cityHasDiavgeiaUid={cityHasDiavgeiaUid}
             />
         </div>
