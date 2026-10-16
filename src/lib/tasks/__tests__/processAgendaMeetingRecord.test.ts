@@ -23,6 +23,7 @@ jest.mock('../../subjectImages', () => ({ generateImagesForMeeting: jest.fn() })
 jest.mock('../../cache', () => ({ revalidateMeeting: jest.fn() }));
 jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: jest.fn() }));
 jest.mock('../processAgendaInternal', () => ({ requestProcessAgendaInternal: jest.fn() }));
+jest.mock('@/lib/notifications/meetingTask', () => ({ notifyMeetingSubjects: jest.fn() }));
 const mockApply = jest.fn();
 jest.mock('../applyAgendaMeetingRecord', () => ({ applyAgendaMeetingRecord: (...a: unknown[]) => mockApply(...a) }));
 

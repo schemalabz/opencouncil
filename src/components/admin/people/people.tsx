@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
 import { useState, useMemo } from "react";
 import { Check, Search, UserCheck, X } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
@@ -225,6 +226,7 @@ export default function People({ people, consents, currentCityName, qrEligibleId
                                                     personId={person.id}
                                                     personName={person.name}
                                                     status={consents[person.id] ?? null}
+                                                    ownConsentOnly={voiceprintNeedsOwnConsent(person.roles)}
                                                 />
                                                 <VoiceprintActions
                                                     personId={person.id}

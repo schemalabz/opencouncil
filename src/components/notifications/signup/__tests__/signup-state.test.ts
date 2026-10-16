@@ -13,9 +13,11 @@ const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
 
 const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001', notifyByPhone: true };
+const youth = { id: 'ab_youth', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' as const, cityId: 'athens' };
 const existing = {
     locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] as [number, number] }],
     topics: [topic('t1')],
+    bodies: [youth],
     notifyByEmail: true,
 };
 
@@ -26,6 +28,7 @@ describe('initialSignupState', () => {
             step: 1,
             locations: [],
             topics: [],
+            bodies: [],
             phoneChannel: true,
             emailChannel: false,
             phone: '+306900000001',
@@ -45,6 +48,12 @@ describe('initialSignupState', () => {
         expect(state.locations).toEqual(existing.locations);
         expect(state.topics).toEqual(existing.topics);
         expect(state.emailChannel).toBe(true);
+    });
+
+    it('ticks the bodies a signup for bodies alone is about, unless the reader saved a choice already', () => {
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null, preselectedBodies: [youth] }).bodies).toEqual([youth]);
+        const other = { ...youth, id: 'ab_other' };
+        expect(initialSignupState({ initialStep: 2, existing: { ...existing, bodies: [] }, account, preselectedBodies: [other] }).bodies).toEqual([]);
     });
 });
 
@@ -105,6 +114,7 @@ describe('channelIssues', () => {
         step: 3,
         locations: [],
         topics: [],
+        bodies: [],
         phoneChannel: true,
         emailChannel: false,
         phone: '+306900000001',
@@ -142,6 +152,7 @@ describe('buildSubmission', () => {
         step: 3,
         locations: [{ id: 'old', text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
         topics: [topic('t1'), topic('t2')],
+        bodies: [youth],
         phoneChannel: true,
         emailChannel: false,
         phone: '+306900000001',
@@ -154,6 +165,7 @@ describe('buildSubmission', () => {
             cityId: 'athens',
             locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
             topicIds: ['t1', 't2'],
+            bodyIds: ['ab_youth'],
             notifyByPhone: true,
             notifyByEmail: false,
             phone: '+306900000001',

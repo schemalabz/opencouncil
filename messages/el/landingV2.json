@@ -151,7 +151,8 @@
   "bodyType": {
     "council": "Συμβούλιο",
     "committee": "Επιτροπή",
-    "community": "Κοινότητα"
+    "community": "Κοινότητα",
+    "youthCouncil": "Συμβούλιο Νέων"
   },
   "duration": {
     "5": "5′+",

@@ -3,6 +3,7 @@ import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from '
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
+import { SECONDARY_BODY_TYPES } from '@/lib/utils/bodyTier';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
 // (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
@@ -459,11 +460,13 @@ const ADMIN_BODY_BOOST_SHARE: Record<AdministrativeBodyType, number> = {
     council: 1,
     committee: 0.5,
     community: 0,
+    youthCouncil: 0,
 };
 const ADMIN_BODY_WEIGHT: Record<AdministrativeBodyType, number> = {
     council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.council,
     committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.committee,
     community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.community,
+    youthCouncil: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.youthCouncil,
 };
 // No administrative body assigned ranks like the lowest tier (community), not the
 // best one — never below the floor of 1.0 (no penalty), just no boost.
@@ -527,6 +530,7 @@ const RANKING_SCRIPT = `
     double adminWeight = bodyType == 'council' ? params.councilWeight
         : bodyType == 'committee' ? params.committeeWeight
         : bodyType == 'community' ? params.communityWeight
+        : bodyType == 'youthCouncil' ? params.youthCouncilWeight
         : params.defaultAdminBodyWeight;
 
     double discussionMinutes = doc['discussion_speaking_seconds'].size() == 0 ? 0 : doc['discussion_speaking_seconds'].value / 60.0;
@@ -553,6 +557,7 @@ function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
                     councilWeight: ADMIN_BODY_WEIGHT.council,
                     committeeWeight: ADMIN_BODY_WEIGHT.committee,
                     communityWeight: ADMIN_BODY_WEIGHT.community,
+                    youthCouncilWeight: ADMIN_BODY_WEIGHT.youthCouncil,
                     defaultAdminBodyWeight: DEFAULT_ADMIN_BODY_WEIGHT,
                     discussionWeight: DISCUSSION_LENGTH_BOOST_WEIGHT,
                     recencyWeight: RECENCY_BOOST_WEIGHT,
@@ -674,6 +679,16 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
                 }
             }
             : ofTypes);
+    }
+
+    // No body filter means the primary tier (see bodyTier.ts). A must_not keeps
+    // the documents with no body, which a `terms` on the primary types would drop.
+    if (!request.administrativeBodyIds?.length && !request.administrativeBodyTypes?.length) {
+        filters.push({
+            bool: {
+                must_not: [{ terms: { 'administrative_body_type': [...SECONDARY_BODY_TYPES] } }]
+            }
+        });
     }
 
     // Add topic filter if specified

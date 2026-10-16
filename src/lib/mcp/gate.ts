@@ -83,7 +83,7 @@ export async function requireVisibleMeeting(
             sessionNumber: true,
             urgent: true,
             videoUrl: true,
-            administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
+            administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true, type: true } },
             administrativeBodyId: true,
             taskStatuses: transcriptGateSelect.taskStatuses,
             city: { select: { timezone: true } },

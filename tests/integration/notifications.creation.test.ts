@@ -109,6 +109,30 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
 
+    test('a meeting of a secondary body reaches the readers who follow the body, and nobody else (#829)', async () => {
+        const city = await createCity({ id: 'c5', name_municipality: 'Y', name_municipality_en: 'Y' })
+        const youth = await createAdministrativeBody(city.id, { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' })
+        const council = await createAdministrativeBody(city.id)
+        const youthMeeting = await createMeeting(city.id, { id: 'm_youth', administrativeBodyId: youth.id })
+        const councilMeeting = await createMeeting(city.id, { id: 'm_council', administrativeBodyId: council.id })
+        await createSubject(youthMeeting.id, city.id, { id: 'sy', topicId: null, locationId: null, name: 'Youth high' })
+        await createSubject(councilMeeting.id, city.id, { id: 'sc', topicId: null, locationId: null, name: 'Council high' })
+
+        const follower = await createUser('follower@example.com')
+        await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id] })
+        const resident = await createUser('resident@example.com')
+        await createNotificationPreference({ userId: resident.id, cityId: city.id })
+
+        const high = { topicImportance: 'high' as const, proximityImportance: 'none' as const }
+        const youthResult = await createNotificationsForMeeting(city.id, youthMeeting.id, 'beforeMeeting', { sy: high })
+        const councilResult = await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', { sc: high })
+
+        expect(youthResult.notificationsCreated).toBe(1)
+        expect(councilResult.notificationsCreated).toBe(2)
+        const youthNotified = await prisma.notification.findMany({ where: { meetingId: youthMeeting.id }, include: { user: true } })
+        expect(youthNotified.map((n) => n.user.email)).toEqual(['follower@example.com'])
+    })
+
     test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {
         const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
         const body = await createAdministrativeBody(city.id)

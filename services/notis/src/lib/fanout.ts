@@ -16,13 +16,18 @@ export interface FanoutLocation {
   lat: number | null;
 }
 
-export function topicNames(value: unknown): string[] {
+/** The non-empty strings under `key` in a JSON array of objects, as the views' columns hold them. */
+function stringsOf(value: unknown, key: string): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((entry) =>
-      typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>).name : null,
+      typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>)[key] : null,
     )
     .filter((v): v is string => typeof v === "string" && v.length > 0);
+}
+
+export function topicNames(value: unknown): string[] {
+  return stringsOf(value, "name");
 }
 
 export function locationPoints(value: unknown): FanoutLocation[] {
@@ -39,6 +44,11 @@ export function locationPoints(value: unknown): FanoutLocation[] {
       };
     })
     .filter((v): v is FanoutLocation => v !== null);
+}
+
+/** The ids of the bodies a target follows on their own (#829), from the view's loosely-typed column. */
+export function followedBodyIds(value: unknown): string[] {
+  return stringsOf(value, "id");
 }
 
 export function toCityPreferences(rows: FanoutTargetRow[]): CityPreference[] {

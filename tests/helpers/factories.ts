@@ -115,8 +115,8 @@ export async function createSubject(meetingId: string, cityId: string, data?: { 
     })
 }
 
-export async function createNotificationPreference(params: { userId: string; cityId: string; locationIds?: string[]; topicIds?: string[] }) {
-    const { userId, cityId, locationIds = [], topicIds = [] } = params
+export async function createNotificationPreference(params: { userId: string; cityId: string; locationIds?: string[]; topicIds?: string[]; bodyIds?: string[] }) {
+    const { userId, cityId, locationIds = [], topicIds = [], bodyIds = [] } = params
 
     // Create base preference or update existing to connect relations
     const existing = await prisma.notificationPreference.findUnique({ where: { userId_cityId: { userId, cityId } } })
@@ -127,6 +127,7 @@ export async function createNotificationPreference(params: { userId: string; cit
             data: {
                 locations: { set: locationIds.map((id) => ({ id })) },
                 interests: { set: topicIds.map((id) => ({ id })) },
+                bodies: { set: bodyIds.map((id) => ({ id })) },
             },
         })
         return prisma.notificationPreference.findUnique({
@@ -142,6 +143,7 @@ export async function createNotificationPreference(params: { userId: string; cit
             cityId,
             locations: locationIds.length > 0 ? { connect: locationIds.map((id) => ({ id })) } : undefined,
             interests: topicIds.length > 0 ? { connect: topicIds.map((id) => ({ id })) } : undefined,
+            bodies: bodyIds.length > 0 ? { connect: bodyIds.map((id) => ({ id })) } : undefined,
         },
     })
 
