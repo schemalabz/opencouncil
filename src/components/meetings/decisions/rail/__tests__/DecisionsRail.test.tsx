@@ -78,6 +78,7 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
             conventions={null}
             onPreviewMinutes={jest.fn()}
             onExportDocx={jest.fn()}
+            onExportDecisionsTable={jest.fn()}
             previewDisabled={false}
             showResetExtractions={false}
             isClearing={false}
@@ -105,10 +106,11 @@ describe('DecisionsRail', () => {
         expect(screen.getByText('previewMinutes')).toBeInTheDocument();
     });
 
-    it('puts the minutes card first, above the facts it is built from', () => {
+    it('puts the minutes card first, then the decisions table export, above the facts they are built from', () => {
         const { container } = renderRail();
         const titles = [...container.querySelectorAll('.text-\\[11px\\].font-extrabold')].map(el => el.textContent);
-        expect(titles).toEqual(['rail.minutesTitle', 'attendance', 'factsArrivalsDepartures', 'factsDiscussionOrder']);
+        // 'title' is the decisionsTable namespace's own title key, as the translator mock returns it.
+        expect(titles).toEqual(['rail.minutesTitle', 'title', 'attendance', 'factsArrivalsDepartures', 'factsDiscussionOrder']);
     });
 
     // The issues read against audit mode, which only a superadmin has; a city
