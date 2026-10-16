@@ -52,10 +52,6 @@ export const TASK_CONFIG = {
     scope: 'city',
     requiredForPipeline: true,
   },
-  transcriptSent: {
-    scope: 'city',
-    requiredForPipeline: true,
-  },
   summarize: {
     scope: 'meeting',
     requiredForPipeline: true,

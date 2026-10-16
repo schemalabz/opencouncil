@@ -963,8 +963,7 @@
         "transcribe": "Απομαγνητοφωνημένη",
         "fixTranscript": "Αυτόματη Διόρθωση",
         "humanReview": "Αξιολογημένη από άνθρωπο",
-        "summarize": "Summarized",
-        "transcriptSent": "Απομαγνητοφώνηση απεστάλη"
+        "summarize": "Summarized"
     },
     "AdministrativeBodiesList": {
         "addNew": "Προσθήκη Νέου",

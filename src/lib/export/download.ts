@@ -31,7 +31,7 @@ export async function downloadFromUrl(url: string, fileName: string): Promise<vo
 
 /**
  * Saves a meeting's transcript .docx. The server builds it, so it is the same
- * document the municipality receives (sendTranscriptToMunicipality). A 404
+ * document the municipality receives (sendTranscript in src/lib/documents/transcript.ts). A 404
  * DownloadError means the meeting has no transcript yet.
  */
 export function downloadTranscriptDocx(cityId: string, meetingId: string): Promise<void> {

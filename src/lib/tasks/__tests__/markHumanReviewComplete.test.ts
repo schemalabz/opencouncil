@@ -43,8 +43,8 @@ jest.mock('../summarize', () => ({
   requestSummarize: (...args: unknown[]) => mockRequestSummarize(...args),
 }));
 
-jest.mock('../sendTranscript', () => ({
-  sendTranscriptToMunicipality: (...args: unknown[]) => mockSendTranscriptToMunicipality(...args),
+jest.mock('../../documents/transcript', () => ({
+  sendTranscript: (...args: unknown[]) => mockSendTranscriptToMunicipality(...args),
 }));
 
 jest.mock('../../discord', () => ({
@@ -171,7 +171,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
 
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { runSummarize: true, sendTranscript: true });
 
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
   });
 
   it('writes no second review record when the review already completed', async () => {
@@ -200,7 +200,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { runSummarize: true, sendTranscript: true });
 
     expect(mockRequestSummarize).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
   });
 
   it('fails when the meeting does not exist', async () => {
@@ -227,7 +227,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
   it('sends the transcript when the reviewer opts in', async () => {
     await markHumanReviewComplete(CITY_ID, MEETING_ID, { sendTranscript: true });
 
-    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { trigger: 'review', automatic: true });
   });
 
   // The outcomes are the only signal the reviewer gets that a follow-up did not run
@@ -321,11 +321,10 @@ describe('getReviewCompletionState', () => {
     expect(state.summarizeAvailability).toBe(availability);
   });
 
-  // The setting decides whether the transcript goes out; the dialog hides the
-  // checkbox for a meeting the setting does not cover
+  // The setting decides whether the transcript can go out; the dialog hides the
+  // checkbox when the body does not send it
   it.each([
     ['is switched off', { ...transcriptSetting, enabled: false }],
-    ['was switched on after the meeting', { ...transcriptSetting, enabledAt: new Date() }],
     ['does not exist', null],
   ])('reports no recipients when the transcript setting %s', async (_case, setting) => {
     mockGetDocumentSendSetting.mockResolvedValue(setting);
@@ -334,6 +333,17 @@ describe('getReviewCompletionState', () => {
 
     expect(mockGetDocumentSendSetting).toHaveBeenCalledWith('body-1', 'transcript');
     expect(state.transcriptRecipients).toEqual([]);
+  });
+
+  // The switch-on date stops automatic sends from emailing the archive. The
+  // transcript goes out only when a reviewer ticks it, so an older meeting
+  // keeps its checkbox, as it did with the contact emails.
+  it('offers the transcript of a meeting held before the setting was switched on', async () => {
+    mockGetDocumentSendSetting.mockResolvedValue({ ...transcriptSetting, enabledAt: new Date() });
+
+    const state = await getReviewCompletionState(CITY_ID, MEETING_ID);
+
+    expect(state.transcriptRecipients).toEqual(['clerk@example.gov']);
   });
 
   it('reports a meeting without an administrative body as having no recipients', async () => {

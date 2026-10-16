@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, Send } from 'lucide-react';
 import { useReviewCompletion } from '@/components/reviews/useReviewCompletion';
-import { sendTranscriptToMunicipality } from '@/lib/tasks/sendTranscript';
+import { sendTranscriptNow } from '@/lib/actions/documentSends';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -42,7 +42,7 @@ export function SendTranscriptButton({
     setIsSubmitting(true);
 
     try {
-      const result = await sendTranscriptToMunicipality(cityId, meetingId);
+      const result = await sendTranscriptNow(cityId, meetingId);
 
       if (!result.success) {
         setError(result.error || 'Failed to send transcript');
