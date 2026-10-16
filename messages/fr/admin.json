@@ -306,14 +306,7 @@
       "showRestMissing": "{n} sans décision",
       "showRestWithdrawn": "{n, plural, one {# retiré} other {# retirés}}",
       "showLess": "Afficher moins",
-      "empty": "Aucun sujet ne correspond à ce filtre.",
-      "result": {
-        "unanimous": "À l'unanimité",
-        "majority": "À la majorité",
-        "rejected": "Rejetée",
-        "none": "—",
-        "noVote": "—"
-      }
+      "empty": "Aucun sujet ne correspond à ce filtre."
     },
     "panel": {
       "adaTitle": "Ajouter une décision par ADA pour {subject}",
