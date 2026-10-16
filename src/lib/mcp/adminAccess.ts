@@ -67,11 +67,10 @@ export async function requireMeetingAdmin(identity: McpIdentity, cityId: string,
     throw new ForbiddenError(`You do not administer meeting ${meetingId} of ${cityId}.`);
 }
 
-/** A city admin, or an admin of that body in that city. */
+/** A city admin, or an admin of that body, for a body of that city. */
 export async function requireBodyAdmin(identity: McpIdentity, cityId: string, bodyId: string): Promise<void> {
     const access = await requireAdminAccess(identity);
-    if (administersCity(access, cityId)) return;
-    if (access.bodyIds.has(bodyId)) {
+    if (administersCity(access, cityId) || access.bodyIds.has(bodyId)) {
         const body = await prisma.administrativeBody.findUnique({ where: { id: bodyId }, select: { cityId: true } });
         if (body?.cityId === cityId) return;
     }
