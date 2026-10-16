@@ -17,9 +17,15 @@ import { useSession } from 'next-auth/react'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
+import {
+    administrativeBodyFormSchema,
+    documentSendCardsFromSettings,
+    documentSendSettingsFromCards,
+    type AdministrativeBodyFormValues,
+} from "@/lib/zod-schemas/administrativeBody"
+import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS, type DocumentSendRule } from '@/lib/documents/settings'
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
-import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
+import { AdministrativeBodyType, DocumentKind, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -37,11 +43,11 @@ interface AdministrativeBody {
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
     place?: string | null;
-    contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
     showUnreviewedTranscript?: boolean;
     diavgeiaUnitIds?: string[];
     decisionConventions?: unknown;
+    documentSendSettings?: Array<DocumentSendRule & { document: DocumentKind }>;
 }
 
 /** The stored column, as the form holds it: a record that parses, or nothing. */
@@ -62,12 +68,11 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         place: body?.place || "",
-        contactEmailPrimary: body?.contactEmails?.[0] || "",
-        contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: storedConventions(body?.decisionConventions),
+        documentSendSettings: documentSendCardsFromSettings(body?.documentSendSettings),
     };
 }
 
@@ -97,16 +102,6 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         const method = editingBody ? 'PUT' : 'POST'
 
         try {
-            // Combine primary + CC emails into a single array for API
-            const contactEmailsArray: string[] = [];
-            if (values.contactEmailPrimary) {
-                contactEmailsArray.push(values.contactEmailPrimary);
-            }
-            if (values.contactEmailsCC) {
-                const ccEmails = values.contactEmailsCC.split(',').map(e => e.trim()).filter(e => e !== '');
-                contactEmailsArray.push(...ccEmails);
-            }
-
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -114,9 +109,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 },
                 body: JSON.stringify({
                     ...values,
-                    contactEmailPrimary: undefined,
-                    contactEmailsCC: undefined,
-                    contactEmails: contactEmailsArray,
+                    documentSendSettings: documentSendSettingsFromCards(values.documentSendSettings),
                     // The conventions are written by their own Confirm button.
                     decisionConventions: undefined,
                 }),
@@ -274,46 +267,69 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailPrimary"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailPrimary')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailPrimaryPlaceholder')}
-                                                type="email"
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="text-sm font-medium">{t('documentSends.title')}</h3>
+                                    <p className="text-sm text-muted-foreground">{t('documentSends.description')}</p>
+                                </div>
+                                {DOCUMENT_KINDS.map((document) => {
+                                    const enabled = form.watch(`documentSendSettings.${document}.enabled`)
+                                    return (
+                                        <div key={document} className="space-y-3 rounded-lg border p-3">
+                                            <FormField
+                                                control={form.control}
+                                                name={`documentSendSettings.${document}.enabled`}
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1">
+                                                        {/* The name and the switch share the first line; the description sits under the name */}
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <FormLabel className="text-sm font-medium">{t(`documentSends.documents.${document}.name`)}</FormLabel>
+                                                            <FormControl>
+                                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                                            </FormControl>
+                                                        </div>
+                                                        <FormDescription>
+                                                            {t(`documentSends.documents.${document}.description`, { days: MINUTES_THRESHOLD_DAYS })}
+                                                        </FormDescription>
+                                                    </FormItem>
+                                                )}
                                             />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailPrimaryDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailsCC"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailsCC')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailsCCPlaceholder')}
-                                                type="text"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailsCCDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                            {/* The addresses show only for a document that is on; the schema still requires a To address then */}
+                                            {enabled && (
+                                                <>
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`documentSendSettings.${document}.to`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>{t('documentSends.to')}</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} type="email" placeholder={t('documentSends.toPlaceholder')} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`documentSendSettings.${document}.cc`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>{t('documentSends.cc')}</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} type="text" placeholder={t('documentSends.ccPlaceholder')} />
+                                                                </FormControl>
+                                                                <FormDescription>{t('documentSends.ccDescription')}</FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"

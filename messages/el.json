@@ -946,8 +946,7 @@
         "transcribe": "Απομαγνητοφωνημένη",
         "fixTranscript": "Αυτόματη Διόρθωση",
         "humanReview": "Αξιολογημένη από άνθρωπο",
-        "summarize": "Summarized",
-        "transcriptSent": "Απομαγνητοφώνηση απεστάλη"
+        "summarize": "Summarized"
     },
     "AdministrativeBodiesList": {
         "addNew": "Προσθήκη Νέου",
@@ -971,12 +970,6 @@
         "place": "Αίθουσα συνεδριάσεων",
         "placePlaceholder": "π.χ. Αίθουσα Δημοτικού Συμβουλίου, Δημαρχείο",
         "placeDescription": "Εκεί συνεδριάζει το όργανο κατά κανόνα. Η σελίδα κάθε δια ζώσης συνεδρίασης τη δείχνει, εκτός αν η συνεδρίαση έχει δικό της τόπο.",
-        "contactEmailPrimary": "Email Παραλήπτη (To)",
-        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-        "contactEmailPrimaryDescription": "Κύριο email παραλήπτη για αποστολή απομαγνητοφωνήσεων.",
-        "contactEmailsCC": "Κοινοποίηση (CC)",
-        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-        "contactEmailsCCDescription": "Επιπλέον emails κοινοποίησης (διαχωρισμένα με κόμμα).",
         "notificationBehavior": "Συμπεριφορά Ενημερώσεων",
         "notificationBehaviorDescription": "Επιλέξτε τη συμπεριφορά των ενημερώσεων για συνεδριάσεις αυτού του οργάνου.",
         "notificationBehaviorOptions": {
@@ -989,6 +982,25 @@
         "diavgeiaUnitIds": "IDs Μονάδων Διαύγειας",
         "diavgeiaUnitIdsPlaceholder": "π.χ. 81689, 84655:100010590",
         "diavgeiaUnitIdsDescription": "Πεδία αναζήτησης στη Διαύγεια, χωρισμένα με κόμμα (για αυτόματη ανάκτηση αποφάσεων). Κάθε πεδίο είναι ένα ID μονάδας και προαιρετικά, μετά από άνω και κάτω τελεία, ένα ID υπογράφοντα: 84655:100010590. Προσθέστε τον υπογράφοντα μόνο όταν πολλά όργανα μοιράζονται την ίδια μονάδα. Χρησιμοποιήστε ένα πεδίο ανά υπογράφοντα.",
+        "documentSends": {
+            "title": "Αποστολή Εγγράφων",
+            "description": "Ποια έγγραφα στέλνει το OpenCouncil με email στη γραμματεία του οργάνου, και σε ποιες διευθύνσεις. Η ενεργοποίηση αφορά μόνο τις συνεδριάσεις που γίνονται από εδώ και πέρα.",
+            "to": "Παραλήπτης (To)",
+            "toPlaceholder": "grammateia@municipality.gr",
+            "cc": "Κοινοποίηση (CC)",
+            "ccPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+            "ccDescription": "Επιπλέον διευθύνσεις, χωρισμένες με κόμμα.",
+            "documents": {
+                "transcript": {
+                    "name": "Απομαγνητοφώνηση",
+                    "description": "Στέλνεται όταν ολοκληρωθεί ο έλεγχος της απομαγνητοφώνησης."
+                },
+                "minutes": {
+                    "name": "Πρακτικά",
+                    "description": "Στέλνονται όταν βρεθούν οι αποφάσεις όλων των θεμάτων, ή το αργότερο {days} ημέρες μετά τη συνεδρίαση, με τα θέματα που δεν έχουν ακόμη απόφαση."
+                }
+            }
+        },
         "submitting": "Αποθήκευση...",
         "update": "Ενημέρωση",
         "create": "Δημιουργία",

@@ -2,10 +2,36 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody } from '@prisma/client';
+import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { publicAdministrativeBodySelect, type PublicAdministrativeBody } from "./types/administrativeBody";
+import { documentSendSettingSelect, replaceDocumentSendSettings } from "./documentSends";
+import type { DocumentSendSettingInput } from "@/lib/zod-schemas/administrativeBody";
+
+const administrativeBodyWithSendSettingsInclude = {
+    documentSendSettings: { select: documentSendSettingSelect },
+} satisfies Prisma.AdministrativeBodyInclude;
+
+/** A body with its "Αποστολή Εγγράφων" settings, as the body form edits it. */
+export type AdministrativeBodyWithSendSettings = Prisma.AdministrativeBodyGetPayload<{
+    include: typeof administrativeBodyWithSendSettingsInclude;
+}>;
+
+/**
+ * Every administrative body of a city with its document send settings. For an
+ * editor of the city only: the settings hold the addresses of the back office.
+ */
+export async function getAdministrativeBodiesWithSendSettings(cityId: string): Promise<AdministrativeBodyWithSendSettings[]> {
+    return prisma.administrativeBody.findMany({
+        where: { cityId },
+        include: administrativeBodyWithSendSettingsInclude,
+        orderBy: [
+            { type: 'asc' },
+            { name: 'asc' },
+        ],
+    });
+}
 
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
     try {
@@ -70,13 +96,19 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
     }
 }
 
-export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null }): Promise<AdministrativeBody> {
+export async function createAdministrativeBody(
+    bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null },
+    documentSendSettings?: DocumentSendSettingInput[],
+): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
-        const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place } = bodyData;
+        const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         const newBody = await prisma.administrativeBody.create({
-            data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
+            data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
         });
+        if (documentSendSettings) {
+            await replaceDocumentSendSettings(newBody.id, documentSendSettings);
+        }
         return newBody;
     } catch (error) {
         console.error('Error creating administrative body:', error);
@@ -86,7 +118,8 @@ export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody
 
 export async function editAdministrativeBody(
     id: string,
-    bodyData: Partial<Omit<AdministrativeBody, 'id' | 'cityId' | 'createdAt' | 'updatedAt' | 'decisionConventions'>>
+    bodyData: Partial<Omit<AdministrativeBody, 'id' | 'cityId' | 'createdAt' | 'updatedAt' | 'decisionConventions'>>,
+    documentSendSettings?: DocumentSendSettingInput[],
 ): Promise<AdministrativeBody> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
@@ -97,11 +130,14 @@ export async function editAdministrativeBody(
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
     try {
         // Only the fields an editor may change. A caller's cityId or conventions never reach the row.
-        const { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place } = bodyData;
+        const { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         const updatedBody = await prisma.administrativeBody.update({
             where: { id },
-            data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
+            data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
         });
+        if (documentSendSettings) {
+            await replaceDocumentSendSettings(id, documentSendSettings);
+        }
         return updatedBody;
     } catch (error) {
         console.error('Error editing administrative body:', error);
@@ -110,13 +146,15 @@ export async function editAdministrativeBody(
 }
 
 /**
- * The two settings a body admin may change (#828): where the body's
- * recordings live and who receives its transcripts. The name, the type, the
- * notification behaviour and the Diavgeia scopes stay with the city admin.
+ * The settings a body admin may change (#828): where the body's recordings
+ * live, and which documents its back office receives (#874). The name, the
+ * type, the notification behaviour and the Diavgeia scopes stay with the
+ * city admin.
  */
 export async function editAdministrativeBodyContacts(
     id: string,
-    { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
+    { youtubeChannelUrl }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl'>>,
+    documentSendSettings?: DocumentSendSettingInput[],
 ): Promise<AdministrativeBody> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
@@ -125,10 +163,14 @@ export async function editAdministrativeBodyContacts(
     if (!existingBody) throw new Error('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
-    return prisma.administrativeBody.update({
+    const updatedBody = await prisma.administrativeBody.update({
         where: { id },
-        data: { youtubeChannelUrl, contactEmails },
+        data: { youtubeChannelUrl },
     });
+    if (documentSendSettings) {
+        await replaceDocumentSendSettings(id, documentSendSettings);
+    }
+    return updatedBody;
 }
 
 export async function deleteAdministrativeBody(id: string): Promise<void> {

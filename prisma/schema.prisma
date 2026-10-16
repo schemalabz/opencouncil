@@ -159,7 +159,6 @@ model AdministrativeBody {
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
   showUnreviewedTranscript Boolean @default(true)
   youtubeChannelUrl String?
-  contactEmails String[] @default([]) // Emails for receiving transcripts
   diavgeiaUnitIds String[] @default([]) // Diavgeia scopes to poll, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"]). The signer separates bodies that share one unit.
   /// What this body's decision documents state and how: roll-call layout, what the present
   /// list means, what attendance changes are pinned to, whether per-vote absence is printed.
@@ -176,8 +175,81 @@ model AdministrativeBody {
 
   roles Role[]
   administrators Administers[]
+  documentSendSettings DocumentSendSetting[]
 
   @@index([cityId])
+}
+
+/// A document the platform produces for the back office of a body. The
+/// registry in src/lib/documents/registry.ts has one entry per value, so a new
+/// value fails to compile until it has a renderer, an email and a readiness rule.
+enum DocumentKind {
+  transcript
+  minutes
+}
+
+/// Whether the body's back office receives one document by email, and where.
+/// The "Αποστολή Εγγράφων" section of the body form edits one row per document.
+model DocumentSendSetting {
+  id        String   @id @default(cuid())
+  administrativeBody   AdministrativeBody @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
+  administrativeBodyId String
+  document  DocumentKind
+  enabled   Boolean  @default(false)
+  /// When the document was last switched on. Only a meeting held at or after
+  /// this moment is sent: switching a document on never emails the archive.
+  /// Null on the rows the migration made from the old contactEmails column,
+  /// which covered every meeting.
+  enabledAt DateTime?
+  /// The first address is To, the rest are CC.
+  recipientEmails String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([administrativeBodyId, document])
+}
+
+enum DocumentSendStatus {
+  pending
+  sent
+  failed
+}
+
+/// What asked for the send: the review completion, the last decision arriving
+/// (complete), the day the threshold passed (threshold), or a person (manual).
+enum DocumentSendTrigger {
+  review
+  complete
+  threshold
+  manual
+}
+
+/// One send of one document for one meeting: where it went, when, why, and
+/// whether it was complete. The sender claims a pending row before it renders
+/// anything. A partial unique index in the migration allows one automatic row
+/// per meeting and document that is not failed, so two senders cannot both
+/// send; a manual send has automatic = false and may repeat.
+model DocumentSend {
+  id        String   @id @default(cuid())
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  councilMeetingId String
+  cityId           String
+  document  DocumentKind
+  status    DocumentSendStatus @default(pending)
+  trigger   DocumentSendTrigger
+  automatic Boolean
+  recipientEmails String[]
+  /// False when the minutes went out with subjects that had no decision yet.
+  complete  Boolean  @default(true)
+  /// The subjects without a decision at the time of an incomplete send.
+  missingSubjectIds String[] @default([])
+  sentAt    DateTime?
+  failureReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cityId, councilMeetingId])
+  @@index([status, createdAt])
 }
 
 model Party {
@@ -295,6 +367,7 @@ model CouncilMeeting {
   administrativeBodyId String?
 
   taskStatuses TaskStatus[]
+  documentSends DocumentSend[]
   speakerSegments SpeakerSegment[]
   highlights Highlight[]
   subjects Subject[]

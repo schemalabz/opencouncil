@@ -56,6 +56,14 @@
       "label": "Send transcript to municipality",
       "help": "To: {toEmail}",
       "cc": "CC: {ccEmails}"
+    },
+    "automatic": {
+      "minutes": {
+        "now": "The minutes go to {toEmail} now: every subject has its decision.",
+        "nowIncomplete": "The provisional minutes go to {toEmail} now: {count, plural, one {one subject has} other {# subjects have}} no decision yet.",
+        "later": "The minutes go to {toEmail} when every subject has its decision, at the latest on {dueDate}.",
+        "noAgenda": "The minutes go to {toEmail} once the subjects of the meeting are recorded."
+      }
     }
   },
   "stats": {
@@ -91,4 +99,3 @@
     }
   }
 }
-

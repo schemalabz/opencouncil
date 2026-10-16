@@ -24,7 +24,6 @@ function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): Administrat
         notificationBehavior: 'NOTIFICATIONS_APPROVAL',
         showUnreviewedTranscript: true,
         youtubeChannelUrl: null,
-        contactEmails: [],
         diavgeiaUnitIds: [],
         decisionConventions: null,
         place: null,

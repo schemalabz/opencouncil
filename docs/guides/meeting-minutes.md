@@ -178,6 +178,16 @@ The mayor: never a member of a council or a community; a member of a committee o
 
 The quality tooling (the meeting checker with its claims fixture, the measure over every meeting with readings, and the per-meeting traces) comes in a follow-up pull request.
 
+## Sending the minutes to the back office
+
+The platform emails the minutes to the secretariat of the body (#874). A city admin switches the minutes on for each administrative body in the "Αποστολή Εγγράφων" section of the body form, and names the To and CC addresses. The transcript lives in the same section. Switching a document on covers only the meetings held from that moment on.
+
+The rule (`src/lib/documents/readiness.ts`) has two moments. When every eligible subject has its decision, the complete minutes go out at once: the end of the decision poll that found the last decision sends them. When 10 calendar days have passed since the meeting (`MINUTES_THRESHOLD_DAYS`, counted in the city's timezone, so a meeting on 1 Oct is due on 11 Oct) and a subject still has no decision, the provisional minutes go out. Their email says so in the subject, lists the subjects without a decision, and explains the three steps on the decisions page: find the decision, link it, export the minutes. Both forms need a complete human review and a meeting that took place. A λογοδοσία or an απολογισμός takes no decisions, so its minutes are complete at review time, whatever its agenda holds. A later part of a continued meeting sends nothing of its own. An operator may send the minutes by hand at any time, with what the meeting holds, except for an unreviewed meeting or a meeting with no agenda subjects.
+
+`getMinutesData` renders the record it is given: its own subjects and its own transcript. It does not merge the parts of a continued meeting, so the minutes of the first part cover the first part only.
+
+Nothing goes out twice on its own. A send by hand counts too: after it, neither the cron nor the hooks send the minutes of that meeting. After a provisional send, the back office completes the minutes on the decisions page and exports them there, or an operator sends the complete minutes by hand from the admin meetings list. The list shows one chip per document: sent, sent incomplete with the count of the missing subjects, waiting, failed, or not sent. The daily `send-documents` cron is the authority on these sends; see [task-architecture.md](../task-architecture.md#document-sends).
+
 ## Key design decisions
 
 ### Per-subject attendance is derived, not stated

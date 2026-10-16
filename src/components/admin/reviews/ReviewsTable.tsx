@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/sheet';
 import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
 import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
-import { SendTranscriptButton } from './SendTranscriptButton';
+import { SendDocumentButton } from '@/components/admin/documents/SendDocumentButton';
 
 interface ReviewsTableProps {
   reviews: ReviewListItem[];
@@ -385,10 +385,11 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               onSuccess={handleCloseDetail}
             />
 
-            <SendTranscriptButton
+            <SendDocumentButton
               cityId={selectedReviewDetail.cityId}
               meetingId={selectedReviewDetail.meetingId}
-              isTranscriptSent={selectedReviewDetail.transcriptSent}
+              document="transcript"
+              isSent={selectedReviewDetail.transcriptSent}
               onSuccess={handleCloseDetail}
             />
 

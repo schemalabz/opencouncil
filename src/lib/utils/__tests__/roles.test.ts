@@ -584,7 +584,6 @@ function makeAdminBody(name: string) {
     notificationBehavior: 'NOTIFICATIONS_DISABLED' as const,
     showUnreviewedTranscript: false,
     youtubeChannelUrl: null,
-    contactEmails: [],
     diavgeiaUnitIds: [],
     decisionConventions: null,
     place: null,

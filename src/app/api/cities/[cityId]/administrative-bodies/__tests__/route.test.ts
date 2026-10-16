@@ -10,18 +10,19 @@ jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
 }));
 jest.mock('@/lib/db/administrativeBodies', () => ({
-    getAdministrativeBodiesForCity: jest.fn(),
+    getAdministrativeBodiesWithSendSettings: jest.fn(),
     getPublicAdministrativeBodiesForCity: jest.fn(),
     createAdministrativeBody: jest.fn(),
 }));
 
-import { GET } from '../route';
+import { GET, POST } from '../route';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
-import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies';
+import { createAdministrativeBody, getAdministrativeBodiesWithSendSettings, getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies';
 
 const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
-const mockGetFull = getAdministrativeBodiesForCity as jest.MockedFunction<typeof getAdministrativeBodiesForCity>;
+const mockGetFull = getAdministrativeBodiesWithSendSettings as jest.MockedFunction<typeof getAdministrativeBodiesWithSendSettings>;
 const mockGetPublic = getPublicAdministrativeBodiesForCity as jest.MockedFunction<typeof getPublicAdministrativeBodiesForCity>;
+const mockCreate = createAdministrativeBody as jest.MockedFunction<typeof createAdministrativeBody>;
 
 const PUBLIC_BODY = { id: 'b1', name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const, cityId: 'zografou', place: null };
 const FULL_BODY = {
@@ -29,12 +30,23 @@ const FULL_BODY = {
     notificationBehavior: 'NOTIFICATIONS_APPROVAL' as const,
     showUnreviewedTranscript: true,
     youtubeChannelUrl: null,
-    contactEmails: ['secretary@example.org'],
     diavgeiaUnitIds: ['81689'],
     decisionConventions: null,
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
+    documentSendSettings: [
+        { document: 'transcript' as const, enabled: true, enabledAt: null, recipientEmails: ['secretary@example.org'] },
+    ],
 };
+
+function post(cityId: string, body: unknown) {
+    const request = new Request(`http://localhost/api/cities/${cityId}/administrative-bodies`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+    }) as unknown as NextRequest;
+    return POST(request, { params: Promise.resolve({ cityId }) });
+}
 
 async function get(cityId: string) {
     const request = new Request(`http://localhost/api/cities/${cityId}/administrative-bodies`) as unknown as NextRequest;
@@ -64,6 +76,43 @@ describe('GET /api/cities/[cityId]/administrative-bodies', () => {
         const body = await (await get('zografou')).json();
 
         expect(mockGetPublic).not.toHaveBeenCalled();
-        expect(body[0].contactEmails).toEqual(['secretary@example.org']);
+        expect(body[0].documentSendSettings[0].recipientEmails).toEqual(['secretary@example.org']);
+    });
+});
+
+describe('POST /api/cities/[cityId]/administrative-bodies', () => {
+    const newBody = { name: 'Δημοτική Επιτροπή', name_en: 'Municipal Committee', type: 'committee' };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCreate.mockResolvedValue({ ...FULL_BODY, id: 'b2' });
+    });
+
+    it('writes the document send settings with the body', async () => {
+        const settings = [
+            { document: 'transcript', enabled: true, recipientEmails: ['to@example.org', 'cc@example.org'] },
+            { document: 'minutes', enabled: false, recipientEmails: [] },
+        ];
+
+        const response = await post('zografou', { ...newBody, documentSendSettings: settings });
+
+        expect(response.status).toBe(201);
+        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ cityId: 'zografou', type: 'committee' }), settings);
+    });
+
+    it('leaves the settings alone when the request carries none', async () => {
+        await post('zografou', newBody);
+
+        expect(mockCreate).toHaveBeenCalledWith(expect.anything(), undefined);
+    });
+
+    it('rejects a document that is switched on with no recipient', async () => {
+        const response = await post('zografou', {
+            ...newBody,
+            documentSendSettings: [{ document: 'minutes', enabled: true, recipientEmails: [] }],
+        });
+
+        expect(response.status).toBe(400);
+        expect(mockCreate).not.toHaveBeenCalled();
     });
 });

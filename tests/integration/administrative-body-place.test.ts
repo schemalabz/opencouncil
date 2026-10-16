@@ -27,7 +27,6 @@ describe('administrative body place', () => {
             notificationBehavior: 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: false,
             youtubeChannelUrl: null,
-            contactEmails: [],
             diavgeiaUnitIds: [],
             place: 'Αίθουσα Δημοτικού Συμβουλίου',
         })

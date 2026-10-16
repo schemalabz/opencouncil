@@ -55,7 +55,7 @@ The seeding process follows a specific order to respect entity dependencies:
    - Cities (includes `diavgeiaUid` and all config fields)
 
 2. **City-Related Entities** (depend on cities)
-   - Administrative bodies (includes `diavgeiaUnitIds`, `contactEmails`, etc.)
+   - Administrative bodies (includes `diavgeiaUnitIds` etc.; a legacy `contactEmails` list becomes the body's transcript send setting)
    - Parties
 
 3. **Person-Related Entities** (depend on cities and parties)
