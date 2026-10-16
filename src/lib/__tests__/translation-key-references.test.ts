@@ -273,6 +273,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'AddMeetingForm.formatOptions.', members: { prismaEnum: 'MeetingFormat' } },
     { group: 'AddMeetingForm.scheduleStatusOptions.', members: { prismaEnum: 'MeetingScheduleStatus' } },
     { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'AdministrativeBodiesList.documentSends.documents.', members: { prismaEnum: 'DocumentKind' } },
     { group: 'meetingStage.label.', members: { file: 'src/lib/meetingPresentation.ts', constArray: 'PRESENTATION_KEYS' } },
     { group: 'meetingStage.strip.', why: 'computed only for postponed and cancelled (MeetingStageStrip); the other strip keys are literal' },
     { group: 'meetingStage.facts.format.', why: 'only remote and hybrid: the formats that the facts row names (meeting page)' },

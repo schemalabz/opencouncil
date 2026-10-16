@@ -987,6 +987,25 @@
         "diavgeiaUnitIds": "Diavgeia Unit IDs",
         "diavgeiaUnitIdsPlaceholder": "e.g. 81689, 84655:100010590",
         "diavgeiaUnitIdsDescription": "Comma-separated Diavgeia scopes (for automatic decision retrieval). Each is a unit ID, optionally followed by a colon and a signer ID: 84655:100010590. Add the signer only when several bodies share one unit, and use one entry per signer.",
+        "documentSends": {
+            "title": "Document Sending",
+            "description": "Which documents OpenCouncil emails to the secretariat of the body, and to which addresses. Switching a document on covers only the meetings held from now on.",
+            "to": "Recipient (To)",
+            "toPlaceholder": "grammateia@municipality.gr",
+            "cc": "Carbon Copy (CC)",
+            "ccPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+            "ccDescription": "Additional addresses, comma-separated.",
+            "documents": {
+                "transcript": {
+                    "name": "Transcript",
+                    "description": "Sent when the review of the transcript completes."
+                },
+                "minutes": {
+                    "name": "Minutes",
+                    "description": "Sent when every subject has its decision, or at the latest {days} days after the meeting, with the subjects that have no decision yet."
+                }
+            }
+        },
         "submitting": "Submitting...",
         "update": "Update",
         "create": "Create",

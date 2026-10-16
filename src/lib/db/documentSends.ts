@@ -4,6 +4,7 @@
 import "server-only";
 import { DocumentKind, Prisma } from '@prisma/client';
 import prisma from './prisma';
+import type { DocumentSendRule } from '@/lib/documents/settings';
 
 export const documentSendSettingSelect = {
     document: true,
@@ -31,6 +32,34 @@ export async function getDocumentSendSetting(
     return prisma.documentSendSetting.findUnique({
         where: { administrativeBodyId_document: { administrativeBodyId, document } },
         select: documentSendSettingSelect,
+    });
+}
+
+/**
+ * Write the settings of a body, one row per document in the input. A document
+ * that is switched on now gets enabledAt = now, so the switch never emails the
+ * archive; a document that stays on keeps its enabledAt, and a document that
+ * is switched off keeps it too, for the record.
+ */
+export async function replaceDocumentSendSettings(
+    administrativeBodyId: string,
+    settings: Array<Pick<DocumentSendRule, 'enabled' | 'recipientEmails'> & { document: DocumentKind }>,
+): Promise<void> {
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+        const existing = await tx.documentSendSetting.findMany({
+            where: { administrativeBodyId },
+            select: { document: true, enabled: true },
+        });
+        const wasEnabled = new Map(existing.map(row => [row.document, row.enabled]));
+        for (const { document, enabled, recipientEmails } of settings) {
+            const switchedOn = enabled && !wasEnabled.get(document);
+            await tx.documentSendSetting.upsert({
+                where: { administrativeBodyId_document: { administrativeBodyId, document } },
+                create: { administrativeBodyId, document, enabled, recipientEmails, enabledAt: enabled ? now : null },
+                update: { enabled, recipientEmails, ...(switchedOn ? { enabledAt: now } : {}) },
+            });
+        }
     });
 }
 
