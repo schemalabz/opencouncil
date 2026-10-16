@@ -60,6 +60,11 @@ jest.mock('../../db/reviews', () => ({
   getMeetingReviewStats: jest.fn().mockResolvedValue({ hasReviewers: false }),
 }));
 
+const mockGetDocumentSendSetting = jest.fn();
+jest.mock('../../db/documentSends', () => ({
+  getDocumentSendSetting: (...args: unknown[]) => mockGetDocumentSendSetting(...args),
+}));
+
 jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
 }));
@@ -261,11 +266,12 @@ describe('getReviewCompletionState', () => {
     dateTime: new Date(Date.now() - daysAgo * DAY),
     scheduleStatus: 'scheduled',
     administrativeBody: {
-      contactEmails: ['clerk@example.gov'],
+      id: 'body-1',
       name: 'City Council',
       notificationBehavior: 'NOTIFICATIONS_AUTO',
     },
   });
+  const transcriptSetting = { document: 'transcript', enabled: true, enabledAt: null, recipientEmails: ['clerk@example.gov'] };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -273,6 +279,7 @@ describe('getReviewCompletionState', () => {
     mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
     allowBoth();
     mockMeetingFindUnique.mockResolvedValue(meetingWithBody(true));
+    mockGetDocumentSendSetting.mockResolvedValue(transcriptSetting);
   });
 
   it('refuses a caller without edit rights before it reads the meeting', async () => {
@@ -284,7 +291,7 @@ describe('getReviewCompletionState', () => {
 
   it('reports the recipients and what a summarize now does with notifications', async () => {
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
-      contactEmails: ['clerk@example.gov'],
+      transcriptRecipients: ['clerk@example.gov'],
       administrativeBodyName: 'City Council',
       summarizeAvailability: 'available',
       summarizeNotifications: { kind: 'sends' },
@@ -314,11 +321,27 @@ describe('getReviewCompletionState', () => {
     expect(state.summarizeAvailability).toBe(availability);
   });
 
+  // The setting decides whether the transcript goes out; the dialog hides the
+  // checkbox for a meeting the setting does not cover
+  it.each([
+    ['is switched off', { ...transcriptSetting, enabled: false }],
+    ['was switched on after the meeting', { ...transcriptSetting, enabledAt: new Date() }],
+    ['does not exist', null],
+  ])('reports no recipients when the transcript setting %s', async (_case, setting) => {
+    mockGetDocumentSendSetting.mockResolvedValue(setting);
+
+    const state = await getReviewCompletionState(CITY_ID, MEETING_ID);
+
+    expect(mockGetDocumentSendSetting).toHaveBeenCalledWith('body-1', 'transcript');
+    expect(state.transcriptRecipients).toEqual([]);
+  });
+
   it('reports a meeting without an administrative body as having no recipients', async () => {
     mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', administrativeBody: null });
+    mockGetDocumentSendSetting.mockResolvedValue(null);
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
-      contactEmails: [],
+      transcriptRecipients: [],
       administrativeBodyName: null,
       summarizeAvailability: 'available',
       summarizeNotifications: { kind: 'none', reason: 'noBody' },

@@ -35,7 +35,7 @@ export interface ReviewCompletionControls {
  * Load the state for the review completion dialog and hold the reviewer's choices.
  *
  * Each option defaults to on when it can do something: the transcript email needs
- * contact emails, and summarize needs a meeting that no summarize task covers yet.
+ * a send setting that covers the meeting, and summarize needs a meeting that no summarize task covers yet.
  *
  * @param isOpen - Load the state while the dialog is open, and reload it on each open.
  */
@@ -69,7 +69,7 @@ export function useReviewCompletion(cityId: string, meetingId: string, isOpen: b
             .then((result) => {
                 if (cancelled) return;
                 setState(result);
-                setSendTranscript(result.contactEmails.length > 0);
+                setSendTranscript(result.transcriptRecipients.length > 0);
                 setRunSummarize(result.summarizeAvailability === 'available');
             })
             .catch((err) => {
@@ -81,7 +81,7 @@ export function useReviewCompletion(cityId: string, meetingId: string, isOpen: b
                 // Guarded like the writes above. Without it a cancelled request clears
                 // the flag while its replacement is still in flight, and that frame
                 // renders as "loaded with no state" — an empty dialog, or a
-                // municipality with contacts reported as having none.
+                // municipality with recipients reported as having none.
                 // The effect early-returns while the dialog is closed, so it never
                 // reads a flag that a cancelled request left set.
                 if (cancelled) return;

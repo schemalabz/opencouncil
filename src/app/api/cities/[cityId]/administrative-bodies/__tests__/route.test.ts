@@ -28,7 +28,6 @@ const FULL_BODY = {
     ...PUBLIC_BODY,
     notificationBehavior: 'NOTIFICATIONS_APPROVAL' as const,
     showUnreviewedTranscript: true,
-    contactEmails: ['secretary@example.org'],
     diavgeiaUnitIds: ['81689'],
     decisionConventions: null,
     createdAt: new Date('2026-01-01'),
@@ -63,6 +62,6 @@ describe('GET /api/cities/[cityId]/administrative-bodies', () => {
         const body = await (await get('zografou')).json();
 
         expect(mockGetPublic).not.toHaveBeenCalled();
-        expect(body[0].contactEmails).toEqual(['secretary@example.org']);
+        expect(body[0].diavgeiaUnitIds).toEqual(['81689']);
     });
 });

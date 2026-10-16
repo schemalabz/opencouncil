@@ -9,10 +9,12 @@ const mockFindMany = jest.fn();
 const mockMeetingFindUnique = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 const mockGetCurrentUser = jest.fn();
+const mockSettingFindMany = jest.fn();
+const mockSettingUpsert = jest.fn();
+const mockTransaction = jest.fn();
 
-jest.mock('@/lib/db/prisma', () => ({
-    __esModule: true,
-    default: {
+jest.mock('@/lib/db/prisma', () => {
+    const client = {
         administrativeBody: {
             findUniqueOrThrow: (...a: unknown[]) => mockFindUniqueOrThrow(...a),
             findUnique: (...a: unknown[]) => mockFindUniqueOrThrow(...a),
@@ -23,8 +25,15 @@ jest.mock('@/lib/db/prisma', () => ({
         councilMeeting: {
             findUnique: (...a: unknown[]) => mockMeetingFindUnique(...a),
         },
-    },
-}));
+        documentSendSetting: {
+            findMany: (...a: unknown[]) => mockSettingFindMany(...a),
+            upsert: (...a: unknown[]) => mockSettingUpsert(...a),
+        },
+        // The interactive form: the callback gets the client as its transaction
+        $transaction: (run: (tx: unknown) => Promise<unknown>) => { mockTransaction(); return run(client); },
+    };
+    return { __esModule: true, default: client };
+});
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: (...a: unknown[]) => mockWithUserAuthorizedToEdit(...a),
     getCurrentUser: () => mockGetCurrentUser(),
@@ -222,9 +231,9 @@ describe('getAdministrativeBodiesForCity', () => {
 
     it('gives an editor the full rows', async () => {
         mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
-        mockFindMany.mockResolvedValue([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
+        mockFindMany.mockResolvedValue([{ id: 'b1', diavgeiaUnitIds: ['81689'] }]);
 
-        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'], decisionConventions: null }]);
+        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', diavgeiaUnitIds: ['81689'], decisionConventions: null }]);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
     });
 
@@ -248,13 +257,82 @@ describe('editAdministrativeBodyContacts', () => {
 
     it('answers stored conventions with the current anchor names', async () => {
         const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
-        mockUpdate.mockResolvedValue({ id: 'b1', contactEmails: ['clerk@example.org'], decisionConventions: legacy });
+        mockUpdate.mockResolvedValue({ id: 'b1', youtubeChannelUrl: 'https://www.youtube.com/@council', decisionConventions: legacy });
 
-        const body = await editAdministrativeBodyContacts('b1', { contactEmails: ['clerk@example.org'] });
+        const body = await editAdministrativeBodyContacts('b1', { youtubeChannelUrl: 'https://www.youtube.com/@council' });
 
         expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
-        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: undefined, contactEmails: ['clerk@example.org'] });
+        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: 'https://www.youtube.com/@council' });
+    });
+});
+
+/**
+ * The body form saves the body and its "Αποστολή Εγγράφων" settings as one
+ * write. A document switched on now gets enabledAt = now, so the switch never
+ * emails the archive.
+ */
+describe('the body writers save the document send settings with the body', () => {
+    const settings = [
+        { kind: 'transcript' as const, enabled: true, recipientEmails: ['t@example.org'] },
+        { kind: 'minutes' as const, enabled: true, recipientEmails: ['m@example.org', 'cc@example.org'] },
+    ];
+    const switchedOnAt = new Date('2026-01-01T00:00:00Z');
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindUniqueOrThrow.mockResolvedValue({ cityId: 'zografou' });
+        mockUpdate.mockImplementation(async ({ data }: { data: unknown }) => ({ id: 'body-1', ...(data as object) }));
+        mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+        mockSettingFindMany.mockResolvedValue([]);
+        mockSettingUpsert.mockResolvedValue({});
+    });
+
+    it('edit writes the body and its settings in one transaction, after the body', async () => {
+        await editAdministrativeBody('body-1', { name: 'Δημοτικό Συμβούλιο' }, settings);
+        expect(mockTransaction).toHaveBeenCalledTimes(1);
+        expect(mockSettingUpsert).toHaveBeenCalledTimes(2);
+        expect(mockSettingUpsert.mock.invocationCallOrder[0]).toBeGreaterThan(mockUpdate.mock.invocationCallOrder[0]);
+        expect(mockSettingUpsert.mock.calls[1][0]).toMatchObject({
+            where: { administrativeBodyId_kind: { administrativeBodyId: 'body-1', kind: 'minutes' } },
+            create: { administrativeBodyId: 'body-1', kind: 'minutes', enabled: true, recipientEmails: ['m@example.org', 'cc@example.org'], enabledAt: expect.any(Date) },
+        });
+    });
+
+    it('create writes the settings of the new body in the same transaction', async () => {
+        mockUpdate.mockResolvedValue({ id: 'new-body', decisionConventions: null });
+        await createAdministrativeBody({ name: 'Επιτροπή', cityId: 'zografou' } as Parameters<typeof createAdministrativeBody>[0], settings);
+        expect(mockTransaction).toHaveBeenCalledTimes(1);
+        expect(mockSettingUpsert.mock.calls.map(([args]) => args.where.administrativeBodyId_kind.administrativeBodyId)).toEqual(['new-body', 'new-body']);
+    });
+
+    it('leaves the settings alone when the request carries none', async () => {
+        await editAdministrativeBody('body-1', { name: 'Δημοτικό Συμβούλιο' });
+        expect(mockSettingFindMany).not.toHaveBeenCalled();
+        expect(mockSettingUpsert).not.toHaveBeenCalled();
+    });
+
+    it('stamps enabledAt only on a document switched on now, and keeps it on one that stays on or goes off', async () => {
+        mockSettingFindMany.mockResolvedValue([{ kind: 'transcript', enabled: true }, { kind: 'minutes', enabled: false }]);
+        await editAdministrativeBody('body-1', { name: 'x' }, [
+            { kind: 'transcript', enabled: true, recipientEmails: ['t@example.org'] },
+            { kind: 'minutes', enabled: true, recipientEmails: ['m@example.org'] },
+        ]);
+        const updates = mockSettingUpsert.mock.calls.map(([args]) => args.update);
+        expect(updates[0]).toEqual({ enabled: true, recipientEmails: ['t@example.org'] });
+        expect(updates[1]).toEqual({ enabled: true, recipientEmails: ['m@example.org'], enabledAt: expect.any(Date) });
+        expect(updates[1].enabledAt.getTime()).toBeGreaterThan(switchedOnAt.getTime());
+
+        jest.clearAllMocks();
+        mockSettingFindMany.mockResolvedValue([{ kind: 'minutes', enabled: true }]);
+        await editAdministrativeBody('body-1', { name: 'x' }, [{ kind: 'minutes', enabled: false, recipientEmails: [] }]);
+        expect(mockSettingUpsert.mock.calls[0][0].update).toEqual({ enabled: false, recipientEmails: [] });
+    });
+
+    it('fails the edit when the settings cannot be written', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockSettingUpsert.mockRejectedValue(new Error('constraint'));
+        await expect(editAdministrativeBody('body-1', { name: 'x' }, settings)).rejects.toThrow('Failed to edit administrative body');
     });
 });
 

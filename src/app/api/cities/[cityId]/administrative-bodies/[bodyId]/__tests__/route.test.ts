@@ -80,13 +80,13 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId]', () => {
         const response = await put({ name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' });
         expect(response.status).toBe(200);
         const [, data] = (editAdministrativeBody as jest.Mock).mock.calls[0];
-        expect(data).toMatchObject({ youtubeChannelUrl: undefined, contactEmails: undefined, diavgeiaUnitIds: undefined });
+        expect(data).toMatchObject({ youtubeChannelUrl: undefined, diavgeiaUnitIds: undefined });
     });
 
     it('clears the channel and the Diavgeia units that an update sends empty', async () => {
-        const response = await put({ name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council', youtubeChannelUrl: '', diavgeiaUnitIds: '', contactEmails: [] });
+        const response = await put({ name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council', youtubeChannelUrl: '', diavgeiaUnitIds: '' });
         expect(response.status).toBe(200);
-        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ youtubeChannelUrl: null, diavgeiaUnitIds: [], contactEmails: [] }));
+        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ youtubeChannelUrl: null, diavgeiaUnitIds: [] }));
     });
 
     it('updates the body for a request without confirmConventions', async () => {
@@ -107,18 +107,18 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of
     });
     afterAll(() => (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(true));
 
-    it('writes the two contact fields and ignores the rest', async () => {
-        const response = await put({ name: 'Renamed', type: 'committee', contactEmails: ['clerk@example.org'], youtubeChannelUrl: '' });
+    it('writes the YouTube channel and ignores the rest', async () => {
+        const response = await put({ name: 'Renamed', type: 'committee', youtubeChannelUrl: '' });
 
         expect(response.status).toBe(200);
         expect(guard).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
-        expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null, contactEmails: ['clerk@example.org'] });
+        expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null });
         expect(editAdministrativeBody).not.toHaveBeenCalled();
     });
 
     it.each([
-        [{ contactEmails: ['not-an-email'] }, ['contactEmails', 0]],
         [{ youtubeChannelUrl: 'javascript:alert(1)' }, ['youtubeChannelUrl']],
+        [{ youtubeChannelUrl: 'https://example.org/channel' }, ['youtubeChannelUrl']],
     ])('answers %j with a 400 ValidationError and writes nothing', async (body, path) => {
         const response = await put(body);
 
@@ -135,7 +135,7 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of
     ])('answers a refused guard (%p) with %p before it validates the body', async (error, status) => {
         guard.mockRejectedValue(error);
 
-        const response = await put({ contactEmails: ['not-an-email'] });
+        const response = await put({ youtubeChannelUrl: 'javascript:alert(1)' });
 
         expect(response.status).toBe(status);
         expect(await response.json()).toEqual({ error: error.message });

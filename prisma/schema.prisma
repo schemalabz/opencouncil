@@ -235,7 +235,6 @@ model AdministrativeBody {
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
   showUnreviewedTranscript Boolean @default(true)
   youtubeChannelUrl String?
-  contactEmails String[] @default([]) // Emails for receiving transcripts
   diavgeiaUnitIds String[] @default([]) // Diavgeia scopes to poll, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"]). The signer separates bodies that share one unit.
   /// What this body's decision documents state and how: roll-call layout, what the present
   /// list means, what attendance changes are pinned to, whether per-vote absence is printed.
@@ -252,8 +251,98 @@ model AdministrativeBody {
 
   roles Role[]
   administrators Administers[]
+  documentSendSettings DocumentSendSetting[]
 
   @@index([cityId])
+}
+
+/// A document the platform produces for the back office of a body. The
+/// registry in src/lib/documents/registry.ts has one entry per value, so a new
+/// value fails to compile until it has a renderer, an email and a readiness rule.
+enum DocumentKind {
+  transcript
+  minutes
+}
+
+/// Whether the body's back office receives one document by email, and where.
+/// The "Αποστολή Εγγράφων" section of the body form edits one row per document.
+model DocumentSendSetting {
+  id        String   @id @default(cuid())
+  administrativeBody   AdministrativeBody @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
+  administrativeBodyId String
+  kind      DocumentKind
+  enabled   Boolean  @default(false)
+  /// When the document was last switched on. Only a meeting held at or after
+  /// this moment goes out on its own: switching a document on never emails
+  /// the archive.
+  enabledAt DateTime @default(now())
+  /// The first address is To, the rest are CC.
+  recipientEmails String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([administrativeBodyId, kind])
+}
+
+/// pending: claimed, and the email has not gone out. sending: the email is
+/// being handed to the provider; a row that stays here may have gone out, so
+/// nothing sends it again on its own. sent and failed: settled.
+enum DocumentSendStatus {
+  pending
+  sending
+  sent
+  failed
+}
+
+/// What asked for the send: the review completion, the last decision arriving
+/// (complete), the day the threshold passed (threshold), or a person (manual).
+enum DocumentSendTrigger {
+  review
+  complete
+  threshold
+  manual
+}
+
+/// One send of one document for one meeting: where it went, when, why, and
+/// which subjects it went out without. The sender claims a pending row before
+/// it renders anything. A partial unique index in the migration allows one
+/// row per meeting and document that is not failed and not manual, so two
+/// automatic senders cannot both send; a manual send may repeat.
+model DocumentSend {
+  id        String   @id @default(cuid())
+  councilMeeting   CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+  councilMeetingId String
+  cityId           String
+  kind      DocumentKind
+  status    DocumentSendStatus @default(pending)
+  trigger   DocumentSendTrigger
+  recipientEmails String[]
+  /// The subjects the email named as having no decision yet. None: the
+  /// document went out complete.
+  missingSubjects DocumentSendMissingSubject[]
+  sentAt    DateTime?
+  failureReason String?
+  /// The person who sent it by hand; null for an automatic send.
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cityId, councilMeetingId])
+  @@index([status, createdAt])
+}
+
+/// A subject that a provisional send named as having no decision yet.
+model DocumentSendMissingSubject {
+  id        String   @id @default(cuid())
+  documentSend   DocumentSend @relation(fields: [documentSendId], references: [id], onDelete: Cascade)
+  documentSendId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+  createdAt DateTime @default(now())
+
+  @@unique([documentSendId, subjectId])
+  @@index([subjectId])
 }
 
 model Party {
@@ -371,6 +460,7 @@ model CouncilMeeting {
   administrativeBodyId String?
 
   taskStatuses TaskStatus[]
+  documentSends DocumentSend[]
   speakerSegments SpeakerSegment[]
   highlights Highlight[]
   subjects Subject[]
@@ -766,6 +856,7 @@ model Subject {
   proximityImportance String? // 'none' | 'near' | 'wide'
 
   notifications NotificationSubject[]
+  documentSendsMissing DocumentSendMissingSubject[]
 
   // Utterances tagged with this subject during discussion
   discussionUtterances Utterance[]
@@ -1233,6 +1324,7 @@ model User {
   meetingAttendance MeetingAttendance[]
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
+  documentSends DocumentSend[]
 
 }
  

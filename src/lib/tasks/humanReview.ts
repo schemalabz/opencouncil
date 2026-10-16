@@ -12,6 +12,8 @@ import { requestSummarize } from './summarize';
 import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
 import { meetingLabelInCity, type MeetingNameFields } from '@/lib/meetingName';
 import { notificationOutcome, type NotificationOutcome } from '@/lib/notifications/freshness';
+import { getDocumentSendSetting } from '@/lib/db/documentSends';
+import { recipientsFor } from '@/lib/documents/settings';
 
 /**
  * Whether the summarize task can start for a meeting.
@@ -34,8 +36,8 @@ const SUMMARIZE_AVAILABILITY: Record<
 };
 
 export interface ReviewCompletionState {
-    /** Contact emails of the administrative body. Empty when the body configures none. */
-    contactEmails: string[];
+    /** The recipients of the transcript, from the body's send setting. Empty when the setting does not cover the meeting. */
+    transcriptRecipients: string[];
     administrativeBodyName: string | null;
     summarizeAvailability: SummarizeAvailability;
     /** What a summarize that succeeds now does with email notifications: the rule the task callback acts on. */
@@ -82,7 +84,7 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
                 scheduleStatus: true,
                 administrativeBody: {
                     select: {
-                        contactEmails: true,
+                        id: true,
                         name: true,
                         notificationBehavior: true,
                     }
@@ -98,10 +100,11 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
         throw new Error(`Council meeting ${cityId}/${meetingId} not found`);
     }
 
+    const transcriptSetting = await getDocumentSendSetting(meeting.administrativeBody?.id ?? null, 'transcript');
     const blockedReason = summarizeIdempotency.blockedReason;
 
     return {
-        contactEmails: meeting.administrativeBody?.contactEmails || [],
+        transcriptRecipients: recipientsFor(transcriptSetting, meeting.dateTime),
         administrativeBodyName: meeting.administrativeBody?.name || null,
         summarizeAvailability: blockedReason ? SUMMARIZE_AVAILABILITY[blockedReason] : 'available',
         summarizeNotifications: notificationOutcome({
@@ -268,7 +271,7 @@ async function sendReviewedTranscript(
     const result = await sendTranscriptToMunicipality(cityId, meetingId);
 
     if (result.skipped) {
-        console.log(`[humanReview] Transcript sending skipped (no contact emails) for ${cityId}/${meetingId}`);
+        console.log(`[humanReview] Transcript sending skipped (no recipients) for ${cityId}/${meetingId}`);
         return 'skipped';
     }
 

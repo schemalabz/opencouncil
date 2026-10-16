@@ -15,7 +15,6 @@ describe('administrativeBodySchema', () => {
         const absent = administrativeBodySchema.parse(validBody);
         expect(absent.youtubeChannelUrl).toBeUndefined();
         expect(absent.diavgeiaUnitIds).toBeUndefined();
-        expect(absent.contactEmails).toBeUndefined();
     });
 
     it.each([
@@ -35,10 +34,6 @@ describe('administrativeBodySchema', () => {
         expect(administrativeBodySchema.safeParse({ ...validBody, youtubeChannelUrl: url }).success).toBe(false);
     });
 
-    it('rejects an invalid contact email', () => {
-        expect(administrativeBodySchema.safeParse({ ...validBody, contactEmails: ['not-an-email'] }).success).toBe(false);
-    });
-
     it('trims the place and clears it when empty', () => {
         expect(administrativeBodySchema.parse({ ...validBody, place: '  Αίθουσα Δημοτικού Συμβουλίου ' }).place).toBe('Αίθουσα Δημοτικού Συμβουλίου');
         expect(administrativeBodySchema.parse({ ...validBody, place: '' }).place).toBeNull();
@@ -49,12 +44,8 @@ describe('administrativeBodySchema', () => {
 describe('administrativeBodyFormSchema', () => {
     const validForm = { ...validBody, notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, decisionConventions: null };
 
-    it('rejects a CC list with an invalid address', () => {
-        expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: 'a@example.com, nope' }).success).toBe(false);
-    });
-
-    it('accepts an empty CC list', () => {
-        expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: '' }).success).toBe(true);
+    it('accepts a form without the optional fields', () => {
+        expect(administrativeBodyFormSchema.safeParse(validForm).success).toBe(true);
     });
 });
 

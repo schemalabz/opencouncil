@@ -163,7 +163,6 @@ describe('documented responses match the real handlers', () => {
                 coordinates: [[[23.7, 37.9], [23.8, 37.9], [23.8, 38.0], [23.7, 37.9]]],
             })}) WHERE id = ${cityId}`
         const body = await createAdministrativeBody(cityId, {
-            contactEmails: ['clerk@example.com'],
             diavgeiaUnitIds: ['81689'],
             youtubeChannelUrl: 'https://www.youtube.com/@council',
         })
