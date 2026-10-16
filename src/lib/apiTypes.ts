@@ -220,6 +220,12 @@ export interface Subject {
     name: string;
     description: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
     /**
+     * What the body decided, in one or two plain sentences with no reference links,
+     * for the Πίνακας αποφάσεων. Null when the transcript shows no outcome. When the
+     * field is absent (an older task), the stored value stays as it is.
+     */
+    outcome?: string | null;
+    /**
      * The item as written on the official agenda (#616). processAgenda sets it for
      * every subject. summarize never sets it. When the field is absent, the stored value stays as it is.
      */
@@ -550,6 +556,8 @@ export interface ExtractedDecisionData {
     subjectId: string;
     excerpt: string;
     references: string;
+    /** One or two plain sentences of what the document decides, for the Πίνακας αποφάσεων. Absent on readings stored before the field. */
+    summary?: string | null;
     /** The decision's own number (Αρ. Απόφασης / Πράξη), extracted from the document. */
     decisionNumber?: string | null;
     subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
