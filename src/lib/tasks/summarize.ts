@@ -14,6 +14,7 @@ import { taskScope } from "./types";
 import { after } from "next/server";
 import * as z from "zod";
 import { generateImagesForMeeting } from "../subjectImages";
+import { sendReadyDocuments } from "../documents/automatic";
 
 // A Server Action has no runtime types. Both fields land in the summarize
 // prompt, so they are bounded here.
@@ -166,4 +167,8 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // callback must not wait on Gemini, and minutes of Gemini calls must
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
+
+    // The minutes of a reviewed meeting waited for these subjects: the review
+    // completion holds them while a summarize runs (#874).
+    after(() => sendReadyDocuments(councilMeeting.cityId, councilMeeting.id));
 }

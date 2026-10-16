@@ -15,7 +15,8 @@ import type { DocumentMeeting } from '@/lib/db/types';
 import { sendEmail } from '@/lib/email/resend';
 import { sendDocumentSentAdminAlert, sendDocumentSendFailedAdminAlert } from '@/lib/discord';
 import { meetingLabelInCity } from '@/lib/meetingName';
-import { recipientsFor } from './settings';
+import { DOCUMENT_RULES } from './readiness';
+import { recipientsFor, settingAppliesTo } from './settings';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -110,6 +111,12 @@ export async function sendDocument(
         const recipientEmails = recipientsFor(setting);
         if (recipientEmails.length === 0) {
             console.log(`${tag} The document is switched off for the body, skipping: ${cityId}/${meetingId}`);
+            return { success: true, skipped: true };
+        }
+        // The cron evaluated the setting that it read for a whole page. A
+        // switch-on that moved since then must not let an older meeting through.
+        if (automatic && DOCUMENT_RULES[document].automation === 'whenReady' && !settingAppliesTo(setting, meeting.dateTime)) {
+            console.log(`${tag} The meeting is older than the switch-on of the document, skipping: ${cityId}/${meetingId}`);
             return { success: true, skipped: true };
         }
 

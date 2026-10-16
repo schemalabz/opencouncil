@@ -81,6 +81,11 @@ jest.mock('../tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
+const mockSendReadyDocuments = jest.fn().mockResolvedValue([]);
+jest.mock('../../documents/automatic', () => ({
+  sendReadyDocuments: (...args: unknown[]) => mockSendReadyDocuments(...args),
+}));
+
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
@@ -133,16 +138,20 @@ describe('handleSummarizeResult — replaces stale data on success', () => {
     jest.clearAllMocks();
   });
 
-  it('schedules the subject illustrations with after(), once the subjects are saved', async () => {
+  it('schedules the subject illustrations and the document sends with after(), once the subjects are saved', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     // Scheduled, not started: the work must outlive the response, not escape it.
     expect(mockGenerateImagesForMeeting).not.toHaveBeenCalled();
-    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockSendReadyDocuments).not.toHaveBeenCalled();
+    expect(mockAfter).toHaveBeenCalledTimes(2);
     expect(mockAfter.mock.invocationCallOrder[0]).toBeGreaterThan(mockSaveSubjectsForMeeting.mock.invocationCallOrder[0]);
 
     await mockAfter.mock.calls[0][0]();
     expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    // The minutes waited for the subjects this run saved (#874)
+    await mockAfter.mock.calls[1][0]();
+    expect(mockSendReadyDocuments).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
   });
 
   it('deletes the topic labels of the meeting', async () => {

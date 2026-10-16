@@ -60,6 +60,20 @@ describe('sendDocument', () => {
         expect(build).not.toHaveBeenCalled();
     });
 
+    // The cron read the setting for a whole page; the switch-on moved since then
+    it('skips an automatic minutes send for a meeting older than the switch-on it reads now, and lets the others through', async () => {
+        const switchedOnLater = { enabled: true, enabledAt: new Date('2026-04-01T00:00:00Z'), recipientEmails: ['to@x.org'] };
+        mockGetSetting.mockResolvedValue(switchedOnLater);
+
+        expect(await sendDocument('c1', 'm1', 'minutes', async () => payload, opts)).toEqual({ success: true, skipped: true });
+        expect(mockClaim).not.toHaveBeenCalled();
+
+        // By hand, and the transcript at review completion, ignore the switch-on date
+        expect(await sendDocument('c1', 'm1', 'minutes', async () => payload, { trigger: 'manual', automatic: false })).toMatchObject({ success: true, recipientEmails: ['to@x.org'] });
+        expect(await sendDocument('c1', 'm1', 'transcript', async () => payload, { trigger: 'review', automatic: true })).toMatchObject({ success: true, recipientEmails: ['to@x.org'] });
+        expect(mockClaim).toHaveBeenCalledTimes(2);
+    });
+
     it('skips without rendering or emailing when the slot is taken', async () => {
         mockClaim.mockResolvedValue('taken');
         const build = jest.fn();
