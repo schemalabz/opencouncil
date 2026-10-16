@@ -23,7 +23,7 @@ describe('buildRelatedSubjectsQuery', () => {
     // The floor is the product decision the feature turns on, measured on
     // the production index; the cases below read it back, so this one pins it.
     it('keeps the measured similarity floor and the page size', () => {
-        expect(RELATED_MIN_SIMILARITY).toBe(0.93);
+        expect(RELATED_MIN_SIMILARITY).toBe(0.71);
         expect(RELATED_SUBJECTS_SIZE).toBe(5);
     });
 

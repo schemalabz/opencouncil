@@ -7,6 +7,7 @@ import { OptionalSectionBoundary } from "@/components/ui/OptionalSectionBoundary
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
+import { isCrawlerRequest } from "@/lib/crawler.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
@@ -120,6 +121,12 @@ export default async function SubjectPage(
         notFound();
     }
 
+    // Crawlers walk thousands of distinct subject pages, and every page
+    // that misses the related cache costs two index queries. They get the
+    // subject without the related sections: nothing there is content the
+    // page needs indexed.
+    const isBot = await isCrawlerRequest();
+
     const structuredData = buildSubjectStructuredData({
         canonicalUrl: `${baseUrl}/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`,
         siteUrl: baseUrl,
@@ -163,7 +170,7 @@ export default async function SubjectPage(
             <Subject
                 subjectId={params.subjectId}
                 highlightedContributionId={shared?.id}
-                related={
+                related={isBot ? undefined : (
                     // Its own boundaries: two index queries and a hydration
                     // must neither hold back the page they decorate (the
                     // Suspense) nor take it down when one of them throws
@@ -182,8 +189,8 @@ export default async function SubjectPage(
                             />
                         </Suspense>
                     </OptionalSectionBoundary>
-                }
-                relatedStrip={
+                )}
+                relatedStrip={isBot ? undefined : (
                     // Reads the section's lookup — one request, one set of
                     // index queries — so it only waits, never adds; its own
                     // boundaries keep the header from waiting with it.
@@ -192,7 +199,7 @@ export default async function SubjectPage(
                             <RelatedRecurrenceStrip seed={seed} meetingDate={meetingDate} />
                         </Suspense>
                     </OptionalSectionBoundary>
-                }
+                )}
             />
         </>
     );

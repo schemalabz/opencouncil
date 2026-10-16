@@ -6,7 +6,8 @@ import { TRANSCRIPT_PUBLIC_WHERE } from '@/lib/db/sharing/publicContent';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
-import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
+import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
+import { resolveIndexProfile, type IndexProfile } from './profile';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
@@ -317,7 +318,8 @@ export async function searchSubjectsInRealm(
         };
 
         // Build and execute the search query with retry logic
-        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters, processedFilters.locations);
+        const profile = await resolveIndexProfile(client);
+        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters, processedFilters.locations, profile);
         
         logEssential('Executing search query', { 
             hasSemanticSearch: request.config?.enableSemanticSearch 
@@ -591,12 +593,13 @@ function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): str
 
 /**
  * The parts of the answer that no tag can invalidate: the floor and the page
- * size are constants, and the index is swapped under an alias without a
- * deploy. Putting them in the key retires the entries written under the old
- * values, where a version string would have to be bumped by hand.
+ * size, and the index itself, which is rebuilt under an alias without a
+ * deploy. The key carries the concrete index behind the alias and the floor
+ * resolved for it (see resolveIndexProfile), so a rebuild retires every entry
+ * written against the old index, where the alias name would have kept them.
  */
-function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm): string[] {
-    return ['subject', seed.id, 'related', scope, realm, String(RELATED_MIN_SIMILARITY), String(RELATED_SUBJECTS_SIZE), env.ELASTICSEARCH_INDEX];
+function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm, profile: IndexProfile): string[] {
+    return ['subject', seed.id, 'related', scope, realm, String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
 }
 
 /**
@@ -633,15 +636,16 @@ export async function searchRelatedSubjectsInRealm(
         // visibility re-check and the hydration below run on every request,
         // so a neighbour that is unpublished after the entry was written
         // still drops out on the next visit.
+        const profile = await resolveIndexProfile(client);
         const esHits = await createCache(
             async () => {
                 const response = await executeElasticsearchWithRetry(
-                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds)),
+                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds, profile.relatedMinSimilarity)),
                     'Related subjects'
                 );
                 return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));
             },
-            relatedCacheKey(seed, scope, realm),
+            relatedCacheKey(seed, scope, realm, profile),
             { tags: relatedCacheTags(seed, scopeCityIds), revalidate: RELATED_CACHE_TTL_SECONDS },
         )();
         const { hits } = await resolveVisibleHits(esHits, 'Related subjects', seed.name);
