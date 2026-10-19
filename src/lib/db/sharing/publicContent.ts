@@ -1,7 +1,7 @@
 import 'server-only';
 import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
-import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
+import { publicMeetingWhere } from '@/lib/cityStatus';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {
@@ -63,13 +63,13 @@ export const TRANSCRIPT_PUBLIC_WHERE = {
 
 export async function getPublicMeeting(cityId: string, meetingId: string, realm: Realm) {
     return prisma.councilMeeting.findFirst({
-        where: { cityId, id: meetingId, released: true, city: { ...PUBLIC_CITY_WHERE, realm } }, select: publicMeetingSelect,
+        where: { cityId, id: meetingId, ...publicMeetingWhere(realm) }, select: publicMeetingSelect,
     });
 }
 
 export async function getPublicSubject(cityId: string, meetingId: string, subjectId: string, realm: Realm) {
     return prisma.subject.findFirst({
-        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm } } },
+        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: publicMeetingWhere(realm) },
         select: publicSubjectSelect,
     });
 }

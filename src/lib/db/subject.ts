@@ -26,7 +26,7 @@ import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
-import { PUBLIC_CITY_WHERE, isPublic } from '../cityStatus';
+import { isPublic, publicMeetingWhere } from '../cityStatus';
 import { meetingLabelInCity } from '@/lib/meetingName';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
@@ -193,9 +193,8 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                 where: {
                     contributions: { some: {} },
                     councilMeeting: {
-                        released: true,
+                        ...publicMeetingWhere(realm),
                         dateTime: { lte: new Date() },
-                        city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
                     },
                 },
                 _count: { _all: true },
@@ -393,9 +392,8 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
         ...(f.topicIds?.length ? { topicId: { in: f.topicIds } } : {}),
         ...(f.cityIds?.length ? { cityId: { in: f.cityIds } } : {}),
         councilMeeting: {
-            released: true,
+            ...publicMeetingWhere(realm),
             dateTime,
-            city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
             ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
         },
     };
@@ -788,8 +786,8 @@ const subjectVisibilitySelect = {
 type SubjectVisibility = Prisma.CouncilMeetingGetPayload<{ select: typeof subjectVisibilitySelect }>;
 
 /** Whether the public may see a subject: its meeting released and its city public. The image
- *  route reads it; getPublicSubjectDescription applies the same rule as a where clause, scoped to
- *  the realm. */
+ *  route reads it; the queries apply the same rule as a where clause, scoped to the realm (see
+ *  publicMeetingWhere). */
 function isPublicSubject(meeting: SubjectVisibility): boolean {
     return meeting.released && isPublic(meeting.city.status);
 }
@@ -810,15 +808,15 @@ export async function subjectIsPublic(subjectId: string): Promise<{ cityId: stri
 const publicSubjectDescriptionSelect = { description: true } satisfies Prisma.SubjectSelect;
 
 /**
- * A public subject's description, in markdown, for the route that serves the landing card its
- * full summary. The rule is the one the map's own queries apply, as a where clause: a released
- * meeting of a public city on `realm`. `null` for anything else — a missing id, an unreleased
+ * A public subject's description, in markdown, for the route that serves the landing card the
+ * full description. The rule is the one the map's own queries apply (see publicMeetingWhere): a
+ * released meeting of a public city on `realm`. `null` for anything else — a missing id, an unreleased
  * meeting, a city that is not public, or a city of another realm, which an id must not read
  * across (city pages are tenant-isolated).
  */
 export async function getPublicSubjectDescription(subjectId: string, realm: Realm): Promise<string | null> {
     const row = await prisma.subject.findFirst({
-        where: { id: subjectId, councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm } } },
+        where: { id: subjectId, councilMeeting: publicMeetingWhere(realm) },
         select: publicSubjectDescriptionSelect,
     });
     return row?.description ?? null;

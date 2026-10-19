@@ -15,7 +15,7 @@ import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
-import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
+import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
@@ -149,12 +149,10 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: {
-                // public visibility guard: never expose unreleased (draft) meetings
-                released: true,
+                ...publicMeetingWhere(realm),
                 dateTime: { gt: new Date() },
                 // A postponed or cancelled meeting is not coming up.
                 ...TAKES_PLACE_WHERE,
-                city: { ...PUBLIC_CITY_WHERE, realm },
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
