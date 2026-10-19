@@ -1,5 +1,5 @@
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece'), getMetadataBaseFromRequest: jest.fn().mockResolvedValue('https://pr-123.opencouncil.dev'), getRealmBaseUrlFromRequest: jest.fn().mockResolvedValue('https://opencouncil.gr') }));
-jest.mock('next-intl/server', () => ({ getTranslations: jest.fn().mockResolvedValue((key: string, values?: { count: number }) => values ? `${key}:${values.count}` : key) }));
+jest.mock('next-intl/server', () => ({ getLocale: jest.fn().mockResolvedValue('el'), getTranslations: jest.fn().mockResolvedValue((key: string, values?: { count: number }) => values ? `${key}:${values.count}` : key) }));
 jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
 jest.mock('@/components/sharing/SharePageShell', () => ({ ShareUnavailable: jest.fn() }));

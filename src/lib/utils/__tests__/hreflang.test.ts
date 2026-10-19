@@ -3,6 +3,9 @@ import { siteOpenGraph } from '@/lib/og/siteOpenGraph';
 
 let currentHost: string;
 
+let currentLocale = 'el';
+jest.mock('next-intl/server', () => ({ getLocale: async () => currentLocale }));
+
 jest.mock('next/headers', () => ({
     headers: async () => new Headers({ host: currentHost }),
     // getRealm() also consults the realm-override cookie; no override here.
@@ -79,6 +82,23 @@ describe('withCanonicalUrl', () => {
         const metadata = await withCanonicalUrl('/x', {}, { contribution: 'c1', t: undefined });
         expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/x?contribution=c1');
         expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/x');
+    });
+
+    it('keeps the locale prefix in og:url but not in the canonical', async () => {
+        currentHost = 'opencouncil.gr';
+        currentLocale = 'en';
+        const metadata = await withCanonicalUrl('/zografou/notifications', {}, { t: '5' });
+        currentLocale = 'el';
+        expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/en/zografou/notifications?t=5');
+        expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/zografou/notifications');
+    });
+
+    it('states no locale prefix for the default locale of a realm', async () => {
+        currentHost = 'opencouncil.fr';
+        currentLocale = 'fr';
+        const metadata = await withCanonicalUrl('/rouen', {});
+        currentLocale = 'el';
+        expect(metadata.openGraph?.url).toBe('https://opencouncil.fr/rouen');
     });
 
     it('gives a layout the canonical without an og:url', async () => {

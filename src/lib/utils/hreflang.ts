@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
+import { getLocale } from 'next-intl/server';
+import { urlPrefixForLocale } from '@/i18n/config';
 import { siteOpenGraph } from '@/lib/og/siteOpenGraph';
-import { getRealmBaseUrl } from '@/lib/realm';
+import { REALMS, getRealmBaseUrl } from '@/lib/realm';
 import { getRealm } from '@/lib/realm.server';
 
 /**
@@ -24,7 +26,8 @@ import { getRealm } from '@/lib/realm.server';
  * Facebook also follows `og:url` and shows the card of the page it names. A
  * query parameter that changes what a reader gets, such as a shared
  * contribution or a video timestamp, therefore stays in `og:url`, although
- * the canonical drops it.
+ * the canonical drops it. The locale prefix stays in `og:url` too: an `/en`
+ * share keeps its English card, although the canonical names the Greek page.
  *
  * @param path locale-agnostic path beginning with `/`, or `''` for the homepage
  * @param shareState query parameters that `og:url` keeps; undefined ones are left out
@@ -34,14 +37,18 @@ export async function withCanonicalUrl(
     metadata: Metadata,
     shareState: Record<string, string | undefined> = {},
 ): Promise<Metadata> {
-    const canonical = await realmUrl(path);
+    const [realm, locale] = await Promise.all([getRealm(), getLocale()]);
+    const base = getRealmBaseUrl(realm);
+    const canonical = `${base}${path}`;
+    // On its realm's domain the default locale has no prefix: /fr pages are served at opencouncil.fr/.
+    const sharedPage = locale === REALMS[realm].defaultLocale ? canonical : `${base}/${urlPrefixForLocale(locale)}${path}`;
     const query = new URLSearchParams(
         Object.entries(shareState).filter((entry): entry is [string, string] => entry[1] !== undefined),
     ).toString();
     return {
         ...metadata,
         alternates: { ...metadata.alternates, canonical },
-        openGraph: { url: query ? `${canonical}?${query}` : canonical, ...(metadata.openGraph ?? siteOpenGraph) },
+        openGraph: { url: query ? `${sharedPage}?${query}` : sharedPage, ...(metadata.openGraph ?? siteOpenGraph) },
     };
 }
 
