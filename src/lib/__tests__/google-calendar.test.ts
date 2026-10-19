@@ -6,13 +6,11 @@ const mockInsert = jest.fn();
 const mockPatch = jest.fn();
 const mockDelete = jest.fn();
 
-jest.mock('googleapis', () => ({
-    google: {
-        auth: {
-            OAuth2: jest.fn().mockImplementation(() => ({ setCredentials: jest.fn() })),
-        },
-        calendar: jest.fn(() => ({ events: { insert: mockInsert, patch: mockPatch, delete: mockDelete } })),
+jest.mock('@googleapis/calendar', () => ({
+    auth: {
+        OAuth2: jest.fn().mockImplementation(() => ({ setCredentials: jest.fn() })),
     },
+    calendar: jest.fn(() => ({ events: { insert: mockInsert, patch: mockPatch, delete: mockDelete } })),
 }));
 
 jest.mock('@/env.mjs', () => ({

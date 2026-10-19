@@ -11,11 +11,11 @@ import { resetDatabase } from '../helpers/test-db'
 import { createCity, createMeeting, createUser } from '../helpers/factories'
 
 /**
- * Integration coverage for syncMeetingToCalendar over the real googleapis
- * stack: the OAuth2 refresh-token exchange, the Calendar v3 events calls,
+ * Integration coverage for syncMeetingToCalendar over the real Google API client
+ * stack (@googleapis/calendar): the OAuth2 refresh-token exchange, the Calendar v3 events calls,
  * the response parsing, the error shape and the per-request timeout.
  *
- * Nothing in googleapis is mocked. The test intercepts the transport: every
+ * Nothing in the client is mocked. The test intercepts the transport: every
  * HTTPS connection that the process opens goes to a local plain-HTTP server,
  * which plays both oauth2.googleapis.com and www.googleapis.com. This
  * replaces https.globalAgent, which gaxios (through node-fetch) uses when no
@@ -220,6 +220,31 @@ describe('syncMeetingToCalendar over the googleapis transport', () => {
             error: 'Created calendar event evt-orphan but failed to store its ID; the event was deleted again.',
         }))
     })
+
+    it('gives up on a hung cleanup delete after one request timeout', async () => {
+        await createMeeting('athens', { id: 'nov7_2026', dateTime: FUTURE() })
+        routes.push(async (req) => {
+            if (req.method !== 'POST' || req.path !== eventsPath) return undefined
+            await prisma.councilMeeting.delete({ where: { cityId_id: { cityId: 'athens', id: 'nov7_2026' } } })
+            return { status: 200, body: { id: 'evt-stuck' } }
+        })
+        routes.push((req) => req.method === 'DELETE' ? 'hang' : undefined)
+
+        const started = Date.now()
+        await syncMeetingToCalendar('athens', 'nov7_2026', { allowCreate: true })
+        const elapsed = Date.now() - started
+
+        // gaxios retries a timed-out DELETE by default, which would triple
+        // the bound. The cleanup must make one attempt only.
+        const methods = calendarRequests().map((r) => `${r.method} ${r.path}`)
+        expect(methods).toEqual([`POST ${eventsPath}`, `DELETE ${eventsPath}/evt-stuck`])
+        expect(elapsed).toBeGreaterThanOrEqual(9_000)
+        expect(elapsed).toBeLessThan(20_000)
+        expect(sendTaskAdminAlert).toHaveBeenCalledWith(expect.objectContaining({
+            taskId: 'evt-stuck',
+            error: 'Created calendar event evt-stuck but failed to store its ID; the event is still on the calendar and an admin must delete it.',
+        }))
+    }, 60_000)
 
     it('gives up on a hung request after the request timeout and reports it', async () => {
         await createMeeting('athens', { id: 'nov6_2026', dateTime: FUTURE(), calendarEventId: 'evt-slow' })
