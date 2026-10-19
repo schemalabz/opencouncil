@@ -2,12 +2,10 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
-import { getPartiesForCity } from '@/lib/db/parties'
-import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { validatePersonRoles } from '@/lib/db/personRoles'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personUpdateFormDataSchema, type PersonUpdateFormDataOutput } from '@/lib/zod-schemas/person'
 import { isUserAuthorizedToEdit, getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
-import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
 import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
 
 export async function GET(
@@ -40,22 +38,7 @@ export async function PUT(
     // Absent roles stay as they are: a person who claimed their own page
     // edits name and photo only, and their form sends no roles.
     if (roles !== undefined) try {
-        // Validate roles
-        console.log('Starting role validation...')
-        // Get valid parties and administrative bodies for this city
-        const [parties, adminBodies, roleLimit] = await Promise.all([
-            getPartiesForCity(params.cityId),
-            getPublicAdministrativeBodiesForCity(params.cityId),
-            getRoleLimitForCity(params.cityId),
-        ]);
-        console.log('Got parties and admin bodies')
-
-        const validPartyIds = new Set(parties.map(p => p.id));
-        const validAdminBodyIds = new Set(adminBodies.map(a => a.id));
-
-        // Validate roles using shared helper
-        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds)
-            ?? (roleLimit ? validateRolesForBodyAdmin(roles, roleLimit) : null);
+        const validationError = await validatePersonRoles(params.cityId, roles, await getRoleLimitForCity(params.cityId));
         if (validationError) {
             console.log('Validation failed:', validationError);
             return NextResponse.json(validationError, { status: 400 });

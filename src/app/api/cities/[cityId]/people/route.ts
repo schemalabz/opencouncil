@@ -4,10 +4,8 @@ import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
-import { getPartiesForCity } from '@/lib/db/parties'
-import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { validatePersonRoles } from '@/lib/db/personRoles'
 import { getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
-import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
 import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
@@ -33,20 +31,8 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     }
     const { name, name_en, name_short, name_short_en, image, profileUrl, roles } = data
 
-    // Validate roles
     try {
-        // Get valid parties and administrative bodies for this city
-        const [parties, adminBodies] = await Promise.all([
-            getPartiesForCity(params.cityId),
-            getPublicAdministrativeBodiesForCity(params.cityId)
-        ]);
-
-        const validPartyIds = new Set(parties.map(p => p.id));
-        const validAdminBodyIds = new Set(adminBodies.map(a => a.id));
-
-        // Validate roles using shared helper
-        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds)
-            ?? (roleLimit ? validateRolesForBodyAdmin(roles, roleLimit) : null);
+        const validationError = await validatePersonRoles(params.cityId, roles, roleLimit);
         if (validationError) {
             return NextResponse.json(validationError, { status: 400 });
         }
