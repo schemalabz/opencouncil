@@ -45,6 +45,15 @@ export async function withCanonicalUrl(
     };
 }
 
+/**
+ * The canonical alone, without `og:url`, for a layout that serves several
+ * URLs whose query it cannot read. Facebook then keys a share on the URL that
+ * was shared, query included.
+ */
+export async function buildCanonicalAlternates(path: string): Promise<Metadata['alternates']> {
+    return { canonical: await realmUrl(path) };
+}
+
 async function realmUrl(path: string) {
     return `${getRealmBaseUrl(await getRealm())}${path}`;
 }

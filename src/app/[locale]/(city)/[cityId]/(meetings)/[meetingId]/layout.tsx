@@ -25,7 +25,7 @@ import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
 import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
-import { withCanonicalUrl } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
@@ -94,9 +94,13 @@ export async function generateMetadata(
 
     const imageUrl = buildOgImageUrl(locale, { meetingId, cityId });
 
-    return withCanonicalUrl(`/${cityId}/${meetingId}`, {
+    // The meeting, its transcript, map and highlights take this metadata, with
+    // or without a ?t= timestamp. A layout cannot read the query, so it states
+    // no og:url, and Facebook keys a share on the URL that was shared.
+    return {
         title: optimizedTitle,
         description,
+        alternates: await buildCanonicalAlternates(`/${cityId}/${meetingId}`),
         openGraph: {
             title: optimizedTitle,
             description,
@@ -115,7 +119,7 @@ export async function generateMetadata(
             creator: '@opencouncil',
             site: '@opencouncil'
         }
-    });
+    };
 }
 
 export default async function CouncilMeetingPage(

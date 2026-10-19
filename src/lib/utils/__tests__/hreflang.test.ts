@@ -1,4 +1,4 @@
-import { withCanonicalUrl } from '../hreflang';
+import { buildCanonicalAlternates, withCanonicalUrl } from '../hreflang';
 import { siteOpenGraph } from '@/lib/og/siteOpenGraph';
 
 let currentHost: string;
@@ -81,4 +81,8 @@ describe('withCanonicalUrl', () => {
         expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/x');
     });
 
+    it('gives a layout the canonical without an og:url', async () => {
+        currentHost = 'opencouncil.gr';
+        expect(await buildCanonicalAlternates('/x')).toEqual({ canonical: 'https://opencouncil.gr/x' });
+    });
 });
