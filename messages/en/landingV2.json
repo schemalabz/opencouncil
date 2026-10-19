@@ -82,7 +82,8 @@
   },
   "subject": {
     "view": "View subject",
-    "discussionMinutes": "{min}′ discussion"
+    "discussionMinutes": "{min}′ discussion",
+    "loadingDescription": "Loading the full description…"
   },
   "municipality": {
     "subjects": "Subjects",

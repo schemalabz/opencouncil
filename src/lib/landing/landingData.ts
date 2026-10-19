@@ -4,7 +4,6 @@
  */
 
 import type { AdministrativeBodyType } from '@prisma/client';
-import { stripMarkdown } from '@/lib/formatters/markdown';
 import { normalizeText } from '@/lib/utils';
 import { haversineDistance } from '@/lib/geo';
 import type { RankingComponent } from '@/lib/ranking/subjects';
@@ -52,7 +51,10 @@ export type SubjectTopic = { name: string; color: string; icon: string | null };
 export type LandingSubject = {
     id: string;
     title: string;
-    summary: string;
+    /** the description as plain text, cut to a preview (see previewDescription) */
+    descriptionPreview: string;
+    /** the description runs past the preview — the selected card fetches the rest (see useFullDescription) */
+    descriptionTruncated: boolean;
     cityId: string;
     cityName: string;
     /** the municipality in "Δήμος X" form, shown on cards when the subject has no address */
@@ -224,8 +226,8 @@ export function toGeneralCities(
         subjects: row.subjects.map((s) => ({
             id: s.id,
             title: s.name,
-            // descriptions are markdown with [text](REF:UTTERANCE:id) links — flatten to plain text
-            summary: stripMarkdown(s.description),
+            descriptionPreview: s.descriptionPreview,
+            descriptionTruncated: s.descriptionTruncated,
             cityId: s.cityId,
             cityName: row.cityName,
             nameMunicipality: row.nameMunicipality,
@@ -274,8 +276,8 @@ export function toLandingSubjects(
             return {
                 id: s.id,
                 title: s.name,
-                // descriptions are markdown with [text](REF:UTTERANCE:id) links — flatten to plain text
-                summary: stripMarkdown(s.description),
+                descriptionPreview: s.descriptionPreview,
+                descriptionTruncated: s.descriptionTruncated,
                 cityId: s.cityId,
                 cityName: s.cityName,
                 nameMunicipality: s.nameMunicipality,

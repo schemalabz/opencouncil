@@ -11,6 +11,8 @@ import { formatDate } from '@/lib/formatters/time';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
 import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import { topicStyle } from '@/lib/topicStyle';
+import { useFullDescription } from './hooks/useFullDescription';
+import { PreviewText } from './PreviewText';
 
 /* "view the subject's page" affordance. A Link by default; renders a button when `onView` is
    given — for contexts without router context (e.g. a Mapbox popup). `source` = list vs preview. */
@@ -107,8 +109,10 @@ export function SubjectCard({
     const preview = variant === 'preview';
     const clickable = !!onClick;
     const locationLine = subjectLocationLine(subject);
+    // The selected card shows the description in full; the rows carry a preview of it only.
+    const { description, loading: descriptionLoading } = useFullDescription(subject, !!selected && !preview);
     // Cap + fade a long description (expanded card only; a selected subject shows it in full).
-    const clampDesc = !preview && !selected && !!subject.summary && subject.summary.length > 180;
+    const clampDesc = !preview && !selected && !!description && description.length > 180;
     return (
         <div
             role={clickable ? 'button' : undefined}
@@ -215,8 +219,9 @@ export function SubjectCard({
 
 
                 {/* description — expanded only */}
-                {!preview && subject.summary && (
+                {!preview && description && (
                     <p
+                        aria-busy={descriptionLoading || undefined}
                         className={cn('text-sm text-foreground/80', clampDesc && 'max-h-[6.5rem] overflow-hidden')}
                         style={
                             clampDesc
@@ -227,7 +232,7 @@ export function SubjectCard({
                                 : undefined
                         }
                     >
-                        {subject.summary}
+                        <PreviewText text={description} loading={descriptionLoading} />
                     </p>
                 )}
 

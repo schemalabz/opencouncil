@@ -82,7 +82,8 @@
     },
     "subject": {
         "view": "Погледај тему",
-        "discussionMinutes": "{min}′ расправе"
+        "discussionMinutes": "{min}′ расправе",
+        "loadingDescription": "Учитавање целог описа…"
     },
     "municipality": {
         "subjects": "Теме",
