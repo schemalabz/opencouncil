@@ -28,7 +28,13 @@ module.exports = {
     // request renders the conventions text through intl-messageformat, so every
     // suite that loads pollDecisions needs it. Transform just these packages;
     // everything else in node_modules stays untransformed.
-    transformIgnorePatterns: ['/node_modules/(?!(@auth/prisma-adapter|intl-messageformat|icu-minify|@formatjs|@schummar)/)'],
+    //
+    // gaxios (the googleapis HTTP client) loads node-fetch with a dynamic
+    // import(), which the CommonJS runner rejects without
+    // --experimental-vm-modules. Transforming gaxios turns that import() into a
+    // require(). node-fetch and its dependencies are ESM-only. gaxios can sit
+    // under googleapis or googleapis-common, so those prefixes are allowed too.
+    transformIgnorePatterns: ['/node_modules/(?!((googleapis|googleapis-common)/node_modules/)?(@auth/prisma-adapter|intl-messageformat|icu-minify|@formatjs|@schummar|gaxios|node-fetch|fetch-blob|formdata-polyfill|data-uri-to-buffer|node-domexception)/)'],
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', {
             tsconfig: 'tsconfig.json',
