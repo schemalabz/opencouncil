@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { s3Client, fileExists, constructPublicUrl } from '@/lib/s3'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
@@ -18,7 +17,7 @@ import { mintUploadAclToken } from '@/lib/uploadAclToken'
  *   - chania_democrats_logo.png
  */
 function generateBaseFilename(config: UploadConfig | undefined, extension: string): string {
-    return uploadBaseFilename(config, extension) ?? `${uuidv4()}.${extension}`
+    return uploadBaseFilename(config, extension) ?? `${crypto.randomUUID()}.${extension}`
 }
 
 /**
@@ -59,7 +58,7 @@ async function findAvailableFilename(baseFilename: string, prefix: string = 'upl
     }
     
     // If we've exhausted all numeric attempts, fall back to clean UUID-based name
-    const cleanUuidName = `${uuidv4()}${extension}`
+    const cleanUuidName = `${crypto.randomUUID()}${extension}`
     return cleanUuidName
 }
 

@@ -1,6 +1,5 @@
 import "server-only";
 import { Prisma, type City } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
@@ -160,7 +159,7 @@ export async function mcpCreateAgendaUploadUrl(identity: McpIdentity, args: Agen
     const contentType = AGENDA_CONTENT_TYPES[args.format];
     // A random suffix in place of the collision loop of the upload route: the
     // name stays readable in the bucket, and needs no lookup.
-    const key = `uploads/${args.cityId}_${args.identifier}_agenda_${uuidv4().slice(0, 8)}.${args.format}`;
+    const key = `uploads/${args.cityId}_${args.identifier}_agenda_${crypto.randomUUID().slice(0, 8)}.${args.format}`;
     const uploadUrl = await generatePresignedUrl(key, contentType, AGENDA_UPLOAD_URL_SECONDS);
 
     // Spaces ignores the ACL that the signature carries in the query string:
