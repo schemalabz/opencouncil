@@ -15,18 +15,18 @@
     "eval:prompt": "tsx scripts/eval-prompt.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
+    "@anthropic-ai/sdk": "^0.135.0",
     "@opencouncil/ui": "*",
     "@prisma/client": "^5.22.0",
     "@t3-oss/env-nextjs": "^0.13.11",
     "facehash": "^0.1.0",
-    "mapbox-gl": "^3.32.0",
-    "next": "^16.3.8",
+    "mapbox-gl": "^3.33.0",
+    "next": "^16.4.2",
     "prisma": "^5.22.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "recharts": "^3.10.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
