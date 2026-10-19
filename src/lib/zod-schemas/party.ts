@@ -1,37 +1,41 @@
-import { z } from 'zod';
+import * as z from 'zod';
+import { logoFile, stringBoolean } from './primitives';
+import { vmsg } from './messages';
 
 // Field rules of a party — validation only, no defaults. Shared by the party
 // form, the party routes, and the city import (zod-schemas/cityPopulation.ts).
 export const basePartyFields = {
     name: z.string().min(2, {
-        message: "Party name must be at least 2 characters.",
+        error: vmsg('partyNameMin2'),
     }),
     name_en: z.string().min(2, {
-        message: "Party name (English) must be at least 2 characters.",
+        error: vmsg('partyNameEnMin2'),
     }),
     name_short: z.string().min(2, {
-        message: "Short name must be at least 2 characters.",
+        error: vmsg('shortNameMin2'),
     }),
     name_short_en: z.string().min(2, {
-        message: "Short name (English) must be at least 2 characters.",
+        error: vmsg('shortNameEnMin2'),
     }),
     colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/, {
-        message: "Color must be a hex code such as #1A73E8.",
+        error: vmsg('colorHex'),
     }),
 };
 
 // Frontend form schema (React Hook Form)
 export const partyFormSchema = z.object({
     ...basePartyFields,
-    logo: z.instanceof(File).optional(),
+    logo: z.file().optional(),
 });
 
-export type PartyFormValues = z.infer<typeof partyFormSchema>;
+export type PartyFormOutput = z.output<typeof partyFormSchema>;
+export type PartyFormInput = z.input<typeof partyFormSchema>;
 
 // FormData body of POST /parties and PUT /parties/{partyId}
 export const partyFormDataSchema = z.object({
     ...basePartyFields,
-    logo: z.instanceof(File).optional(),
-    // PUT only: remove the current logo when no new one is sent
-    removeLogo: z.string().optional().transform(val => val === 'true'),
+    logo: logoFile().optional().meta({ description: 'Logo image file' }),
+    removeLogo: stringBoolean.default(false).meta({
+        description: 'PUT only: "true" removes the current logo when no new one is sent. Defaults to false.',
+    }),
 });

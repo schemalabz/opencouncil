@@ -175,12 +175,23 @@ describe('POST /api/subject/[subjectId]/image', () => {
         mockSubjectExists.mockResolvedValue(true);
     });
 
-    it('rejects a non-superadmin', async () => {
+    it('rejects a non-superadmin with 403', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: false } as never);
 
         const res = await POST(generateRequest(), context);
 
         expect(res.status).toBe(403);
+        expect(await res.json()).toEqual({ error: 'Not authorized' });
+        expect(mockGenerate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a request without a session with 401', async () => {
+        mockGetCurrentUser.mockResolvedValue(null);
+
+        const res = await POST(generateRequest(), context);
+
+        expect(res.status).toBe(401);
+        expect(await res.json()).toEqual({ error: 'Authentication required' });
         expect(mockGenerate).not.toHaveBeenCalled();
     });
 
@@ -225,14 +236,14 @@ describe('POST /api/subject/[subjectId]/image', () => {
         expect(res.status).toBe(503);
     });
 
-    it('turns a generation failure into a 500', async () => {
+    it('turns a generation failure into a 500 that does not carry its message', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
         mockGenerate.mockRejectedValue(new Error('Gemini said no'));
 
         const res = await POST(generateRequest(), context);
 
         expect(res.status).toBe(500);
-        expect(await res.json()).toEqual({ error: 'Gemini said no' });
+        expect(await res.json()).toEqual({ error: 'Image generation failed' });
     });
 
     it('stores an uploaded image', async () => {
@@ -258,14 +269,14 @@ describe('POST /api/subject/[subjectId]/image', () => {
         expect(await res.json()).toEqual({ error: 'Not a JPEG, PNG, WebP, GIF or AVIF image' });
     });
 
-    it('turns a store failure on upload into a 500 with the reason', async () => {
+    it('turns a store failure on upload into a 500 that does not carry its message', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
         mockStore.mockRejectedValueOnce(new Error('NoSuchBucket'));
 
         const res = await POST(uploadRequest(new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })), context);
 
         expect(res.status).toBe(500);
-        expect(await res.json()).toEqual({ error: 'NoSuchBucket' });
+        expect(await res.json()).toEqual({ error: 'Image upload failed' });
     });
 
     it('rejects an upload over the shared size cap before reading it', async () => {
@@ -275,6 +286,19 @@ describe('POST /api/subject/[subjectId]/image', () => {
         const res = await POST(uploadRequest(file), context);
 
         expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({ error: [{ path: ['file'], message: 'Image must be at most 5 MB' }] });
+        expect(mockStore).not.toHaveBeenCalled();
+    });
+
+    it('answers a ValidationError for a multipart body without a file', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
+        const form = new FormData();
+        form.append('note', 'no file');
+
+        const res = await POST(new NextRequest(url, { method: 'POST', body: form }), context);
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({ error: [{ path: ['file'] }] });
         expect(mockStore).not.toHaveBeenCalled();
     });
 

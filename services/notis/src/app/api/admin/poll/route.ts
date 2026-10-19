@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { runPollerTick } from "@/lib/poller";
 import { requireAdmin } from "@/lib/session-auth";
 

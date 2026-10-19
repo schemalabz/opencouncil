@@ -1,6 +1,6 @@
 import { readDerivationRows } from '@/lib/db/derivationFacts';
 import { outForOwnVote, pageStatementsOf } from './anchors';
-import { CONVENTION_FIELDS, isDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
+import { CONVENTION_FIELDS, parseDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
 import { discussionOrderKeys, orderedMinutesSubjects } from '@/lib/minutes/builders';
 import { isMayorRole, isRoleActiveAt, mayorIsMemberOf } from '@/lib/utils/roles';
 import type { VoteType } from '@prisma/client';
@@ -146,7 +146,7 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     const ordered = orderedMinutesSubjects(meeting.subjects, discussionOrderKeys(linkedUtterances)).filter(s => !s.withdrawn);
     const mayor = people.find(p => p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, meeting.dateTime)));
     const president = people.find(p => p.roles.some(r => r.isHead && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
-    const conventions = meeting.administrativeBody?.decisionConventions;
+    const conventions = parseDecisionConventions(meeting.administrativeBody?.decisionConventions);
     // The office has no flag of its own in the roster; it is the role's title on the body.
     const secretary = people.find(p => p.roles.some(r => r.name === 'Γραμματέας' && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const rosterPersonIds = new Set(people.map(p => p.id));
@@ -155,12 +155,12 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
         subjects: ordered.map(s => ({ id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decision?.decisionNumber ?? null })),
         rollCall, events, subjectIdsWithStoredVotes,
         documents: ordered.filter(s => s.decision).map(s => documentFactsFromDecision(s.decision!, rosterPersonIds)),
-        conventions: isDecisionConventions(conventions) ? conventions : null,
+        conventions,
         bodyType: meeting.administrativeBody?.type ?? null,
         cityMayorPersonId: mayor?.id ?? null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.
         mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBody ? { id: meeting.administrativeBodyId!, type: meeting.administrativeBody.type } : null, meeting.dateTime) ? mayor.id : null,
         presidentPersonId: president?.id ?? null,
-        secretaryPersonId: isDecisionConventions(conventions) && conventions.listOmitsSecretary ? secretary?.id ?? null : null,
+        secretaryPersonId: conventions?.listOmitsSecretary ? secretary?.id ?? null : null,
     };
 }

@@ -8,8 +8,14 @@ describe('administrativeBodySchema', () => {
         expect(parsed.diavgeiaUnitIds).toEqual(['81689', '84655:100010590']);
     });
 
-    it('treats an empty YouTube URL as no URL', () => {
-        expect(administrativeBodySchema.parse({ ...validBody, youtubeChannelUrl: '' }).youtubeChannelUrl).toBeUndefined();
+    it('reads an empty YouTube URL and empty Diavgeia units as a clear, and absent ones as absent', () => {
+        const cleared = administrativeBodySchema.parse({ ...validBody, youtubeChannelUrl: '', diavgeiaUnitIds: '' });
+        expect(cleared.youtubeChannelUrl).toBeNull();
+        expect(cleared.diavgeiaUnitIds).toEqual([]);
+        const absent = administrativeBodySchema.parse(validBody);
+        expect(absent.youtubeChannelUrl).toBeUndefined();
+        expect(absent.diavgeiaUnitIds).toBeUndefined();
+        expect(absent.contactEmails).toBeUndefined();
     });
 
     it.each([

@@ -4,9 +4,10 @@ import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { validateServiceApiKey } from "@/lib/db/apiKeys";
-import { ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
+import { UnauthorizedError, notAuthorizedError } from "@/lib/api/errors";
 import { type NextRequest } from "next/server";
 import { type UnreleasedScope, NO_UNRELEASED, ALL_UNRELEASED } from "@/lib/unreleased";
+import { publicAdministrativeBodyRelation } from "@/lib/db/types";
 
 // Request-scoped so the many call sites that each need the viewer — a page and
 // the queries it calls — resolve the session and the user row once per request.
@@ -22,7 +23,7 @@ const currentUser = cache(async () => {
                     city: true,
                     party: true,
                     person: true,
-                    administrativeBody: true,
+                    administrativeBody: publicAdministrativeBodyRelation,
                 }
             }
         }
@@ -191,9 +192,10 @@ export async function withUserAuthorizedToEdit(scope: AuthorizationScope) {
     const isAuthorized = await checkUserAuthorization(scope);
 
     if (!isAuthorized) {
-        // An ApiError, so a route that answers through handleApiError says 403
-        // and not 500. The message stays: callers match on it.
-        throw new ForbiddenError("Not authorized");
+        // An ApiError, so a route that answers through handleApiError says 401
+        // without a session and 403 without the right. getCurrentUser is
+        // cached per request, so this reads no row again.
+        throw notAuthorizedError(Boolean(await getCurrentUser()));
     }
 
     return true;
@@ -256,7 +258,8 @@ export async function validateBearerAuth(
  * or a user session. Service keys get full access (equivalent to superadmin).
  * User sessions are checked against the standard authorization hierarchy.
  *
- * Throws if neither auth method succeeds.
+ * Throws if neither auth method succeeds: 401 when nobody is signed in, 403
+ * when the signed-in user lacks the right.
  */
 export async function withServiceOrUserAuth(
     request: NextRequest,
@@ -269,13 +272,11 @@ export async function withServiceOrUserAuth(
 
     // Fall back to session auth — reuse the result to avoid a second DB round-trip
     const isAuthorized = await checkUserAuthorization(scope);
-    if (!isAuthorized) {
-        throw new UnauthorizedError("Not authorized");
+    // getCurrentUser is cached per request, so this reads no row again.
+    const user = await getCurrentUser();
+    if (!isAuthorized || !user) {
+        throw notAuthorizedError(Boolean(user));
     }
 
-    // checkUserAuthorization already verified the user exists and is authorized,
-    // so getCurrentUser() is guaranteed to return non-null here. However this is
-    // still a second DB call. TODO: refactor checkUserAuthorization to return the user.
-    const user = await getCurrentUser();
-    return { type: 'user', userId: user!.id };
+    return { type: 'user', userId: user.id };
 }

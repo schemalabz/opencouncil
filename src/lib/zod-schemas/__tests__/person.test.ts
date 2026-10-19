@@ -1,4 +1,6 @@
-import { personFormDataSchema } from '../person';
+import { personFormDataSchema, personFormSchema } from '../person';
+import { IMAGE_TOO_LARGE } from '../primitives';
+import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
 
 const validPerson = {
     name: 'Μαρία Παπαδοπούλου',
@@ -40,5 +42,14 @@ describe('personFormDataSchema', () => {
     it('reads removeImage as a boolean', () => {
         expect(personFormDataSchema.parse({ ...withRoles([]), removeImage: 'true' }).removeImage).toBe(true);
         expect(personFormDataSchema.parse(withRoles([])).removeImage).toBe(false);
+    });
+});
+
+describe('personFormSchema', () => {
+    it('refuses an image above the limit with the message of the catalog', () => {
+        const image = new File([new Uint8Array(MAX_IMAGE_BYTES + 1)], 'photo.png', { type: 'image/png' });
+        const result = personFormSchema.safeParse({ ...validPerson, image });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toEqual([expect.objectContaining({ path: ['image'], message: IMAGE_TOO_LARGE })]);
     });
 });

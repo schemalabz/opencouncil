@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getAdministrativeBodiesForCityCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getPublicAdministrativeBodiesForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -112,9 +112,8 @@ export default async function MeetingsPage(
         ? publicBodies
         : [
             ...publicBodies,
-            ...(await getAdministrativeBodiesForCityCached(cityId))
-                .filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id))
-                .map(({ id, name, name_en, type, cityId: bodyCityId }) => ({ id, name, name_en, type, cityId: bodyCityId })),
+            ...(await getPublicAdministrativeBodiesForCityCached(cityId))
+                .filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id)),
         ];
 
     if (!city) {

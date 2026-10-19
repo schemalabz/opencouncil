@@ -2,7 +2,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client'
+import { AdministrativeBodyType } from '@prisma/client'
+import type { PublicAdministrativeBody } from '@/lib/db/types'
 import List from '@/components/List';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
@@ -21,7 +22,7 @@ import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
     partiesWithPersons: PartyWithPersons[],
-    administrativeBodies: AdministrativeBody[],
+    administrativeBodies: PublicAdministrativeBody[],
     cityId: string,
     canEdit: boolean,
     /** Superadmin-only tools. `canEdit` is true for a city admin too, who must not get these. */

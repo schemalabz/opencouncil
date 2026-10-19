@@ -1,5 +1,6 @@
-import type { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import type * as z from 'zod';
 import { OFFERED_FORMATS, takesPlace } from '@/lib/meetingLifecycleRules';
+import type { meetingFormSchema } from '@/lib/zod-schemas/meeting';
 
 /**
  * The id that the meeting form sends. PUT identifies the meeting by the URL,
@@ -12,26 +13,22 @@ export function meetingIdForRequest(typedId: string | undefined, editing: boolea
     return typedId?.trim() || undefined;
 }
 
-/** The lifecycle fields as the form holds them: every input is a string. */
-export interface MeetingFormLifecycleValues {
-    /** Null: «Από την πρόσκληση», nobody has stated the kind. */
-    kind: MeetingKind | null;
-    /** «Έκτακτη»: unchecked by default. */
-    urgent: boolean;
-    scheduleStatus: MeetingScheduleStatus;
-    scheduleStatusReason?: string;
-    sessionNumber?: string;
-    /** Null: «Από την πρόσκληση», nobody has stated the format. */
-    format: MeetingFormat | null;
-    closedToPublic: boolean;
-    place?: string;
-    /** `none` is the Select's sentinel for "not the new meeting of a postponement". */
-    postponedFromId?: string;
-}
+/**
+ * The lifecycle fields as meetingFormSchema hands them to the submit: the
+ * reason and the place are trimmed, and an empty one is null. The session
+ * number is still the text of its input. A null kind or format is
+ * «Από την πρόσκληση». `none` in postponedFromId is the Select's value for
+ * "not the new meeting of a postponement".
+ */
+export type MeetingFormLifecycleValues = Pick<
+    z.output<typeof meetingFormSchema>,
+    'kind' | 'urgent' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format' | 'closedToPublic' | 'place' | 'postponedFromId'
+>;
 
 /**
  * The lifecycle fields of the request body. An empty input clears the value.
- * The body has no name: the name is derived. The reason belongs to a postponed or cancelled meeting only. The link to a
+ * The body has no name: the name is derived. The reason belongs to a
+ * postponed or cancelled meeting only. The link to a
  * postponed meeting is sent only when the admin changed it: the page payload
  * of a meeting hides its link, so an untouched field may not hold the link.
  * A format that no form offers (by circulation) is not sent back unchanged:
@@ -43,17 +40,16 @@ export function meetingRequestFields(
     values: MeetingFormLifecycleValues,
     { linkChanged, greekCodeFacts }: { linkChanged: boolean; greekCodeFacts: boolean },
 ) {
-    const text = (value: string | undefined) => value?.trim() || null;
     const number = values.sessionNumber?.trim();
     return {
         kind: greekCodeFacts ? values.kind : undefined,
         urgent: greekCodeFacts ? values.urgent : undefined,
         scheduleStatus: values.scheduleStatus,
-        scheduleStatusReason: takesPlace(values) ? null : text(values.scheduleStatusReason),
+        scheduleStatusReason: takesPlace(values) ? null : values.scheduleStatusReason ?? null,
         sessionNumber: !greekCodeFacts ? undefined : number ? Number(number) : null,
         format: values.format === null || OFFERED_FORMATS.includes(values.format) ? values.format : undefined,
         closedToPublic: values.closedToPublic,
-        place: text(values.place),
+        place: values.place ?? null,
         postponedFromId: !linkChanged
             ? undefined
             : !values.postponedFromId || values.postponedFromId === 'none' ? null : values.postponedFromId,

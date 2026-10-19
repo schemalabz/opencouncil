@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { EditorialBrief, Effort, WakeEvent, WakeOutcome, WakeState, WakeTrace } from "@/agent/types";
 import { post } from "../_lib/http";
 import { MeetingSummary } from "./deriveQueue";

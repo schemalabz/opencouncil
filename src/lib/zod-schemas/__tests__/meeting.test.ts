@@ -34,8 +34,15 @@ describe('meetingSchema', () => {
   it('accepts a valid URL or an empty string for youtubeUrl, rejects a non-URL', () => {
     expect(meetingSchema.parse({ ...validBase, youtubeUrl: 'https://youtu.be/abc' }).youtubeUrl)
       .toBe('https://youtu.be/abc');
-    expect(meetingSchema.parse({ ...validBase, youtubeUrl: '' }).youtubeUrl).toBe('');
+    // An empty string clears the link. An absent one leaves it as it is.
+    expect(meetingSchema.parse({ ...validBase, youtubeUrl: '' }).youtubeUrl).toBeNull();
+    expect(meetingSchema.parse(validBase).youtubeUrl).toBeUndefined();
     expect(() => meetingSchema.parse({ ...validBase, youtubeUrl: 'not a url' })).toThrow();
+  });
+
+  it('refuses a session number above 999', () => {
+    expect(meetingSchema.safeParse({ ...validBase, sessionNumber: 999 }).success).toBe(true);
+    expect(meetingSchema.safeParse({ ...validBase, sessionNumber: 1000 }).success).toBe(false);
   });
 
   it('drops a name that a client still sends, because the name is derived', () => {

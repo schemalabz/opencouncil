@@ -1,32 +1,32 @@
 import {
     subjectListQuerySchema,
     meetingSubjectListQuerySchema,
-    DEFAULT_SUBJECT_LIMIT,
     MAX_SUBJECT_LIMIT,
+    subjectAgendaFlagsSchema,
 } from '../subject';
 
 describe('subjectListQuerySchema', () => {
-    it('applies the default limit when the caller names none', () => {
+    it('leaves the limit to the data layer when the caller names none', () => {
         expect(subjectListQuerySchema.parse({})).toEqual({
             introducerId: undefined,
             from: undefined,
             to: undefined,
-            limit: DEFAULT_SUBJECT_LIMIT,
+            limit: undefined,
             includeUnreleased: false,
         });
     });
 
-    it('parses the date range into Date objects', () => {
+    // The schema does not know the city, so it keeps a date-only bound as a
+    // day. resolveCityDateRange reads it in the city's zone.
+    it('keeps a date-only bound as a calendar day', () => {
         const parsed = subjectListQuerySchema.parse({ from: '2025-01-01', to: '2025-12-31' });
-        expect(parsed.from).toEqual(new Date('2025-01-01T00:00:00.000Z'));
-        // The upper bound covers the whole day. Midnight at the start of the
-        // 31st would drop every meeting held on the 31st.
-        expect(parsed.to).toEqual(new Date('2025-12-31T23:59:59.999Z'));
+        expect(parsed.from).toEqual({ kind: 'day', day: '2025-01-01' });
+        expect(parsed.to).toEqual({ kind: 'day', day: '2025-12-31' });
     });
 
-    it('keeps a full timestamp in the upper bound as written', () => {
+    it('keeps a full timestamp as an instant', () => {
         const parsed = subjectListQuerySchema.parse({ to: '2025-12-31T09:00:00.000Z' });
-        expect(parsed.to).toEqual(new Date('2025-12-31T09:00:00.000Z'));
+        expect(parsed.to).toEqual({ kind: 'instant', at: new Date('2025-12-31T09:00:00.000Z') });
     });
 
     it('rejects an unparseable date', () => {
@@ -41,8 +41,15 @@ describe('subjectListQuerySchema', () => {
         expect(subjectListQuerySchema.safeParse({ to: day }).success).toBe(false);
     });
 
-    it('extends a real last day of the month to its end', () => {
-        expect(subjectListQuerySchema.parse({ to: '2026-02-28' }).to?.toISOString()).toBe('2026-02-28T23:59:59.999Z');
+    // A client that builds `?to=${x ?? ''}` means "no bound". Before zod, the
+    // routes ignored an empty value; zod made it a 400.
+    it('reads an empty value as an absent one', () => {
+        expect(subjectListQuerySchema.parse({ from: '', to: '', limit: '', includeUnreleased: '' })).toEqual({
+            from: undefined,
+            to: undefined,
+            limit: undefined,
+            includeUnreleased: false,
+        });
     });
 
     it('rejects a limit outside the allowed range', () => {
@@ -63,9 +70,12 @@ describe('subjectListQuerySchema', () => {
         expect(subjectListQuerySchema.parse({ limit: '20' }).limit).toBe(20);
     });
 
-    it('treats includeUnreleased as true only for the exact string', () => {
+    it('reads includeUnreleased with the stringbool lists and refuses any other value', () => {
         expect(subjectListQuerySchema.parse({ includeUnreleased: 'true' }).includeUnreleased).toBe(true);
-        expect(subjectListQuerySchema.parse({ includeUnreleased: '1' }).includeUnreleased).toBe(false);
+        expect(subjectListQuerySchema.parse({ includeUnreleased: '1' }).includeUnreleased).toBe(true);
+        expect(subjectListQuerySchema.parse({ includeUnreleased: 'false' }).includeUnreleased).toBe(false);
+        expect(subjectListQuerySchema.safeParse({ includeUnreleased: 'maybe' }).success).toBe(false);
+        expect(subjectListQuerySchema.safeParse({ includeUnreleased: ' ' }).success).toBe(false);
     });
 
     it('keeps introducerId', () => {
@@ -78,5 +88,17 @@ describe('meetingSubjectListQuerySchema', () => {
         const parsed = meetingSubjectListQuerySchema.parse({ from: '2025-01-01', introducerId: 'person-1' });
         expect(parsed).not.toHaveProperty('from');
         expect(parsed.introducerId).toBe('person-1');
+    });
+});
+
+describe('subjectAgendaFlagsSchema', () => {
+    it('takes a category, a cleared category and the withdrawn flag', () => {
+        expect(subjectAgendaFlagsSchema.parse({ nonAgendaReason: 'beforeAgenda' })).toEqual({ nonAgendaReason: 'beforeAgenda' });
+        expect(subjectAgendaFlagsSchema.parse({ nonAgendaReason: null, withdrawn: true })).toEqual({ nonAgendaReason: null, withdrawn: true });
+    });
+
+    it('refuses an unknown category and an unknown key', () => {
+        expect(subjectAgendaFlagsSchema.safeParse({ nonAgendaReason: 'agenda' }).success).toBe(false);
+        expect(subjectAgendaFlagsSchema.safeParse({ withdrawn: true, name: 'x' }).success).toBe(false);
     });
 });

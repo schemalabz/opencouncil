@@ -61,6 +61,14 @@ describe('parseMapSubjectFilters', () => {
         expect(f.daysBack).toBeNull();
         expect(f.monthsBack).toBeUndefined();
     });
+
+    it('reads allTime as a query flag and drops a value outside its lists', () => {
+        expect(parse('allTime=1').allTime).toBe(true);
+        expect(parse('allTime=yes').allTime).toBe(true);
+        expect(parse('allTime=').allTime).toBe(false);
+        expect(parse('allTime=false').allTime).toBe(false);
+        expect(parse('allTime=maybe').allTime).toBe(false);
+    });
 });
 
 describe('buildMapSubjectWhere body types', () => {

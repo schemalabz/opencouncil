@@ -13,11 +13,8 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { SubjectWithRelations } from '@/lib/db/subject';
+import type { SubjectImportance } from '@/lib/zod-schemas/notification';
 
-interface SubjectImportance {
-    topicImportance: 'doNotNotify' | 'normal' | 'high';
-    proximityImportance: 'none' | 'near' | 'wide';
-}
 
 interface CreateNotificationModalProps {
     open: boolean;

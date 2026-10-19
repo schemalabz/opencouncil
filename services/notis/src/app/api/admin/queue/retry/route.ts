@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { requeueFailedWakes } from "@/lib/requeue";
 import { requireAdmin } from "@/lib/session-auth";

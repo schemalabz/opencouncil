@@ -1,6 +1,7 @@
 "use server";
 
-import { z } from "zod";
+import * as z from "zod";
+import { latitude, longitude } from "@/lib/zod-schemas/primitives";
 import { env } from "@/env.mjs";
 import { createCache, getAllCitiesMinimalCached, getCityWithGeometryCached } from "@/lib/cache";
 import { isPointInGeometry } from "@/lib/geo";
@@ -34,8 +35,8 @@ const GEOCODE_CACHE_SECONDS = 30 * 24 * 60 * 60;
 
 const pointSchema = z.object({
     cityId: z.string().min(1).max(64),
-    lng: z.number().min(-180).max(180),
-    lat: z.number().min(-90).max(90),
+    lng: longitude,
+    lat: latitude,
 });
 
 type PointInput = z.input<typeof pointSchema>;

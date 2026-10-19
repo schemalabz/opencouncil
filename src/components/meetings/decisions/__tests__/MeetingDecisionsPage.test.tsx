@@ -199,7 +199,7 @@ afterAll(() => { global.fetch = originalFetch; });
 const renderPage = async () => {
     render(
         <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
-            <MeetingDecisionsPage isSuperAdmin={false} />
+            <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} />
         </NextIntlClientProvider>,
     );
     await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
@@ -640,7 +640,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
     const renderAsSuperAdmin = async () => {
         render(
             <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin />
+                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
             </NextIntlClientProvider>,
         );
         await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
@@ -673,7 +673,7 @@ describe('MeetingDecisionsPage — from the issues card to the subject', () => {
     const renderAsSuperAdmin = async () => {
         render(
             <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin />
+                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
             </NextIntlClientProvider>,
         );
         await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });

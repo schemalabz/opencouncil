@@ -80,6 +80,29 @@ describe('generateCityDataWithAI', () => {
         ]);
     });
 
+    it('sets a link that is not http(s) to null and keeps the answer, with a warning for each link', async () => {
+        const result = aiAnswer();
+        (result.parties[0] as Record<string, unknown>).logo = 'www.x.gr/logo.png';
+        (result.people[0] as Record<string, unknown>).image = 'www.x.gr/a.jpg';
+        (result.people[0] as Record<string, unknown>).profileUrl = 'https://www.x.gr/people/1';
+        answer(result);
+        const generated = await generateCityDataWithAI('testcity', 'Test City');
+        expect(generated.success).toBe(true);
+        expect(generated.data.parties[0].logo).toBeNull();
+        expect(generated.data.people[0].image).toBeNull();
+        expect(generated.data.people[0].profileUrl).toBe('https://www.x.gr/people/1');
+        expect(generated.warnings).toEqual([
+            'parties.0.logo: "www.x.gr/logo.png" is not an http(s) URL, so it was removed.',
+            'people.0.image: "www.x.gr/a.jpg" is not an http(s) URL, so it was removed.',
+        ]);
+    });
+
+    it('tells the model that a link is an absolute http(s) URL or null', async () => {
+        answer(aiAnswer());
+        await generateCityDataWithAI('testcity', 'Test City');
+        expect(mockedAiChat.mock.calls[0][0]).toContain('must be absolute http(s) URLs');
+    });
+
     it('has no warnings for a valid answer', async () => {
         answer(aiAnswer());
         expect((await generateCityDataWithAI('testcity', 'Test City')).warnings).toBeUndefined();

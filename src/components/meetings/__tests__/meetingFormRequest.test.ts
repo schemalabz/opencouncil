@@ -16,6 +16,8 @@ describe('meetingIdForRequest', () => {
     });
 });
 
+// The values are the output of meetingFormSchema: an empty reason or place is
+// already null, and a typed one is trimmed.
 describe('meetingRequestFields', () => {
     const base = {
         kind: 'ordinary' as const,
@@ -23,10 +25,12 @@ describe('meetingRequestFields', () => {
         scheduleStatus: 'scheduled' as const,
         format: 'inPerson' as const,
         closedToPublic: false,
+        scheduleStatusReason: null,
+        place: null,
     };
 
     it('clears the optional fields when the inputs are empty, and sends no name', () => {
-        expect(meetingRequestFields({ ...base, sessionNumber: '', place: '', postponedFromId: 'none' }, { linkChanged: true, greekCodeFacts: true })).toEqual({
+        expect(meetingRequestFields({ ...base, sessionNumber: '', postponedFromId: 'none' }, { linkChanged: true, greekCodeFacts: true })).toEqual({
             ...base,
             scheduleStatusReason: null,
             sessionNumber: null,
@@ -37,7 +41,7 @@ describe('meetingRequestFields', () => {
 
     it('sends the typed values, with the number as a number', () => {
         expect(meetingRequestFields({
-            ...base, scheduleStatus: 'postponed', scheduleStatusReason: ' Λόγω απεργίας ', sessionNumber: '15',
+            ...base, scheduleStatus: 'postponed', scheduleStatusReason: 'Λόγω απεργίας', sessionNumber: '15',
             place: 'Πολιτιστικό Κέντρο', postponedFromId: 'mar12_2026',
         }, { linkChanged: true, greekCodeFacts: true })).toMatchObject({
             scheduleStatus: 'postponed', scheduleStatusReason: 'Λόγω απεργίας', sessionNumber: 15,

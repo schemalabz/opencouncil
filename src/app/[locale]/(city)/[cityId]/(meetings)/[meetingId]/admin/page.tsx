@@ -1,5 +1,6 @@
 import Admin from "@/components/meetings/admin/Admin";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
+import { getMeetingBodySettings } from "@/lib/db/administrativeBodies";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -27,10 +28,11 @@ export default async function AdminPage(props: {
     if (!editable) {
         notFound();
     }
+    const bodySettings = await getMeetingBodySettings(cityId, meetingId);
 
     return (
         <div className="container py-8">
-            <Admin editableBodyIds={scope.all ? undefined : scope.bodyIds} />
+            <Admin notificationBehavior={bodySettings?.notificationBehavior ?? null} editableBodyIds={scope.all ? undefined : scope.bodyIds} />
         </div>
     );
 }

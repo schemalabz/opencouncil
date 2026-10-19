@@ -1,9 +1,10 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
+import { meetingFormSchema, meetingSchema } from "@/lib/zod-schemas/meeting"
 import { Button } from "../ui/button"
 import {
     Form,
@@ -33,46 +34,13 @@ import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
 import { Textarea } from '../ui/textarea'
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
 import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
+import { apiErrorMessage } from '@/lib/utils/validationIssues'
 import { useToast } from "@/hooks/use-toast"
 
-// The form has no name fields: the name of a meeting is derived (src/lib/meetingName.ts).
-
 /** The body selector stores "none" for no body; an upload config takes the id or nothing. */
-function uploadBodyId(value: string | undefined): string | undefined {
+function uploadBodyId(value: string | null | undefined): string | undefined {
     return value && value !== 'none' ? value : undefined
 }
-
-const formSchema = z.object({
-    date: z.date({
-        required_error: "Meeting date is required.",
-    }),
-    time: z.string({
-        required_error: "Meeting time is required.",
-    }),
-    youtubeUrl: z.string().url({
-        message: "Invalid media URL.",
-    }).optional().or(z.literal("")),
-    agendaUrl: z.string().url({
-        message: "Invalid Agenda URL.",
-    }).optional().or(z.literal("")),
-    // Empty on create: the API makes the id from the date and adds _2, _3 when
-    // the day already has a meeting. A typed id is sent as it is.
-    meetingId: z.string().optional(),
-    administrativeBodyId: z.string().optional(),
-    processAgenda: z.boolean().default(true),
-    // Null until somebody states it: processAgenda can read it from the invitation.
-    kind: z.nativeEnum(MeetingKind).nullable(),
-    urgent: z.boolean(),
-    scheduleStatus: z.nativeEnum(MeetingScheduleStatus),
-    scheduleStatusReason: z.string().max(SCHEDULE_STATUS_REASON_MAX_LENGTH).optional(),
-    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { message: "The session number is a whole number." })
-        .refine(val => val.trim() === '' || Number(val) >= 1, { message: "The session number is 1 or more." })
-        .optional(),
-    format: z.nativeEnum(MeetingFormat).nullable(),
-    closedToPublic: z.boolean(),
-    place: z.string().max(200).optional(),
-    postponedFromId: z.string().optional(),
-})
 
 const KINDS = Object.values(MeetingKind)
 /** The Select's sentinel for a null kind or format: «Από την πρόσκληση». */
@@ -117,9 +85,10 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
     const greekCodeFacts = recordsGreekCodeFacts(realm)
+    const validationMessage = useValidationMessage()
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm({
+        resolver: useZodResolver(meetingFormSchema),
         defaultValues: {
             date: meeting ? new Date(meeting.dateTime) : new Date(),
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
@@ -189,7 +158,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
         }
     }, [currentLink, form])
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof meetingFormSchema>) {
         setIsSubmitting(true)
         setFormError(null)
 
@@ -213,8 +182,10 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ...values,
+                    youtubeUrl: values.youtubeUrl,
+                    agendaUrl: values.agendaUrl,
                     meetingId: meetingIdForRequest(values.meetingId, Boolean(meeting)),
+                    processAgenda: values.processAgenda,
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
                     // item) — it must not reach the API, where any truthy value is
                     // stored as a foreign key and "none" violates the FK constraint.
@@ -225,7 +196,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                     // of its own; the form edits none (the continuation form is a follow-up).
                     ...(meeting?.continuationOfId ? { kind: undefined, sessionNumber: undefined, urgent: undefined } : {}),
                     date: dateTime.toISOString(),
-                }),
+                } satisfies z.input<typeof meetingSchema>),
             })
 
             if (response.ok) {
@@ -240,7 +211,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             } else {
                 const errorData = await response.json()
                 // A lifecycle rule answers 422 with a message that names the rule.
-                throw new Error(errorData.message || (typeof errorData.error === 'string' ? errorData.error : null) || t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'))
+                throw new Error(apiErrorMessage(errorData, response.status, t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'), validationMessage))
             }
         } catch (error) {
             console.error(meeting ? t('failedToUpdateMeeting') : t('failedToAddMeeting'), error)
@@ -387,7 +358,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                 <FormItem>
                                     <FormLabel>{t('scheduleStatusReason')}</FormLabel>
                                     <FormControl>
-                                        <Textarea {...field} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
+                                        <Textarea {...field} value={field.value ?? ''} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -615,7 +586,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                             <FormItem>
                                 <FormLabel>{t('place')}</FormLabel>
                                 <FormControl>
-                                    <Input {...field} placeholder={selectedBody?.place ?? ''} />
+                                    <Input {...field} value={field.value ?? ''} placeholder={selectedBody?.place ?? ''} />
                                 </FormControl>
                                 <FormDescription>{t('placeDescription')}</FormDescription>
                                 <FormMessage />

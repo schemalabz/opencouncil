@@ -4,6 +4,7 @@
 // record.
 import "server-only";
 import { Prisma } from '@prisma/client';
+import { ConflictError } from '@/lib/api/errors';
 import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
 import { generateUniqueMeetingId, getCouncilMeetingDirect, upcomingMeetingsTag, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
 import { getCityRealm } from '@/lib/db/cityRealm';
@@ -67,7 +68,7 @@ export async function createMeetingWithEffects(
     } catch (error) {
         // Retry with a fresh ID on unique constraint violation (TOCTOU race).
         if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
-        if (input.meetingId) throw error;
+        if (input.meetingId) throw new ConflictError(`A meeting with the id "${input.meetingId}" already exists.`);
         meetingId = await generateUniqueMeetingId(cityId, date);
         meeting = await createMeetingRecord(buildMeetingData(meetingId));
     }

@@ -311,7 +311,6 @@ POST /api/admin/notifications/release - Release pending notifications
 
 // Administrative body management
 GET /api/admin/administrative-bodies - List with notification behavior
-PATCH /api/admin/administrative-bodies/[id]/notification-behavior - Update behavior
 
 // User preference management  
 GET /api/users/[userId]/notification-preferences - Get user preferences

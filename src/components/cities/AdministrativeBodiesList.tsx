@@ -15,11 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
+import type * as z from "zod"
+import { administrativeBodyFormSchema, administrativeBodySchema, confirmConventionsRequestSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
-import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
+import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -27,35 +28,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
-import { isDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
+import type { DecisionConventions } from '@/lib/decisionConventions'
+import { apiErrorMessage, formatValidationIssues, type FormattableIssue } from '@/lib/utils/validationIssues'
 
 
-interface AdministrativeBody {
-    id: string;
-    name: string;
-    name_en: string;
-    type: AdministrativeBodyType;
-    youtubeChannelUrl?: string | null;
-    place?: string | null;
-    contactEmails?: string[];
-    notificationBehavior?: NotificationBehavior | null;
-    showUnreviewedTranscript?: boolean;
-    diavgeiaUnitIds?: string[];
-    decisionConventions?: unknown;
+/** The messages of a nested field error, one per leaf, with the path below the field. */
+function leafIssues(error: unknown, path: string[] = []): FormattableIssue[] {
+    if (typeof error !== 'object' || error === null) return [];
+    if ('message' in error && typeof error.message === 'string') return [{ path, message: error.message }];
+    return Object.entries(error).flatMap(([key, child]) => key === 'ref' ? [] : leafIssues(child, [...path, key]));
 }
 
-/** The stored column, as the form holds it: a record that parses, or nothing. */
-function storedConventions(value: unknown): DecisionConventions | null {
-    return isDecisionConventions(value) ? value : null;
+/**
+ * The error of the conventions field. FormMessage shows the message of the
+ * field itself, and a record that fails holds its messages on its sub-fields.
+ */
+function ConventionsMessage({ error }: { error: unknown }) {
+    const validationMessage = useValidationMessage()
+    const issues = leafIssues(error).map(issue => ({ ...issue, message: validationMessage(issue.message) }))
+    if (issues.length === 0) return null
+    return (
+        <p role="alert" className="whitespace-pre-line text-sm font-medium text-destructive">
+            {formatValidationIssues(issues).join('\n')}
+        </p>
+    )
 }
 
 interface AdministrativeBodiesListProps {
     cityId: string;
-    bodies: AdministrativeBody[];
+    bodies: AdministrativeBodyWithSettings[];
     onUpdate: () => void;
 }
 
-function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFormValues {
+function getFormDefaults(body?: AdministrativeBodyWithSettings | null): AdministrativeBodyFormInput {
     return {
         name: body?.name || "",
         name_en: body?.name_en || "",
@@ -67,7 +72,7 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
-        decisionConventions: storedConventions(body?.decisionConventions),
+        decisionConventions: body?.decisionConventions ?? null,
     };
 }
 
@@ -75,19 +80,20 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isConfirmingConventions, setIsConfirmingConventions] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
-    const [editingBody, setEditingBody] = useState<AdministrativeBody | null>(null)
+    const [editingBody, setEditingBody] = useState<AdministrativeBodyWithSettings | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBody | null>(null)
+    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBodyWithSettings | null>(null)
     const t = useTranslations('AdministrativeBodiesList')
     const { data: session } = useSession()
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false
+    const validationMessage = useValidationMessage()
 
-    const form = useForm<AdministrativeBodyFormValues>({
-        resolver: zodResolver(administrativeBodyFormSchema),
+    const form = useForm({
+        resolver: useZodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
 
-    async function onSubmit(values: AdministrativeBodyFormValues) {
+    async function onSubmit(values: AdministrativeBodyFormOutput) {
         setIsSubmitting(true)
         setFormError(null)
 
@@ -112,14 +118,19 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                // The conventions are written by their own Confirm button, so
+                // this body leaves them out.
                 body: JSON.stringify({
-                    ...values,
-                    contactEmailPrimary: undefined,
-                    contactEmailsCC: undefined,
+                    name: values.name,
+                    name_en: values.name_en,
+                    type: values.type,
+                    youtubeChannelUrl: values.youtubeChannelUrl,
+                    place: values.place,
                     contactEmails: contactEmailsArray,
-                    // The conventions are written by their own Confirm button.
-                    decisionConventions: undefined,
-                }),
+                    notificationBehavior: values.notificationBehavior,
+                    showUnreviewedTranscript: values.showUnreviewedTranscript,
+                    diavgeiaUnitIds: values.diavgeiaUnitIds,
+                } satisfies z.input<typeof administrativeBodySchema>),
             })
 
             if (response.ok) {
@@ -129,7 +140,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSave'))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSave'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSave'), error)
@@ -148,14 +159,14 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             const response = await fetch(`/api/cities/${cityId}/administrative-bodies/${editingBody.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirmConventions: true, decisionConventions: conventions }),
+                body: JSON.stringify({ confirmConventions: true, decisionConventions: conventions } satisfies z.input<typeof confirmConventionsRequestSchema>),
             })
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(errorData.error || t('failedToSave'))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSave'), validationMessage))
             }
-            const updated = await response.json()
-            form.setValue('decisionConventions', storedConventions(updated.decisionConventions))
+            const updated: AdministrativeBodyWithSettings = await response.json()
+            form.setValue('decisionConventions', updated.decisionConventions)
             setEditingBody({ ...editingBody, decisionConventions: updated.decisionConventions })
             onUpdate()
         } catch (error) {
@@ -177,7 +188,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 onUpdate()
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToDelete'))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToDelete'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToDelete'), error)
@@ -393,7 +404,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 <FormField
                                     control={form.control}
                                     name="decisionConventions"
-                                    render={({ field }) => (
+                                    render={({ field, fieldState }) => (
                                         <FormItem>
                                             <DecisionConventionsFields
                                                 key={editingBody.id}
@@ -402,6 +413,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                                 onConfirm={handleConfirmConventions}
                                                 confirming={isConfirmingConventions}
                                             />
+                                            <ConventionsMessage error={fieldState.error} />
                                         </FormItem>
                                     )}
                                 />

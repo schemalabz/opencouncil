@@ -5,7 +5,7 @@ import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
 import { getApiSubject } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
-import { z } from 'zod';
+import { subjectAgendaFlagsSchema, subjectQuerySchema } from '@/lib/zod-schemas/subject';
 
 export async function GET(
     req: NextRequest,
@@ -13,7 +13,7 @@ export async function GET(
 ) {
     const params = await props.params;
     try {
-        const includeUnreleased = req.nextUrl.searchParams.get('includeUnreleased') === 'true';
+        const { includeUnreleased } = subjectQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams.entries()));
         if (includeUnreleased) {
             await withServiceOrUserAuth(req, { cityId: params.cityId });
         }
@@ -35,11 +35,6 @@ export async function GET(
     }
 }
 
-const patchSchema = z.object({
-    nonAgendaReason: z.enum(['beforeAgenda', 'outOfAgenda']).nullable().optional(),
-    withdrawn: z.boolean().optional(),
-}).strict();
-
 export async function PATCH(
     req: NextRequest,
     props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
@@ -52,7 +47,7 @@ export async function PATCH(
         }
 
         const body = await req.json();
-        const parsed = patchSchema.parse(body);
+        const parsed = subjectAgendaFlagsSchema.parse(body);
 
         if (Object.keys(parsed).length === 0) {
             return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

@@ -63,7 +63,7 @@ export default function ElasticsearchStatus() {
             try {
                 const response = await fetch('/api/admin/elasticsearch/status');
                 if (!response.ok) {
-                    if (response.status === 403) {
+                    if (response.status === 401 || response.status === 403) {
                         throw new Error('Not authorized to view this data.');
                     }
                     throw new Error('Failed to fetch status from the server.');

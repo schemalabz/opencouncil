@@ -12,7 +12,7 @@ import {
     type MeetingRecordState,
 } from '@/lib/meetingLifecycleRules';
 import type { CouncilMeetingWithAdminBody } from './meetings';
-import { DECISION_KIND_SELECT } from '@/lib/tasks/pollDecisionsBackoff';
+import { meetingWithAdminBodyInclude } from './types/meeting';
 
 type Client = Prisma.TransactionClient | PrismaClient;
 
@@ -42,11 +42,6 @@ const chainSelect = {
     hiddenByPostponement: true,
 } satisfies Prisma.CouncilMeetingSelect;
 type ChainRow = Prisma.CouncilMeetingGetPayload<{ select: typeof chainSelect }>;
-
-const withAdminBody = {
-    administrativeBody: true,
-    continuationOf: DECISION_KIND_SELECT.continuationOf,
-} satisfies Prisma.CouncilMeetingInclude;
 
 function chainTooLong(): LifecycleRuleError {
     return new LifecycleRuleError('chainTooLong', `A postponement chain is longer than ${MAX_CHAIN_LENGTH} meetings.`);
@@ -183,7 +178,7 @@ function newRecordState(data: NewMeetingRecord): MeetingRecordState {
 export async function createMeetingRecord(data: NewMeetingRecord): Promise<CouncilMeetingWithAdminBody> {
     return prisma.$transaction(async (tx) => {
         await assertValid(tx, data.cityId, newRecordState(data));
-        const meeting = await tx.councilMeeting.create({ data, include: withAdminBody });
+        const meeting = await tx.councilMeeting.create({ data, include: meetingWithAdminBodyInclude });
         if (meeting.released && meeting.postponedFromId) {
             await hideChainFrom(tx, data.cityId, meeting.postponedFromId);
         }
@@ -215,7 +210,7 @@ export async function updateMeetingRecord(
         const meeting = await client.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
             data: definedOnly(patch),
-            include: withAdminBody,
+            include: meetingWithAdminBodyInclude,
         });
         // A relink applies the visibility at once when the meeting or a later
         // meeting of its chain is public, the same as a release would: the
@@ -258,7 +253,7 @@ export async function setMeetingReleased(cityId: string, id: string, released: b
         return tx.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
             data: { released, ...(current.released !== released && { hiddenByPostponement: false }) },
-            include: withAdminBody,
+            include: meetingWithAdminBodyInclude,
         });
     });
 }

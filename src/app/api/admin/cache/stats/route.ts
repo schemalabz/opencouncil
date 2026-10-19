@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from 'redis';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { ApiError, handleApiError } from '@/lib/api/errors';
 import { env } from '@/env.mjs';
 import os from 'os';
 
@@ -43,10 +44,8 @@ async function getClient() {
 }
 
 export async function GET() {
-  // Auth check outside try/catch so its error propagates directly
-  await withUserAuthorizedToEdit({});
-
   try {
+    await withUserAuthorizedToEdit({});
     const redisClient = await getClient();
 
     if (!redisClient) {
@@ -73,17 +72,11 @@ export async function GET() {
       instance: os.hostname(),
     });
   } catch (error) {
-    console.error('Error fetching cache stats:', error);
     // Reset client on connection failures so next request retries
-    if (client && !client.isReady) {
+    if (!(error instanceof ApiError) && client && !client.isReady) {
       client.disconnect().catch(() => {});
       client = null;
     }
-    return NextResponse.json({
-      connected: false,
-      backend: 'valkey (error)',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      instance: os.hostname(),
-    }, { status: 500 });
+    return handleApiError(error, 'Failed to read the cache stats');
   }
 }

@@ -1,9 +1,9 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -34,55 +34,9 @@ import {
     SESSION_PROCESSING,
 } from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
-import { adamSchema } from '@/lib/zod-schemas/offer'
+import { offerFormSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
 import { useSession } from 'next-auth/react'
-
-const formSchema = z.object({
-    recipientName: z.string().min(2, {
-        message: "Recipient name must be at least 2 characters.",
-    }),
-    platformPrice: z.number().min(0, {
-        message: "Platform price must be a positive number.",
-    }),
-    ingestionPerHourPrice: z.number().min(0, {
-        message: "Ingestion price per hour must be a positive number.",
-    }),
-    hoursToIngest: z.number().int().min(1, {
-        message: "Hours to ingest must be at least 1.",
-    }),
-    discountPercentage: z.number().min(0).max(100, {
-        message: "Discount percentage must be between 0 and 100.",
-    }),
-    type: z.string().default("pilot"),
-    startDate: z.date({
-        required_error: "Start date is required.",
-    }),
-    endDate: z.date({
-        required_error: "End date is required.",
-    }),
-    respondToName: z.string().min(2, {
-        message: "Respond to name must be at least 2 characters.",
-    }),
-    respondToEmail: z.string().email({
-        message: "Please enter a valid email address.",
-    }),
-    respondToPhone: z.string().min(10, {
-        message: "Please enter a valid phone number.",
-    }),
-    cityId: z.string().optional(),
-    correctnessGuarantee: z.boolean().default(false),
-    meetingsToIngest: z.number().int().min(1).optional(),
-    hoursToGuarantee: z.number().int().min(1).optional(),
-    includeEquipmentRental: z.boolean().default(false),
-    equipmentRentalPrice: z.number().min(0).optional(),
-    equipmentRentalName: z.string().optional(),
-    equipmentRentalDescription: z.string().optional(),
-    includePhysicalPresence: z.boolean().default(false),
-    physicalPresenceHours: z.number().int().min(0).optional(),
-    agreed: z.boolean().default(false),
-    adam: adamSchema,
-})
 
 interface OfferFormProps {
     offer?: Offer
@@ -149,7 +103,7 @@ const EMPTY_OFFER_DEFAULTS = {
     physicalPresenceHours: 0,
     agreed: false,
     adam: "",
-} satisfies Partial<z.infer<typeof formSchema>>
+} satisfies Partial<z.input<typeof offerFormSchema>>
 
 /** Responder contact prefill from the signed-in session (fresh creates). */
 function sessionContactValues(session: ReturnType<typeof useSession>['data']) {
@@ -166,6 +120,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     const [isSuccess, setIsSuccess] = useState(false)
     const [cities, setCities] = useState<{ id: string, name: string, population: number | null }[]>([])
     const t = useTranslations('OfferForm')
+    const validationMessage = useValidationMessage()
     const { toast } = useToast()
     const { data: session } = useSession()
 
@@ -210,8 +165,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     const freshEnd = endDateForTerm(freshStart)
 
     const contact = sessionContactValues(session)
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm({
+        resolver: useZodResolver(offerFormSchema),
         defaultValues: {
             ...EMPTY_OFFER_DEFAULTS,
             recipientName: source?.recipientName || "",
@@ -276,7 +231,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
         ingestionPerHourPrice: watchedValues.ingestionPerHourPrice,
         hoursToIngest: watchedValues.hoursToIngest,
         discountPercentage: watchedValues.discountPercentage,
-        correctnessGuarantee: watchedValues.correctnessGuarantee,
+        correctnessGuarantee: watchedValues.correctnessGuarantee ?? false,
         version: offerVersion,
         hoursToGuarantee: watchedValues.hoursToGuarantee ?? null,
         meetingsToIngest: watchedValues.meetingsToIngest ?? null,
@@ -288,7 +243,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             : null,
     })
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof offerFormSchema>) {
         setIsSubmitting(true)
         try {
             const commonData = {
@@ -371,7 +326,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                         <strong className="font-bold">{t('formErrors')}</strong>
                         <ul className="mt-2 list-disc list-inside">
                             {Object.entries(form.formState.errors).map(([key, error]) => (
-                                <li key={key}>{error.message}</li>
+                                <li key={key}>{error.message && validationMessage(error.message)}</li>
                             ))}
                         </ul>
                     </div>

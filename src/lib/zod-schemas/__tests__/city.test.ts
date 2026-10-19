@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import {
   cityFormSchema,
   baseCityFormSchema,
@@ -313,28 +313,33 @@ describe('Integration: FormData with Schemas', () => {
 });
 
 describe('Edge cases: Boolean string transforms', () => {
-  it('should treat empty string as false for boolean fields', () => {
-    const parsed = createCityFormDataSchema.parse({
+  it('should reject an empty string for a required boolean field', () => {
+    expect(createCityFormDataSchema.safeParse({
       id: 'athens',
       ...validFormDataBase,
       supportsNotifications: '',
-      consultationsEnabled: '',
+      consultationsEnabled: 'false',
       logoImage: createMockFile(),
-    });
-    expect(parsed.supportsNotifications).toBe(false);
-    expect(parsed.consultationsEnabled).toBe(false);
+    }).success).toBe(false);
   });
 
-  it('should treat any non-"true" string as false', () => {
+  it('should read the stringbool lists and reject any other string', () => {
     const parsed = createCityFormDataSchema.parse({
       id: 'athens',
       ...validFormDataBase,
       supportsNotifications: '1',
-      consultationsEnabled: 'yes',
+      consultationsEnabled: 'no',
       logoImage: createMockFile(),
     });
-    expect(parsed.supportsNotifications).toBe(false);
+    expect(parsed.supportsNotifications).toBe(true);
     expect(parsed.consultationsEnabled).toBe(false);
+    expect(createCityFormDataSchema.safeParse({
+      id: 'athens',
+      ...validFormDataBase,
+      supportsNotifications: 'maybe',
+      consultationsEnabled: 'false',
+      logoImage: createMockFile(),
+    }).success).toBe(false);
   });
 });
 
@@ -366,14 +371,13 @@ describe('File edge cases', () => {
     expect(parsed.logoImage.size).toBe(0);
   });
 
-  it('should handle File without explicit type', () => {
-    const parsed = createCityFormDataSchema.parse({
+  // The route refused it before too, after the parse: '' is not a logo type.
+  it('should reject a File without explicit type', () => {
+    expect(createCityFormDataSchema.safeParse({
       id: 'athens',
       ...validFormDataBase,
       logoImage: new File(['content'], 'logo.png'),
-    });
-    expect(parsed.logoImage).toBeInstanceOf(File);
-    expect(parsed.logoImage.name).toBe('logo.png');
+    }).success).toBe(false);
   });
 });
 

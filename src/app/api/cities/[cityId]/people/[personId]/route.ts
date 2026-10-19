@@ -2,13 +2,11 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
-import { getPartiesForCity } from '@/lib/db/parties'
-import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import { z } from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
-import { personUpdateFormDataSchema, type PersonUpdateFormData } from '@/lib/zod-schemas/person'
-import { isUserAuthorizedToEdit, getRoleLimitForCity } from '@/lib/auth'
-import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { validatePersonRoles } from '@/lib/db/personRoles'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
+import { personUpdateFormDataSchema, type PersonUpdateFormDataOutput } from '@/lib/zod-schemas/person'
+import { isUserAuthorizedToEdit, getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
+import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
 
 export async function GET(
     request: Request,
@@ -26,40 +24,21 @@ export async function PUT(
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     console.log(`Updating person ${params.personId}`)
-    let data: PersonUpdateFormData
+    let data: PersonUpdateFormDataOutput
     try {
-        data = await parseFormData(await request.formData(), personUpdateFormDataSchema)
+        data = parseFormData(await readFormData(request), personUpdateFormDataSchema)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 })
-        }
-        console.error('Error parsing form data:', error)
-        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+        return handleApiError(error, 'Failed to parse form data')
     }
     const { name, name_en, name_short, name_short_en, image, removeImage, profileUrl, roles } = data
 
     // Absent roles stay as they are: a person who claimed their own page
     // edits name and photo only, and their form sends no roles.
     if (roles !== undefined) try {
-        // Validate roles
-        console.log('Starting role validation...')
-        // Get valid parties and administrative bodies for this city
-        const [parties, adminBodies, roleLimit] = await Promise.all([
-            getPartiesForCity(params.cityId),
-            getAdministrativeBodiesForCity(params.cityId),
-            getRoleLimitForCity(params.cityId),
-        ]);
-        console.log('Got parties and admin bodies')
-
-        const validPartyIds = new Set(parties.map(p => p.id));
-        const validAdminBodyIds = new Set(adminBodies.map(a => a.id));
-
-        // Validate roles using shared helper
-        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds)
-            ?? (roleLimit ? validateRolesForBodyAdmin(roles, roleLimit) : null);
+        const validationError = await validatePersonRoles(params.cityId, roles, await getRoleLimitForCity(params.cityId));
         if (validationError) {
             console.log('Validation failed:', validationError);
             return NextResponse.json(validationError, { status: 400 });
@@ -117,7 +96,7 @@ export async function DELETE(
     const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     try {
         await deletePerson(params.personId)
