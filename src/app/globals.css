@@ -213,8 +213,10 @@ a:hover.unstyled {
 /* Map popup styles */
 .subject-popup,
 .municipality-popup {
-    /* above the map markers (max z-index 4) but below the floating subject list /
-       controls (z-6), the cooperative-gestures overlay, the header and the dialog */
+    /* above the map markers (MARKER_Z in src/lib/landing/landingCore.ts, up to 5) but below the
+       floating subject list / controls (z-6), the cooperative-gestures overlay, the header and the
+       dialog. A popup ties with the "+N" pin at 5 and still paints over it: mapbox-gl appends each
+       popup to the map element, after the canvas container that holds every marker. */
     z-index: 5;
 }
 

@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic';
  *
  * Tied to the threshold at which the marker layer degrades pins to plain dots,
  * because that is the reason for the cap: past it a larger set buys no fidelity
- * — and it costs, since the layer rebuilds on every viewport change, its packing
- * pass is roughly quadratic, and each pin mounts its own root. Measured against
+ * — and it costs, since every pin near the viewport is an HTML marker the map
+ * repositions on every frame of a gesture. Measured against
  * the production index, the broadest single-word queries land in the low
  * hundreds, so the cap bites rarely and the response says when it did.
  */

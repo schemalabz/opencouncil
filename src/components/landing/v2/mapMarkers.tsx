@@ -4,13 +4,13 @@ import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
 import { createRoot, type Root } from 'react-dom/client';
 import { useTranslations } from 'next-intl';
 import { ArrowRight, Landmark, X } from 'lucide-react';
-import Icon from '@/components/icon';
 
 /** Translate function shape — passed into the plain-DOM marker factories, which run outside
  *  React and so can't call useTranslations themselves. */
 type TFn = (key: string, values?: Record<string, string | number>) => string;
 import type { LandingGeneralCity, LandingSubject, MunicipalitySubjectCount } from '@/lib/landing/landingData';
-import { stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import { MARKER_Z, pinHighlight, stylePin, type SubjectPin } from '@/lib/landing/landingCore';
+import { createPinIcon, loadPinIconNode } from '@/lib/landing/pinIcon';
 import { PETITION_BLUE, petitionFill, type PetitionBucket } from '@/lib/landing/petitions';
 import { SubjectCard } from './SubjectCard';
 import { captureLandingAction } from '@/lib/landing/analytics';
@@ -275,9 +275,9 @@ export function createSubjectPin(
     map: MapboxMap,
     group: LandingSubject[],
     opts: {
-        selected: boolean;
-        /** filled category style (mobile preview / mobile selection) */
-        intense: boolean;
+        /** the selected and the mobile-previewed subject — the pin resolves its own highlight (see pinHighlight) */
+        selectedId: string | null;
+        previewId: string | null;
         /** dense viewport — draw a bare topic-coloured dot instead of an icon badge */
         dot: boolean;
         onSelect: (id: string) => void;
@@ -294,10 +294,9 @@ export function createSubjectPin(
     el.setAttribute('aria-label', coLocated ? t('marker.samePoint', { count: group.length }) : rep.title);
     rootEl.appendChild(el);
 
-    // The icon's own container: faded rather than unmounted on the dot↔badge morph, so with the
-    // button's size transition the pin visibly grows out of (or melts into) its dot. Its React root
-    // mounts lazily on the first badge appearance — a dot needs none, which is the point at
-    // density: hundreds of roots is what made a crowded viewport expensive, not the markers.
+    // The icon's own container: faded rather than emptied on the dot↔badge morph, so with the
+    // button's size transition the pin visibly grows out of (or melts into) its dot. Its SVG is a
+    // static element built on the first badge appearance — a dot needs none (see createPinIcon).
     const iconEl = document.createElement('span');
     iconEl.className = 'flex items-center justify-center transition-opacity duration-200';
     el.appendChild(iconEl);
@@ -322,19 +321,20 @@ export function createSubjectPin(
     const pin: SubjectPin = {
         el,
         rootEl,
-        root: null,
         marker: null as unknown as mapboxgl.Marker,
         subject: coLocated ? null : rep,
         dot: opts.dot,
         setDot: () => {},
+        setSelection: () => {},
     };
 
+    let iconRequested = false;
     const applyMode = (dot: boolean, selected: boolean, intense: boolean) => {
         pin.dot = dot;
         stylePin({ el, rootEl }, rep, selected, intense, dot);
         if (coLocated) {
             // Above single pins in both shapes (stylePin writes a selection-based z-index).
-            rootEl.style.zIndex = '4';
+            rootEl.style.zIndex = String(MARKER_Z.coLocatedPin);
             if (!dot) {
                 // Size a co-located pin like the city-hall markers (h-9) so the "+N" badge sits at
                 // the same corner offset as their count badge, not overlapping a smaller circle.
@@ -349,25 +349,35 @@ export function createSubjectPin(
         if (dot) {
             iconEl.style.opacity = '0';
         } else {
-            if (!pin.root) {
-                pin.root = createRoot(iconEl);
-                // currentColor so stylePin's `el.style.color` controls the icon (topic colour, or
-                // white when intense)
-                pin.root.render(<Icon name={rep.topic.icon || 'hash'} color="currentColor" size={rep.hot ? 18 : 14} />);
+            if (!iconRequested) {
+                // The icon's chunk loads once per name; a pin that is a dot again by the time it
+                // lands keeps it hidden through the container's opacity. A load that fails leaves
+                // the badge a plain circle, and the next badge appearance asks again.
+                iconRequested = true;
+                loadPinIconNode(rep.topic.icon)
+                    .then((node) => {
+                        iconEl.appendChild(createPinIcon(node, rep.hot ? 18 : 14));
+                    })
+                    .catch(() => {
+                        iconRequested = false;
+                    });
             }
             iconEl.style.opacity = '1';
         }
     };
-    // The pin resolves its own highlight from the ids: a "+N" pin has `subject: null`, so a caller
-    // reading `pin.subject` would restyle a selected group as unselected on every morph. Same
-    // group-aware rule as buildSubjectPins' initial styling.
+    // The pin resolves its own highlight from the ids: a "+N" pin has `subject: null`, so only it
+    // knows whether its group holds the selected subject.
     pin.setDot = (dot, selectedId, previewId) => {
         if (dot === pin.dot) return;
-        const selected = !!selectedId && group.some((s) => s.id === selectedId);
-        const intense = selected || (!!previewId && group.some((s) => s.id === previewId));
+        const { selected, intense } = pinHighlight(group, selectedId, previewId);
         applyMode(dot, selected, intense);
     };
-    applyMode(opts.dot, opts.selected, opts.intense);
+    pin.setSelection = (selectedId, previewId) => {
+        const { selected, intense } = pinHighlight(group, selectedId, previewId);
+        applyMode(pin.dot, selected, intense);
+    };
+    const initial = pinHighlight(group, opts.selectedId, opts.previewId);
+    applyMode(opts.dot, initial.selected, initial.intense);
 
     el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -397,7 +407,7 @@ export function createSubjectPin(
  * The packing is intentionally discrete (a satellite is either home or on the cluster ring), so
  * placement changes animate: `setPlacement` sets a target and a self-terminating rAF loop eases
  * the real offset toward it — smooth motion with the hit area correct on every frame. This also
- * decouples repacking from rendering: targets may arrive at any rate (see attachLiveRepack) while
+ * decouples repacking from rendering: targets may arrive at any rate (see attachLiveLayout) while
  * the easing runs at frame rate. Scale stays a CSS transform on an inner wrapper, which is safe
  * because it is always ≤ 1: the paint only ever shrinks inside the box.
  */
@@ -631,58 +641,6 @@ export function createMunicipalityViewMarker(
     return { marker, setPlacement: shell.setPlacement, dispose: shell.dispose };
 }
 
-/**
- * Build all subject pins for the current viewport: one pin per location group, with co-located
- * subjects sharing a "+N" marker. The selected subject is pulled out and drawn last so its
- * highlighted pin sits above its neighbours.
- *
- * `dot` collapses every pin to a plain topic-coloured dot — the whole layer at once, so the map
- * doesn't read as two kinds of thing at the same zoom. The caller decides, since only it knows how
- * many subjects are actually in the viewport (this function is handed the filter-scoped set, which
- * includes off-screen ones and doesn't change as you zoom).
- */
-export function buildSubjectPins(
-    map: MapboxMap,
-    locationGroups: LandingSubject[][],
-    opts: {
-        selectedId: string | null;
-        /** mobile only: the previewed subject, drawn with the intense selection style */
-        previewId: string | null;
-        /** dense viewport — draw every pin as a bare topic-coloured dot */
-        dot: boolean;
-        onSelect: (id: string) => void;
-        onOpenCoLocated: (group: LandingSubject[]) => void;
-        t: TFn;
-    },
-): SubjectPin[] {
-    const selId = opts.selectedId;
-    const dot = opts.dot;
-    let selectedGroup: LandingSubject[] | null = null;
-    const rest: LandingSubject[][] = [];
-    for (const group of locationGroups) {
-        if (selId && !selectedGroup && group.some((s) => s.id === selId)) selectedGroup = group;
-        else rest.push(group);
-    }
-    const makePin = (group: LandingSubject[]) => {
-        const selected = !!selId && group.some((s) => s.id === selId);
-        // A selected subject (desktop or mobile) and the mobile preview both get the intense filled
-        // style — category-colour fill + category border, consistent across viewports.
-        const intense = selected || (!!opts.previewId && group.some((s) => s.id === opts.previewId));
-        return createSubjectPin(map, group, {
-            selected,
-            intense,
-            dot,
-            onSelect: opts.onSelect,
-            onOpenCoLocated: opts.onOpenCoLocated,
-            t: opts.t,
-        });
-    };
-
-    const pins: SubjectPin[] = rest.map(makePin);
-    if (selectedGroup) pins.push(makePin(selectedGroup));
-    return pins;
-}
-
 /** A city-hall marker for a municipality's non-located subjects: the δήμος logo (or a slate
  *  Landmark when there's no logo) with a count badge. Clicking it runs `onClick`. */
 export function createGeneralCityMarker(
@@ -693,7 +651,7 @@ export function createGeneralCityMarker(
 ): { marker: mapboxgl.Marker; root: ReturnType<typeof createRoot> } {
     const logo = city.subjects[0]?.cityLogo ?? null;
     const rootEl = document.createElement('div');
-    rootEl.style.zIndex = '1';
+    rootEl.style.zIndex = String(MARKER_Z.cityHall);
     const el = document.createElement('button');
     el.type = 'button';
     el.setAttribute('aria-label', t('general.cityAria', { name: city.nameMunicipality, count: city.subjects.length }));

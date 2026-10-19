@@ -5,14 +5,18 @@ import { useTranslations } from 'next-intl';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import type { Root } from 'react-dom/client';
 import {
+    PIN_WINDOW_PADDING,
     SUBJECT_DOT_THRESHOLD,
     SUBJECT_FOCUS_ZOOM,
+    mapBounds,
     nextDotMode,
-    stylePin,
+    padViewport,
+    selectPinGroups,
     type SubjectPin,
 } from '@/lib/landing/landingCore';
 import {
     groupByLocation,
+    locationKey,
     subjectInViewport,
     type LandingMapCity,
     type LandingPetitionedCity,
@@ -24,8 +28,8 @@ import {
     type MunicipalitySubjectCount,
 } from '@/lib/landing/landingData';
 import {
-    buildSubjectPins,
     createGeneralCityMarker,
+    createSubjectPin,
     createMunicipalityCountMarker,
     createMunicipalityViewMarker,
     DONUT_INK_HEIGHT,
@@ -88,17 +92,8 @@ export function useMapViewCapture({
             setMapZoom(mapInstance.getZoom());
 
             const center = mapInstance.getCenter();
-            const bounds = mapInstance.getBounds();
-            const viewport: MapViewport | null = bounds
-                ? {
-                      w: bounds.getWest(),
-                      s: bounds.getSouth(),
-                      e: bounds.getEast(),
-                      n: bounds.getNorth(),
-                      clng: center.lng,
-                      clat: center.lat,
-                  }
-                : null;
+            const bounds = mapBounds(mapInstance);
+            const viewport: MapViewport | null = bounds ? { ...bounds, clng: center.lng, clat: center.lat } : null;
             if (viewport && setViewMunicipality) {
                 setViewMunicipality(pickViewportMunicipality(viewport, municipalitiesRef?.current ?? []));
             }
@@ -170,9 +165,16 @@ export function useMapViewCapture({
 }
 
 /**
- * Build the subject pins for the current viewport and keep them in sync. Co-located subjects merge
- * into a "+N" marker; the selected subject keeps its own highlighted pin (see buildSubjectPins).
- * A separate effect restyles pins on selection.
+ * Keep the subject pins near the viewport as HTML markers, and keep the set in sync with the
+ * map. Only the location groups inside the pin window (the viewport padded by
+ * PIN_WINDOW_PADDING) and the group of the selected or previewed subject exist as markers. The
+ * set is reconciled by location as the map moves (see attachLiveLayout): a pan or zoom adds the
+ * groups that came near and drops the ones that left, and a pin that stays keeps its element for
+ * as long as the layer lives. Every marker costs a
+ * projection and a DOM write on every frame of a gesture, and `visibleSubjects` holds every pin
+ * of the filter set, so a layer that kept them all moved hundreds of off-screen pins on every
+ * gesture and morphed them all at once (see syncDotMode). Co-located subjects merge into a "+N"
+ * marker; a separate effect restyles the live pins on selection.
  */
 export function useSubjectMarkers({
     mapInstance,
@@ -202,7 +204,10 @@ export function useSubjectMarkers({
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
     setCoLocated: (v: CoLocatedBox | null) => void;
 }) {
-    const pinsRef = useRef<SubjectPin[]>([]);
+    /** the live pins, by location key (see locationKey) */
+    const pinsRef = useRef<Map<string, SubjectPin>>(new Map());
+    /** the current layer's reconcile, for the selection effect — null while the layer is off */
+    const reconcileRef = useRef<(() => void) | null>(null);
     const selectedIdRef = useRef(selectedId);
     selectedIdRef.current = selectedId;
     const previewIdRef = useRef(previewId);
@@ -247,13 +252,12 @@ export function useSubjectMarkers({
         // Crowded viewport → the pins drop to plain topic-coloured dots. Counted over the subjects
         // actually on screen right now (`visibleSubjects` is filter-scoped, so it holds off-screen
         // subjects too). Re-evaluated live on every frame of a pan/zoom — the flip is applied to
-        // the existing pins in place (a CSS-transitioned morph, see SubjectPin.setDot), never by
+        // the live pins in place (a CSS-transitioned morph, see SubjectPin.setDot), never by
         // rebuilding the layer. The exit threshold sits below the entry one so a count hovering at
         // the boundary can't flap the whole layer between shapes mid-gesture.
         const countInView = () => {
-            const b = mapInstance.getBounds();
-            if (!b) return visibleSubjects.length;
-            const vp = { w: b.getWest(), s: b.getSouth(), e: b.getEast(), n: b.getNorth() };
+            const vp = mapBounds(mapInstance);
+            if (!vp) return visibleSubjects.length;
             // This runs on every frame of a pan/zoom, so stop counting at the entry threshold:
             // both mode decisions only compare against thresholds at or below it, and a dense
             // viewport (the common case for large filter sets) exits after ~150 hits.
@@ -265,60 +269,69 @@ export function useSubjectMarkers({
         };
         let dotMode = countInView() >= SUBJECT_DOT_THRESHOLD;
 
-        const pins = buildSubjectPins(mapInstance, groupByLocation(visibleSubjects), {
-            selectedId: selectedIdRef.current,
-            previewId: previewIdRef.current,
-            dot: dotMode,
-            onSelect: (id) => onSelectRef.current(id),
-            onOpenCoLocated: openCoLocated,
-            t: tRef.current,
-        });
-        pinsRef.current = pins;
+        const groups = groupByLocation(visibleSubjects);
+        const live = pinsRef.current;
+        const createPin = (group: LandingSubject[]): SubjectPin =>
+            createSubjectPin(mapInstance, group, {
+                selectedId: selectedIdRef.current,
+                previewId: previewIdRef.current,
+                dot: dotMode,
+                onSelect: (id) => onSelectRef.current(id),
+                onOpenCoLocated: openCoLocated,
+                t: tRef.current,
+            });
+        // The pin set for the map as it stands: drop the pins that left the pin window, add the
+        // groups that entered it. Every layer that shares the map with the pins has its own z-index
+        // (see MARKER_Z), so the order pins are added in decides only between pins of one band.
+        const reconcile = () => {
+            const bounds = mapBounds(mapInstance);
+            if (!bounds) return;
+            const pinWindow = padViewport(bounds, PIN_WINDOW_PADDING);
+            const wanted = new Map(
+                selectPinGroups(groups, pinWindow, [selectedIdRef.current, previewIdRef.current]).map(
+                    (group) => [locationKey(group[0]), group] as const,
+                ),
+            );
+            for (const [key, pin] of live) {
+                if (wanted.has(key)) continue;
+                pin.marker.remove();
+                live.delete(key);
+            }
+            for (const [key, group] of wanted) {
+                if (!live.has(key)) live.set(key, createPin(group));
+            }
+        };
+        reconcile();
+        reconcileRef.current = reconcile;
 
         const syncDotMode = () => {
             const n = countInView();
             const next = nextDotMode(n, dotMode);
             if (next === dotMode) return;
             dotMode = next;
-            pins.forEach((pin) => pin.setDot(next, selectedIdRef.current, previewIdRef.current));
+            live.forEach((pin) => pin.setDot(next, selectedIdRef.current, previewIdRef.current));
         };
-        // rAF-coalesced so a burst of move events costs one count per frame; 'move' rather than
-        // 'zoom' because panning changes what's in the viewport too.
-        let frame = 0;
-        const onMove = () => {
-            if (frame) return;
-            frame = requestAnimationFrame(() => {
-                frame = 0;
-                syncDotMode();
-            });
-        };
-        mapInstance.on('move', onMove);
-        mapInstance.on('moveend', syncDotMode);
+        // 'move' rather than 'zoom', because panning changes what's in the viewport too. The dot
+        // mode is settled on every frame and before each reconcile, so the pins a reconcile creates
+        // are born in the right shape.
+        const detachLayout = attachLiveLayout(mapInstance, 'move', { eachFrame: syncDotMode, layout: reconcile });
 
         return () => {
-            if (frame) cancelAnimationFrame(frame);
-            mapInstance.off('move', onMove);
-            mapInstance.off('moveend', syncDotMode);
-            pinsRef.current = [];
-            pins.forEach(({ marker, root }) => {
-                marker.remove();
-                // unmount async — React forbids unmounting a root mid-commit
-                if (root) setTimeout(() => root.unmount(), 0);
-            });
+            detachLayout();
+            reconcileRef.current = null;
+            live.forEach((pin) => pin.marker.remove());
+            live.clear();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mapInstance, visibleSubjects, active]);
 
-    // Selection / strip-preview restyle the existing subject markers in place (no rebuild). The
-    // selected pin and the mobile strip's previewed pin both get the intense filled style (previewId
-    // is only ever set on mobile, so this reads the same on both viewports).
+    // Selection / strip-preview restyle the live subject markers in place (no rebuild); each pin
+    // resolves its own highlight (see pinHighlight), "+N" groups included.
     useEffect(() => {
-        pinsRef.current.forEach((pin) => {
-            if (!pin.subject) return;
-            const selected = pin.subject.id === selectedId;
-            const intense = selected || pin.subject.id === previewId;
-            stylePin(pin, pin.subject, selected, intense, pin.dot);
-        });
+        // A subject can be selected or previewed from outside the pin window — a `?subject=` link,
+        // a list card, a strip card — so its pin may not exist yet.
+        reconcileRef.current?.();
+        pinsRef.current.forEach((pin) => pin.setSelection(selectedId, previewId));
     }, [selectedId, previewId]);
 }
 
@@ -486,7 +499,7 @@ export function useMunicipalityCountMarkers({
             const placements = computePlacements();
             markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
         };
-        const detach = attachLiveRepack(mapInstance, reposition);
+        const detach = attachLiveLayout(mapInstance, 'zoom', { layout: reposition });
 
         return () => {
             detach();
@@ -517,44 +530,51 @@ function createPackPlanner(
     };
 }
 
-/** How often a packed layer recomputes its layout during a zoom gesture. The repack is ~O(n²)
- *  (measured ~9ms at n=60), so it must not run per frame; the marker shells ease toward the last
- *  targets at frame rate regardless (see packedMarkerShell), so a coarser target cadence stays
- *  visually smooth. */
-const REPACK_MIN_INTERVAL_MS = 100;
+/** How often a layer recomputes its layout during a gesture. A repack is ~O(n²) (measured ~9ms
+ *  at n=60) and a pin reconcile builds markers, so neither runs per frame; the marker shells ease
+ *  toward the last targets at frame rate regardless (see packedMarkerShell), so a coarser target
+ *  cadence stays visually smooth. */
+const LIVE_LAYOUT_MIN_INTERVAL_MS = 100;
 
 /**
- * Live layout for a packed marker layer: the packing only ever changes with zoom (it's
- * translation-invariant, and pitch/rotation are disabled on the landing map), so 'zoom' — which
- * fires every animation frame of a wheel/pinch/easeTo — is the one signal that matters. Repacks
- * are rAF-coalesced AND time-gated to REPACK_MIN_INTERVAL_MS — the shells' easing carries the
- * motion between targets — with an ungated 'moveend' pass so every gesture settles on an exact
- * final layout. Returns the detach function.
+ * Live layout for a marker layer during a gesture. `event` is the map signal the layout follows,
+ * fired on every animation frame of a wheel/pinch/easeTo: 'zoom' for a packed layer, whose packing
+ * is translation-invariant (pitch and rotation are disabled on the landing map), 'move' for the
+ * pin window, which a pan changes too. `layout` is rAF-coalesced AND time-gated to
+ * LIVE_LAYOUT_MIN_INTERVAL_MS — the packed shells' easing carries the motion between targets, the
+ * pin window fills in steps — with an ungated 'moveend' pass so every gesture settles on the exact
+ * result. `eachFrame` runs on every coalesced frame and before `layout` on both paths, so a layout
+ * sees what the frame settled first. Skipped ticks need no retry: the event keeps firing while the
+ * gesture continues, and the trailing end is the moveend pass. Returns the detach function.
  */
-function attachLiveRepack(map: MapboxMap, reposition: () => void): () => void {
+function attachLiveLayout(
+    map: MapboxMap,
+    event: 'zoom' | 'move',
+    { eachFrame, layout }: { eachFrame?: () => void; layout: () => void },
+): () => void {
     let frame = 0;
-    let lastPack = 0;
-    const onZoom = () => {
+    let last = 0;
+    const onEvent = () => {
         if (frame) return;
         frame = requestAnimationFrame(() => {
             frame = 0;
+            eachFrame?.();
             const now = performance.now();
-            // Skipped ticks need no retry: 'zoom' keeps firing while the gesture continues, and
-            // the trailing end is covered by the moveend pass below.
-            if (now - lastPack < REPACK_MIN_INTERVAL_MS) return;
-            lastPack = now;
-            reposition();
+            if (now - last < LIVE_LAYOUT_MIN_INTERVAL_MS) return;
+            last = now;
+            layout();
         });
     };
     const onMoveEnd = () => {
-        lastPack = performance.now();
-        reposition();
+        eachFrame?.();
+        last = performance.now();
+        layout();
     };
-    map.on('zoom', onZoom);
+    map.on(event, onEvent);
     map.on('moveend', onMoveEnd);
     return () => {
         if (frame) cancelAnimationFrame(frame);
-        map.off('zoom', onZoom);
+        map.off(event, onEvent);
         map.off('moveend', onMoveEnd);
     };
 }
@@ -677,7 +697,7 @@ export function useMunicipalitiesViewMarkers({
             const placements = computePlacements();
             markers.forEach((m, i) => m.setPlacement([placements[i].offset.x, placements[i].offset.y], placements[i].scale));
         };
-        const detach = attachLiveRepack(mapInstance, reposition);
+        const detach = attachLiveLayout(mapInstance, 'zoom', { layout: reposition });
 
         return () => {
             detach();

@@ -4,7 +4,7 @@ import { useEffect, useRef, type MutableRefObject, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client';
 import { NextIntlClientProvider, useLocale, useMessages, type AbstractIntlMessages } from 'next-intl';
 import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
-import { EXPLAIN_LNGLAT, flyToMunicipality } from '@/lib/landing/landingCore';
+import { EXPLAIN_LNGLAT, MARKER_Z, flyToMunicipality } from '@/lib/landing/landingCore';
 import type { ClickedMunicipality, LandingMapCity, LandingSubject } from '@/lib/landing/landingData';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { isPointInGeometry } from '@/lib/geo';
@@ -198,6 +198,7 @@ export function useMapPopups({
             popup.on('close', teardownPopup);
         };
         const el = document.createElement('div');
+        el.style.zIndex = String(MARKER_Z.explainBadge);
         el.className =
             'flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-[hsl(var(--orange))] bg-white shadow-md transition-transform hover:scale-110';
         const img = document.createElement('img');
