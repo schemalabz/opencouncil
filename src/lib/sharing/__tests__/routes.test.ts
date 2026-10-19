@@ -178,9 +178,19 @@ describe('server-rendered social preview contracts', () => {
         expect(metadata.title).toBe('Άννα · Πλατεία');
         expect(metadata.openGraph?.images).toEqual([{ url: 'https://pr-123.opencouncil.dev/api/og/contribution?id=c1&locale=en', width: 1200, height: 630 }]);
         expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/city/meeting/subjects/subject');
-        expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/city/meeting/subjects/subject');
+        expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/city/meeting/subjects/subject?contribution=c1');
         const page = await SubjectPage(props);
         expect(page.props.children.find((child: React.ReactElement) => child.type === Subject).props.highlightedContributionId).toBe('c1');
+    });
+
+    it('keeps a video timestamp in the og:url of a subject, and drops one that is not a number', async () => {
+        const params = Promise.resolve({ locale: 'en', cityId: 'city', meetingId: 'meeting', subjectId: 'subject' });
+        resolveContribution.mockResolvedValue(null);
+        const timed = await subjectMetadata({ params, searchParams: Promise.resolve({ t: '120' }) });
+        expect(timed.openGraph?.url).toBe('https://opencouncil.gr/city/meeting/subjects/subject?t=120');
+        expect(timed.alternates?.canonical).toBe('https://opencouncil.gr/city/meeting/subjects/subject');
+        const junk = await subjectMetadata({ params, searchParams: Promise.resolve({ t: '<script>' }) });
+        expect(junk.openGraph?.url).toBe('https://opencouncil.gr/city/meeting/subjects/subject');
     });
 
     it.each(['subject', 'meeting', 'city'])('ignores a contribution from another %s in subject metadata and highlighting', async (mismatch) => {

@@ -73,4 +73,12 @@ describe('withCanonicalUrl', () => {
         expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/x?excerpt=1');
         expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/x');
     });
+
+    it('keeps the share state in og:url but not in the canonical', async () => {
+        currentHost = 'opencouncil.gr';
+        const metadata = await withCanonicalUrl('/x', {}, { contribution: 'c1', t: undefined });
+        expect(metadata.openGraph?.url).toBe('https://opencouncil.gr/x?contribution=c1');
+        expect(metadata.alternates?.canonical).toBe('https://opencouncil.gr/x');
+    });
+
 });

@@ -77,8 +77,9 @@ export async function generateMetadata(
         ? compactMetadataDescription(localizeText(subject.description, params.locale))
         : `Θέμα που συζητήθηκε | ${cityName} | ${formatNumericDate(new Date(meetingData.meeting.dateTime), meetingData.city.timezone)}`;
 
-    const shared = await selectedContribution(props);
+    const [shared, { t }] = await Promise.all([selectedContribution(props), props.searchParams ?? Promise.resolve({} as QueryParams)]);
     const sharedMetadata = shared ? await contributionMetadata(shared, params.locale) : {};
+    const shareState = { contribution: shared?.id, t: typeof t === 'string' && /^\d+$/.test(t) ? t : undefined };
     return withCanonicalUrl(`/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`, {
         title,
         description,
@@ -92,7 +93,7 @@ export async function generateMetadata(
             description,
         },
         ...sharedMetadata,
-    });
+    }, shareState);
 }
 
 // Server component that renders the Subject component
