@@ -31,10 +31,12 @@ const byMeetingDate = (a: SearchResultLight, b: SearchResultLight) =>
 
 /**
  * The related-subjects section, loaded on the server so the rows and their
- * links are in the page's HTML for crawlers and for readers without
- * JavaScript. Both levels come from loadRelatedNeighbours, shared with the
- * header's recurrence strip, which treats a level that failed to load as
- * empty. Renders nothing at all when neither level has a subject. A
+ * links are in the page's HTML for readers without JavaScript. The subject
+ * page leaves it out for the crawlers that isCrawlerRequest recognises,
+ * since every miss of its cache costs two index queries. Both levels come
+ * from loadRelatedNeighbours, shared with the header's recurrence strip,
+ * which treats a level that failed to load as empty. Renders nothing at all
+ * when neither level has a subject. A
  * statistics group that fails leaves its rows without statistics: the rows
  * and their links are the point, and they stay.
  *
