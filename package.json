@@ -64,7 +64,7 @@
     "@opencouncil/ui": "*",
     "@posthog/mcp": "^0.22.3",
     "@posthog/nextjs-config": "^1.11.3",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.10.1",
     "@radix-ui/react-checkbox": "^1.4.1",
     "@radix-ui/react-collapsible": "^1.2.1",
     "@radix-ui/react-context-menu": "^2.4.1",
