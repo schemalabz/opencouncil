@@ -15,7 +15,7 @@ import { meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
 import { takesPlace } from '@/lib/meetingLifecycleRules';
 
 // Bounds each Google API call so a hung request cannot stall the admin
-// routes that await the sync (googleapis sets no timeout by default).
+// routes that await the sync (the Google API client sets no timeout by default).
 const CALENDAR_REQUEST_TIMEOUT_MS = 10_000;
 
 /**
@@ -30,22 +30,21 @@ async function getCalendarClient() {
         throw new Error('Google Calendar OAuth credentials are not set. Please configure GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET, and GOOGLE_CALENDAR_REFRESH_TOKEN');
     }
 
-    // Dynamic import to avoid loading googleapis in client bundle
-    const { google } = await import('googleapis');
+    // Dynamic import to avoid loading the Calendar client in client bundle
+    const { auth, calendar } = await import('@googleapis/calendar');
 
-    // Create OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new auth.OAuth2({
         clientId,
         clientSecret,
-        'http://localhost' // Redirect URI (not used for refresh token flow)
-    );
+        redirectUri: 'http://localhost', // Not used for the refresh token flow
+    });
 
     // Set the refresh token to get access tokens
     oauth2Client.setCredentials({
         refresh_token: refreshToken,
     });
 
-    return google.calendar({ version: 'v3', auth: oauth2Client });
+    return calendar({ version: 'v3', auth: oauth2Client });
 }
 
 /**
@@ -186,7 +185,9 @@ export async function syncMeetingToCalendar(
                         calendarId: env.GOOGLE_CALENDAR_ID,
                         eventId,
                         sendUpdates: 'none',
-                    }, { timeout: CALENDAR_REQUEST_TIMEOUT_MS });
+                    // gaxios retries a timed-out DELETE, which would multiply
+                    // the timeout. One attempt keeps the bound.
+                    }, { timeout: CALENDAR_REQUEST_TIMEOUT_MS, retry: false });
                 } catch {
                     cleanup = 'the event is still on the calendar and an admin must delete it';
                 }

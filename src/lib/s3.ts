@@ -1,6 +1,5 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { isS3NotFound } from '@opencouncil/subject-images/store'
 
@@ -36,7 +35,7 @@ export function extractFileExtension(filename: string): string {
 
 export function generateRandomFilename(originalFilename: string): string {
     const extension = extractFileExtension(originalFilename)
-    return `${uuidv4()}.${extension}`
+    return `${crypto.randomUUID()}.${extension}`
 }
 
 export function constructPublicUrl(bucket: string, key: string, useCdn: boolean = false): string {
