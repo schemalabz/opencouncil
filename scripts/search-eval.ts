@@ -733,7 +733,8 @@ async function main() {
     const mode = (flagValue('--mode') ?? 'full') as 'full' | 'lexical' | 'semantic';
     // Sweeps the index's semanticMinScore (profile.ts) without editing query.ts: run the suite
     // at several cutoffs and read where the on-topic and paraphrase cases start
-    // to go empty and the junk ones stop. That sweep is what produced 0.930.
+    // to go empty and the junk ones stop. That sweep produced every cutoff in
+    // the PROFILES table of profile.ts.
     const rawMinScore = flagValue('--min-score');
     const semanticMinScore = rawMinScore === undefined ? undefined : Number(rawMinScore);
     if (semanticMinScore !== undefined && !Number.isFinite(semanticMinScore)) {
