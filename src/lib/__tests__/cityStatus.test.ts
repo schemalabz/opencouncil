@@ -5,6 +5,7 @@ import {
     isOutOfNetwork,
     isPetitionable,
     PUBLIC_CITY_WHERE,
+    publicMeetingWhere,
     CUSTOMER_CITY_WHERE,
     OUT_OF_NETWORK_CITY_WHERE,
 } from '../cityStatus';
@@ -63,5 +64,20 @@ describe('where-clause fragments agree with the predicates', () => {
     it('OUT_OF_NETWORK_CITY_WHERE selects exactly the statuses isOutOfNetwork accepts', () => {
         expect(ALL_STATUSES.filter((s) => s === OUT_OF_NETWORK_CITY_WHERE.status))
             .toEqual(ALL_STATUSES.filter(isOutOfNetwork));
+    });
+});
+
+describe('publicMeetingWhere', () => {
+    it('admits only a released meeting of a public city on the given realm', () => {
+        expect(publicMeetingWhere('greece')).toEqual({ released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } });
+    });
+
+    it('spans every realm only when the caller passes null', () => {
+        expect(publicMeetingWhere(null)).toEqual({ released: true, city: PUBLIC_CITY_WHERE });
+    });
+
+    // meetingWhere in subjectsApi adds its date filters to the object it gets.
+    it('returns a new object on every call', () => {
+        expect(publicMeetingWhere('greece')).not.toBe(publicMeetingWhere('greece'));
     });
 });

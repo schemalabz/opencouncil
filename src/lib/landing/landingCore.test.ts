@@ -1,4 +1,34 @@
-import { SUBJECT_DOT_EXIT_RATIO, SUBJECT_DOT_THRESHOLD, nextDotMode, parseInitialUrlState } from './landingCore';
+import {
+    MARKER_Z,
+    PIN_WINDOW_PADDING,
+    SUBJECT_DOT_EXIT_RATIO,
+    SUBJECT_DOT_THRESHOLD,
+    mapBounds,
+    nextDotMode,
+    padViewport,
+    parseInitialUrlState,
+    pointInWindow,
+    selectPinGroups,
+} from './landingCore';
+import type { LandingSubject } from './landingData';
+
+describe('MARKER_Z', () => {
+    it('gives every layer its own z-index', () => {
+        const values = Object.values(MARKER_Z);
+        expect(new Set(values).size).toBe(values.length);
+    });
+
+    // The order the landing showed before the pin layer was windowed, when DOM order decided it.
+    it('stacks the layers in the order the landing has always shown', () => {
+        const order = [MARKER_Z.pin, MARKER_Z.explainBadge, MARKER_Z.hotPin, MARKER_Z.cityHall, MARKER_Z.selectedPin, MARKER_Z.coLocatedPin];
+        expect([...order].sort((a, b) => a - b)).toEqual(order);
+    });
+
+    // .subject-popup and .municipality-popup in globals.css sit at 5 and must not fall below a marker.
+    it('stays at or below the map popups', () => {
+        expect(Math.max(...Object.values(MARKER_Z))).toBeLessThanOrEqual(5);
+    });
+});
 
 describe('nextDotMode', () => {
     const enter = SUBJECT_DOT_THRESHOLD;
@@ -44,5 +74,81 @@ describe('parseInitialUrlState — a committed search', () => {
 
     it('reads no search from a link that carries none', () => {
         expect(parseInitialUrlState('?cat=t1').search).toBe('');
+    });
+});
+
+describe('mapBounds', () => {
+    it('reads the map bounds as plain west/south/east/north', () => {
+        const map = { getBounds: () => ({ getWest: () => 1, getSouth: () => 2, getEast: () => 3, getNorth: () => 4 }) };
+        expect(mapBounds(map as unknown as Parameters<typeof mapBounds>[0])).toEqual({ w: 1, s: 2, e: 3, n: 4 });
+    });
+
+    it('is null before the map has bounds', () => {
+        expect(mapBounds({ getBounds: () => null } as unknown as Parameters<typeof mapBounds>[0])).toBeNull();
+    });
+});
+
+describe('padViewport', () => {
+    it('grows the viewport by the fraction of its own size on every side', () => {
+        expect(padViewport({ w: 10, s: 20, e: 14, n: 22 }, 0.5)).toEqual({ w: 8, s: 19, e: 16, n: 23 });
+    });
+
+    it('returns the viewport itself at zero padding', () => {
+        expect(padViewport({ w: 10, s: 20, e: 14, n: 22 }, 0)).toEqual({ w: 10, s: 20, e: 14, n: 22 });
+    });
+
+    it('makes the pin window four times the viewport at the layer padding', () => {
+        const { w, s, e, n } = padViewport({ w: 0, s: 0, e: 2, n: 1 }, PIN_WINDOW_PADDING);
+        expect((e - w) * (n - s)).toBeCloseTo(8);
+    });
+});
+
+describe('selectPinGroups', () => {
+    // Minimal LandingSubject — only the fields the selection reads.
+    const at = (id: string, lng: number, lat: number): LandingSubject => ({ id, lng, lat } as unknown as LandingSubject);
+    const inside = [at('in', 1, 1)];
+    const coLocatedInside = [at('a', 1.5, 1.5), at('b', 1.5, 1.5)];
+    const outside = [at('out', 5, 5)];
+    const coLocatedOutside = [at('c', 6, 6), at('d', 6, 6)];
+    const groups = [inside, coLocatedInside, outside, coLocatedOutside];
+    const pinWindow = { w: 0, s: 0, e: 2, n: 2 };
+
+    it('keeps the groups whose point is inside the pin window', () => {
+        expect(selectPinGroups(groups, pinWindow, [])).toEqual([inside, coLocatedInside]);
+    });
+
+    it('keeps a group outside the window when it holds a subject to highlight', () => {
+        expect(selectPinGroups(groups, pinWindow, ['out'])).toEqual([inside, coLocatedInside, outside]);
+        // any member of a co-located group, not only the first
+        expect(selectPinGroups(groups, pinWindow, [null, 'd'])).toEqual([inside, coLocatedInside, coLocatedOutside]);
+    });
+
+    it('ignores a null id and an id that names no subject', () => {
+        expect(selectPinGroups(groups, pinWindow, [null, 'nobody'])).toEqual([inside, coLocatedInside]);
+    });
+
+    it('treats the window edge as inside', () => {
+        expect(selectPinGroups([[at('edge', 2, 0)]], pinWindow, [])).toHaveLength(1);
+    });
+
+    // The map renders world copies: a view dragged once around the globe reports Greece at 383°.
+    it('keeps a group the view shows on a wrapped world copy', () => {
+        const greece = [at('gr', 23.7, 38)];
+        expect(selectPinGroups([greece], { w: 382, s: 37, e: 385, n: 39 }, [])).toEqual([greece]);
+        expect(selectPinGroups([greece], { w: -338, s: 37, e: -335, n: 39 }, [])).toEqual([greece]);
+    });
+});
+
+describe('pointInWindow', () => {
+    it('reads a window that crosses the antimeridian', () => {
+        const window = { w: 179, s: -10, e: 181, n: 10 };
+        expect(pointInWindow(-179.5, 0, window)).toBe(true);
+        expect(pointInWindow(179.5, 0, window)).toBe(true);
+        expect(pointInWindow(170, 0, window)).toBe(false);
+        expect(pointInWindow(-179.5, 20, window)).toBe(false);
+    });
+
+    it('holds everything once the window spans the globe', () => {
+        expect(pointInWindow(-170, 0, { w: -200, s: -10, e: 200, n: 10 })).toBe(true);
     });
 });

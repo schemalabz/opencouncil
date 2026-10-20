@@ -7,6 +7,8 @@ import Icon from '@/components/icon';
 import { formatDate } from '@/lib/formatters/time';
 import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
+import { useFullDescription } from '@/components/landing/v2/hooks/useFullDescription';
+import { PreviewText } from '@/components/landing/v2/PreviewText';
 import { topicStyle } from '@/lib/topicStyle';
 
 /* Expanded subject (mobile). The category bar (back · category), the title + municipality logo, the
@@ -27,6 +29,8 @@ export function SubjectExpandedCard({
     surface?: MapSurface;
 }) {
     const t = useTranslations('landingV2');
+    // This card is the selected subject's: show the description in full, fetched past the row's preview.
+    const { description, loading: descriptionLoading } = useFullDescription(subject, true);
     const locale = useLocale();
     const locationLine = subjectLocationLine(subject);
     const topicBar = topicStyle(subject.topic.color);
@@ -99,8 +103,10 @@ export function SubjectExpandedCard({
                 </div>
 
                 {/* description */}
-                {subject.summary && (
-                    <p className="px-4 py-3 text-sm leading-relaxed text-foreground/80">{subject.summary}</p>
+                {description && (
+                    <p aria-busy={descriptionLoading || undefined} className="px-4 py-3 text-sm leading-relaxed text-foreground/80">
+                        <PreviewText text={description} loading={descriptionLoading} />
+                    </p>
                 )}
             </div>
 

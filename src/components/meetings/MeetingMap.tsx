@@ -13,6 +13,7 @@ import { useSubjectMarkers } from '@/components/landing/v2/hooks/useMapMarkers';
 import { useSubjectMapState } from '@/components/map/subjects/useSubjectMapState';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { toLandingSubjects, type MapSubject } from '@/lib/landing/landingData';
+import { stripMarkdown } from '@/lib/formatters/markdown';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { useRouter } from '@/i18n/routing';
 import { meetingLabel } from '@/lib/meetingName';
@@ -45,7 +46,10 @@ export function MeetingMap() {
             return [{
                 id: subject.id,
                 name: subject.name,
-                description: subject.description ?? '',
+                // The page holds the whole description, and the description route could not serve
+                // an unreleased meeting's anyway: ship the text whole, nothing left to fetch.
+                descriptionPreview: stripMarkdown(subject.description ?? ''),
+                descriptionTruncated: false,
                 cityId: city.id,
                 cityName: city.name,
                 cityTimezone: city.timezone,
