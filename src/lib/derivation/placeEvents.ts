@@ -15,7 +15,7 @@ export interface PlacedEvent<E extends PlaceableEvent = EventRow> { event: E; ef
 
 /**
  * The first digit run of a decision number, which for «286/2026» is the 286 the
- * clerk counts by. A prefixed form like «ΑΚΣ 12/286/2026» therefore reads 12 —
+ * clerk counts by. A prefixed form like «Α 12/286/2026» therefore reads 12 —
  * accepted, because the prefix is stable within one body and the ordinals only
  * ever get compared to each other.
  */

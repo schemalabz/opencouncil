@@ -248,7 +248,7 @@ export interface MinutesAttendanceChange {
     type: 'arrival' | 'departure';
     /**
      * What the document pinned the change to when it is not an agenda item
-     * («στην 286 ΑΚΣ», «στις 19:45»); printed instead of the subject label.
+     * («στην απόφαση 286», «στις 19:45»); printed instead of the subject label.
      * Null when the change is reconstructed from attendance diffs.
      */
     anchorLabel?: string | null;

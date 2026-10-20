@@ -20,7 +20,7 @@ describe('buildAttendanceChangesFromEvents', () => {
     it('places a decision-number departure on the first subject whose decision reaches it', () => {
         const { changes: [c] } = buildAttendanceChangesFromEvents([event({ anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: '286', timing: 'DURING' })], subjects, resolve, null);
         expect(c.atSubject.id).toBe('c');
-        expect(c.anchorLabel).toBe('στην 286 ΑΚΣ');
+        expect(c.anchorLabel).toBe('στην απόφαση 286');
     });
 
     it('"after" a decision number lands on the next decision', () => {
@@ -31,10 +31,10 @@ describe('buildAttendanceChangesFromEvents', () => {
     it('labels a decision number by where the change takes effect: «μετά την» only when timed after', () => {
         const label = (timing: PlaceableEvent['timing'], kind: PlaceableEvent['kind'] = 'DEPARTURE') => buildAttendanceChangesFromEvents(
             [event({ kind, anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: '286', timing })], subjects, resolve, null).changes[0].anchorLabel;
-        expect(label('AFTER', 'ARRIVAL')).toBe('μετά την 286 ΑΚΣ');
-        expect(label('AFTER')).toBe('μετά την 286 ΑΚΣ');
-        expect(label('BEFORE')).toBe('στην 286 ΑΚΣ');
-        expect(label(null)).toBe('στην 286 ΑΚΣ');
+        expect(label('AFTER', 'ARRIVAL')).toBe('μετά την απόφαση 286');
+        expect(label('AFTER')).toBe('μετά την απόφαση 286');
+        expect(label('BEFORE')).toBe('στην απόφαση 286');
+        expect(label(null)).toBe('στην απόφαση 286');
     });
 
     it('an agenda-item anchor lands on that item, or the next one when timed after', () => {

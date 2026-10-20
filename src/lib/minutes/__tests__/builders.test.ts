@@ -452,8 +452,8 @@ describe('buildMayorNote', () => {
     });
 
     it('prints an anchor the document gave instead of a subject', () => {
-        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην 286 ΑΚΣ' }) }], false))
-            .toBe('προσήλθε στην 286 ΑΚΣ');
+        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην απόφαση 286' }) }], false))
+            .toBe('προσήλθε στην απόφαση 286');
     });
 
     it('says nothing when the mayor was there throughout', () => {

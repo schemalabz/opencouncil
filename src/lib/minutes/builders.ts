@@ -847,14 +847,16 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
 
 /**
  * The label an anchor that is not an agenda item prints, or null for one that
- * prints the subject. A decision number reads «στην 286 ΑΚΣ»: the change takes
- * effect at that decision, as «από το 5ο θέμα» names the first subject on the
- * other side. With timing AFTER it takes effect at the next decision, so it
- * reads «μετά την 286 ΑΚΣ».
+ * prints the subject. A decision number reads «στην απόφαση 286»: the change
+ * takes effect at that decision, as «από το 5ο θέμα» names the first subject on
+ * the other side. With timing AFTER it takes effect at the next decision, so it
+ * reads «μετά την απόφαση 286». The word is spelled out because the
+ * abbreviation depends on the body (ΑΔΣ, ΑΔΕ, …) and the body type does not
+ * tell which one a body uses.
  */
 export function formatAnchorLabel(e: Pick<PlaceableEvent, 'anchorKind' | 'anchorDecisionNumber' | 'anchorPhase' | 'timing'>): string | null {
     if (e.anchorKind === 'DECISION_NUMBER' && decisionOrdinal(e.anchorDecisionNumber) != null) {
-        return `${e.timing === 'AFTER' ? 'μετά την' : 'στην'} ${e.anchorDecisionNumber} ΑΚΣ`;
+        return `${e.timing === 'AFTER' ? 'μετά την' : 'στην'} απόφαση ${e.anchorDecisionNumber}`;
     }
     if (e.anchorKind === 'PHASE') {
         return e.anchorPhase === 'OUT_OF_AGENDA' ? 'κατά τα θέματα εκτός ημερήσιας διάταξης' : 'πριν την ημερήσια διάταξη';
@@ -864,7 +866,7 @@ export function formatAnchorLabel(e: Pick<PlaceableEvent, 'anchorKind' | 'anchor
 
 /**
  * Where a change happened, as a phrase that can follow a name or a verb:
- * «στην 286 ΑΚΣ» (`formatAnchorLabel`) when the document pinned it to something
+ * «στην απόφαση 286» (`formatAnchorLabel`) when the document pinned it to something
  * other than an agenda item, «από το 5ο θέμα» otherwise — `atSubject` is the subject the member is
  * first seen on the other side of, so the preposition has to be «από», not a
  * bare label. One helper so the Προσελεύσεις/Αποχωρήσεις lists and the
