@@ -433,14 +433,14 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                 setIsLoadingContributions(true);
                 setContributions([]);
                 setPage(1);
-                const { results, totalCount } = await getLatestContributionsForParty(
+                const { results, total } = await getLatestContributionsForParty(
                     party.id,
                     1,
                     5,
                     selectedAdminBodyType
                 );
                 setContributions(results);
-                setTotalCount(totalCount);
+                setTotalCount(total);
             } catch (error) {
                 console.error('Error fetching contributions:', error);
             } finally {

@@ -76,7 +76,7 @@ export async function getLatestContributionsForSpeaker(
     page: number = 1,
     pageSize: number = 5,
     topicId?: string | null,
-): Promise<{ results: ContributionForPerson[]; totalCount: number }> {
+): Promise<{ results: ContributionForPerson[]; total: number }> {
     const skip = (page - 1) * pageSize;
     const unreleased = await unreleasedScopeForPerson(personId);
     const meetingFilter = buildMeetingFilter(unreleased);
@@ -89,7 +89,7 @@ export async function getLatestContributionsForSpeaker(
         },
     };
 
-    const [contributions, totalCount] = await Promise.all([
+    const [contributions, total] = await Promise.all([
         prisma.speakerContribution.findMany({
             where: whereClause,
             include: {
@@ -108,7 +108,7 @@ export async function getLatestContributionsForSpeaker(
         prisma.speakerContribution.count({ where: whereClause }),
     ]);
 
-    return { results: contributions, totalCount };
+    return { results: contributions, total };
 }
 
 export async function getLatestContributionsForParty(
@@ -116,7 +116,7 @@ export async function getLatestContributionsForParty(
     page: number = 1,
     pageSize: number = 5,
     administrativeBodyType?: AdministrativeBodyType | null,
-): Promise<{ results: ContributionForPerson[]; totalCount: number }> {
+): Promise<{ results: ContributionForPerson[]; total: number }> {
     const skip = (page - 1) * pageSize;
     const unreleased = await unreleasedScopeForParty(partyId);
     const meetingFilter = buildMeetingFilter(unreleased, administrativeBodyType);
@@ -133,7 +133,7 @@ export async function getLatestContributionsForParty(
         },
     };
 
-    const [contributions, totalCount] = await Promise.all([
+    const [contributions, total] = await Promise.all([
         prisma.speakerContribution.findMany({
             where: whereClause,
             include: {
@@ -152,5 +152,5 @@ export async function getLatestContributionsForParty(
         prisma.speakerContribution.count({ where: whereClause }),
     ]);
 
-    return { results: contributions, totalCount };
+    return { results: contributions, total };
 }
