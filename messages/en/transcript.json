@@ -97,6 +97,7 @@
         "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "The transcript is not available yet.",
+    "byCirculation": "In a meeting by circulation, the members vote in writing. There is no transcript.",
     "procedural": "Procedural",
     "currentTimeButton": {
         "jumpToCurrent": "Jump to the current time"

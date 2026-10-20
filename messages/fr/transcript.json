@@ -97,6 +97,7 @@
         "copySourceAttribution": "Copié depuis OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "La transcription n'est pas encore disponible.",
+    "byCirculation": "Lors d’une séance par consultation écrite, les membres votent par écrit. Il n’y a pas de transcription.",
     "procedural": "Procédural",
     "currentTimeButton": {
         "jumpToCurrent": "Aller au moment actuel"

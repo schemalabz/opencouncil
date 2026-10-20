@@ -53,6 +53,7 @@ import { SubjectImage } from '@/components/subject/SubjectImage';
 import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
 import { adminToolClass } from '@/components/admin/AdminStrip';
 import { AIDisclosure } from '@/components/AIDisclosure';
+import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
 
 /**
  * `related` is the related-subjects section, rendered by the page on the
@@ -70,7 +71,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { presentation, deadline } = useMeetingStage();
-    const pending = presentationPendingKind(presentation);
+    const pending = presentationPendingKind(presentation, meeting);
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();
@@ -427,7 +428,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                             {(!contributions || contributions.length === 0) ? (
                                 pending
                                     ? <PendingNote what="statements" kind={pending} deadline={deadline} className="mt-4" />
-                                    : <p className="mt-4 text-sm text-muted-foreground">{t("noStatements")}</p>
+                                    : <p className="mt-4 text-sm text-muted-foreground">{t(hasPublicRecording(meeting) ? "noStatements" : "noStatementsByCirculation")}</p>
                             ) : (
                                 <div className="divide-y divide-border">
                                     {contributions.map(contribution => (

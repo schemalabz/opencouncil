@@ -97,6 +97,7 @@
         "copySourceAttribution": "Копирано са OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "Транскрипт још није доступан.",
+    "byCirculation": "На седници писаним изјашњавањем чланови гласају писмено. Нема транскрипта.",
     "procedural": "Процедурално",
     "currentTimeButton": {
         "jumpToCurrent": "Пређите на тренутно време"

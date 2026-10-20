@@ -97,6 +97,7 @@
         "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
     },
     "notAvailable": "Η απομαγνητοφώνηση δεν είναι ακόμη διαθέσιμη.",
+    "byCirculation": "Σε συνεδρίαση δια περιφοράς τα μέλη ψηφίζουν γραπτά. Δεν υπάρχει απομαγνητοφώνηση.",
     "procedural": "Διαδικαστικό",
     "currentTimeButton": {
         "jumpToCurrent": "Μεταφορά στον τρέχοντα χρόνο"
