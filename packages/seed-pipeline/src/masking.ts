@@ -13,6 +13,21 @@ function textArrayLiteral(elements: string[]): string {
 
 type ColumnRule = Exclude<MaskingRule, { action: 'delete-when' }>;
 
+/**
+ * The JSON actions serve a text column that holds JSON (TaskStatus bodies) and a
+ * jsonb column (AdministrativeBody.decisionConventions). Each reads the column as
+ * text for the validity test, and writes a jsonb value, which Postgres assigns to
+ * a text column through its text form.
+ */
+function jsonOf(column: string): string {
+    return `${column}::jsonb`;
+}
+
+/** The elements of the array at `path`, numbered, for an UPDATE that rebuilds the array in its order. */
+function arrayElements(column: string, path: string[]): string {
+    return `jsonb_array_elements(${jsonOf(column)} #> ${textArrayLiteral(path)}) WITH ORDINALITY AS a(e, n)`;
+}
+
 /** The WHERE fragment that selects rows the rule still needs to change. */
 function pendingCondition(rule: MaskingRule): string {
     if (rule.action === 'delete-when') return `(${rule.when})`;
@@ -26,10 +41,14 @@ function pendingCondition(rule: MaskingRule): string {
             // Failed tasks store their error text in these columns (e.g. TaskStatus.requestBody
             // and .responseBody), and a value that is not JSON cannot carry the key.
             // pg_input_is_valid (PostgreSQL 16+) filters those rows out before the ::jsonb cast runs.
-            return `${column} IS NOT NULL AND pg_input_is_valid(${column}, 'jsonb') AND ${column}::jsonb ? ${literal(rule.key)}`;
+            return `${column} IS NOT NULL AND pg_input_is_valid(${column}::text, 'jsonb') AND ${jsonOf(column)} ? ${literal(rule.key)}`;
         case 'json-remove-path':
             // The same guard as json-remove-key.
-            return `${column} IS NOT NULL AND pg_input_is_valid(${column}, 'jsonb') AND (${column}::jsonb #> ${textArrayLiteral(rule.path)}) IS NOT NULL`;
+            return `${column} IS NOT NULL AND pg_input_is_valid(${column}::text, 'jsonb') AND (${jsonOf(column)} #> ${textArrayLiteral(rule.path)}) IS NOT NULL`;
+        case 'json-remove-array-key':
+            // jsonb_typeof guards the elements: `?` on a JSON string tests its value, not a key.
+            return `${column} IS NOT NULL AND pg_input_is_valid(${column}::text, 'jsonb') AND jsonb_typeof(${jsonOf(column)} #> ${textArrayLiteral(rule.path)}) = 'array'`
+                + ` AND EXISTS (SELECT 1 FROM ${arrayElements(column, rule.path)} WHERE jsonb_typeof(e) = 'object' AND e ? ${literal(rule.key)})`;
         case 'null-when':
             return `(${rule.when}) AND ${column} IS NOT NULL`;
     }
@@ -44,9 +63,11 @@ function newValue(rule: ColumnRule): string {
         case 'empty-array':
             return "'{}'";
         case 'json-remove-key':
-            return `(${column}::jsonb - ${literal(rule.key)})::text`;
+            return `(${jsonOf(column)} - ${literal(rule.key)})`;
         case 'json-remove-path':
-            return `(${column}::jsonb #- ${textArrayLiteral(rule.path)})::text`;
+            return `(${jsonOf(column)} #- ${textArrayLiteral(rule.path)})`;
+        case 'json-remove-array-key':
+            return `jsonb_set(${jsonOf(column)}, ${textArrayLiteral(rule.path)}, (SELECT jsonb_agg(CASE WHEN jsonb_typeof(e) = 'object' THEN e - ${literal(rule.key)} ELSE e END ORDER BY n) FROM ${arrayElements(column, rule.path)}))`;
     }
 }
 
@@ -67,16 +88,21 @@ export type RuleScope = Partial<Record<string, string>>;
 function removeJsonKeysSql(table: string, column: string, keys: string[], scope?: string): string {
     const col = quoteIdent(column);
     const removals = keys.map((key) => ` - ${literal(key)}`).join('');
-    const mention = keys.map((key) => `${col} LIKE ${literal(`%"${key}"%`)}`).join(' OR ');
-    const has = keys.length === 1 ? `${col}::jsonb ? ${literal(keys[0])}` : `${col}::jsonb ?| ${textArrayLiteral(keys)}::text[]`;
-    const where = `${col} IS NOT NULL AND (${mention}) AND pg_input_is_valid(${col}, 'jsonb') AND ${has}${scope ? ` AND (${scope})` : ''}`;
-    return `UPDATE public.${quoteIdent(table)} SET ${col} = (${col}::jsonb${removals})::text WHERE ${where};`;
+    const mention = keys.map((key) => `${col}::text LIKE ${literal(`%"${key}"%`)}`).join(' OR ');
+    const has = keys.length === 1 ? `${jsonOf(col)} ? ${literal(keys[0])}` : `${jsonOf(col)} ?| ${textArrayLiteral(keys)}::text[]`;
+    const where = `${col} IS NOT NULL AND (${mention}) AND pg_input_is_valid(${col}::text, 'jsonb') AND ${has}${scope ? ` AND (${scope})` : ''}`;
+    return `UPDATE public.${quoteIdent(table)} SET ${col} = (${jsonOf(col)}${removals}) WHERE ${where};`;
 }
 
 export function maskingSql(rule: MaskingRule, scope?: string): string {
     const scoped = (where: string) => (scope ? `${where} AND (${scope})` : where);
     if (rule.action === 'delete-when') return `DELETE FROM public.${quoteIdent(rule.table)} WHERE ${scoped(pendingCondition(rule))};`;
     if (rule.action === 'json-remove-key') return removeJsonKeysSql(rule.table, rule.column, [rule.key], scope);
+    if (rule.action === 'json-remove-array-key') {
+        // As in removeJsonKeysSql: the LIKE test skips a row before the JSON parse.
+        const mention = `${quoteIdent(rule.column)}::text LIKE ${literal(`%"${rule.key}"%`)}`;
+        return `UPDATE public.${quoteIdent(rule.table)} SET ${quoteIdent(rule.column)} = ${newValue(rule)} WHERE ${scoped(`${mention} AND ${pendingCondition(rule)}`)};`;
+    }
     return `UPDATE public.${quoteIdent(rule.table)} SET ${quoteIdent(rule.column)} = ${newValue(rule)} WHERE ${scoped(pendingCondition(rule))};`;
 }
 

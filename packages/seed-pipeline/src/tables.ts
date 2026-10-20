@@ -10,6 +10,8 @@ const maskingRule = z.discriminatedUnion('action', [
     z.object({ table: z.string(), column: z.string(), action: z.literal('empty-array') }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('json-remove-key'), key: z.string() }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('json-remove-path'), path: z.array(z.string().min(1)).nonempty() }),
+    // Removes `key` from every object of the array at `path`, such as the confidence of each speaker.
+    z.object({ table: z.string(), column: z.string(), action: z.literal('json-remove-array-key'), path: z.array(z.string().min(1)).nonempty(), key: z.string().min(1) }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('null-when'), when: z.string() }),
     deleteWhenRule,
 ]);

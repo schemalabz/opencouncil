@@ -123,7 +123,11 @@ maybe('seed pipeline end to end', () => {
         // Both cities carry a geometry, so the subset-only rule that nulls the
         // geometry of an unsupported city has something to remove.
         await prisma.$executeRawUnsafe(`UPDATE "City" SET geometry = ST_GeomFromText('POLYGON((23.7 37.9, 23.8 37.9, 23.8 38.0, 23.7 37.9))', 4326)`)
-        const council = await createAdministrativeBody(athens.id, { id: 'athens-council', name: 'Council', contactEmails: ['dimos@athens.gr'] })
+        // An admin who confirms the decision conventions leaves a user id in them; a rule removes it.
+        const council = await createAdministrativeBody(athens.id, {
+            id: 'athens-council', name: 'Council', contactEmails: ['dimos@athens.gr'],
+            decisionConventions: { provenance: { source: 'manual', confirmedBy: 'user-admin-1', confirmedAt: '2026-10-01T00:00:00.000Z' } },
+        })
         const committee = await createAdministrativeBody(athens.id, { id: 'athens-committee', name: 'Committee', type: 'committee' })
         const subjectIds: string[] = []
         const segmentIds: string[] = []
@@ -143,6 +147,8 @@ maybe('seed pipeline end to end', () => {
                 // Utterance.text does, so the subset scan's publicText exemption for
                 // SpeakerIdentification has something to cover.
                 await prisma.speakerIdentification.create({ data: { speakerTagId: tag.id, method: 'transcript', personId: identified.id, actionable: true, evidenceKind: 'named', confidence: 90, evidence: `[00:01] The chair gives the floor to Identified Person (meeting ${i}), confirmed by dimos@athens.gr` } })
+                // A voiceprint match is the result of a biometric comparison, so no artifact keeps it.
+                await prisma.speakerIdentification.create({ data: { speakerTagId: tag.id, method: 'voiceprint', personId: identified.id, actionable: true, evidenceKind: 'voiceprint', confidence: 73.2, evidence: 'voiceprint match' } })
             }
             await prisma.utterance.create({ data: { text: `Utterance ${i} write to dimos@athens.gr`, startTimestamp: 0, endTimestamp: 5, speakerSegmentId: seg.id } })
             await createTaskStatus(m.id, athens.id, { type: 'summarize', status: 'completed', requestBody: JSON.stringify({ callbackUrl: 'https://x/cb?token=SECRET', mediaUrl: 'https://cdn/x.mp3' }), responseBody: '{"ok":true}' })
@@ -182,7 +188,7 @@ maybe('seed pipeline end to end', () => {
                 videoUrl: 'https://cdn/x.mp4',
                 audioUrl: 'https://cdn/x.mp3',
                 muxPlaybackId: 'mux-x',
-                transcript: { transcription: { utterances: [{ text: 'Utterance 1', start: 0, end: 5, speaker: 0, drift: 0 }], speakers: [{ speaker: 0, match: null, confidence: {} }] } },
+                transcript: { transcription: { utterances: [{ text: 'Utterance 1', start: 0, end: 5, speaker: 0, drift: 0 }], speakers: [{ speaker: 0, match: null, confidence: { 'person-voiced': 0.732 } }] } },
             }),
         })
         // One pollDecisions task on m1 creates the decisions of two meetings. In the
@@ -331,7 +337,10 @@ maybe('seed pipeline end to end', () => {
         const [fullDumpDir] = fs.readdirSync(path.join(root, 'verify-work', 'full')).filter((name) => name.startsWith('artifact-'))
         const fullTaskStatusLines = readTableDataLines(path.join(root, 'verify-work', 'full', fullDumpDir), 'TaskStatus')
         expect(fullTaskStatusLines.some((line) => line.includes('[0.1,0.2]'))).toBe(false)
-        expect(fullTaskStatusLines.some((line) => line.includes('"utterances":[{"text":"Utterance 1"'))).toBe(true)
+        // A rule that rewrites the body stores it in jsonb's text form, which reorders keys and spaces them.
+        expect(fullTaskStatusLines.some((line) => line.includes('"utterances"') && line.includes('"Utterance 1"'))).toBe(true)
+        // The voiceprint scores of the transcribe response go from both artifacts.
+        expect(fullTaskStatusLines.some((line) => line.includes('person-voiced'))).toBe(false)
 
         // verify restored the full artifact too. It keeps every meeting, the unreleased m4 included.
         const full = new Client({ connectionString: verifyUrls.full })
@@ -364,6 +373,8 @@ maybe('seed pipeline end to end', () => {
             // The full dump has no row filter, so the masking rule is what removes the reader's address.
             const locations = await full.query<{ id: string }>('SELECT id FROM "Location" ORDER BY id')
             expect(locations.rows).toEqual([{ id: 'loc-subject' }])
+            const fullConventions = await full.query<{ c: unknown }>(`SELECT "decisionConventions" AS c FROM "AdministrativeBody" WHERE id = 'athens-council'`)
+            expect(fullConventions.rows[0].c).toEqual({ provenance: { source: 'manual', confirmedAt: '2026-10-01T00:00:00.000Z' } })
         } finally {
             await full.end()
         }
@@ -389,7 +400,7 @@ maybe('seed pipeline end to end', () => {
                 videoUrl: 'https://cdn/x.mp4',
                 audioUrl: 'https://cdn/x.mp3',
                 muxPlaybackId: 'mux-x',
-                transcript: { transcription: { speakers: [{ speaker: 0, match: null, confidence: {} }] } },
+                transcript: { transcription: { speakers: [{ speaker: 0, match: null }] } },
             }])
             expect(tasks.rows.filter((r) => r.type === 'summarize').map((r) => r.responseBody)).toEqual(['{"ok":true}', '{"ok":true}', '{"ok":true}', '{"ok":true}'])
             const voicePrintCount = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "VoicePrint"')
@@ -441,6 +452,8 @@ maybe('seed pipeline end to end', () => {
             expect(selfRefDefinition.rows[0].def).toContain('ON DELETE CASCADE')
             const identifications = await restored.query<{ evidence: string }>('SELECT evidence FROM "SpeakerIdentification"')
             expect(identifications.rows).toEqual([{ evidence: '[00:01] The chair gives the floor to Identified Person (meeting 1), confirmed by dimos@athens.gr' }])
+            const conventions = await restored.query<{ c: unknown }>(`SELECT "decisionConventions" AS c FROM "AdministrativeBody" WHERE id = 'athens-council'`)
+            expect(conventions.rows[0].c).toEqual({ provenance: { source: 'manual', confirmedAt: '2026-10-01T00:00:00.000Z' } })
         } finally {
             await restored.end()
         }

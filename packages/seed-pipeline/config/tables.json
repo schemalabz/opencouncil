@@ -38,11 +38,14 @@
     { "table": "DecisionCandidate", "action": "delete-when", "when": "(\"councilMeetingId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"CouncilMeeting\" m WHERE (m.\"cityId\", m.id) = (\"DecisionCandidate\".\"cityId\", \"DecisionCandidate\".\"councilMeetingId\"))) OR (\"subjectId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.id = \"DecisionCandidate\".\"subjectId\")) OR (\"decisionId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Decision\" d WHERE d.id = \"DecisionCandidate\".\"decisionId\"))" },
     { "table": "TaskStatus", "action": "delete-when", "when": "type = 'generateHighlight' AND pg_input_is_valid(\"requestBody\", 'jsonb') AND NOT EXISTS (SELECT 1 FROM public.\"Highlight\" h WHERE h.id = \"requestBody\"::jsonb #>> '{parts,0,id}')" },
     { "table": "Location", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.\"locationId\" = \"Location\".id)" },
+    { "table": "SpeakerIdentification", "action": "delete-when", "when": "method = 'voiceprint'" },
     { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
     { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-key", "key": "voiceprint" },
-    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" }
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" },
+    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-array-key", "path": ["transcript", "transcription", "speakers"], "key": "confidence" },
+    { "table": "AdministrativeBody", "column": "decisionConventions", "action": "json-remove-path", "path": ["provenance", "confirmedBy"] }
   ],
   "subsetOnly": [
     { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },
