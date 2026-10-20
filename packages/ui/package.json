@@ -15,6 +15,7 @@
     "./lib/bird-sms": "./src/lib/bird-sms.ts",
     "./lib/pagination": "./src/lib/pagination.ts",
     "./lib/meeting-title": "./src/lib/meeting-title.ts",
+    "./lib/meeting-news": "./src/lib/meeting-news.ts",
     "./*": "./src/*.tsx"
   },
   "dependencies": {

@@ -1,9 +1,8 @@
 import type { EditorialBrief } from "../../agent/types";
+import { STALE_MEETING_MS, classifyEvent } from "@opencouncil/ui/lib/meeting-news";
 import {
   MAX_EVENTS_PER_TICK,
   MEETING_SETTLE_MS,
-  STALE_MEETING_MS,
-  classifyEvent,
   runPollerTick,
 } from "../poller";
 import { PROACTIVE_PAUSED_KEY, futureSummaryAlertKey } from "../settings";
