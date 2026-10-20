@@ -192,16 +192,22 @@ export function formatCalendarDate(date: string, locale: string = 'el'): string 
     });
 }
 
+// Building a formatter costs tens of microseconds, and the meetings search
+// formats a date for every meeting of a city on each request. The key space is
+// the locales times the city time zones, so the map stays small.
+const numericDateFormats = new Map<string, Intl.DateTimeFormat>();
+
 export function formatNumericDate(date: Date, timezone?: string, locale: string = 'el'): string {
-    const options: Intl.DateTimeFormatOptions = {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: timezone || DEFAULT_TIMEZONE,
-    };
     // en-GB rather than en-US so English output stays day-first numeric.
     const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
-    return new Intl.DateTimeFormat(intlLocale, options).format(date);
+    const timeZone = timezone || DEFAULT_TIMEZONE;
+    const key = `${intlLocale}|${timeZone}`;
+    let format = numericDateFormats.get(key);
+    if (!format) {
+        format = new Intl.DateTimeFormat(intlLocale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone });
+        numericDateFormats.set(key, format);
+    }
+    return format.format(date);
 }
 
 /**
