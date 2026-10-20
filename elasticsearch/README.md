@@ -143,6 +143,36 @@ and the alias swap can happen in either order. The first swap away from e5 is th
 version carries the e5 thresholds as constants, so deploy the app before that swap, or semantic matches go
 empty until the deploy lands. A new model needs a new entry in the profile table, measured before the swap.
 
+#### The app's API key
+
+The app reads the mapping of the alias, and it searches the concrete index behind the alias. The `read`
+privilege does not grant the mapping read, and a grant on the alias name does not cover the concrete index
+names. Every app key (production, staging, preview) therefore needs this role, created with
+`POST /_security/api_key` or added to an existing key with `PUT /_security/api_key/<id>`:
+
+```json
+"role_descriptors": {
+  "opencouncil_app_search": {
+    "cluster": [],
+    "indices": [
+      { "names": ["subjects", "subjects-*"], "privileges": ["read", "view_index_metadata"] }
+    ]
+  }
+}
+```
+
+`subjects-*` does not match the scratch indices (`subjects_test`, `subjects_test_eis`), so the app cannot
+search them. A key without `view_index_metadata` gives no error in the search results: the mapping read
+fails, the log shows `could not read the mapping`, and a process that has never read the mapping applies the
+schema's thresholds to whatever index the alias serves. Check a key with:
+
+```json
+GET /_security/user/_has_privileges
+{ "index": [ { "names": ["subjects", "subjects-*"], "privileges": ["read", "view_index_metadata"] } ] }
+```
+
+Send that request authenticated with the key itself. `has_all_requested` must be `true`.
+
 #### Removing the in-project model
 
 After the alias swap, the e5 endpoint still holds its ML allocation and bills until it is deleted. Delete
@@ -657,7 +687,7 @@ Staging has **read-only search against the production `subjects` index** — the
 
 Configuration on the staging app:
 - `ELASTICSEARCH_URL`: the production Elastic Cloud endpoint
-- `ELASTICSEARCH_API_KEY`: a dedicated key restricted to `read` on `subjects` (staging structurally cannot mutate the index)
+- `ELASTICSEARCH_API_KEY`: a dedicated key restricted to `read` and `view_index_metadata` on `subjects` and `subjects-*` (see [The app's API key](#the-apps-api-key); staging structurally cannot mutate the index)
 - `ELASTICSEARCH_INDEX`: unset (defaults to `subjects`)
 - `DEPLOYMENT_ENV=staging`
 
