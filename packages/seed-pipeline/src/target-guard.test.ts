@@ -70,6 +70,15 @@ describe('assertLocalTarget', () => {
     });
 });
 
+describe('trusted hosts', () => {
+    test('accepts a host only when the caller trusts it', () => {
+        const url = 'postgresql://opencouncil:pw@db:5432/opencouncil?sslmode=disable';
+        expect(() => parseLocalTarget(url)).toThrow(RemoteTargetError);
+        expect(parseLocalTarget(url, ['db'])).toEqual({ host: 'db', port: 5432, user: 'opencouncil', database: 'opencouncil', password: 'pw' });
+        expect(() => parseLocalTarget('postgresql://u@staging.example.com:5432/db', ['db'])).toThrow(RemoteTargetError);
+    });
+});
+
 describe('parseLocalTarget', () => {
     test.each([
         ['postgresql://seed@127.0.0.1:54390/scratch', { host: '127.0.0.1', port: 54390, user: 'seed', database: 'scratch', password: '' }],
