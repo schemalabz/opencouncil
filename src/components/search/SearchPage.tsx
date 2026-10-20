@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";
 import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
+import { readPageParam, totalPagesOf } from "@/lib/zod-schemas/listQuery";
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
 
@@ -70,7 +71,7 @@ export default function SearchPage() {
     const topicIds = searchParams.get('topicIds') || undefined;
     const dateFrom = searchParams.get('dateFrom') || undefined;
     const dateTo = searchParams.get('dateTo') || undefined;
-    const page = parseInt(searchParams.get('page') || '1');
+    const page = readPageParam(searchParams.get('page'));
     // Which of the filters above the query text supplied, rather than the
     // reader choosing. Kept as a string until it is needed, so the memo below
     // is keyed on something stable.
@@ -491,7 +492,7 @@ export default function SearchPage() {
         return () => { live = false; };
     }, [cityId, personId, partyId]);
 
-    const totalPages = Math.ceil(state.total / PAGE_SIZE);
+    const totalPages = totalPagesOf(state.total, PAGE_SIZE);
 
     // Memoize the grid of results
     const resultsGrid = useMemo(() => (
