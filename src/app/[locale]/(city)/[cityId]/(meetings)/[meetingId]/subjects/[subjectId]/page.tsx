@@ -7,7 +7,7 @@ import { OptionalSectionBoundary } from "@/components/ui/OptionalSectionBoundary
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
@@ -77,14 +77,12 @@ export async function generateMetadata(
         ? compactMetadataDescription(localizeText(subject.description, params.locale))
         : `Θέμα που συζητήθηκε | ${cityName} | ${formatNumericDate(new Date(meetingData.meeting.dateTime), meetingData.city.timezone)}`;
 
-    const shared = await selectedContribution(props);
+    const [shared, { t }] = await Promise.all([selectedContribution(props), props.searchParams ?? Promise.resolve({} as QueryParams)]);
     const sharedMetadata = shared ? await contributionMetadata(shared, params.locale) : {};
-    return {
+    const shareState = { contribution: shared?.id, t: typeof t === 'string' && /^\d+$/.test(t) ? t : undefined };
+    return withCanonicalUrl(`/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`, {
         title,
         description,
-        alternates: await buildCanonicalAlternates(
-            `/${params.cityId}/${params.meetingId}/subjects/${params.subjectId}`
-        ),
         openGraph: {
             title,
             description,
@@ -95,7 +93,7 @@ export async function generateMetadata(
             description,
         },
         ...sharedMetadata,
-    };
+    }, shareState);
 }
 
 // Server component that renders the Subject component

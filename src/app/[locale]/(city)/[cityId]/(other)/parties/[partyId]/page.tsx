@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { getPublicAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getBodySeatTotals } from "@/lib/db/bodySeats";
 import { Metadata } from "next";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
@@ -38,7 +38,7 @@ export async function generateMetadata(
     const description = `Η παράταξη ${partyName} στο Δημοτικό Συμβούλιο του Δήμου ${cityName}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, partyId: params.partyId });
 
-    return {
+    return withCanonicalUrl(`/${params.cityId}/parties/${params.partyId}`, {
         title: `${partyName} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
@@ -72,15 +72,12 @@ export async function generateMetadata(
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(
-            `/${params.cityId}/parties/${params.partyId}`,
-        ),
         other: {
             "party:name": party.name,
             "party:short": party.name_short,
             "party:city": city.name,
         },
-    };
+    });
 }
 
 export default async function PartyPage(

@@ -9,7 +9,7 @@ import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Suspense } from "react";
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
@@ -57,7 +57,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     // Generate OG image URL
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, consultationId: params.id });
 
-    return {
+    return withCanonicalUrl(`/${params.cityId}/consultation/${params.id}`, {
         title: `${title} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
@@ -91,7 +91,6 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(`/${params.cityId}/consultation/${params.id}`),
         other: {
             'consultation:status': isActive ? 'active' : 'expired',
             'consultation:endDate': consultation.endDate.toISOString(),
@@ -99,7 +98,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             'consultation:chaptersCount': chaptersCount.toString(),
             'consultation:geosetsCount': geosetsCount.toString(),
         }
-    };
+    });
 }
 
 export default async function ConsultationPage(props: PageProps) {

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { LandingV2 } from '@/components/landing/v2/LandingV2';
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
@@ -24,7 +24,7 @@ export async function generateMetadata(props: {
     // the bare domain unfurls, in Greek on every realm.
     const ogImageUrl = buildOgImageUrl(locale, { pageType: 'landing' });
 
-    return {
+    return withCanonicalUrl('', {
         title,
         description,
         openGraph: {
@@ -50,8 +50,7 @@ export async function generateMetadata(props: {
             creator: '@opencouncil',
             site: '@opencouncil',
         },
-        alternates: await buildCanonicalAlternates(''),
-    };
+    });
 }
 
 export default async function HomePage() {

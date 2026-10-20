@@ -1,12 +1,11 @@
 import { Metadata } from "next";
 import DocumentViewer from "@/components/static/DocumentViewer";
-import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { withCanonicalUrl } from "@/lib/utils/hreflang";
 
 export async function generateMetadata(): Promise<Metadata> {
-    return {
+    return withCanonicalUrl('/terms', {
         title: "Όροι Χρήσης | OpenCouncil",
-        alternates: await buildCanonicalAlternates('/terms'),
-    };
+    });
 }
 
 const sections = [

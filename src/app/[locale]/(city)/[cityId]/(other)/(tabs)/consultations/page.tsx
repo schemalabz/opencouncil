@@ -4,7 +4,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
@@ -44,7 +44,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     // Generate OG image URL for city
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId });
 
-    return {
+    return withCanonicalUrl(`/${params.cityId}/consultations`, {
         title: `Δημόσιες Διαβουλεύσεις | ${cityName} | OpenCouncil`,
         description,
         keywords: [
@@ -80,14 +80,13 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
             description,
             images: [ogImageUrl],
         },
-        alternates: await buildCanonicalAlternates(`/${params.cityId}/consultations`),
         other: {
             'consultations:total': totalConsultationsCount.toString(),
             'consultations:active': activeConsultationsCount.toString(),
             'consultations:city': city.name,
             'consultations:enabled': (city as any).consultationsEnabled.toString(),
         }
-    };
+    });
 }
 
 export default async function ConsultationsPage(

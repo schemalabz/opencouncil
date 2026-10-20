@@ -12,7 +12,8 @@ import { routing, LOCALE_OVERRIDE_HEADER } from "@/i18n/routing";
 import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { Metadata } from "next";
-import { getMetadataBaseFromRequest, getRealmBaseUrlFromRequest } from "@/lib/realm.server";
+import { getMetadataBaseFromRequest } from "@/lib/realm.server";
+import { siteOpenGraph } from "@/lib/og/siteOpenGraph";
 import { appleStartupImages } from "@/lib/pwa/splash";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,10 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     // get resolved against this base per host. On a preview host it is the
     // preview's own origin instead, so an OG-image change is reviewable on its
     // own PR — see getMetadataBaseFromRequest.
-    const [baseUrl, metadataBase] = await Promise.all([
-        getRealmBaseUrlFromRequest(),
-        getMetadataBaseFromRequest(),
-    ]);
+    const metadataBase = await getMetadataBaseFromRequest();
 
     return {
         title: 'OpenCouncil',
@@ -51,20 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
             startupImage: appleStartupImages(),
         },
         metadataBase: new URL(metadataBase),
-        openGraph: {
-            title: 'OpenCouncil',
-            description: 'Ανοιχτή τοπική αυτοδιοίκηση',
-            type: 'website',
-            url: baseUrl,
-            images: [
-                {
-                    url: '/oc-theme.png',
-                    width: 500,
-                    height: 500,
-                    alt: 'OpenCouncil Logo',
-                },
-            ],
-        },
+        openGraph: siteOpenGraph,
         twitter: {
             card: 'summary_large_image',
             title: 'OpenCouncil',

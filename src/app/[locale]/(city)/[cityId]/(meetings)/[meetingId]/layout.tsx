@@ -94,6 +94,9 @@ export async function generateMetadata(
 
     const imageUrl = buildOgImageUrl(locale, { meetingId, cityId });
 
+    // The meeting, its transcript, map and highlights take this metadata, with
+    // or without a ?t= timestamp. A layout cannot read the query, so it states
+    // no og:url, and Facebook keys a share on the URL that was shared.
     return {
         title: optimizedTitle,
         description,
