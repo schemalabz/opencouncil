@@ -81,9 +81,7 @@ export function reconcileAgendaMeetingRecord(
     }
 
     if (read.format !== null && read.format !== recorded.format) {
-        // A meeting by circulation has no page of its own yet (#150), so the
-        // invitation never sets it; a person decides.
-        if ((recorded.format === null || !formatChosen) && read.format !== 'byCirculation') patch.format = read.format;
+        if (recorded.format === null || !formatChosen) patch.format = read.format;
         else mismatches.push({ field: 'format', recorded: recorded.format, read: read.format, evidence: read.formatEvidence });
     }
 

@@ -48,10 +48,16 @@ describe('reconcileAgendaMeetingRecord', () => {
         expect(patch.format).toBe('remote');
     });
 
-    it('never sets a meeting by circulation, which has no page yet, and says so', () => {
-        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded(), read({ format: 'byCirculation' }), { formatChosen: false });
+    it('fills a meeting by circulation like any other format', () => {
+        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded({ format: null }), read({ format: 'byCirculation' }), { formatChosen: true });
+        expect(patch.format).toBe('byCirculation');
+        expect(mismatches).toEqual([]);
+    });
+
+    it('reports an invitation by circulation that differs from a chosen format', () => {
+        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded(), read({ format: 'byCirculation' }), { formatChosen: true });
         expect(patch.format).toBeUndefined();
-        expect(mismatches.map((m) => m.field)).toEqual(['format']);
+        expect(mismatches.map((m) => [m.field, m.recorded, m.read])).toEqual([['format', 'inPerson', 'byCirculation']]);
     });
 
     it('gives a later part of a meeting no kind, no urgency and no number', () => {

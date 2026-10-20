@@ -67,6 +67,17 @@ describe('processAgenda fills and checks the meeting record (#150)', () => {
         expect(alerts).not.toHaveBeenCalled()
     })
 
+    test('fills a meeting by circulation and tells no one', async () => {
+        await createMeeting('chalandri', { id: 'feb25_2026', name: null, name_en: null, administrativeBodyId: bodyId, dateTime: at })
+        const task = await createTaskStatus('feb25_2026', 'chalandri')
+
+        const read = record({ urgent: true, urgentEvidence: 'κατεπείγουσα', format: 'byCirculation', formatEvidence: 'θα πραγματοποιηθεί δια περιφοράς' })
+        await handleProcessAgendaResult(task.id, v7(read, [inAgenda(read)]))
+
+        expect((await meetingRow('chalandri', 'feb25_2026')).format).toBe('byCirculation')
+        expect(alerts).not.toHaveBeenCalled()
+    })
+
     test('a re-run of the same agenda writes nothing and tells no one', async () => {
         await createMeeting('chalandri', { id: 'feb25_2026', name: null, name_en: null, administrativeBodyId: bodyId, dateTime: at,
             kind: 'ordinary', sessionNumber: 12, format: 'inPerson' })
