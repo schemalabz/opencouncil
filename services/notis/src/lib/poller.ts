@@ -131,7 +131,7 @@ export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
  * Without this guard one maintenance script would pay an editorial pass per
  * old meeting and WhatsApp whole cohorts about years-old news.
  */
-export const STALE_MEETING_MS = 30 * 24 * 60 * 60_000;
+export const STALE_MEETING_MS = 15 * 24 * 60 * 60_000;
 /**
  * How long a meeting with no subjects is left alone before it counts as
  * genuinely empty. A task marks itself succeeded before it finishes writing
