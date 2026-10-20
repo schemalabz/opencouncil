@@ -39,6 +39,7 @@ Collect the actual state. All credentials come from `.env` (cluster) and the tas
 | What | Desired (repo) | Actual (live) |
 |---|---|---|
 | Alias → real index | logical name `subjects` | `GET /_alias/subjects`. If `subjects` is still a real index, the one-time alias transition (README) has not happened yet — every rebuild plan must include it |
+| App key privileges | every app key (production, staging, preview) has `read` and `view_index_metadata` on `subjects` and `subjects-*` (README "The app's API key") | `GET /_security/api_key?active_only=true`, read each app key's `role_descriptors` — an empty `{}` inherits the owner's privileges. A key without `view_index_metadata` fails the mapping read with no error in search results, so a rebuild that changes the model must not proceed until every app key passes |
 | Ingest pipeline | `elasticsearch/pipeline.json` | `GET /_ingest/pipeline/strip-refs`, compare normalized JSON |
 | Mapping | the `mapping` block in `schema.json` | `GET /<real-index>/_mapping`: field set and declared types, ignore `_meta` |
 | Deployed schema | `schema.json` at the released ref | `curl $SCHEMA_URL` (serves the **production branch**), diff against `git show $REMOTE/production:elasticsearch/schema.json` — and against `main` to see what a release would deploy |
