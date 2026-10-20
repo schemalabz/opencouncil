@@ -70,9 +70,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'Omit the query to list everything matching the filters, newest first — e.g. all ' +
                 'subjects a person spoke about, or all subjects in a date range. ' +
                 'Returns compact results with URLs; ' +
-                'use get_subject / get_subject_transcript with a result id for details. `total` is ' +
+                'use get_subject / get_subject_transcript with a result id for details. `pagination.total` is ' +
                 'the search index\'s own match count — report it as approximate ("about N"), and ' +
-                'note it is omitted entirely when results had to be withheld. It searches subjects, so ' +
+                'note it and `pagination.totalPages` are omitted when results had to be withheld. It searches subjects, so ' +
                 'a meeting that is transcribed but not yet summarized has nothing here to match — use ' +
                 'list_meetings before you report that a topic was never discussed.',
             inputSchema: z.object({
@@ -360,12 +360,15 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'summarized. For such a meeting this is the only record — summarize it, quote it, ' +
                 'and pick highlight utterances from it. It carries no agenda, decision or vote ' +
                 'tally, so never report those from a transcript alone.',
-            inputSchema: z.object({
+            // Strict: a client that still sends the old segmentsPerPage gets an
+            // error, not the default page size and page numbers that no longer match.
+            inputSchema: z.strictObject({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
                 personId: z.string().optional()
                     .describe('Only this person\'s segments (see list_people)'),
-                segmentsPerPage: z.number().int().min(1).max(100).default(40),
+                pageSize: jsonPageFields.pageSize.max(100).default(40)
+                    .describe('Speaker segments per page'),
                 includeUtteranceIds: z.boolean().default(false),
                 ...paginationShape,
             }),
@@ -377,7 +380,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                     args.meetingId,
                     {
                         page: args.page,
-                        segmentsPerPage: args.segmentsPerPage,
+                        pageSize: args.pageSize,
                         includeUtteranceIds: args.includeUtteranceIds,
                         personId: args.personId,
                     },

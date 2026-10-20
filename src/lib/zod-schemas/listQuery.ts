@@ -69,9 +69,8 @@ export const jsonPageFields = {
 };
 
 /**
- * Where a paged response stands. The search API and the admin notifications
- * return it; the MCP tools and the contribution lists still use their own
- * fields.
+ * Where a paged response stands. The search API, the admin notifications and
+ * the paged MCP tools return it.
  */
 export const paginationSchema = z.object({
     total: z.number().int(),

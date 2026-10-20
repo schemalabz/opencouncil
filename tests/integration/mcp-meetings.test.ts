@@ -66,6 +66,13 @@ describe('MCP meeting listing by administrative body - integration', () => {
         })
     })
 
+    test('reports how many meetings match over every page', async () => {
+        const { meetings, pagination } = await asRequest(() =>
+            mcpListMeetings('athens', { page: 2, pageSize: 2, administrativeBodyIds: [communityId] }, ANON))
+        expect(meetings).toHaveLength(1)
+        expect(pagination).toEqual({ total: 3, page: 2, pageSize: 2, totalPages: 2 })
+    })
+
     test('administrativeBodyIds returns that body\'s meetings, newest first', async () => {
         const { meetings } = await asRequest(() =>
             mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, ANON))
