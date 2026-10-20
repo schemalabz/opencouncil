@@ -67,6 +67,7 @@ jest.mock('next/server', () => ({
   after: (fn: () => unknown) => mockAfter(fn),
 }));
 
+jest.mock('@/lib/discord', () => ({ sendTaskAdminAlert: jest.fn().mockResolvedValue(undefined), sendAgendaReadingAlert: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../processAgendaInternal', () => ({
   requestProcessAgendaInternal: jest.fn(),
 }));

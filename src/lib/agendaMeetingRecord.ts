@@ -88,6 +88,17 @@ export function reconcileAgendaMeetingRecord(
     return { patch, mismatches };
 }
 
+/** What the invitation states, one fact per line, for the success alert of processAgenda. */
+export function describeAgendaRead(read: AgendaMeetingRecord, written: AgendaRecordReconciliation['patch']): string {
+    const filled = (field: keyof AgendaRecordReconciliation['patch']) => (written[field] !== undefined ? ' (filled)' : '');
+    return [
+        `Kind: ${read.kind ?? 'not stated'}${filled('kind')}`,
+        `Urgent: ${read.urgent ? 'yes' : 'no'}${filled('urgent')}`,
+        `Number: ${read.sessionNumber ?? 'not stated'}${filled('sessionNumber')}`,
+        `Format: ${read.format ?? 'not stated'}${filled('format')}${read.format && read.formatEvidence ? ` «${read.formatEvidence}»` : ''}`,
+    ].join('\n');
+}
+
 export function describeMismatch(m: AgendaRecordMismatch): string {
     if (m.field === 'urgent') return 'urgent: recorded urgent, the invitation does not say urgent';
     return `${m.field}: recorded ${m.recorded ?? 'none'}, invitation says ${m.read}${m.evidence ? ` («${m.evidence}»)` : ''}`;

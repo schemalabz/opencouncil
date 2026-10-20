@@ -9,7 +9,6 @@ import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
 import { analyzeStoredName, storedNameLoss } from '@/lib/meetingRecordBackfill';
 import { meetingNameInCity } from '@/lib/meetingName';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
-import { sendAgendaReadingAlert } from '@/lib/discord';
 
 type MeetingForRecord = Parameters<typeof meetingNameInCity>[0] & {
     id: string;
@@ -22,18 +21,20 @@ type MeetingForRecord = Parameters<typeof meetingNameInCity>[0] & {
  * meeting record lacks from what the invitation states, through the
  * lifecycle rules. It never writes a name: the name is derived (#150).
  * A value the record already holds is compared, not overwritten: a difference
- * goes to the admins. The caller revalidates the meeting's cache; the
- * calendar event's title is the derived name, so it is synced here.
+ * is a problem for a person to decide. The caller revalidates the meeting's
+ * cache and reports the agenda to the admins; the calendar event's title is
+ * the derived name, so it is synced here.
  *
- * Returns the fields it wrote, for the caller's copy of the meeting.
+ * Returns the fields it wrote, for the caller's copy of the meeting, and the
+ * problems, for the caller's report.
  */
 export async function applyAgendaMeetingRecord(
     meeting: MeetingForRecord,
     read: AgendaMeetingRecord | null,
     meetingsInAgenda: AgendaMeetingInAgenda[],
-    /** Differences from the identity check, for the same alert. */
+    /** Differences from the identity check, for the same report. */
     identityDifferences: string[],
-) {
+): Promise<{ written: AgendaRecordReconciliation['patch']; problems: string[] }> {
     // Read now, not when the callback started: saving the subjects takes
     // seconds, and an admin's edit in between must be compared, not overwritten.
     const current = await prisma.councilMeeting.findUnique({
@@ -44,7 +45,7 @@ export async function applyAgendaMeetingRecord(
             administrativeBodyId: true, administrativeBody: { select: { type: true, name: true, name_en: true } },
         },
     });
-    if (!current) return {};
+    if (!current) return { written: {}, problems: [] };
 
     // An agenda with several meetings is one record's, unless another record
     // holds the other meeting. Then the record is a combined meeting, which
@@ -95,15 +96,8 @@ export async function applyAgendaMeetingRecord(
     }
     if (problems.length > 0) {
         console.warn(`processAgenda: the agenda of ${meeting.cityId}/${meeting.id} needs a look: ${problems.join('; ')}`);
-        sendAgendaReadingAlert({
-            cityId: meeting.cityId,
-            cityName: meeting.city.name_en,
-            meetingId: meeting.id,
-            meetingName: meetingNameInCity({ ...meeting, ...written }, 'el'),
-            problems,
-        }).catch((error) => console.error('Failed to send the agenda alert:', error));
     }
-    return written;
+    return { written, problems };
 }
 
 /**

@@ -7,8 +7,10 @@
  * - 'all'  — send all lifecycle alerts (default when omitted)
  * - 'none' — suppress all generic alerts; the task's result handler
  *            is responsible for sending its own alerts
+ * - 'handlerReportsSuccess' — send the started and failed alerts; the result
+ *            handler sends the success alert, with what the result held
  */
-export type DiscordAlertMode = 'all' | 'none';
+export type DiscordAlertMode = 'all' | 'none' | 'handlerReportsSuccess';
 
 /** Why the idempotency guard blocks a new run of a pipeline task. */
 export type TaskBlockedReason = 'already_succeeded' | 'already_running';
@@ -36,6 +38,7 @@ export const TASK_CONFIG = {
   processAgenda: {
     scope: 'meeting',
     requiredForPipeline: false,
+    discordAlertMode: 'handlerReportsSuccess',
   },
   transcribe: {
     scope: 'meeting',

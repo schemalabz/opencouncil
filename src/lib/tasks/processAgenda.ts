@@ -9,9 +9,12 @@ import { taskScope } from "./types";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
+import { meetingLabelInCity, meetingNameInCity } from '@/lib/meetingName';
 import { recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
-import { checkAgendaIdentity } from '@/lib/agendaMeetingRecord';
+import { checkAgendaIdentity, describeAgendaRead, type AgendaRecordReconciliation } from '@/lib/agendaMeetingRecord';
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
+import { errorMessage } from '@/lib/utils/errors';
+import { sendAgendaReadingAlert, sendTaskAdminAlert } from '@/lib/discord';
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -59,6 +62,10 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
             `processAgenda result for task ${taskId} has no subjects array (got ${typeof response?.subjects}); ` +
             `skipping subject replacement to avoid data loss. Task remains succeeded.`
         );
+        await reportAgenda(taskId, task.councilMeeting, {
+            details: [{ name: 'Subjects', value: 'not replaced: the result holds no subjects array', inline: true }],
+            problems: [],
+        });
         return;
     }
 
@@ -112,17 +119,34 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         { pruneUnmatched: true }
     );
 
-    // Before the cache below: the kind is part of the derived name that the
-    // meeting page shows.
+    // Before the cache and the success alert below: the kind is part of the
+    // derived name that the meeting page and the alert show.
     // The subjects are saved: nothing here may fail the task.
+    let written: AgendaRecordReconciliation['patch'] = {};
+    let problems: string[] = [];
     if (greek && (response.meetingRecord || (response.meetingsInAgenda?.length ?? 0) > 1 || identityDifferences.length > 0)) {
         try {
             const { applyAgendaMeetingRecord } = await import('./applyAgendaMeetingRecord');
-            await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences);
+            const applied = await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences);
+            Object.assign(task.councilMeeting, applied.written);
+            written = applied.written;
+            problems = applied.problems;
         } catch (error) {
             console.error(`processAgenda could not apply the meeting record of ${task.councilMeeting.cityId}/${task.councilMeeting.id}:`, error);
+            problems = [`the meeting record was not applied: ${errorMessage(error)}`];
         }
     }
+    // The task's own success alert (discordAlertMode: handlerReportsSuccess),
+    // after the write, so that it names the meeting by its new title.
+    await reportAgenda(taskId, task.councilMeeting, {
+        details: [
+            ...(greek && response.meetingRecord
+                ? [{ name: 'From the invitation', value: describeAgendaRead(response.meetingRecord, written) }]
+                : []),
+            { name: 'Subjects', value: String(subjects.length), inline: true },
+        ],
+        problems,
+    });
 
     // Bust the meeting/subject cache now that the new agenda subjects are
     // persisted. The notifications follow once the task reads as succeeded
@@ -134,4 +158,39 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     // calls must outlive the response rather than escape it. Each failure
     // alerts on its own.
     after(() => generateImagesForMeeting(task.councilMeeting.cityId, task.councilMeeting.id));
+}
+
+/**
+ * The success alert of the task, in the format of every task alert, with what
+ * the result held. A problem for a person to decide goes in its own alert.
+ */
+async function reportAgenda(
+    taskId: string,
+    meeting: Parameters<typeof meetingNameInCity>[0] & { id: string; cityId: string; city: { name_en: string } },
+    { details, problems }: { details: { name: string; value: string; inline?: boolean }[]; problems: string[] },
+) {
+    // The subjects are saved: an alert that fails must not fail the task.
+    try {
+        await sendTaskAdminAlert({
+            status: 'completed',
+            taskType: 'processAgenda',
+            cityName: meeting.city.name_en,
+            meetingName: meetingLabelInCity(meeting, 'en'),
+            taskId,
+            cityId: meeting.cityId,
+            meetingId: meeting.id,
+            details,
+        });
+        if (problems.length > 0) {
+            await sendAgendaReadingAlert({
+                cityId: meeting.cityId,
+                cityName: meeting.city.name_en,
+                meetingId: meeting.id,
+                meetingName: meetingNameInCity(meeting, 'el'),
+                problems,
+            });
+        }
+    } catch (error) {
+        console.error('Failed to send the processAgenda alerts:', error);
+    }
 }
