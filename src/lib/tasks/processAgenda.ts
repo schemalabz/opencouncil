@@ -1,6 +1,6 @@
 "use server";
 
-import { ProcessAgendaResult } from "../apiTypes";
+import { ProcessAgendaResult, Subject } from "../apiTypes";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { saveSubjectsForMeeting } from "../db/utils";
@@ -10,9 +10,31 @@ import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
 import { meetingLabelInCity } from '@/lib/meetingName';
-import { recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
+import type { MeetingKind } from '@prisma/client';
+import { MEETING_KINDS, recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
 import { checkAgendaIdentity } from '@/lib/agendaMeetingRecord';
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
+
+/** The items that processAgenda writes itself, for a numbered re-run to retire. */
+const UNNUMBERED_ITEMS = Object.values(MEETING_KINDS).flatMap((k) => k.unnumberedItem ? [k.unnumberedItem] : []);
+
+/** The subject for an agenda item that has no number (`MEETING_KINDS.unnumberedItem`). */
+function unnumberedItemSubject({ name, description }: { name: string; description: string }): Subject {
+    return {
+        name,
+        description,
+        agendaItemTitle: name,
+        agendaSection: null,
+        agendaItemIndex: 1,
+        introducedByPersonId: null,
+        speakerContributions: [],
+        topicImportance: 'high',
+        proximityImportance: 'none',
+        location: null,
+        topicLabel: null,
+        context: null,
+    };
+}
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -35,7 +57,8 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
             councilMeeting: {
                 include: {
                     administrativeBody: true,
-                    city: true
+                    city: true,
+                    continuationOf: { select: { kind: true } }
                 }
             }
         }
@@ -63,8 +86,6 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         return;
     }
 
-    const subjects = response.subjects;
-
     // A document from another municipality must not replace this meeting's
     // subjects or notify its subscribers. Throwing marks the task failed, with
     // the reason, before anything is saved. The record of a meeting follows
@@ -89,6 +110,18 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         identityDifferences = identity.differences;
     }
 
+    // A Λογοδοσία has one item, the accountability report, and its agenda
+    // does not number it, so the extraction finds nothing. Saving that item
+    // as a high subject lets the email and Notis paths announce the meeting
+    // (#308). An empty agenda of any other kind stays empty. A later part has
+    // no kind of its own, so the kind of its first part counts. A meeting
+    // that already took place gets no item: nothing announces it any more.
+    const upcoming = task.councilMeeting.dateTime > new Date();
+    const unnumberedItemOf = (kind: MeetingKind | null) =>
+        kind && upcoming && response.subjects.length === 0 ? MEETING_KINDS[kind].unnumberedItem : null;
+    const unnumberedItem = unnumberedItemOf(task.councilMeeting.kind ?? task.councilMeeting.continuationOf?.kind ?? null);
+    const subjects = unnumberedItem ? [unnumberedItemSubject(unnumberedItem)] : response.subjects;
+
     // The agenda is authoritative, so saveSubjectsForMeeting both matches and
     // prunes: it keeps a subject's id when the incoming set still contains it
     // (by name first, so a renumbered agenda keeps each id with its own
@@ -110,7 +143,13 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         task.councilMeeting.cityId,
         task.councilMeeting.id,
         undefined,
-        { pruneUnmatched: true }
+        // Numbered items replace the item, whatever the kind is now. Item 1
+        // must not take its id by position, or a link to the accountability
+        // report opens the first question. Only the row this handler wrote
+        // matches the name and the description, so an extracted item is never retired.
+        response.subjects.length > 0
+            ? { pruneUnmatched: true, retire: UNNUMBERED_ITEMS }
+            : { pruneUnmatched: true }
     );
 
     // Before the cache and the notifications below: the kind is part of the
@@ -122,6 +161,21 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
             Object.assign(task.councilMeeting, await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences));
         } catch (error) {
             console.error(`processAgenda could not apply the meeting record of ${task.councilMeeting.cityId}/${task.councilMeeting.id}:`, error);
+        }
+    }
+
+    // A new meeting has no kind until the record above takes the one its
+    // invitation reads. The rules of the record decide that kind, so the item
+    // follows only the kind the meeting holds now: the record's, or an
+    // admin's edit made while the subjects were saved.
+    if (!unnumberedItem && upcoming && response.subjects.length === 0) {
+        const current = await prisma.councilMeeting.findUnique({
+            where: { cityId_id: { cityId: task.councilMeeting.cityId, id: task.councilMeeting.id } },
+            select: { kind: true },
+        });
+        const unnumberedItemNow = unnumberedItemOf(current?.kind ?? null);
+        if (unnumberedItemNow) {
+            await saveSubjectsForMeeting([unnumberedItemSubject(unnumberedItemNow)], task.councilMeeting.cityId, task.councilMeeting.id, undefined, { pruneUnmatched: true });
         }
     }
 

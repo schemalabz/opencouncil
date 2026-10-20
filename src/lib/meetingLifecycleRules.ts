@@ -144,17 +144,26 @@ interface FormatRules {
  * every body and every kind.
  */
 export const MEETING_KINDS = {
-    ordinary: { councilOnly: false, takesDecisions: true },
-    special: { councilOnly: true, takesDecisions: true },
-    accountability: { councilOnly: true, takesDecisions: false },
-    activityReport: { councilOnly: true, takesDecisions: false },
-    budget: { councilOnly: true, takesDecisions: true },
-    presidencyElection: { councilOnly: true, takesDecisions: true },
-    financialAccounts: { councilOnly: true, takesDecisions: true },
+    ordinary: { councilOnly: false, takesDecisions: true, unnumberedItem: null },
+    special: { councilOnly: true, takesDecisions: true, unnumberedItem: null },
+    accountability: { councilOnly: true, takesDecisions: false, unnumberedItem: {
+        name: 'Λογοδοσία της Δημοτικής Αρχής',
+        description: 'Η δημοτική αρχή λογοδοτεί στο δημοτικό συμβούλιο για το έργο της.',
+    } },
+    activityReport: { councilOnly: true, takesDecisions: false, unnumberedItem: null },
+    budget: { councilOnly: true, takesDecisions: true, unnumberedItem: null },
+    presidencyElection: { councilOnly: true, takesDecisions: true, unnumberedItem: null },
+    financialAccounts: { councilOnly: true, takesDecisions: true, unnumberedItem: null },
 } as const satisfies Record<MeetingKind, {
     councilOnly: boolean;
     /** The meeting votes decisions that Diavgeia publishes (150 §6 and circular 50602 say λογοδοσία and απολογισμός do not). */
     takesDecisions: boolean;
+    /**
+     * The one item that the agenda states without a number, or null. The
+     * extraction reads numbered items only, so it finds nothing on such an
+     * agenda; processAgenda then saves this item as the subject (#308).
+     */
+    unnumberedItem: { name: string; description: string } | null;
 }>;
 
 /**
