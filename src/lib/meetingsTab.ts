@@ -43,9 +43,3 @@ export function meetingBodyFilter(
     const ids = [...new Set(bodies.filter(body => view.selectedFilters.includes(body.type)).map(body => body.id))];
     return ids.length > 0 ? { administrativeBodyIds: ids } : null;
 }
-
-/** The page to show: the requested one, or the last page when the request is past the end. */
-export function clampPage(requested: number, total: number, pageSize: number): number {
-    const lastPage = Math.max(1, Math.ceil(total / pageSize));
-    return Math.min(Math.max(1, requested), lastPage);
-}

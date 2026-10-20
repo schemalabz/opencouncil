@@ -21,7 +21,7 @@ const communities: FilterOption<string>[] = [
     { value: 'body-b', label: '2η Δημοτική Κοινότητα' },
 ];
 const bodyOptionsFor = (type: BodyType) => (type === 'community' ? communities : []);
-const meetingsConfig: CollectionFilterConfig<BodyType> = { filterOptions, defaultFilterValues: ['council'], unsetMeansEveryValue: false, bodyOptionsFor };
+const meetingsConfig: CollectionFilterConfig<BodyType> = { filterOptions, defaultFilterValues: ['council'], bodyOptionsFor };
 
 const parse = (query: string, config: CollectionFilterConfig<BodyType> = meetingsConfig) => parseCollectionParams(new URLSearchParams(query), config);
 
@@ -38,9 +38,8 @@ describe('parseCollectionParams', () => {
         expect(parse('filters=Δημοτική Επιτροπή,Άγνωστο').selectedFilters).toEqual(['committee']);
     });
 
-    it('without defaults, an unset filter means every value or none, as configured', () => {
-        expect(parse('', { filterOptions, unsetMeansEveryValue: true }).selectedFilters).toEqual(['council', 'committee', 'community']);
-        expect(parse('', { filterOptions, unsetMeansEveryValue: false }).selectedFilters).toEqual([]);
+    it('without defaults, an unset filter selects none, which means all', () => {
+        expect(parse('', { filterOptions }).selectedFilters).toEqual([]);
     });
 
     it('resolves the body label within the one selected type', () => {

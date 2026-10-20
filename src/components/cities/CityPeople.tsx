@@ -5,6 +5,7 @@ import { AdministrativeBodyType } from '@prisma/client'
 import type { PublicAdministrativeBody } from '@/lib/db/types'
 import List from '@/components/List';
 import { useLocalCollection } from '@/components/collection/useLocalCollection';
+import { bodyOptionsForSelection } from '@/lib/utils/filterURL';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -95,16 +96,12 @@ export default function CityPeople({
 
     const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(allPeople, {
         filterOptions: typeOptions,
-        unsetMeansEveryValue: false,
         bodyOptionsFor,
         filter: (selectedValues, person, bodyId) => {
             if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
             return bodyId ? person.roles.some(r => r.administrativeBodyId === bodyId) : true;
         },
         sortItems,
-        // Whoever holds no role any more closes the list under their own
-        // heading, instead of sitting between today's members by surname.
-        trailing: person => !person.roles.some(isRoleActive),
         // A quiet filter over the loaded rows. The identity band's field is
         // the page's search, and it searches transcripts instead.
         searchKeys,
@@ -168,9 +165,7 @@ export default function CityPeople({
                 );
             }}
             renderAfterFilters={(selectedValues) => {
-                const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                if (!selectedType || selectedType === 'council') return null;
-                const subBodies = getBodiesOfTypeFromPeople(allPeople, selectedType);
+                const subBodies = bodyOptionsForSelection(selectedValues, bodyOptionsFor);
                 if (subBodies.length <= 1) return null;
                 return (
                     <BadgePicker
@@ -181,7 +176,9 @@ export default function CityPeople({
                     />
                 );
             }}
-            trailingTitle={t('formerMembers')}
+            // Whoever holds no role any more closes the list under their own
+            // heading, instead of sitting between today's members by surname.
+            trailing={{ title: t('formerMembers'), matches: person => !person.roles.some(isRoleActive) }}
             showCount
             smColumns={1}
             mdColumns={2}

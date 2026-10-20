@@ -31,7 +31,6 @@ const render = () => renderHook(() => useServerCollection({
     pageSize: 12,
     filterOptions,
     defaultFilterValues: ['council'],
-    unsetMeansEveryValue: false,
 }));
 
 beforeEach(() => {

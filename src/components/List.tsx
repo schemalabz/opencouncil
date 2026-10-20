@@ -4,12 +4,10 @@ import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
 import { Pagination } from './ui/pagination';
 import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
 import type { CollectionState } from './collection/types';
-import type { FilterOption } from '@/lib/utils/filterURL';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -29,18 +27,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     editable: boolean;
     t: (key: string, params?: any) => string;
     itemProps?: P;
-    /** The options of the fallback dropdown, drawn when the page renders no filter of its own. */
-    filterOptions?: FilterOption<F>[];
-    allText?: string;
-    /** Defaults to whether the source applies a search. */
-    showSearch?: boolean;
-    /**
-     * The "N items" line. Defaults to `showSearch`, which used to gate it too.
-     * Split out because a list can want one without the other: the city tabs drop
-     * the search box in favour of the page's single search, but still need the
-     * count — it reports the *filtered* total, which the page header (a city-wide
-     * total) cannot stand in for once a filter is applied.
-     */
+    /** The "N items" line. Defaults to whether the source has a search. */
     showCount?: boolean;
     /**
      * Reads the count aloud when it changes. For a source whose results arrive
@@ -60,8 +47,12 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     adminTools?: (selectedValues: F[]) => React.ReactNode;
     renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
     renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
-    /** The heading over `state.trailingRows`. */
-    trailingTitle?: string;
+    /**
+     * Rows listed after all the others, under their own heading: the people
+     * who no longer hold a role, say. They pass the same search and filter
+     * and count in the total; they only stop sharing the grid.
+     */
+    trailing?: { title: string; matches: (item: T) => boolean };
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -73,12 +64,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     formProps,
     t,
     itemProps,
-    filterOptions = [],
     smColumns = 1,
     mdColumns = 2,
     lgColumns = 3,
-    allText,
-    showSearch = state.searchable,
     showCount,
     announceCount = false,
     layout = 'grid',
@@ -86,14 +74,15 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     carouselGap = 16,
     renderFilter,
     renderAfterFilters,
-    trailingTitle,
+    trailing,
 }: ListProps<T, P, F>) {
     const tCommon = useTranslations('Common');
     const listRef = useRef<HTMLDivElement>(null);
     const carouselRef = useRef<HTMLDivElement>(null);
 
     // A shared link carrying ?search= opens on its result, not on an icon.
-    const [searchOpen, setSearchOpen] = useState(Boolean(state.query));
+    const { search } = state;
+    const [searchOpen, setSearchOpen] = useState(Boolean(search?.query));
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Focus when the reader opens it, never on mount: a page arriving with
@@ -161,7 +150,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         layout === 'carousel' && `w-[${carouselItemWidth}px]`
     );
 
-    const countVisible = showCount ?? showSearch;
+    const countVisible = showCount ?? search !== null;
+    const mainRows = trailing ? state.rows.filter(item => !trailing.matches(item)) : state.rows;
+    const trailingRows = trailing ? state.rows.filter(trailing.matches) : [];
     // Called once, so the strip can tell a tool that renders from one that
     // returns null: an empty striped box beside a citizen's list is noise.
     const tools = adminTools?.(state.selectedFilters) ?? null;
@@ -181,7 +172,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     );
 
     const closeSearch = () => {
-        state.setQuery('');
+        search?.setQuery('');
         setSearchOpen(false);
     };
 
@@ -191,17 +182,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 and the control that adds to it are the same thought, and splitting
                 them put the count above a row it was describing. */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                {renderFilter ? (
-                    renderFilter({ selectedValues: state.selectedFilters, onChange: state.setFilters })
-                ) : filterOptions.length > 0 ? (
-                    <MultiSelectDropdown
-                        options={filterOptions}
-                        defaultValues={state.selectedFilters}
-                        onChange={state.setFilters}
-                        className="w-full sm:w-[300px] justify-between"
-                        allText={allText ?? tCommon('all')}
-                    />
-                ) : null}
+                {renderFilter?.({ selectedValues: state.selectedFilters, onChange: state.setFilters })}
                 <div className={cn('ml-auto flex min-w-0 items-center gap-3', searchOpen && 'max-sm:w-full')}>
                     {/* Closed it is one icon, because the page header already
                         carries a full-width field that searches every transcript
@@ -209,7 +190,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         the width its placeholder needs — the whole row on a
                         phone, and 288px above that, which clears the longest of
                         them («Претрага одборничких група») by 30px. */}
-                    {showSearch && (searchOpen ? (
+                    {search && (searchOpen ? (
                         <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
                             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
                             <Input
@@ -218,12 +199,12 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                                 placeholder={t('searchItems')}
                                 aria-label={t('searchItems')}
                                 className="h-8 w-full border-transparent bg-muted/60 pl-8 pr-8 text-base placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-offset-0 sm:text-sm"
-                                value={state.query}
-                                onChange={(e) => state.setQuery(e.target.value)}
+                                value={search.query}
+                                onChange={(e) => search.setQuery(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
                                 // Closing on blur would beat the clear button's own
                                 // click; an empty field left open costs nothing.
-                                onBlur={() => { if (!state.query) setSearchOpen(false); }}
+                                onBlur={() => { if (!search.query) setSearchOpen(false); }}
                             />
                             <button
                                 type="button"
@@ -303,13 +284,13 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {state.rows.map(renderItem)}
+                        {mainRows.map(renderItem)}
                     </div>
-                    {state.trailingRows.length > 0 && (
+                    {trailingRows.length > 0 && (
                         <section className="mt-8 border-t border-border pt-6">
-                            <h3 className="mb-4 text-sm font-medium text-muted-foreground">{trailingTitle}</h3>
+                            <h3 className="mb-4 text-sm font-medium text-muted-foreground">{trailing?.title}</h3>
                             <div className={gridClasses}>
-                                {state.trailingRows.map(renderItem)}
+                                {trailingRows.map(renderItem)}
                             </div>
                         </section>
                     )}

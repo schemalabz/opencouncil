@@ -1,4 +1,4 @@
-import { pageQueryFields } from '@/lib/zod-schemas/listQuery';
+import { readPageParam } from '@/lib/zod-schemas/listQuery';
 
 export interface FilterOption<T = string | null> {
     value: T;
@@ -17,12 +17,6 @@ export interface CollectionFilterConfig<F> {
     filterOptions: FilterOption<F>[];
     /** The selection that a URL without `filters` means. */
     defaultFilterValues?: F[];
-    /**
-     * With no defaults, what an unset `filters` means: every option (the
-     * fallback dropdown) or none (a page that draws its own picker, where an
-     * empty selection is "all"). Default true.
-     */
-    unsetMeansEveryValue?: boolean;
     /** The bodies that one selected type offers. An empty list means that the type has no body picker. */
     bodyOptionsFor?: (type: F) => FilterOption<string>[];
 }
@@ -33,14 +27,6 @@ export function bodyOptionsForSelection<F>(
     bodyOptionsFor?: (type: F) => FilterOption<string>[],
 ): FilterOption<string>[] {
     return selectedFilters.length === 1 && bodyOptionsFor ? bodyOptionsFor(selectedFilters[0]) : [];
-}
-
-// A page URL is typed by hand and shared, so a bad page number opens the first
-// page rather than an error.
-const lenientPage = pageQueryFields.page.catch(undefined);
-
-function parsePage(raw: string | null): number {
-    return lenientPage.parse(raw ?? undefined) ?? 1;
 }
 
 /** A page's `searchParams` prop as URLSearchParams, for the shared parser. */
@@ -56,13 +42,14 @@ export function toURLSearchParams(record: Record<string, string | string[] | und
 /**
  * Reads the view a collection URL names.
  *
- * - `filters` holds labels; `*` is an explicit "all"; no `filters` applies the defaults.
+ * - `filters` holds labels; `*` is an explicit "all"; no `filters` applies the defaults, or
+ *   none ("all") when there are no defaults.
  * - `body` holds a body's label and counts only within the one selected type.
  * - `page` is 1 when missing or not a positive number. The caller clamps it to the last page.
  */
 export function parseCollectionParams<F>(
     params: { get(name: string): string | null },
-    { filterOptions, defaultFilterValues, unsetMeansEveryValue = true, bodyOptionsFor }: CollectionFilterConfig<F>,
+    { filterOptions, defaultFilterValues, bodyOptionsFor }: CollectionFilterConfig<F>,
 ): CollectionView<F> {
     const rawFilters = params.get('filters');
     const explicitlyAll = rawFilters === '*';
@@ -73,14 +60,14 @@ export function parseCollectionParams<F>(
             .filter((value): value is F => value !== undefined)
         : explicitlyAll
             ? []
-            : (defaultFilterValues ?? (unsetMeansEveryValue ? filterOptions.map(f => f.value) : []));
+            : (defaultFilterValues ?? []);
 
     const bodyLabel = params.get('body');
     const selectedBody = bodyLabel
         ? bodyOptionsForSelection(selectedFilters, bodyOptionsFor).find(o => o.label === bodyLabel)?.value ?? null
         : null;
 
-    return { query: params.get('search') ?? '', selectedFilters, selectedBody, page: parsePage(params.get('page')) };
+    return { query: params.get('search') ?? '', selectedFilters, selectedBody, page: readPageParam(params.get('page')) };
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
 import List, { BaseListProps } from '@/components/List';
-import { useLocalCollection } from '@/components/collection/useLocalCollection';
+import { fixedCollection } from '@/components/collection/fixedCollection';
 import { SubjectCard } from '@/components/subject-card';
 import { SubjectRow } from './SubjectRow';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -165,7 +165,7 @@ export function SubjectListContainer({
   }, [cityData, statistics, showContext, openInNewTab, variant, onSubjectOpen, subjects]);
 
   // The search page pages and filters its own results; this list only draws them.
-  const collection = useLocalCollection(subjects, { searchable: false });
+  const collection = fixedCollection(subjects);
 
   if (isDataLoading || isStatsLoading) {
     return variant === 'row' ? (

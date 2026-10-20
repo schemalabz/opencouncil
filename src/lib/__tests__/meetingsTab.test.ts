@@ -1,5 +1,5 @@
 import type { PublicAdministrativeBody } from '@/lib/db/types';
-import { clampPage, meetingBodyFilter, meetingsTabFilters } from '../meetingsTab';
+import { meetingBodyFilter, meetingsTabFilters } from '../meetingsTab';
 
 const body = (id: string, type: PublicAdministrativeBody['type'], name: string): PublicAdministrativeBody => ({
     id, type, name, name_en: name, cityId: 'c', place: null, youtubeChannelUrl: null,
@@ -42,14 +42,5 @@ describe('meetingBodyFilter', () => {
 
     it('matches nothing, never everything, when a selected type has no body in the list', () => {
         expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: null }, bodies.slice(0, 2))).toBeNull();
-    });
-});
-
-describe('clampPage', () => {
-    it('keeps a page in range, and moves a page past the end to the last page', () => {
-        expect(clampPage(3, 130, 12)).toBe(3);
-        expect(clampPage(99, 130, 12)).toBe(11);
-        expect(clampPage(0, 130, 12)).toBe(1);
-        expect(clampPage(4, 0, 12)).toBe(1);
     });
 });

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useLocalCollection, type LocalCollectionOptions } from '../useLocalCollection';
-import { SEARCH_DEBOUNCE_MS } from '../types';
+import { SEARCH_DEBOUNCE_MS } from '@/hooks/useQueryParamState';
 
 let mockSearchParams = new URLSearchParams();
 
@@ -8,14 +8,13 @@ jest.mock('next/navigation', () => ({
     useSearchParams: () => mockSearchParams,
 }));
 
-type Item = { id: string; name: string; body?: string; type?: string; former?: boolean };
+type Item = { id: string; name: string; body?: string; type?: string };
 
 const items: Item[] = Array.from({ length: 30 }, (_, i) => ({
     id: `m${i}`,
     name: `Συνεδρίαση ${i}`,
     type: i % 2 === 0 ? 'council' : 'community',
     body: i % 2 === 0 ? undefined : (i % 4 === 1 ? 'a' : 'b'),
-    former: i === 29,
 }));
 
 const filterOptions = [
@@ -26,11 +25,9 @@ const bodies = [{ value: 'a', label: 'Κοινότητα Α' }, { value: 'b', la
 
 const options: LocalCollectionOptions<Item, string> = {
     filterOptions,
-    unsetMeansEveryValue: false,
     bodyOptionsFor: type => (type === 'community' ? bodies : []),
     filter: (selected, item, body) => (selected.length === 0 || selected.includes(item.type ?? '')) && (!body || item.body === body),
     searchKeys: item => [item.name],
-    pageSize: 12,
 };
 
 const render = (query = '', overrides: Partial<LocalCollectionOptions<Item, string>> = {}) => {
@@ -43,17 +40,12 @@ beforeEach(() => {
 });
 
 describe('useLocalCollection', () => {
-    it('pages the items and reports the total and the page count', () => {
-        const { result } = render();
+    it('shows every matching row on one page, and is never pending', () => {
+        const { result } = render('page=2');
         expect(result.current.total).toBe(30);
-        expect(result.current.totalPages).toBe(3);
-        expect(result.current.rows.map(r => r.id)).toEqual(items.slice(0, 12).map(i => i.id));
+        expect(result.current.rows).toHaveLength(30);
+        expect([result.current.page, result.current.totalPages]).toEqual([1, 1]);
         expect(result.current.pending).toBe(false);
-    });
-
-    it('reads the page from the URL and clamps it to the last page', () => {
-        expect(render('page=2').result.current.rows[0].id).toBe('m12');
-        expect(render('page=9').result.current.page).toBe(3);
     });
 
     it('filters by the selected type and the selected body', () => {
@@ -63,11 +55,10 @@ describe('useLocalCollection', () => {
         expect(result.current.rows.every(r => r.body === 'a')).toBe(true);
     });
 
-    it('searches immediately, ignoring accents, and goes back to page 1 while the URL waits', () => {
-        const { result } = render('page=2');
-        act(() => result.current.setQuery('συνεδριαση 2'));
-        expect(result.current.page).toBe(1);
-        // «2» also matches «Συνεδρίαση 12»: twelve rows, one page.
+    it('searches immediately, ignoring accents, while the URL waits', () => {
+        const { result } = render();
+        act(() => result.current.search!.setQuery('συνεδριαση 2'));
+        // «2» also matches «Συνεδρίαση 12» and «Συνεδρίαση 20»–«29».
         expect(result.current.rows.map(r => r.id)).toEqual(['m2', 'm12', 'm20', 'm21', 'm22', 'm23', 'm24', 'm25', 'm26', 'm27', 'm28', 'm29']);
     });
 
@@ -75,24 +66,21 @@ describe('useLocalCollection', () => {
         jest.useFakeTimers();
         const replace = jest.spyOn(window.history, 'replaceState');
         const { result } = render('page=2');
-        act(() => result.current.setQuery('x'));
+        act(() => result.current.search!.setQuery('x'));
         expect(replace).not.toHaveBeenCalled();
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         expect(replace).toHaveBeenCalledWith(null, '', '?search=x');
         jest.useRealTimers();
     });
 
-    it('applies no search when the source is not searchable', () => {
-        const { result } = render('search=Συνεδρίαση 2', { searchable: false });
-        expect(result.current.searchable).toBe(false);
-        expect(result.current.total).toBe(30);
-    });
-
-    it('splits off the trailing rows but counts them in the total', () => {
-        const { result } = render('page=3', { trailing: item => item.former === true });
-        expect(result.current.total).toBe(30);
-        expect(result.current.trailingRows.map(r => r.id)).toEqual(['m29']);
-        expect(result.current.rows.map(r => r.id)).not.toContain('m29');
+    it('keeps filtering when the browser refuses the history write', () => {
+        jest.useFakeTimers();
+        jest.spyOn(window.history, 'replaceState').mockImplementation(() => { throw new Error('SecurityError'); });
+        const { result } = render();
+        act(() => result.current.search!.setQuery('συνεδριαση 3'));
+        expect(() => act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); })).not.toThrow();
+        expect(result.current.rows.map(r => r.id)).toEqual(['m3', 'm13', 'm23']);
+        jest.useRealTimers();
     });
 
     it('hands sortItems the matching rows, the selection and the body', () => {

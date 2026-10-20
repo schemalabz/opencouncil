@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useServerCollection } from '../useServerCollection';
-import { SEARCH_DEBOUNCE_MS } from '../types';
+import { SEARCH_DEBOUNCE_MS } from '@/hooks/useQueryParamState';
 
 let mockSearchParams = new URLSearchParams();
 const push = jest.fn();
@@ -31,7 +31,6 @@ const render = (query = '') => {
         pageSize: 12,
         filterOptions,
         defaultFilterValues: ['council'],
-        unsetMeansEveryValue: false,
         bodyOptionsFor: type => (type === 'community' ? bodies : []),
     }));
 };
@@ -48,15 +47,14 @@ describe('useServerCollection', () => {
         expect(result.current.total).toBe(130);
         expect(result.current.page).toBe(2);
         expect(result.current.totalPages).toBe(11);
-        expect(result.current.trailingRows).toEqual([]);
-        expect(result.current.searchable).toBe(true);
+        expect(result.current.search).not.toBeNull();
     });
 
     it('reads the selection from the URL', () => {
         const { result } = render('filters=Κοινότητες&body=Κοινότητα Α&search=x');
         expect(result.current.selectedFilters).toEqual(['community']);
         expect(result.current.selectedBody).toBe('a');
-        expect(result.current.query).toBe('x');
+        expect(result.current.search!.query).toBe('x');
     });
 
     it('pushes filter, body and page changes through the router, without scrolling', () => {
@@ -72,8 +70,8 @@ describe('useServerCollection', () => {
     it('replaces the URL with the search after the debounce, and keeps the text local until then', () => {
         jest.useFakeTimers();
         const { result } = render('page=2');
-        act(() => result.current.setQuery('λογοδοσια'));
-        expect(result.current.query).toBe('λογοδοσια');
+        act(() => result.current.search!.setQuery('λογοδοσια'));
+        expect(result.current.search!.query).toBe('λογοδοσια');
         expect(replace).not.toHaveBeenCalled();
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         expect(replace).toHaveBeenCalledWith(`/chania/meetings?${new URLSearchParams({ search: 'λογοδοσια' })}`, { scroll: false });
@@ -88,17 +86,17 @@ describe('useServerCollection', () => {
     it('keeps the text typed while the search navigation was running', () => {
         jest.useFakeTimers();
         const { result, rerender } = render('');
-        act(() => result.current.setQuery('αγιου'));
+        act(() => result.current.search!.setQuery('αγιου'));
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         expect(replace).toHaveBeenLastCalledWith(`/chania/meetings?${new URLSearchParams({ search: 'αγιου' })}`, { scroll: false });
 
         // The reader keeps typing before the navigation lands.
-        act(() => result.current.setQuery('αγιου νικολαου'));
+        act(() => result.current.search!.setQuery('αγιου νικολαου'));
 
         // The navigation lands: the URL now holds the text that was sent.
         mockSearchParams = new URLSearchParams({ search: 'αγιου' });
         rerender();
-        expect(result.current.query).toBe('αγιου νικολαου');
+        expect(result.current.search!.query).toBe('αγιου νικολαου');
 
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         expect(replace).toHaveBeenLastCalledWith(`/chania/meetings?${new URLSearchParams({ search: 'αγιου νικολαου' })}`, { scroll: false });
@@ -109,13 +107,13 @@ describe('useServerCollection', () => {
         const { result, rerender } = render('search=πρωτο');
         mockSearchParams = new URLSearchParams({ search: 'δευτερο' });
         rerender();
-        expect(result.current.query).toBe('δευτερο');
+        expect(result.current.search!.query).toBe('δευτερο');
     });
 
     it('keeps a search that is still loading when the reader then picks a filter', () => {
         jest.useFakeTimers();
         const { result } = render('');
-        act(() => result.current.setQuery('σχολ'));
+        act(() => result.current.search!.setQuery('σχολ'));
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         // The search has not landed: the URL on screen has no `search` yet.
         act(() => result.current.setFilters(['community']));
@@ -127,7 +125,7 @@ describe('useServerCollection', () => {
         jest.useFakeTimers();
         const { result } = render('');
         act(() => result.current.setFilters(['community']));
-        act(() => result.current.setQuery('σχολ'));
+        act(() => result.current.search!.setQuery('σχολ'));
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         expect(replace).toHaveBeenLastCalledWith(`/chania/meetings?${new URLSearchParams({ filters: 'Κοινότητες', search: 'σχολ' })}`, { scroll: false });
         jest.useRealTimers();
@@ -136,18 +134,18 @@ describe('useServerCollection', () => {
     it('leaves the search box alone while its own navigations land, one after the other', () => {
         jest.useFakeTimers();
         const { result, rerender } = render('');
-        act(() => result.current.setQuery('σχολ'));
+        act(() => result.current.search!.setQuery('σχολ'));
         act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
         act(() => result.current.setFilters(['community']));
-        act(() => result.current.setQuery('σχολειο'));
+        act(() => result.current.search!.setQuery('σχολειο'));
 
         mockSearchParams = new URLSearchParams({ search: 'σχολ' });
         rerender();
-        expect(result.current.query).toBe('σχολειο');
+        expect(result.current.search!.query).toBe('σχολειο');
 
         mockSearchParams = new URLSearchParams({ search: 'σχολ', filters: 'Κοινότητες' });
         rerender();
-        expect(result.current.query).toBe('σχολειο');
+        expect(result.current.search!.query).toBe('σχολειο');
         jest.useRealTimers();
     });
 

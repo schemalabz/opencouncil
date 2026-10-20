@@ -11,7 +11,9 @@ import {
     withSearchQuery,
     type CollectionFilterConfig,
 } from '@/lib/utils/filterURL';
-import { SEARCH_DEBOUNCE_MS, type CollectionState } from './types';
+import { SEARCH_DEBOUNCE_MS } from '@/hooks/useQueryParamState';
+import { totalPagesOf } from '@/lib/zod-schemas/listQuery';
+import type { CollectionState } from './types';
 
 export type ServerCollectionInput<T, F> = CollectionFilterConfig<F> & {
     /** The rows of the current page, as the server page loaded them. */
@@ -38,7 +40,6 @@ export function useServerCollection<T, F>({
     pageSize,
     filterOptions,
     defaultFilterValues,
-    unsetMeansEveryValue,
     bodyOptionsFor,
 }: ServerCollectionInput<T, F>): CollectionState<T, F> {
     const router = useRouter();
@@ -64,7 +65,6 @@ export function useServerCollection<T, F>({
     const view = parseCollectionParams<F>(pending ? latestParams : searchParams, {
         filterOptions,
         defaultFilterValues,
-        unsetMeansEveryValue,
         bodyOptionsFor,
     });
 
@@ -114,16 +114,13 @@ export function useServerCollection<T, F>({
 
     return {
         rows,
-        trailingRows: [],
         total,
         page: pending ? view.page : page,
-        totalPages: Math.ceil(total / pageSize),
-        query,
+        totalPages: totalPagesOf(total, pageSize),
+        search: { query, setQuery },
         selectedFilters: view.selectedFilters,
         selectedBody: view.selectedBody,
         pending,
-        searchable: true,
-        setQuery,
         setFilters: values => navigate(withFilterSelection(latestParams, values, filterOptions, defaultFilterValues), 'push'),
         setBody: bodyId => navigate(withBodySelection(latestParams, bodyId, bodyOptionsForSelection(view.selectedFilters, bodyOptionsFor)), 'push'),
         setPage: nextPage => navigate(withPage(latestParams, nextPage), 'push'),

@@ -63,7 +63,6 @@ export default function CityMeetings({
         pageSize,
         filterOptions,
         defaultFilterValues,
-        unsetMeansEveryValue: false,
         bodyOptionsFor,
     });
 

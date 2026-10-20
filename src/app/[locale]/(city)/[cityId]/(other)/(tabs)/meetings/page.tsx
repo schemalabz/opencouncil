@@ -17,7 +17,8 @@ import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
 import { parseCollectionParams, toURLSearchParams } from '@/lib/utils/filterURL';
-import { clampPage, meetingBodyFilter, meetingsTabFilters } from '@/lib/meetingsTab';
+import { meetingBodyFilter, meetingsTabFilters } from '@/lib/meetingsTab';
+import { clampPage, pageSlice } from '@/lib/zod-schemas/listQuery';
 
 export async function generateMetadata(
     props: {
@@ -92,7 +93,7 @@ async function loadListPage(cityId: string, filter: BodyFilter, requestedPage: n
 /** One page of the meetings whose ids the search found. */
 async function loadSearchPage(cityId: string, ids: string[], requestedPage: number, pageSize: number) {
     const page = clampPage(requestedPage, ids.length, pageSize);
-    const pageIds = ids.slice((page - 1) * pageSize, page * pageSize);
+    const pageIds = pageSlice(ids, page, pageSize);
     const rows = pageIds.length > 0 ? await getCouncilMeetingPreviewsByIds(cityId, pageIds) : [];
     return { rows, total: ids.length, page };
 }
@@ -137,13 +138,7 @@ export default async function MeetingsPage(
     }
 
     const pageSize = DEFAULT_MEETING_PAGE_SIZE;
-    const { filterOptions, defaultFilterValues, bodyOptionsFor } = meetingsTabFilters(administrativeBodies, tCommon);
-    const view = parseCollectionParams(toURLSearchParams(searchParams), {
-        filterOptions,
-        defaultFilterValues,
-        unsetMeansEveryValue: false,
-        bodyOptionsFor,
-    });
+    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon));
     const filter = meetingBodyFilter(view, allBodies);
     const matchingIds = filter && view.query.trim()
         ? await findMeetingIdsMatching(cityId, view.query, { ...filter, unreleased }, locale, city.timezone)
