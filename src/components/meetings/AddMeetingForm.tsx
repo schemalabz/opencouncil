@@ -28,7 +28,7 @@ import { format, parse, setHours, setMinutes } from "date-fns"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
-import { COUNCIL_ONLY_KINDS, OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
+import { COUNCIL_ONLY_KINDS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
 import { meetingLabel } from '@/lib/meetingName'
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
 import { Textarea } from '../ui/textarea'
@@ -46,6 +46,7 @@ const KINDS = Object.values(MeetingKind)
 /** The Select's sentinel for a null kind or format: «Από την πρόσκληση». */
 const FROM_INVITATION = 'fromInvitation'
 const STATUSES = Object.values(MeetingScheduleStatus)
+const FORMATS = Object.values(MeetingFormat)
 
 /** A row of the editor list that the "postponed from" picker needs. */
 interface PostponementCandidate {
@@ -567,8 +568,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                     </FormControl>
                                     <SelectContent>
                                         <SelectItem value={FROM_INVITATION}>{t('fromInvitation')}</SelectItem>
-                                        {/* A format that the form does not offer stays selectable on a meeting that already has it. */}
-                                        {(meeting?.format && !OFFERED_FORMATS.includes(meeting.format) ? [...OFFERED_FORMATS, meeting.format] : OFFERED_FORMATS).map(format => (
+                                        {FORMATS.map(format => (
                                             <SelectItem key={format} value={format}>
                                                 {t(`formatOptions.${format}`)}
                                             </SelectItem>

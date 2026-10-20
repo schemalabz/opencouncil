@@ -126,12 +126,12 @@ describe('meeting API routes', () => {
         expect(await urgent.json()).toMatchObject({ code: 'greekRealmOnly' })
     })
 
-    test('refuses a meeting by circulation, as the form and MCP do', async () => {
+    test('takes a meeting by circulation, as the form and MCP do', async () => {
         const created = await POST(request(`/api/cities/${CITY}/meetings`, {
             date: '2026-03-19T16:00:00.000Z', administrativeBodyId: councilId, format: 'byCirculation',
         }), cityParams)
-        expect(created.status).toBe(400)
-        expect(await prisma.councilMeeting.count({ where: { cityId: CITY } })).toBe(0)
+        expect(created.status).toBe(201)
+        expect(await created.json()).toMatchObject({ format: 'byCirculation' })
     })
 
     test('POST and PUT write no name, and a PUT keeps the legacy stored name', async () => {

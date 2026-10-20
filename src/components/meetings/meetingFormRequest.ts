@@ -1,5 +1,5 @@
 import type * as z from 'zod';
-import { OFFERED_FORMATS, takesPlace } from '@/lib/meetingLifecycleRules';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 import type { meetingFormSchema } from '@/lib/zod-schemas/meeting';
 
 /**
@@ -31,8 +31,6 @@ export type MeetingFormLifecycleValues = Pick<
  * postponed or cancelled meeting only. The link to a
  * postponed meeting is sent only when the admin changed it: the page payload
  * of a meeting hides its link, so an untouched field may not hold the link.
- * A format that no form offers (by circulation) is not sent back unchanged:
- * the API refuses it, and the save must not fail over a field the admin left.
  * A city outside Greece has no kind, no urgency and no session number
  * (`recordsGreekCodeFacts`), so the body leaves them out.
  */
@@ -47,7 +45,7 @@ export function meetingRequestFields(
         scheduleStatus: values.scheduleStatus,
         scheduleStatusReason: takesPlace(values) ? null : values.scheduleStatusReason ?? null,
         sessionNumber: !greekCodeFacts ? undefined : number ? Number(number) : null,
-        format: values.format === null || OFFERED_FORMATS.includes(values.format) ? values.format : undefined,
+        format: values.format,
         closedToPublic: values.closedToPublic,
         place: values.place ?? null,
         postponedFromId: !linkChanged
