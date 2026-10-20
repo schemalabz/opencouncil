@@ -16,6 +16,7 @@ import { SeedUsersDialog } from "@/components/admin/users/seed-users-dialog"
 import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
 import { IS_DEV } from '@/lib/utils'
 import { UserWithRelations } from "@/lib/db/users"
+import { clampPage, pageSlice, totalPagesOf } from '@/lib/zod-schemas/listQuery'
 
 const PAGE_SIZE = 20
 
@@ -53,11 +54,11 @@ export default function UsersPage() {
             user.name?.toLowerCase().includes(query) ||
             user.email.toLowerCase().includes(query))
         : users
-    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
+    const totalPages = totalPagesOf(filteredUsers.length, PAGE_SIZE)
     // Clamp instead of resetting via effect so deletions and narrowing
     // searches can't leave us on a page that no longer exists.
-    const currentPage = Math.min(page, totalPages)
-    const pagedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    const currentPage = clampPage(page, filteredUsers.length, PAGE_SIZE)
+    const pagedUsers = pageSlice(filteredUsers, currentPage, PAGE_SIZE)
 
     async function refreshUsers() {
         try {
