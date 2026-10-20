@@ -1,5 +1,11 @@
 import type { EditorialBrief } from "../../agent/types";
-import { MAX_EVENTS_PER_TICK, MEETING_SETTLE_MS, classifyEvent, runPollerTick } from "../poller";
+import {
+  MAX_EVENTS_PER_TICK,
+  MEETING_SETTLE_MS,
+  STALE_MEETING_MS,
+  classifyEvent,
+  runPollerTick,
+} from "../poller";
 import { PROACTIVE_PAUSED_KEY, futureSummaryAlertKey } from "../settings";
 import { type FakeDb, type Row, eventIdentity, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
@@ -536,7 +542,7 @@ describe("meeting events", () => {
   // The poller tests below prove the wiring; this proves the rule.
   describe("classifyEvent", () => {
     const at = new Date(NOW);
-    const staleBefore = new Date(NOW.getTime() - 30 * 24 * 60 * 60_000);
+    const staleBefore = new Date(NOW.getTime() - STALE_MEETING_MS);
     const on = (type: string, meetingDate: string) =>
       classifyEvent({ type, meetingDate: new Date(meetingDate) }, at, staleBefore);
 
@@ -547,6 +553,7 @@ describe("meeting events", () => {
       ["summarize", "2026-08-20T18:00:00.000Z", "future-summary", "cannot be summarized yet"],
       ["summarize", "2026-08-15T18:00:00.000Z", "fanout", "held four days ago"],
       ["summarize", "2026-08-04T18:00:00.000Z", "fanout", "held two weeks ago"],
+      ["summarize", "2026-08-02T18:00:00.000Z", "stale", "held sixteen days ago"],
       ["summarize", "2026-01-10T18:00:00.000Z", "stale", "held months ago"],
     ])("%s dated %s → %s (%s)", (type, meetingDate, expected) => {
       expect(on(type, meetingDate)).toBe(expected);
