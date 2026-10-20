@@ -6,6 +6,7 @@ import { currentAdminAccess, currentMcpIdentity } from './realm-context';
 import { registerAdminTools } from './adminTools';
 import { category, run } from './toolSupport';
 import { latitude, longitude } from '@/lib/zod-schemas/primitives';
+import { jsonPageFields } from '@/lib/zod-schemas/listQuery';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -29,7 +30,7 @@ import {
 } from './data';
 
 const paginationShape = {
-    page: z.number().int().min(1).default(1).describe('Page number, starting at 1'),
+    page: jsonPageFields.page.default(1).describe('Page number, starting at 1'),
 };
 
 /**
@@ -86,7 +87,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                     .describe('Restrict to these topic labels, as returned in results (e.g. "Παιδεία", "Συγκοινωνίες"). An unknown label answers with the full list'),
                 dateFrom: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
                 dateTo: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
-                pageSize: z.number().int().min(1).max(20).default(10),
+                pageSize: jsonPageFields.pageSize.max(20).default(10),
                 ...paginationShape,
             }),
         },
@@ -256,7 +257,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                 administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
                     .describe('Restrict to these administrative body ids (see get_city). An unknown id is an error, not an empty list. Takes precedence over administrativeBodyTypes'),
                 administrativeBodyTypes: administrativeBodyTypesFilter,
-                pageSize: z.number().int().min(1).max(50).default(10),
+                pageSize: jsonPageFields.pageSize.max(50).default(10),
                 ...paginationShape,
             }),
         },

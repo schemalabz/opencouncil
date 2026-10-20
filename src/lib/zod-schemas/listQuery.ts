@@ -60,6 +60,15 @@ export const pageQueryFields = {
 };
 
 /**
+ * The page fields of a JSON request (a POST body, an MCP tool call): numbers,
+ * not strings. Each caller sets its own default and its own page size limit.
+ */
+export const jsonPageFields = {
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+};
+
+/**
  * Where a paged response stands. The search API and the admin notifications
  * return it; the MCP tools and the contribution lists still use their own
  * fields.
