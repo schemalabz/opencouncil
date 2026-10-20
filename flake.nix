@@ -247,24 +247,27 @@
       # inside the extracted tarball), so swap in a repacked tarball with npm-shrinkwrap.json
       # removed via importNpmLock's packageSourceOverrides; npm then resolves @posthog/cli's deps
       # from the top-level lock, which is already offline.
+      # npm can install more than one copy: @posthog/webpack-plugin pins an older CLI than
+      # @posthog/nextjs-config, which nests a second copy under the plugin. Every copy needs
+      # the same treatment, so the overrides cover each lock entry for the package.
       mkNpmDeps = pkgs:
         let
           origLock = pkgs.lib.importJSON ./package-lock.json;
-          cliPath = "node_modules/@posthog/cli";
-          cliEntry = origLock.packages.${cliPath};
+          isPosthogCli = path: path == "node_modules/@posthog/cli"
+            || pkgs.lib.hasSuffix "/node_modules/@posthog/cli" path;
+          cliEntries = pkgs.lib.filterAttrs (path: _: isPosthogCli path) origLock.packages;
           # the repacked tarball has different bytes than the lock's integrity, so npm ci would
           # fail EINTEGRITY against it — drop the pinned integrity (this removal is required). The
           # shrinkwrap / install-script flags then no longer describe the tarball, so drop them
           # too for consistency (not required for the build, just keeps the lock honest).
           patchedLock = origLock // {
-            packages = origLock.packages // {
-              ${cliPath} = builtins.removeAttrs cliEntry
-                [ "integrity" "hasShrinkwrap" "hasInstallScript" ];
-            };
+            packages = origLock.packages // pkgs.lib.mapAttrs (_: cliEntry:
+              builtins.removeAttrs cliEntry [ "integrity" "hasShrinkwrap" "hasInstallScript" ]
+            ) cliEntries;
           };
           # url + integrity come straight from the lockfile, so a dependabot bump of
           # @posthog/cli is picked up automatically (no hardcoded version/hash to sync).
-          posthogCliPatched = pkgs.runCommand "posthog-cli-${cliEntry.version}-patched.tgz" {
+          posthogCliPatched = cliEntry: pkgs.runCommand "posthog-cli-${cliEntry.version}-patched.tgz" {
             src = pkgs.fetchurl {
               url = cliEntry.resolved;
               hash = cliEntry.integrity;
@@ -287,7 +290,7 @@
         in pkgs.importNpmLock {
           npmRoot = ./.;
           packageLock = patchedLock;
-          packageSourceOverrides.${cliPath} = posthogCliPatched;
+          packageSourceOverrides = pkgs.lib.mapAttrs (_: posthogCliPatched) cliEntries;
         };
 
       mkNpmBuildInputs = pkgs: with pkgs; [
