@@ -13,8 +13,8 @@ export { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT };
 // NOT a "use server" module: upsertHighlightCore takes an explicit identity,
 // so exposing it as a server action would let clients act as anyone. Only
 // trusted server-side callers (the session wrapper in highlights.ts and the
-// MCP server) may import it. Same pattern as getAllCitiesAsServiceKey — see
-// the warning in src/app/api/cities/route.ts.
+// MCP server) may import it. Same pattern as createCityDirect in
+// src/lib/db/citiesAdmin.ts.
 
 // Define the include structure for highlights with utterances
 // This includes the highlightedUtterances relation with nested utterance data
@@ -121,9 +121,9 @@ export async function getHighlightStatistics(
 }
 
 /**
- * Who is performing a highlight write. Mirrors the shape returned by
- * withServiceOrUserAuth in src/lib/auth.ts: a user acts under their own
- * per-city permissions, a service key acts as a superadmin.
+ * Who is performing a highlight write. The MCP verifier (src/lib/mcp/auth.ts)
+ * produces it: a user acts under their own per-city permissions, a service
+ * identity acts as a superadmin.
  */
 export type HighlightActor =
     | { type: 'user'; userId: string }

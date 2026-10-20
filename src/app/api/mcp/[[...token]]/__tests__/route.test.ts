@@ -7,7 +7,6 @@
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('@/lib/db/mcpTokens', () => ({ validateUserMcpToken: jest.fn() }));
-jest.mock('@/lib/db/apiKeys', () => ({ validateServiceApiKey: jest.fn() }));
 jest.mock('@/lib/db/highlights-core', () => ({ getUserCityRights: jest.fn(), meetingHasBodyIn: jest.fn() }));
 jest.mock('@/lib/mcp/analytics', () => ({ instrumentMcpAnalytics: jest.fn() }));
 jest.mock('@/lib/mcp/data', () => ({
@@ -25,13 +24,18 @@ jest.mock('@/lib/mcp/adminData', () => ({
 
 import { POST } from '../route';
 import { mcpListCities } from '@/lib/mcp/data';
-import { validateServiceApiKey } from '@/lib/db/apiKeys';
 import { validateUserMcpToken } from '@/lib/db/mcpTokens';
+import { getUserCityRights } from '@/lib/db/highlights-core';
 import { currentMcpIdentity, currentRealm } from '@/lib/mcp/realm-context';
 
 const mockListCities = mcpListCities as jest.MockedFunction<typeof mcpListCities>;
-const mockServiceKey = validateServiceApiKey as jest.MockedFunction<typeof validateServiceApiKey>;
-const mockUserToken = validateUserMcpToken as jest.MockedFunction<typeof validateUserMcpToken>;
+const mockToken = validateUserMcpToken as jest.MockedFunction<typeof validateUserMcpToken>;
+const mockRights = getUserCityRights as jest.MockedFunction<typeof getUserCityRights>;
+
+const SUPERADMIN_TOKEN = { tokenId: 'tok0', userId: 'admin1' };
+const PERSONAL_TOKEN = { tokenId: 'tok1', userId: 'u1' };
+const NO_RIGHTS = { all: false, cityIds: new Set<string>(), bodies: new Map<string, string>() };
+const ALL_RIGHTS = { all: true, cityIds: new Set<string>(), bodies: new Map<string, string>() };
 
 // A 2025-era client: mcp-handler answers it with stateless Streamable HTTP.
 const PROTOCOL_VERSION = '2025-06-18';
@@ -122,30 +126,52 @@ describe('/api/mcp route (mcp-handler)', () => {
     });
 
     it('takes the token from the URL path and passes the identity to the tools', async () => {
-        mockServiceKey.mockResolvedValue({ id: 'key1', name: 'admin panel' } as Awaited<ReturnType<typeof validateServiceApiKey>>);
+        mockToken.mockResolvedValue(SUPERADMIN_TOKEN);
+        mockRights.mockResolvedValue(ALL_RIGHTS);
 
-        const names = await toolNames({ path: '/api/mcp/sk_test123' });
+        const names = await toolNames({ path: '/api/mcp/mcp_test123' });
 
-        expect(mockServiceKey).toHaveBeenCalledWith('sk_test123');
+        expect(mockToken).toHaveBeenCalledWith('mcp_test123');
         expect(names).toEqual(expect.arrayContaining(['create_highlight', 'create_city']));
     });
 
     it('takes the token from the Authorization header', async () => {
-        mockServiceKey.mockResolvedValue({ id: 'key1', name: 'admin panel' } as Awaited<ReturnType<typeof validateServiceApiKey>>);
+        mockToken.mockResolvedValue(SUPERADMIN_TOKEN);
+        mockRights.mockResolvedValue(ALL_RIGHTS);
 
-        const names = await toolNames({ authorization: 'Bearer sk_test123' });
+        const names = await toolNames({ authorization: 'Bearer mcp_test123' });
 
         expect(names).toContain('create_city');
     });
 
+    it('gives a personal token the rights of its owner, not of a superadmin', async () => {
+        mockToken.mockResolvedValue(PERSONAL_TOKEN);
+        mockRights.mockResolvedValue(NO_RIGHTS);
+
+        const names = await toolNames({ authorization: 'Bearer mcp_personal' });
+
+        expect(names).toContain('create_highlight');
+        expect(names).not.toContain('create_city');
+    });
+
     it('rejects an invalid token with 401 instead of serving it as anonymous', async () => {
-        mockUserToken.mockResolvedValue(null);
+        mockToken.mockResolvedValue(null);
         // withMcpAuth logs the rejected token.
         jest.spyOn(console, 'error').mockImplementation(() => {});
 
         const response = await send('tools/list', {}, { authorization: 'Bearer mcp_revoked' });
 
         expect(response.status).toBe(401);
+    });
+
+    it('rejects a service API key with 401 in the header and 404 in the path, without a lookup', async () => {
+        // The service API key is gone. An old sk_ key fails closed on both
+        // forms and never reaches the token lookup.
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        expect((await send('tools/list', {}, { authorization: 'Bearer sk_test123' })).status).toBe(401);
+        expect((await send('tools/list', {}, { path: '/api/mcp/sk_test123' })).status).toBe(404);
+        expect(mockToken).not.toHaveBeenCalled();
     });
 
     it('answers 404 for a path that is not a token', async () => {

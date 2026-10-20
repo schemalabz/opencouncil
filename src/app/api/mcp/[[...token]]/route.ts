@@ -26,7 +26,7 @@ const baseHandler = createMcpHandler(
     }
 );
 
-const TOKEN_SEGMENT = /^(mcp_|sk_)[A-Za-z0-9_-]+$/;
+const TOKEN_SEGMENT = /^mcp_[A-Za-z0-9_-]+$/;
 
 async function handler(
     req: Request,

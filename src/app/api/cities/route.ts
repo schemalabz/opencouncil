@@ -2,9 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
-import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'
 import { uploadFile } from '@/lib/s3'
-import { isUserAuthorizedToEdit, validateBearerAuth, getCurrentUser } from '@/lib/auth'
+import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 import { citiesListQuerySchema, createCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
@@ -16,14 +15,10 @@ export async function GET(req: NextRequest) {
             Object.fromEntries(searchParams.entries())
         );
 
-        // Bearer auth: validate up front and dispatch to a non-server-action helper
-        // for the superadmin-equivalent view. NEVER pass an "asSuperAdmin"-style flag
-        // into a "use server" function — clients could call the server action directly.
-        const bearer = await validateBearerAuth(req);
-
-        const cities = bearer && includeUnlisted
-            ? await getAllCitiesAsServiceKey()
-            : await getCities({ includeNonPublic: includeUnlisted });
+        // getCities answers by the session. With includeUnlisted: 401 with no
+        // session, every city for a superadmin, the public ones plus the
+        // administered ones for a city admin. Without it: the public list.
+        const cities = await getCities({ includeNonPublic: includeUnlisted });
 
         return NextResponse.json(cities);
     } catch (error) {

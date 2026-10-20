@@ -12,7 +12,7 @@
       ],
       "private": [
         "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
-        "ServiceApiKey", "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
+        "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
         "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
         "ConsultationComment", "ConsultationCommentUpvote", "PendingConsultationComment",
         "ConsultationCommentResponse", "MeetingOperator", "Offer",
@@ -57,5 +57,5 @@
     "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",
     "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification"
   ],
-  "ignoreTables": ["spatial_ref_sys"]
+  "ignoreTables": ["spatial_ref_sys", "ServiceApiKey"]
 }

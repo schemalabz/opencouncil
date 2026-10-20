@@ -1,7 +1,7 @@
 // The one write path for the lifecycle of a meeting: its schedule status, its
 // kind and format, its links to other meetings, and the visibility rules that
 // the links carry. The meeting API routes call it after they authorize the
-// request, so it does no auth of its own (the service key reaches it too).
+// request, so it does no auth of its own (the MCP admin tools reach it too).
 import "server-only";
 import { CouncilMeeting, Prisma, PrismaClient } from '@prisma/client';
 import prisma from "./prisma";
