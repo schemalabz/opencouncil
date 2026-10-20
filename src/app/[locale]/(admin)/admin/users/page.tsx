@@ -251,9 +251,8 @@ export default function UsersPage() {
                         </TableBody>
                     </Table>
                     <Pagination
-                        currentPage={currentPage}
+                        page={currentPage}
                         totalPages={totalPages}
-                        pageSize={PAGE_SIZE}
                         onPageChange={setPage}
                     />
                 </CardContent>

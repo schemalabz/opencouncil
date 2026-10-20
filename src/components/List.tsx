@@ -301,7 +301,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
             {state.totalPages > 1 && (
                 <Pagination
-                    currentPage={state.page}
+                    page={state.page}
                     totalPages={state.totalPages}
                     onPageChange={handlePageChange}
                     getHref={state.hrefForPage}

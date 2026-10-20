@@ -3,11 +3,9 @@
 import { useMemo, type MouseEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from './button';
-import { PaginationParams } from './lib/pagination';
-import { calculatePageNumbers } from './lib/pagination';
+import { calculatePageNumbers, type PaginationParams } from './lib/pagination';
 
-interface PaginationProps extends Omit<PaginationParams, 'pageSize'> {
-    pageSize?: number;
+interface PaginationProps extends PaginationParams {
     onPageChange: (page: number) => void;
     /**
      * The URL of a page. With it, each control is a link: a new tab, a crawler
@@ -77,15 +75,15 @@ function PageControl({
 }
 
 export function Pagination({
-    currentPage,
+    page,
     totalPages,
     onPageChange,
     getHref,
     labels = { previous: 'Previous', next: 'Next' }
 }: PaginationProps) {
     const pageNumbers = useMemo(
-        () => calculatePageNumbers(currentPage, totalPages),
-        [currentPage, totalPages]
+        () => calculatePageNumbers(page, totalPages),
+        [page, totalPages]
     );
 
     if (totalPages <= 1) {
@@ -94,31 +92,31 @@ export function Pagination({
 
     return (
         <nav aria-label={labels.navigation} className="flex items-center justify-center gap-2 mt-6">
-            <PageControl page={currentPage - 1} onPageChange={onPageChange} getHref={getHref} disabled={currentPage === 1}>
+            <PageControl page={page - 1} onPageChange={onPageChange} getHref={getHref} disabled={page === 1}>
                 <ChevronLeft className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">{labels.previous}</span>
             </PageControl>
 
             <div className="flex gap-1">
-                {pageNumbers.map((page, idx) =>
-                    page === '...' ? (
+                {pageNumbers.map((entry, idx) =>
+                    entry === '...' ? (
                         <span key={`ellipsis-${idx}`} className="px-2 py-1">...</span>
                     ) : (
                         <PageControl
-                            key={page}
-                            page={page as number}
+                            key={entry}
+                            page={entry as number}
                             onPageChange={onPageChange}
                             getHref={getHref}
-                            current={page === currentPage}
+                            current={entry === page}
                             className="min-w-[40px]"
                         >
-                            {page}
+                            {entry}
                         </PageControl>
                     )
                 )}
             </div>
 
-            <PageControl page={currentPage + 1} onPageChange={onPageChange} getHref={getHref} disabled={currentPage === totalPages}>
+            <PageControl page={page + 1} onPageChange={onPageChange} getHref={getHref} disabled={page === totalPages}>
                 <span className="hidden sm:inline">{labels.next}</span>
                 <ChevronRight className="h-4 w-4 sm:ml-1" />
             </PageControl>

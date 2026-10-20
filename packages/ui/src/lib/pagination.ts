@@ -1,10 +1,10 @@
+/** Where a pager stands: the page on screen, counted from 1, and how many there are. */
 export interface PaginationParams {
-    currentPage: number;
+    page: number;
     totalPages: number;
-    pageSize: number;
 }
 
-export function calculatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+export function calculatePageNumbers(page: number, totalPages: number): (number | string)[] {
     const MAX_VISIBLE = 7;
 
     if (totalPages <= MAX_VISIBLE) {
@@ -13,18 +13,18 @@ export function calculatePageNumbers(currentPage: number, totalPages: number): (
 
     const pages: (number | string)[] = [1];
 
-    if (currentPage > 3) {
+    if (page > 3) {
         pages.push('...');
     }
 
-    const rangeStart = Math.max(2, currentPage - 1);
-    const rangeEnd = Math.min(totalPages - 1, currentPage + 1);
+    const rangeStart = Math.max(2, page - 1);
+    const rangeEnd = Math.min(totalPages - 1, page + 1);
 
     for (let i = rangeStart; i <= rangeEnd; i++) {
         pages.push(i);
     }
 
-    if (currentPage < totalPages - 2) {
+    if (page < totalPages - 2) {
         pages.push('...');
     }
 
