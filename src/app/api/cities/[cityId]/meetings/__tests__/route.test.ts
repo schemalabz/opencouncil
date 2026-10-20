@@ -1,8 +1,8 @@
 /** @jest-environment node */
 import { NextRequest } from 'next/server';
 
-// No session with rights: includeUnreleased then asks for a service key.
-jest.mock('@/lib/auth', () => ({ withServiceOrUserAuth: jest.fn(), getUnreleasedScope: jest.fn().mockResolvedValue({ all: false, bodyIds: [] }) }));
+// No session with rights: includeUnreleased then asks for an editor of the city.
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), getUnreleasedScope: jest.fn().mockResolvedValue({ all: false, bodyIds: [] }) }));
 jest.mock('@/lib/db/meetingsList', () => ({ getCouncilMeetingsForCity: jest.fn().mockResolvedValue([]) }));
 jest.mock('@/lib/meetingWrites', () => ({ createMeetingWithEffects: jest.fn() }));
 // The public list reads the original date of a postponed meeting.
@@ -11,7 +11,7 @@ jest.mock('@/lib/db/meetingLifecycle', () => ({ originalScheduledDates: jest.fn(
 jest.mock('@/lib/db/cityTimezone', () => ({ getCityTimezone: jest.fn().mockResolvedValue('Europe/Athens') }));
 
 import { GET } from '@/app/api/cities/[cityId]/meetings/route';
-import { withServiceOrUserAuth } from '@/lib/auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
 
@@ -36,7 +36,7 @@ describe('GET /api/cities/[cityId]/meetings includeUnreleased', () => {
         expect(mockList).toHaveBeenCalledWith('athens', expect.objectContaining({
             unreleased: expected ? { all: true } : { all: false, bodyIds: [] },
         }));
-        expect(withServiceOrUserAuth).toHaveBeenCalledTimes(expected ? 1 : 0);
+        expect(withUserAuthorizedToEdit).toHaveBeenCalledTimes(expected ? 1 : 0);
     });
 
     it('refuses a value outside the stringbool lists', async () => {

@@ -8,7 +8,7 @@ import { localePrefixPattern } from '@/i18n/config';
  * Pure function so the proxy's routing decision is unit-testable. Must stay
  * edge-runtime safe (no node imports) — it runs inside src/proxy.ts.
  */
-const MCP_TOKEN_PATH = /^\/mcp\/((?:mcp_|sk_)[A-Za-z0-9_-]+)$/;
+const MCP_TOKEN_PATH = /^\/mcp\/(mcp_[A-Za-z0-9_-]+)$/;
 
 // A user can copy the instructions page's locale-prefixed URL (/en/mcp) from
 // the address bar into their MCP client instead of the canonical /mcp, so

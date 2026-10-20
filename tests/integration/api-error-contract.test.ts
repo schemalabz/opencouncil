@@ -138,8 +138,8 @@ describe('the API error contract', () => {
         })
     })
 
-    // withServiceOrUserAuth guards the routes that a service key may also call.
-    describe('a request that the service-or-user guard refuses', () => {
+    // withUserAuthorizedToEdit guards the meeting routes.
+    describe('a request that the session guard refuses', () => {
         const meetingRequest = () => json(`/api/cities/${cityId}/meetings`, { date: '2026-10-05', meetingId: 'm2' })
         const unreleasedRequest = () => new NextRequest(`${base}/api/cities/${cityId}/meetings?includeUnreleased=true`)
 

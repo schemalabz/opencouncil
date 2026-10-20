@@ -37,7 +37,7 @@ export const errorResponseOf = (description: string) => jsonError(description, e
 export const lifecycleRuleResponse = jsonError('The write breaks a lifecycle rule of the meeting record', lifecycleRuleErrorSchema);
 
 /**
- * The refusals of withUserAuthorizedToEdit and withServiceOrUserAuth: nobody
+ * The refusals of withUserAuthorizedToEdit: nobody
  * signed in, or a user without the right to edit.
  */
 export const editAuthResponses = {

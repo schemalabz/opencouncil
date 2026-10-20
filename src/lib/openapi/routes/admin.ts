@@ -1,6 +1,5 @@
 import * as z from 'zod';
 import { sessionAuthRequirement, editAuthResponses, errorResponseOf, invalidRequestResponse, type Operation, type Paths } from '@/lib/openapi/registry';
-import { createApiKeySchema } from '@/lib/zod-schemas/apiKey';
 import { productUpdateSendSchema } from '@/lib/zod-schemas/productUpdate';
 import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
 import { createTopicSchema, updateTopicSchema } from '@/lib/zod-schemas/topic';
@@ -10,7 +9,6 @@ import { createAdminUserSchema, updateAdminUserSchema } from '@/lib/zod-schemas/
 // schemas only they use, from every other viewer.
 
 const RevalidateRequestSchema = revalidateRequestSchema.meta({ id: 'RevalidateRequest' });
-const CreateApiKeySchema = createApiKeySchema.meta({ id: 'CreateApiKey' });
 const ProductUpdateSendSchema = productUpdateSendSchema.meta({ id: 'ProductUpdateSend' });
 const CreateTopicSchema = createTopicSchema.meta({ id: 'CreateTopic' });
 const UpdateTopicSchema = updateTopicSchema.meta({ id: 'UpdateTopic' });
@@ -23,15 +21,6 @@ const RevalidateResultSchema = z.object({
     paths: z.array(z.string()),
     timestamp: z.iso.datetime(),
 }).meta({ id: 'RevalidateResult' });
-
-// The raw key is in this response only; the server stores its hash.
-const CreatedApiKeySchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    keyPrefix: z.string(),
-    rawKey: z.string(),
-    createdAt: z.iso.datetime(),
-}).meta({ id: 'CreatedApiKey' });
 
 const ProductUpdateResultSchema = z.object({
     sent: z.number().int(),
@@ -69,24 +58,6 @@ export const adminPaths: Paths = {
                 400: invalidBody,
                 ...editAuthResponses,
                 500: errorResponseOf('Server error'),
-            },
-        },
-    },
-    '/api/admin/api-keys': {
-        post: {
-            ...adminOperation,
-            summary: 'Create a service API key',
-            requestBody: {
-                required: true,
-                content: { 'application/json': { schema: CreateApiKeySchema } },
-            },
-            responses: {
-                201: {
-                    description: 'The new key. The response shows the raw key once.',
-                    content: { 'application/json': { schema: CreatedApiKeySchema } },
-                },
-                400: invalidBody,
-                ...editAuthResponses,
             },
         },
     },

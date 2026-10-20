@@ -3,9 +3,7 @@ import { type City, type Party, type Person, type CouncilMeeting, type Administr
 import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
-import { validateServiceApiKey } from "@/lib/db/apiKeys";
-import { UnauthorizedError, notAuthorizedError } from "@/lib/api/errors";
-import { type NextRequest } from "next/server";
+import { notAuthorizedError } from "@/lib/api/errors";
 import { type UnreleasedScope, NO_UNRELEASED, ALL_UNRELEASED } from "@/lib/unreleased";
 import { publicAdministrativeBodyRelation } from "@/lib/db/types";
 
@@ -229,54 +227,4 @@ export async function getRoleLimitForCity(cityId: City["id"]): Promise<ReadonlyS
     if (!user) return new Set();
     if (user.isSuperAdmin || administersCity(user, cityId)) return null;
     return new Set(heldBodyIdsInCity(user, cityId));
-}
-
-export type ServiceAuthResult =
-    | { type: 'service'; keyName: string }
-    | { type: 'user'; userId: string };
-
-/**
- * Validate a service API key from the `Authorization: Bearer …` header.
- * Returns `null` if no Bearer header is present (caller may fall back to session auth).
- * Throws `UnauthorizedError` if the Bearer token is invalid or revoked — never falls through.
- */
-export async function validateBearerAuth(
-    request: NextRequest
-): Promise<{ keyName: string } | null> {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) return null;
-
-    const token = authHeader.slice(7);
-    const apiKey = await validateServiceApiKey(token);
-    if (!apiKey) throw new UnauthorizedError("Invalid API key");
-
-    return { keyName: apiKey.name };
-}
-
-/**
- * Authenticate a request via either a service API key (Bearer token)
- * or a user session. Service keys get full access (equivalent to superadmin).
- * User sessions are checked against the standard authorization hierarchy.
- *
- * Throws if neither auth method succeeds: 401 when nobody is signed in, 403
- * when the signed-in user lacks the right.
- */
-export async function withServiceOrUserAuth(
-    request: NextRequest,
-    scope: AuthorizationScope = {}
-): Promise<ServiceAuthResult> {
-    const bearer = await validateBearerAuth(request);
-    if (bearer) {
-        return { type: 'service', keyName: bearer.keyName };
-    }
-
-    // Fall back to session auth — reuse the result to avoid a second DB round-trip
-    const isAuthorized = await checkUserAuthorization(scope);
-    // getCurrentUser is cached per request, so this reads no row again.
-    const user = await getCurrentUser();
-    if (!isAuthorized || !user) {
-        throw notAuthorizedError(Boolean(user));
-    }
-
-    return { type: 'user', userId: user.id };
 }

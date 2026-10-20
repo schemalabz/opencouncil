@@ -44,8 +44,7 @@ describe('an unreviewed transcript that the body hides, as an anonymous reader',
     })
 
     test('the utterance context returns nothing', async () => {
-        const req = new NextRequest(new URL(`/api/utterance/${utteranceIds[2]}/context`, 'http://localhost'))
-        expect(await getUtteranceContext(req, utteranceIds[2], 50, 50)).toBeNull()
+        expect(await getUtteranceContext(utteranceIds[2], 50, 50)).toBeNull()
     })
 
     test('transcriptIsPublic says no', async () => {
@@ -69,8 +68,7 @@ describe('an unreviewed transcript that the body hides, as an anonymous reader',
         await signInAsSuperAdmin()
         const res = await votingUtterances(votingRequest())
         expect((await res.json()).utterances).toHaveLength(1)
-        const req = new NextRequest(new URL(`/api/utterance/${utteranceIds[2]}/context`, 'http://localhost'))
-        expect(await getUtteranceContext(req, utteranceIds[2], 50, 50)).not.toBeNull()
+        expect(await getUtteranceContext(utteranceIds[2], 50, 50)).not.toBeNull()
     })
 })
 

@@ -4,14 +4,12 @@ import { NextRequest } from 'next/server';
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn(),
-    validateBearerAuth: jest.fn().mockResolvedValue(false),
 }));
 jest.mock('@/lib/db/cities', () => ({
     createCity: jest.fn(),
     getCities: jest.fn().mockResolvedValue([]),
     updateCityGeometry: jest.fn(),
 }));
-jest.mock('@/lib/db/citiesAdmin', () => ({ getAllCitiesAsServiceKey: jest.fn() }));
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn() }));
 
 import { GET } from '@/app/api/cities/route';
