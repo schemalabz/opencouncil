@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { NotificationDeliveryStatus, NotificationType } from '@prisma/client';
 import { isoZonedDateTime } from './dates';
-import { MAX_LIST_LIMIT } from './listQuery';
+import { pageQueryFields } from './listQuery';
 import { queryFlag } from './primitives';
 
 export const notificationTypeSchema = z.enum(NotificationType);
@@ -38,7 +38,6 @@ export const releaseNotificationsRequestSchema = z.object({
     notificationIds: z.array(z.string().min(1)).min(1),
 });
 
-const pageNumber = z.coerce.number().int().min(1);
 const instant = isoZonedDateTime().transform(value => new Date(value));
 
 // Query of GET /api/admin/notifications
@@ -49,8 +48,8 @@ export const adminNotificationsQuerySchema = z.object({
     cityId: z.string().optional(),
     status: z.enum(NotificationDeliveryStatus).optional(),
     type: notificationTypeSchema.optional(),
-    page: pageNumber.default(1),
-    pageSize: pageNumber.max(MAX_LIST_LIMIT).default(20),
+    page: pageQueryFields.page.transform(page => page ?? 1),
+    pageSize: pageQueryFields.pageSize.transform(pageSize => pageSize ?? 20),
     startDate: instant.optional(),
     endDate: instant.optional(),
 });

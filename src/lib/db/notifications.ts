@@ -18,6 +18,7 @@ import { generateEmailContent } from "@/lib/notifications/content";
 import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
+import type { Pagination } from "@/lib/zod-schemas/listQuery";
 import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
@@ -1073,12 +1074,7 @@ export type MeetingNotificationStats = {
 
 export type MeetingNotificationsGrouped = {
     meetings: MeetingNotificationStats[];
-    pagination: {
-        total: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-    };
+    pagination: Pagination;
 };
 
 /**
