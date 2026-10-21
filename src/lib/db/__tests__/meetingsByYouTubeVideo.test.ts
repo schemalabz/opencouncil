@@ -8,6 +8,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), isUserAuthorizedToEdit: jest.fn() }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn(), revalidatePath: jest.fn(), unstable_cache: (f: unknown) => f }));
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOnRelease: jest.fn() }));
 jest.mock('@/lib/db/subject', () => ({ landingSubjectsTag: () => 'landing' }));
 jest.mock('@/lib/cache/index', () => ({ createCache: (f: unknown) => f }));
 

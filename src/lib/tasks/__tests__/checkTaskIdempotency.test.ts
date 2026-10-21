@@ -21,6 +21,7 @@ const prismaStub = {
     updateMany: (...args: unknown[]) => mockUpdateMany(...args),
   },
 };
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: jest.fn() }));
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: prismaStub }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));

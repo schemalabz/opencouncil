@@ -255,8 +255,11 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
 });
 
 describe('getReviewCompletionState', () => {
-  const meetingWithBody = (released: boolean) => ({
+  const DAY = 86_400_000;
+  const meetingWithBody = (released: boolean, daysAgo = 2) => ({
     released,
+    dateTime: new Date(Date.now() - daysAgo * DAY),
+    scheduleStatus: 'scheduled',
     administrativeBody: {
       contactEmails: ['clerk@example.gov'],
       name: 'City Council',
@@ -279,14 +282,25 @@ describe('getReviewCompletionState', () => {
     expect(mockMeetingFindUnique).not.toHaveBeenCalled();
   });
 
-  it('reports the recipients, the notification behavior and the release state', async () => {
+  it('reports the recipients and what a summarize now does with notifications', async () => {
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       contactEmails: ['clerk@example.gov'],
       administrativeBodyName: 'City Council',
-      notificationBehavior: 'NOTIFICATIONS_AUTO',
       summarizeAvailability: 'available',
-      released: true,
+      summarizeNotifications: { kind: 'sends' },
     });
+  });
+
+  it.each([
+    ['an unreleased meeting', false, 2, { kind: 'none', reason: 'unreleased' }],
+    ['a released meeting older than 15 days', true, 20, { kind: 'none', reason: 'stale' }],
+    ['a released meeting with a future date', true, -3, { kind: 'none', reason: 'future-summary' }],
+  ] as const)('tells the reviewer that %s gets no notifications', async (_case, released, daysAgo, outcome) => {
+    mockMeetingFindUnique.mockResolvedValue(meetingWithBody(released, daysAgo));
+
+    const state = await getReviewCompletionState(CITY_ID, MEETING_ID);
+
+    expect(state.summarizeNotifications).toEqual(outcome);
   });
 
   it.each([
@@ -301,15 +315,13 @@ describe('getReviewCompletionState', () => {
   });
 
   it('reports a meeting without an administrative body as having no recipients', async () => {
-    // A real meeting row, so released keeps the value of the meeting
-    mockMeetingFindUnique.mockResolvedValue({ released: true, administrativeBody: null });
+    mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', administrativeBody: null });
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({
       contactEmails: [],
       administrativeBodyName: null,
-      notificationBehavior: null,
       summarizeAvailability: 'available',
-      released: true,
+      summarizeNotifications: { kind: 'none', reason: 'noBody' },
     });
   });
 

@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
-import { NotificationBehavior, TaskStatus } from '@prisma/client';
+import { TaskStatus } from '@prisma/client';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { checkTaskIdempotency, type TaskIdempotencyResult } from './tasks';
 import { revalidateMeeting } from '@/lib/cache';
@@ -11,6 +11,7 @@ import { sendTranscriptToMunicipality } from './sendTranscript';
 import { requestSummarize } from './summarize';
 import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
 import { meetingLabelInCity, type MeetingNameFields } from '@/lib/meetingName';
+import { notificationOutcome, type NotificationOutcome } from '@/lib/notifications/freshness';
 
 /**
  * Whether the summarize task can start for a meeting.
@@ -36,11 +37,9 @@ export interface ReviewCompletionState {
     /** Contact emails of the administrative body. Empty when the body configures none. */
     contactEmails: string[];
     administrativeBodyName: string | null;
-    /** Notification behavior of the administrative body. null when the meeting has no body. */
-    notificationBehavior: NotificationBehavior | null;
     summarizeAvailability: SummarizeAvailability;
-    /** Whether the meeting is public. Notifications link to a page that only edit users can open when it is false. */
-    released: boolean;
+    /** What a summarize that succeeds now does with email notifications: the rule the task callback acts on. */
+    summarizeNotifications: NotificationOutcome;
 }
 
 /**
@@ -79,6 +78,8 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
             where: { cityId_id: { cityId, id: meetingId } },
             select: {
                 released: true,
+                dateTime: true,
+                scheduleStatus: true,
                 administrativeBody: {
                     select: {
                         contactEmails: true,
@@ -102,9 +103,13 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
     return {
         contactEmails: meeting.administrativeBody?.contactEmails || [],
         administrativeBodyName: meeting.administrativeBody?.name || null,
-        notificationBehavior: meeting.administrativeBody?.notificationBehavior || null,
         summarizeAvailability: blockedReason ? SUMMARIZE_AVAILABILITY[blockedReason] : 'available',
-        released: meeting.released,
+        summarizeNotifications: notificationOutcome({
+            released: meeting.released,
+            dateTime: meeting.dateTime,
+            scheduleStatus: meeting.scheduleStatus,
+            notificationBehavior: meeting.administrativeBody?.notificationBehavior,
+        }, 'summarize', new Date(), new Date()),
     };
 }
 

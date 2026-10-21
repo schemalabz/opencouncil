@@ -13,7 +13,6 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { taskScope } from "./types";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
-import { meetingLabelInCity } from '@/lib/meetingName';
 
 /**
  * Browser-facing entry point for the admin panel's summarize button. Callers
@@ -162,10 +161,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
 
-    // Bust the meeting/subject cache now that all summarize results are persisted,
-    // BEFORE sending notifications below. The notification send is rate-limited
-    // (~500ms/recipient), so revalidating only after it finishes would let early
-    // recipients open the meeting and see stale, pre-summarize content.
+    // Bust the meeting/subject cache now that all summarize results are
+    // persisted. The notifications follow once the task reads as succeeded
+    // (tasks.ts), so their first readers open the new content.
     revalidateMeeting(councilMeeting.cityId, councilMeeting.id);
 
     // Illustrations for the non-agenda subjects, which only exist now. Agenda
@@ -173,60 +171,4 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // callback must not wait on Gemini, and minutes of Gemini calls must
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
-
-    // Create notifications if administrative body allows it
-    const adminBody = councilMeeting.administrativeBody;
-    if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
-
-        try {
-            const stats = await createNotificationsForMeeting(
-                councilMeeting.cityId,
-                councilMeeting.id,
-                'afterMeeting'
-            );
-
-            console.log(`Created ${stats.notificationsCreated} afterMeeting notifications for ${stats.subjectsTotal} subjects`);
-
-            const autoSend = adminBody.notificationBehavior === 'NOTIFICATIONS_AUTO';
-
-            // Send Discord admin alert about notification creation
-            if (stats.notificationsCreated > 0) {
-                sendNotificationsCreatedAdminAlert({
-                    cityName: councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(councilMeeting, 'el'),
-                    notificationType: 'afterMeeting',
-                    notificationsCreated: stats.notificationsCreated,
-                    subjectsTotal: stats.subjectsTotal,
-                    cityId: councilMeeting.cityId,
-                    meetingId: councilMeeting.id,
-                    autoSend
-                });
-            }
-
-            // If auto-send is enabled, release notifications immediately
-            if (autoSend) {
-                console.log('Auto-sending notifications...');
-                const releaseResult = await releaseNotifications(stats.notificationIds);
-                console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
-
-                // Send Discord admin alert about sending
-                sendNotificationsSentAdminAlert({
-                    cityId: councilMeeting.cityId,
-                    meetingId: councilMeeting.id,
-                    cityName: councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(councilMeeting, 'el'),
-                    notificationCount: stats.notificationsCreated,
-                    emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed,
-                    leftPending: releaseResult.leftPending
-                });
-            }
-        } catch (error) {
-            console.error('Error creating notifications after summarize:', error);
-            // Don't throw - we don't want to fail the entire task if notifications fail
-        }
-    }
 }

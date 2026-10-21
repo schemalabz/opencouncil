@@ -1,0 +1,21 @@
+{
+  "phase": {
+    "processAgenda": "the agenda",
+    "summarize": "the summary"
+  },
+  "sends": "Subscribers get a notification about {phase} as soon as it is ready.",
+  "waitsForApproval": "Notifications about {phase} wait for an administrator to approve them.",
+  "none": "No notifications: {reason}",
+  "reason": {
+    "noBody": "the meeting has no administrative body.",
+    "disabled": "they are disabled for this body.",
+    "unreleased": "the meeting is not published. The release creates them, if the meeting is still news then.",
+    "not-taking-place": "the meeting does not take place on its date (it is postponed or cancelled).",
+    "late-agenda": "the date of the meeting has passed. The summary is its news.",
+    "stale": "the meeting is more than 15 days old.",
+    "future-summary": "the meeting has a future date. Check the date of the meeting.",
+    "old-task": "the last processing was more than 7 days ago.",
+    "noTasks": "the agenda and the summary are not processed yet. When they are processed, the subscribers are notified, if the meeting is still news then."
+  },
+  "manual": "To notify the subscribers anyway, use the Notifications section of the meeting admin page."
+}

@@ -5,6 +5,7 @@ const mockTaskStatusFindMany = jest.fn();
 const mockSendBatchStarted = jest.fn().mockResolvedValue(undefined);
 const mockSendBatchCompleted = jest.fn().mockResolvedValue(undefined);
 
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: jest.fn() }));
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
   default: {

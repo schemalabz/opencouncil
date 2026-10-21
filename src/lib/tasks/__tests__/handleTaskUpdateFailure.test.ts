@@ -8,6 +8,8 @@ const mockFindUnique = jest.fn();
 const mockUpdate = jest.fn();
 const mockUpdateMany = jest.fn();
 
+const mockNotify = jest.fn();
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: (...args: unknown[]) => mockNotify(...args) }));
 jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
@@ -114,6 +116,40 @@ describe('handleTaskUpdate — failures', () => {
     // reader of `succeeded` (the Notis event feed) must find the rows written.
     expect(mockUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(processResult.mock.invocationCallOrder[0]);
     expect(processResult.mock.invocationCallOrder[0]).toBeLessThan(mockUpdateMany.mock.invocationCallOrder[1]);
+  });
+
+  it('notifies the subscribers of a news phase only after the flip, with its own phase', async () => {
+    for (const type of ['summarize', 'processAgenda']) {
+      jest.clearAllMocks();
+      mockFindUnique.mockResolvedValue({ ...baseTask, type });
+      mockUpdateMany.mockResolvedValue({ count: 1 });
+      const processResult = jest.fn().mockResolvedValue(undefined);
+      const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
+
+      await handleTaskUpdate(TASK_ID, update, processResult);
+
+      expect(mockNotify).toHaveBeenCalledWith('city-1', 'meeting-1', type);
+      // After the flip: a release only counts succeeded tasks, so this order is what keeps exactly one of the two from missing the other.
+      expect(mockUpdateMany.mock.invocationCallOrder[1]).toBeLessThan(mockNotify.mock.invocationCallOrder[0]);
+    }
+  });
+
+  it('does not notify for a task type that is not news, or when the flip fails', async () => {
+    mockFindUnique.mockResolvedValue({ ...baseTask, type: 'transcribe' });
+    const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
+    await handleTaskUpdate(TASK_ID, update, jest.fn().mockResolvedValue(undefined));
+    expect(mockNotify).not.toHaveBeenCalled();
+
+    mockFindUnique.mockResolvedValue(baseTask);
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 }).mockRejectedValueOnce(new Error('connection reset'));
+    await handleTaskUpdate(TASK_ID, update, jest.fn().mockResolvedValue(undefined));
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('does not notify when the handler throws', async () => {
+    const update: TaskUpdate<{ ok: number }> = { status: 'success', stage: '', progressPercent: 100, result: { ok: 1 }, version: 3 };
+    await handleTaskUpdate(TASK_ID, update, jest.fn().mockRejectedValue(new Error('boom')));
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('a failed flip after written results is logged, not recorded as a handler failure', async () => {

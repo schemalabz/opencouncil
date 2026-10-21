@@ -20,6 +20,8 @@ import { mintCallbackToken } from './callbackToken';
 import { errorDetail, errorMessage } from '@/lib/utils/errors';
 import { meetingNameSelect } from '@/lib/db/types';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { notifySubscribersOfTask } from '@/lib/notifications/meetingNotifications';
+import { isNewsPhase } from '@/lib/notifications/freshness';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -346,14 +348,17 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 // failure of this write is not a failure of the handler: the
                 // rows are there, so it is logged, and the alert and the cache
                 // revalidation still run.
+                let flipped = false;
                 try {
                     await prisma.taskStatus.updateMany({
                         where: { id: taskId },
                         data: { status: 'succeeded', stage: task.stage }
                     });
+                    flipped = true;
                 } catch (flipError) {
                     console.error(`Error marking task ${taskId} succeeded after its results were written:`, flipError);
                 }
+                if (flipped) await notifyIfNews(task);
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 if (sendGenericAlerts) {
@@ -495,10 +500,21 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
         });
         throw error;
     }
-    await prisma.taskStatus.updateMany({
+    const { count } = await prisma.taskStatus.updateMany({
         where: { id: taskId, status: { not: 'succeeded' } },
         data: { status: 'succeeded', failureReason: null },
     });
+    // A replay of a task that already read as succeeded is not news again.
+    if (count > 0) await notifyIfNews(task);
+}
+
+/**
+ * processAgenda and summarize tell the subscribers once the task reads as
+ * succeeded, never from inside the handler: see notifySubscribersOfTask.
+ * It never throws.
+ */
+async function notifyIfNews(task: { type: string; cityId: string; councilMeetingId: string }): Promise<void> {
+    if (isNewsPhase(task.type)) await notifySubscribersOfTask(task.cityId, task.councilMeetingId, task.type);
 }
 
 export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): Promise<Record<string, number | null>> => {

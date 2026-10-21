@@ -9,12 +9,13 @@ const mockTaskFindUnique = jest.fn();
 const mockStartTask = jest.fn();
 const mockHandler = jest.fn();
 
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: jest.fn() }));
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
 }));
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
-  default: { taskStatus: { findUnique: (...args: unknown[]) => mockTaskFindUnique(...args), updateMany: jest.fn() } },
+  default: { taskStatus: { findUnique: (...args: unknown[]) => mockTaskFindUnique(...args), updateMany: jest.fn().mockResolvedValue({ count: 1 }) } },
 }));
 jest.mock('../fixTranscriptInternal', () => ({
   requestFixTranscriptInternal: (...args: unknown[]) => mockStartTask(...args),

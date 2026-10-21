@@ -32,28 +32,10 @@ export interface ReviewCompletionControls {
 }
 
 /**
- * Whether summarize starts without a second confirmation and reaches subscribers.
- * handleSummarizeResult releases the notifications at once for this behavior.
- */
-export function summarizeNotifiesSubscribers(state: ReviewCompletionState): boolean {
-    return state.notificationBehavior === 'NOTIFICATIONS_AUTO';
-}
-
-/**
- * Summarize notifies subscribers about a meeting that the public cannot open.
- * The notification links to a page that only a user with edit rights can see.
- */
-export function summarizeNotifiesBeforeRelease(state: ReviewCompletionState): boolean {
-    return summarizeNotifiesSubscribers(state) && !state.released;
-}
-
-/**
  * Load the state for the review completion dialog and hold the reviewer's choices.
  *
  * Each option defaults to on when it can do something: the transcript email needs
  * contact emails, and summarize needs a meeting that no summarize task covers yet.
- * Summarize defaults to off when it notifies subscribers before the release,
- * because that send has no undo.
  *
  * @param isOpen - Load the state while the dialog is open, and reload it on each open.
  */
@@ -88,7 +70,7 @@ export function useReviewCompletion(cityId: string, meetingId: string, isOpen: b
                 if (cancelled) return;
                 setState(result);
                 setSendTranscript(result.contactEmails.length > 0);
-                setRunSummarize(result.summarizeAvailability === 'available' && !summarizeNotifiesBeforeRelease(result));
+                setRunSummarize(result.summarizeAvailability === 'available');
             })
             .catch((err) => {
                 if (cancelled) return;

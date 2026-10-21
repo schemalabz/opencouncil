@@ -41,12 +41,6 @@
     "runSummarize": {
       "label": "Exécuter summarize task",
       "help": "OpenCouncil résume la transcription révisée et en extrait les sujets de la séance.",
-      "notifications": {
-        "auto": "Les abonnés reçoivent une notification dès que le résumé est prêt.",
-        "approval": "Les notifications attendent l'approbation d'un administrateur avant leur envoi.",
-        "disabled": "Aucune notification n'est envoyée pour cette séance.",
-        "beforeRelease": "La séance n'est pas publiée. Les abonnés reçoivent une notification pour une page qu'ils ne peuvent pas ouvrir."
-      },
       "unavailable": {
         "succeeded": "Un résumé existe déjà pour cette séance.",
         "running": "Un résumé est déjà en cours pour cette séance."

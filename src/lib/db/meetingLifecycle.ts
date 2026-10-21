@@ -231,9 +231,10 @@ export async function updateMeetingRecord(
  * Release or unrelease a meeting. Releasing the new meeting of a postponement
  * hides every meeting before it in the chain. Unreleasing it, when it was
  * released, shows its direct predecessor again. The call is idempotent: a
- * meeting that already has the requested visibility changes nothing.
+ * meeting that already has the requested visibility changes nothing, and
+ * `changed` says which case it was, read inside the transaction.
  */
-export async function setMeetingReleased(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
+export async function setMeetingReleased(cityId: string, id: string, released: boolean): Promise<{ meeting: CouncilMeetingWithAdminBody; changed: boolean }> {
     return prisma.$transaction(async (tx) => {
         const current = await tx.councilMeeting.findUnique({ where: { cityId_id: { cityId, id } }, select: chainSelect });
         if (!current) throw new Error(`Meeting ${cityId}/${id} not found`);
@@ -250,11 +251,12 @@ export async function setMeetingReleased(cityId: string, id: string, released: b
 
         // A change of visibility by the admin replaces the memory of a hide.
         // A repeated call changes nothing, so the memory stays.
-        return tx.councilMeeting.update({
+        const meeting = await tx.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
             data: { released, ...(current.released !== released && { hiddenByPostponement: false }) },
             include: meetingWithAdminBodyInclude,
         });
+        return { meeting, changed: current.released !== released };
     });
 }
 

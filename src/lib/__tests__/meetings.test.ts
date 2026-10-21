@@ -4,6 +4,8 @@ jest.mock('../auth', () => ({
   withUserAuthorizedToEdit: jest.fn()
 }));
 
+jest.mock('../notifications/meetingNotifications', () => ({ notifySubscribersOnRelease: jest.fn() }));
+
 // Mock Prisma
 jest.mock('../db/prisma', () => ({
   __esModule: true,
