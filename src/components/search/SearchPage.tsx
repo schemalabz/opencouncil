@@ -28,9 +28,10 @@ import { getCity } from "@/lib/db/cities";
 import { getPerson } from "@/lib/db/people";
 import { getParty } from "@/lib/db/parties";
 import { Skeleton } from "../ui/skeleton";
+import { belowHeaderScrollMargin } from "@/components/layout/headerOffset";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
-import { getPartyFromRoles } from "@/lib/utils";
+import { cn, getPartyFromRoles } from "@/lib/utils";
 import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
 import { readPageParam, totalPagesOf } from "@/lib/zod-schemas/listQuery";
 import { useTranslations } from 'next-intl';
@@ -163,6 +164,15 @@ export default function SearchPage() {
             router.push(href, { scroll: false });
         }
     }, [router, searchParams]);
+
+    // The router does not scroll (`scroll: false` above), and the pager sits
+    // under the last result. Scroll now: the skeletons hold the same place
+    // while the new page loads.
+    const resultsRef = useRef<HTMLDivElement>(null);
+    const goToPage = (target: number) => {
+        updateSearchParams({ page: target.toString() });
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
     /**
      * Put what the query text supplied onto the filter pills, so the reader can
@@ -648,7 +658,7 @@ export default function SearchPage() {
                 </div>
 
                 {/* Same max width as the search bar above, so the results column lines up with it. */}
-                <div className="mx-auto w-full max-w-6xl">
+                <div ref={resultsRef} className={cn("mx-auto w-full max-w-6xl", belowHeaderScrollMargin)}>
                     {state.error ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-3">
@@ -702,7 +712,7 @@ export default function SearchPage() {
                             {totalPages > 1 && (
                                 <div className="flex justify-center gap-2 mt-8">
                                     <button
-                                        onClick={() => updateSearchParams({ page: (page - 1).toString() })}
+                                        onClick={() => goToPage(page - 1)}
                                         disabled={page === 1}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
@@ -712,7 +722,7 @@ export default function SearchPage() {
                                         {ts('pageOf', { page, total: totalPages })}
                                     </div>
                                     <button
-                                        onClick={() => updateSearchParams({ page: (page + 1).toString() })}
+                                        onClick={() => goToPage(page + 1)}
                                         disabled={page === totalPages}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
