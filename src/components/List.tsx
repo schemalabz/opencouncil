@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
 import { Pagination } from './ui/pagination';
 import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
+import { belowHeaderScrollMargin } from '@/components/layout/headerOffset';
 import type { CollectionState } from './collection/types';
 
 export interface BaseListProps {
@@ -177,7 +178,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     };
 
     return (
-        <div ref={listRef} className="space-y-6">
+        <div ref={listRef} className={cn("space-y-6", belowHeaderScrollMargin)}>
             {/* One toolbar, not two stacked rows. The filter, the total it produces
                 and the control that adds to it are the same thought, and splitting
                 them put the count above a row it was describing. */}
