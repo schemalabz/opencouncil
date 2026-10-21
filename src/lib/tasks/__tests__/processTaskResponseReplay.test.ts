@@ -6,6 +6,8 @@ const mockFindUnique = jest.fn();
 const mockUpdate = jest.fn();
 const mockUpdateMany = jest.fn();
 
+const mockNotify = jest.fn();
+jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: (...args: unknown[]) => mockNotify(...args) }));
 jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
@@ -55,6 +57,18 @@ describe('processTaskResponse — replay of a stored payload', () => {
       data: { status: 'succeeded', failureReason: null },
     });
     expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockNotify).toHaveBeenCalledWith('city-1', 'meeting-1', 'summarize');
+    expect(mockUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(mockNotify.mock.invocationCallOrder[0]);
+  });
+
+  it('does not notify again when the replayed task already read as succeeded', async () => {
+    mockFindUnique.mockResolvedValue({ ...storedTask, status: 'succeeded', failureReason: null });
+    mockSummarizeHandler.mockResolvedValue(undefined);
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
+    await processTaskResponse('summarize', TASK_ID, { force: true });
+
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('finishes a claim whose handler never completed: an old pending task with a payload becomes succeeded', async () => {

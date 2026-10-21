@@ -259,6 +259,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/export/meetings.tsx', type: 'AudioExportFailure' },
     },
     {
+        group: 'notificationOutcome.phase.',
+        members: { file: 'packages/ui/src/lib/meeting-news.ts', type: 'MeetingNewsPhase' },
+    },
+    {
+        group: 'notificationOutcome.reason.',
+        why: 'a NotificationSkipReason (src/lib/notifications/freshness.ts), built from NewsDisposition, so no literal union states the set',
+    },
+    {
         group: 'admin.decisionsOverview.state.',
         members: { file: 'src/lib/db/decisionHealthState.ts', type: 'CityState' },
     },
@@ -395,7 +403,6 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'landingV2.nav.', why: 'const array in the component' },
     { group: 'mcp.clients.', why: 'const array in the component' },
     { group: 'mcp.examples.', why: 'const array in the component' },
-    { group: 'reviews.completeDialog.runSummarize.notifications.', why: 'const array in the component' },
     { group: 'reviews.completeDialog.toasts.followUpFailed.actions.', why: 'const array in the component' },
 ];
 

@@ -19,14 +19,17 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Bell, BellOff } from 'lucide-react';
+import { Pencil, Bell } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
+import { ReleaseMeetingDialog } from './ReleaseMeetingDialog';
 import { useTranslations } from 'next-intl';
 import MeetingOperator from './MeetingOperator';
 import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
+import { notificationOutcome } from '@/lib/notifications/freshness';
+import { NotificationOutcomeIcon, NotificationOutcomeNote } from '@/components/notifications/NotificationOutcomeNote';
 
 export default function AdminActions({
     notificationBehavior,
@@ -58,12 +61,17 @@ export default function AdminActions({
     const [forceAgenda, setForceAgenda] = React.useState(false);
     const [forceSummarize, setForceSummarize] = React.useState(false);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = React.useState(false);
+    const [isReleaseDialogOpen, setIsReleaseDialogOpen] = React.useState(false);
     const [notificationType, setNotificationType] = React.useState<'beforeMeeting' | 'afterMeeting'>('beforeMeeting');
     React.useEffect(() => {
         setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
 
-    const notificationsEnabled = notificationBehavior && notificationBehavior !== 'NOTIFICATIONS_DISABLED';
+    // What each task would do with email if it succeeded now: the rule the task callback acts on.
+    const notificationFacts = { released: isReleased, dateTime: meeting.dateTime, scheduleStatus: meeting.scheduleStatus, notificationBehavior };
+    const now = new Date();
+    const agendaNotifications = notificationOutcome(notificationFacts, 'processAgenda', now, now);
+    const summaryNotifications = notificationOutcome(notificationFacts, 'summarize', now, now);
     const fetchTaskStatuses = React.useCallback(async () => {
         try {
             const tasks = await getTasksForMeeting(meeting.cityId, meeting.id);
@@ -200,9 +208,18 @@ export default function AdminActions({
         setTopics([...topics, '']);
     };
 
-    const handleReleaseToggle = async () => {
+    const handleReleaseToggle = () => {
+        // A release tells the subscribers; the dialog says what before it happens. Hiding needs no confirmation.
+        if (isReleased) {
+            void setRelease(false);
+        } else {
+            setIsReleaseDialogOpen(true);
+        }
+    };
+
+    const setRelease = async (released: boolean) => {
         try {
-            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, released);
             if (!result.ok) {
                 toast({
                     title: t('toasts.errorTogglingRelease.title'),
@@ -213,6 +230,7 @@ export default function AdminActions({
             }
             const updatedMeeting = result.meeting;
             setIsReleased(updatedMeeting.released);
+            setIsReleaseDialogOpen(false);
             toast({
                 title: updatedMeeting.released ? t('toasts.meetingReleased.title') : t('toasts.meetingUnreleased.title'),
                 description: updatedMeeting.released ? t('toasts.meetingReleased.description') : t('toasts.meetingUnreleased.description'),
@@ -393,9 +411,10 @@ export default function AdminActions({
                                 </div>
                                 <Button onClick={() => handleProcessAgenda(forceAgenda)} disabled={isProcessingAgenda}>
                                     {isProcessingAgenda ? t('buttons.starting') : t('buttons.process')}
-                                    {notificationsEnabled ? <Bell className="ml-1.5 h-3 w-3" /> : <BellOff className="ml-1.5 h-3 w-3 text-amber-500" />}
+                                    <NotificationOutcomeIcon outcome={agendaNotifications} className="ml-1.5 h-3 w-3" />
                                 </Button>
                             </div>
+                            <NotificationOutcomeNote outcome={agendaNotifications} phase="processAgenda" className="text-xs" />
                             {forceAgenda && (
                                 <p className="text-xs text-muted-foreground">{t('forms.forceDescription.processAgenda')}</p>
                             )}
@@ -438,9 +457,10 @@ export default function AdminActions({
                                 </div>
                                 <Button onClick={() => handleSummarize(forceSummarize)} disabled={isSummarizing}>
                                     {isSummarizing ? t('buttons.starting') : t('buttons.summarize')}
-                                    {notificationsEnabled ? <Bell className="ml-1.5 h-3 w-3" /> : <BellOff className="ml-1.5 h-3 w-3 text-amber-500" />}
+                                    <NotificationOutcomeIcon outcome={summaryNotifications} className="ml-1.5 h-3 w-3" />
                                 </Button>
                             </div>
+                            <NotificationOutcomeNote outcome={summaryNotifications} phase="summarize" className="text-xs" />
                             {forceSummarize && (
                                 <p className="text-xs text-muted-foreground">{t('forms.forceDescription.summarize')}</p>
                             )}
@@ -458,11 +478,20 @@ export default function AdminActions({
             <div className="flex items-center space-x-2">
                 <Switch
                     id="release-toggle"
+                    // Releasing opens the confirmation dialog; hiding does not.
+                    aria-haspopup={isReleased ? undefined : 'dialog'}
                     checked={isReleased}
                     onCheckedChange={handleReleaseToggle}
                 />
                 <Label htmlFor="release-toggle">{t('forms.released')}</Label>
             </div>
+            <ReleaseMeetingDialog
+                open={isReleaseDialogOpen}
+                onOpenChange={setIsReleaseDialogOpen}
+                cityId={meeting.cityId}
+                meetingId={meeting.id}
+                onConfirm={() => setRelease(true)}
+            />
         </div>
 
         <div className="mt-6">

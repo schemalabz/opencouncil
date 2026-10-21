@@ -11,7 +11,7 @@ import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
 import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
-import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
+import { publicAdministrativeBodyRelation, publicAdministrativeBodySelect } from "./types/administrativeBody";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent } from "@/lib/notifications/content";
@@ -698,6 +698,159 @@ export async function calculateProximityMatches(
 }
 
 /**
+ * A meeting with what the automatic notifications need: the facts the news
+ * rule reads, the body's behavior, and the names of the Discord alerts.
+ */
+export const meetingForNotificationsInclude = {
+    administrativeBody: { select: { ...publicAdministrativeBodySelect, notificationBehavior: true } },
+    city: true,
+} satisfies Prisma.CouncilMeetingInclude;
+
+export type MeetingForNotifications = Prisma.CouncilMeetingGetPayload<{ include: typeof meetingForNotificationsInclude }>;
+
+// Caller-gated, like createNotificationsForMeeting.
+export async function getMeetingForNotifications(cityId: string, meetingId: string): Promise<MeetingForNotifications> {
+    return prisma.councilMeeting.findUniqueOrThrow({
+        where: { cityId_id: { cityId, id: meetingId } },
+        include: meetingForNotificationsInclude,
+    });
+}
+
+/**
+ * The readers of a city that a meeting's subjects match, by subject importance
+ * and their preferences. createNotificationsForMeeting notifies them; the
+ * release preview counts them.
+ */
+async function matchMeetingRecipients(
+    cityId: string,
+    meetingId: string,
+    subjectImportanceOverrides?: Record<string, SubjectImportance>
+) {
+    // Fetch meeting with subjects and administrative body
+    const meeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        include: {
+            subjects: {
+                include: {
+                    topic: true,
+                    location: true
+                }
+            },
+            city: true,
+            administrativeBody: publicAdministrativeBodyRelation
+        }
+    });
+
+    if (!meeting) {
+        throw new Error(`Meeting ${meetingId} not found`);
+    }
+
+    // Get all users with notification preferences for this city
+    const notificationPreferences = await prisma.notificationPreference.findMany({
+        where: { cityId },
+        include: {
+            user: true,
+            locations: true,
+            interests: true
+        }
+    });
+
+    if (notificationPreferences.length === 0) {
+        console.log('No users with notification preferences for this city');
+        return { meeting, recipients: [] };
+    }
+
+    // Transform notification preferences to the format expected by matching function
+    // Group by userId to ensure we only have one entry per user (even though unique constraint should prevent duplicates)
+    const usersWithPreferencesMap = new Map<string, {
+        userId: string;
+        locations: { id: string }[];
+        interests: { id: string }[];
+    }>();
+    const userPrefMap = new Map<string, typeof notificationPreferences[0]>();
+
+    for (const pref of notificationPreferences) {
+        if (!usersWithPreferencesMap.has(pref.userId)) {
+            usersWithPreferencesMap.set(pref.userId, {
+                userId: pref.userId,
+                locations: pref.locations.map(loc => ({ id: loc.id })),
+                interests: pref.interests.map(interest => ({ id: interest.id }))
+            });
+            userPrefMap.set(pref.userId, pref);
+        } else {
+            // If user already exists, merge locations and interests (shouldn't happen due to unique constraint, but be safe)
+            const existing = usersWithPreferencesMap.get(pref.userId)!;
+            const locationIds = new Set([...existing.locations.map(l => l.id), ...pref.locations.map(l => l.id)]);
+            const interestIds = new Set([...existing.interests.map(i => i.id), ...pref.interests.map(i => i.id)]);
+            usersWithPreferencesMap.set(pref.userId, {
+                userId: pref.userId,
+                locations: Array.from(locationIds).map(id => ({ id })),
+                interests: Array.from(interestIds).map(id => ({ id }))
+            });
+            // Keep the first preference for user data access
+        }
+    }
+
+    const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
+
+    console.log(`Found ${usersWithPreferences.length} users with preferences`);
+
+    // Transform subjects to the format expected by matching function
+    const subjectsForMatching = meeting.subjects.map(subject => ({
+        id: subject.id,
+        topicId: subject.topicId,
+        locationId: subject.locationId
+    }));
+
+    // Build effective importance overrides:
+    // - If overrides are provided (manual creation), use them
+    // - Otherwise, use the subject's stored importance values
+    const effectiveOverrides: Record<string, SubjectImportance> = subjectImportanceOverrides || {};
+
+    if (!subjectImportanceOverrides) {
+        for (const subject of meeting.subjects) {
+            effectiveOverrides[subject.id] = {
+                topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'normal',
+                proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
+            };
+        }
+    }
+
+    // Use shared matching logic to determine which users should be notified
+    const userSubjectMatches = await matchUsersToSubjects(
+        subjectsForMatching,
+        usersWithPreferences,
+        effectiveOverrides
+    );
+
+    // Filter out users with no matching subjects
+    const recipients = Array.from(userSubjectMatches.entries())
+        .filter(([_, subjects]) => subjects.size > 0)
+        .map(([userId, matches]) => ({ preference: userPrefMap.get(userId)!, matches }));
+
+    return { meeting, recipients };
+}
+
+/**
+ * How many readers createNotificationsForMeeting would email, with the
+ * subjects' stored importance. A reader who already has a notification of this
+ * type is skipped there, so it is not counted here.
+ */
+// Caller-gated, like createNotificationsForMeeting: the release preview authorizes first.
+export async function countEmailRecipientsForMeeting(
+    cityId: string,
+    meetingId: string,
+    type: 'beforeMeeting' | 'afterMeeting'
+): Promise<number> {
+    const { recipients } = await matchMeetingRecipients(cityId, meetingId);
+    const notified = new Set((await prisma.notification.findMany({
+        where: { cityId, meetingId, type },
+        select: { userId: true },
+    })).map(({ userId }) => userId));
+    return recipients.filter(({ preference }) => preference.notifyByEmail && !notified.has(preference.userId)).length;
+}
+
+/**
  * Core notification creation function
  * Creates notifications for a meeting based on subject importance and user preferences
  */
@@ -715,121 +868,21 @@ export async function createNotificationsForMeeting(
     try {
         console.log(`Creating ${type} notifications for meeting ${meetingId} in city ${cityId}`);
 
-        // Fetch meeting with subjects and administrative body
-        const meeting = await prisma.councilMeeting.findUnique({
-            where: { cityId_id: { cityId, id: meetingId } },
-            include: {
-                subjects: {
-                    include: {
-                        topic: true,
-                        location: true
-                    }
-                },
-                city: true,
-                administrativeBody: publicAdministrativeBodyRelation
-            }
-        });
+        const { meeting, recipients } = await matchMeetingRecipients(cityId, meetingId, subjectImportanceOverrides);
 
-        if (!meeting) {
-            throw new Error(`Meeting ${meetingId} not found`);
-        }
-
-        // Get all users with notification preferences for this city
-        const notificationPreferences = await prisma.notificationPreference.findMany({
-            where: { cityId },
-            include: {
-                user: true,
-                locations: true,
-                interests: true
-            }
-        });
-
-        if (notificationPreferences.length === 0) {
-            console.log('No users with notification preferences for this city');
-            return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
-        }
-
-        // Transform notification preferences to the format expected by matching function
-        // Group by userId to ensure we only have one entry per user (even though unique constraint should prevent duplicates)
-        const usersWithPreferencesMap = new Map<string, {
-            userId: string;
-            locations: { id: string }[];
-            interests: { id: string }[];
-        }>();
-        const userPrefMap = new Map<string, typeof notificationPreferences[0]>();
-
-        for (const pref of notificationPreferences) {
-            if (!usersWithPreferencesMap.has(pref.userId)) {
-                usersWithPreferencesMap.set(pref.userId, {
-                    userId: pref.userId,
-                    locations: pref.locations.map(loc => ({ id: loc.id })),
-                    interests: pref.interests.map(interest => ({ id: interest.id }))
-                });
-                userPrefMap.set(pref.userId, pref);
-            } else {
-                // If user already exists, merge locations and interests (shouldn't happen due to unique constraint, but be safe)
-                const existing = usersWithPreferencesMap.get(pref.userId)!;
-                const locationIds = new Set([...existing.locations.map(l => l.id), ...pref.locations.map(l => l.id)]);
-                const interestIds = new Set([...existing.interests.map(i => i.id), ...pref.interests.map(i => i.id)]);
-                usersWithPreferencesMap.set(pref.userId, {
-                    userId: pref.userId,
-                    locations: Array.from(locationIds).map(id => ({ id })),
-                    interests: Array.from(interestIds).map(id => ({ id }))
-                });
-                // Keep the first preference for user data access
-            }
-        }
-
-        const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
-
-        console.log(`Found ${usersWithPreferences.length} users with preferences`);
-
-        // Transform subjects to the format expected by matching function
-        const subjectsForMatching = meeting.subjects.map(subject => ({
-            id: subject.id,
-            topicId: subject.topicId,
-            locationId: subject.locationId
-        }));
-
-        // Build effective importance overrides:
-        // - If overrides are provided (manual creation), use them
-        // - Otherwise, use the subject's stored importance values
-        const effectiveOverrides: Record<string, SubjectImportance> = subjectImportanceOverrides || {};
-
-        if (!subjectImportanceOverrides) {
-            for (const subject of meeting.subjects) {
-                effectiveOverrides[subject.id] = {
-                    topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'normal',
-                    proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
-                };
-            }
-        }
-
-        // Use shared matching logic to determine which users should be notified
-        const userSubjectMatches = await matchUsersToSubjects(
-            subjectsForMatching,
-            usersWithPreferences,
-            effectiveOverrides
-        );
-
-        // Filter out users with no matching subjects
-        const usersToNotify = Array.from(userSubjectMatches.entries())
-            .filter(([_, subjects]) => subjects.size > 0);
-
-        if (usersToNotify.length === 0) {
+        if (recipients.length === 0) {
             console.log('No users matched any subjects');
             return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
         }
 
-        console.log(`Creating notifications for ${usersToNotify.length} users`);
+        console.log(`Creating notifications for ${recipients.length} users`);
 
         // Create notifications and deliveries
         const notificationIds: string[] = [];
         let totalSubjects = 0;
 
-        for (const [userId, subjectMatches] of usersToNotify) {
-            const userPref = userPrefMap.get(userId)!;
-            const user = userPref.user;
+        for (const { preference: userPref, matches: subjectMatches } of recipients) {
+            const { userId, user } = userPref;
 
             if (!userPref.notifyByEmail && !user.notifyByPhone) {
                 continue;

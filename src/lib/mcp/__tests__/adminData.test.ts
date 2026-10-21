@@ -140,6 +140,8 @@ describe('meeting tools authorize before they write', () => {
         expect((createMeetingWithEffects as jest.Mock).mock.calls[0][1]).not.toHaveProperty('name_en');
         expect(result.name).toBe('Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 05/10/2026');
         expect(result.title).toBe('Τακτική Συνεδρίαση');
+        // A draft notifies nobody: the agent must not promise the user an email.
+        expect(result.next).toMatch(/no subscriber is notified until it is released/);
     });
 
     it('returns the derived names after an update', async () => {
@@ -309,6 +311,22 @@ describe('start_task', () => {
         expect(result).toMatchObject({ id: 't1', type: 'transcribe', status: 'pending', startedAt: '2026-09-23T10:00:00.000Z', meetingId: 'm1' });
         expect(result).not.toHaveProperty('finishedAt');
         expect(result.next).toMatch(/get_meeting/);
+        // transcribe notifies nobody, so the result says nothing about notifications.
+        expect(result).not.toHaveProperty('notifications');
+    });
+
+    it('tells the agent, without a read after the start, when processAgenda and summarize notify', async () => {
+        asCityAdmin('argos');
+        (startMeetingTask as jest.Mock).mockResolvedValue({
+            id: 't2', type: 'processAgenda', status: 'pending', stage: null, percentComplete: null,
+            createdAt: new Date('2026-09-23T10:00:00Z'), updatedAt: new Date('2026-09-23T10:00:00Z'), version: null,
+        });
+
+        const result = await mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'processAgenda', force: false });
+
+        expect(result).toMatchObject({ id: 't2', status: 'pending' });
+        expect(result.notifications).toMatch(/only for a released meeting that is still news/);
+        expect(result.notifications).toMatch(/get_meeting/);
     });
 });
 

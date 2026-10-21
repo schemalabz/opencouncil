@@ -1,0 +1,21 @@
+{
+  "phase": {
+    "processAgenda": "l'ordre du jour",
+    "summarize": "le résumé"
+  },
+  "sends": "Les abonnés reçoivent une notification sur {phase} dès qu'il est prêt.",
+  "waitsForApproval": "Les notifications sur {phase} attendent l'approbation d'un administrateur.",
+  "none": "Aucune notification : {reason}",
+  "reason": {
+    "noBody": "la séance n'a pas d'organe administratif.",
+    "disabled": "elles sont désactivées pour cet organe.",
+    "unreleased": "la séance n'est pas publiée. La publication les crée, si la séance est encore d'actualité.",
+    "not-taking-place": "la séance n'a pas lieu à sa date (elle est reportée ou annulée).",
+    "late-agenda": "la date de la séance est passée. Le résumé est son actualité.",
+    "stale": "la séance date de plus de 15 jours.",
+    "future-summary": "la séance a une date future. Vérifiez la date de la séance.",
+    "old-task": "le dernier traitement date de plus de 7 jours.",
+    "noTasks": "l'ordre du jour et le résumé ne sont pas encore traités. Quand ils sont traités, les abonnés sont notifiés, si la séance est encore d'actualité."
+  },
+  "manual": "Pour notifier les abonnés quand même, utilisez la section Notifications de la page d'administration de la séance."
+}

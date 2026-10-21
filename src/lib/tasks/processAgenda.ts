@@ -9,7 +9,6 @@ import { taskScope } from "./types";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
-import { meetingLabelInCity } from '@/lib/meetingName';
 import { recordsGreekCodeFacts } from '@/lib/meetingLifecycleRules';
 import { checkAgendaIdentity } from '@/lib/agendaMeetingRecord';
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
@@ -113,22 +112,21 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         { pruneUnmatched: true }
     );
 
-    // Before the cache and the notifications below: the kind is part of the
-    // derived name that both of them show.
+    // Before the cache below: the kind is part of the derived name that the
+    // meeting page shows.
     // The subjects are saved: nothing here may fail the task.
     if (greek && (response.meetingRecord || (response.meetingsInAgenda?.length ?? 0) > 1 || identityDifferences.length > 0)) {
         try {
             const { applyAgendaMeetingRecord } = await import('./applyAgendaMeetingRecord');
-            Object.assign(task.councilMeeting, await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences));
+            await applyAgendaMeetingRecord(task.councilMeeting, response.meetingRecord ?? null, response.meetingsInAgenda ?? [], identityDifferences);
         } catch (error) {
             console.error(`processAgenda could not apply the meeting record of ${task.councilMeeting.cityId}/${task.councilMeeting.id}:`, error);
         }
     }
 
-    // Bust the meeting/subject cache now that the new agenda subjects are persisted,
-    // BEFORE sending notifications below. The notification send is rate-limited
-    // (~500ms/recipient), so revalidating only after it finishes would let early
-    // recipients open the meeting and see stale content.
+    // Bust the meeting/subject cache now that the new agenda subjects are
+    // persisted. The notifications follow once the task reads as succeeded
+    // (tasks.ts), so their first readers open the new content.
     revalidateMeeting(task.councilMeeting.cityId, task.councilMeeting.id);
 
     // Illustrations for the agenda subjects, days before the meeting. Through
@@ -136,60 +134,4 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     // calls must outlive the response rather than escape it. Each failure
     // alerts on its own.
     after(() => generateImagesForMeeting(task.councilMeeting.cityId, task.councilMeeting.id));
-
-    // Create notifications if administrative body allows it
-    const adminBody = task.councilMeeting.administrativeBody;
-    if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
-
-        try {
-            const stats = await createNotificationsForMeeting(
-                task.councilMeeting.cityId,
-                task.councilMeeting.id,
-                'beforeMeeting'
-            );
-
-            console.log(`Created ${stats.notificationsCreated} beforeMeeting notifications for ${stats.subjectsTotal} subjects`);
-
-            const autoSend = adminBody.notificationBehavior === 'NOTIFICATIONS_AUTO';
-
-            // Send Discord admin alert about notification creation
-            if (stats.notificationsCreated > 0) {
-                sendNotificationsCreatedAdminAlert({
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
-                    notificationType: 'beforeMeeting',
-                    notificationsCreated: stats.notificationsCreated,
-                    subjectsTotal: stats.subjectsTotal,
-                    cityId: task.councilMeeting.cityId,
-                    meetingId: task.councilMeeting.id,
-                    autoSend
-                });
-            }
-
-            // If auto-send is enabled, release notifications immediately
-            if (autoSend) {
-                console.log('Auto-sending notifications...');
-                const releaseResult = await releaseNotifications(stats.notificationIds);
-                console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
-
-                // Send Discord admin alert about sending
-                sendNotificationsSentAdminAlert({
-                    cityId: task.councilMeeting.cityId,
-                    meetingId: task.councilMeeting.id,
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
-                    notificationCount: stats.notificationsCreated,
-                    emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed,
-                    leftPending: releaseResult.leftPending
-                });
-            }
-        } catch (error) {
-            console.error('Error creating notifications after processAgenda:', error);
-            // Don't throw - we don't want to fail the entire task if notifications fail
-        }
-    }
 }

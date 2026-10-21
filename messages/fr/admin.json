@@ -69,6 +69,20 @@
     "noTasks": "Aucune tâche en cours d'exécution"
   },
   "adminActions": {
+    "releaseDialog": {
+      "title": "Publier cette séance ?",
+      "description": "La séance devient publique. Voici ce que reçoivent ses abonnés.",
+      "loading": "Vérification des notifications…",
+      "loadError": "La vérification des notifications a échoué. La publication les crée quand même si la séance est d'actualité.",
+      "email": "E-mail",
+      "notis": "WhatsApp (Notis)",
+      "emailSends": "{count, plural, one {# abonné reçoit} other {# abonnés reçoivent}} tout de suite une notification sur {phase}.",
+      "emailWaits": "{count, plural, one {# abonné reçoit} other {# abonnés reçoivent}} une notification sur {phase}. Elle attend dans Notifications qu'un administrateur l'approuve.",
+      "emailNoRecipients": "Aucun abonné ne reçoit de nouvelle notification sur {phase}.",
+      "notisEligible": "La séance peut recevoir un message de Notis sur {phase}, si Notis ne l'a pas déjà envoyé.",
+      "notisNone": "Aucun message de Notis : {reason}",
+      "confirm": "Publier"
+    },
     "sections": {
       "meetingDetails": "Gestion de la séance",
       "meetingDetailsSubtitle": "Modifiez les informations de base de cette séance.",

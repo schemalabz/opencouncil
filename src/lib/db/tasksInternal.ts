@@ -123,3 +123,25 @@ export async function getTasksForMeetingDirect(cityId: string, councilMeetingId:
 
     return rows.map(row => ({ ...row, error: errorById.get(row.id) ?? null }));
 }
+
+/**
+ * When each of the given task types last succeeded for a meeting. Only a
+ * succeeded task counts: a claimed one is still writing its results, and its
+ * callback decides about notifications itself once it succeeds.
+ */
+export async function getLastSucceededTaskTimes<T extends string>(
+    cityId: string,
+    councilMeetingId: string,
+    types: readonly T[],
+): Promise<Partial<Record<T, Date>>> {
+    const rows = await prisma.taskStatus.groupBy({
+        by: ['type'],
+        where: { cityId, councilMeetingId, status: 'succeeded', type: { in: [...types] } },
+        _max: { updatedAt: true },
+    });
+    const times: Partial<Record<T, Date>> = {};
+    for (const row of rows) {
+        if (row._max.updatedAt) times[row.type as T] = row._max.updatedAt;
+    }
+    return times;
+}

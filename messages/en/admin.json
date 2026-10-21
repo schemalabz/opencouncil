@@ -69,6 +69,20 @@
     "noTasks": "No tasks running"
   },
   "adminActions": {
+    "releaseDialog": {
+      "title": "Release this meeting?",
+      "description": "The meeting becomes public. Its subscribers are told the following.",
+      "loading": "Checking the notifications…",
+      "loadError": "Could not check the notifications. The release still creates them if the meeting is news.",
+      "email": "Email",
+      "notis": "WhatsApp (Notis)",
+      "emailSends": "{count, plural, one {# subscriber gets} other {# subscribers get}} a notification about {phase} at once.",
+      "emailWaits": "{count, plural, one {# subscriber gets} other {# subscribers get}} a notification about {phase}. It waits in Notifications until an administrator approves it.",
+      "emailNoRecipients": "No subscriber gets a new notification about {phase}.",
+      "notisEligible": "The meeting is eligible for a Notis message about {phase}, if Notis has not sent one already.",
+      "notisNone": "No Notis message: {reason}",
+      "confirm": "Release"
+    },
     "sections": {
       "meetingDetails": "Meeting Management Details",
       "meetingDetailsSubtitle": "Edit basic information about this meeting.",

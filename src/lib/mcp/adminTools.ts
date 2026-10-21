@@ -43,7 +43,8 @@ function registerMeetingAdminTools(server: McpServer) {
             description:
                 'Create a council meeting in a municipality, or of an administrative body, that you administer. '
                 + 'An administrator of a body must pass that body. The meeting is saved as a '
-                + 'draft (unreleased), so the public does not see it. It also creates the calendar event. '
+                + 'draft (unreleased), so the public does not see it, and a draft notifies no subscriber: '
+                + 'an admin releases it from the admin page, and the release notifies them. It also creates the calendar event. '
                 + 'Call list_meetings first with the same date: a second call creates a second meeting. '
                 + 'Pass administrativeBodyId (see get_city): the meeting list of the site shows the council '
                 + 'by default and hides a meeting that has no body. The meeting has no name to set: the site '
@@ -109,7 +110,10 @@ function registerTaskAdminTools(server: McpServer) {
                 + 'list shows what ran, what is running and what failed. A step that is running is refused: wait '
                 + 'for it. A step that already succeeded is refused unless `force` is passed. `force` on '
                 + 'transcribe DELETES the existing transcript and its highlights: say so to the user and get an '
-                + 'explicit confirmation.',
+                + 'explicit confirmation. processAgenda and summarize email the subscribers when they succeed, '
+                + 'but only for a released meeting that is still news, and an AUTO body sends at once. For an '
+                + 'administrator, get_meeting\'s `notifications` says what each of them would do now: tell the '
+                + 'user before you start it.',
             inputSchema: startTaskToolInput,
         },
         (args, ctx: ServerContext) => run(() => mcpStartTask(identityFromContext(ctx), args))

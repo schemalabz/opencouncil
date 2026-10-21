@@ -17,6 +17,9 @@ import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } fro
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
 import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
+import { NEWS_PHASES, type NewsPhase } from '@/lib/notifications/freshness';
+import { getTaskNotificationOutcome } from '@/lib/notifications/meetingNotifications';
+import { notificationOutcomeEn } from '@/lib/notifications/outcomeTextEn';
 import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
@@ -387,7 +390,12 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
-        ...(tasks && { tasks: tasks.map(mcpTaskSummary) }),
+        ...(tasks && {
+            tasks: tasks.map(mcpTaskSummary),
+            // What processAgenda and summarize would do with email if they succeeded now, read before start_task.
+            notifications: Object.fromEntries(await Promise.all((Object.keys(NEWS_PHASES) as NewsPhase[]).map(async (phase) =>
+                [phase, notificationOutcomeEn(await getTaskNotificationOutcome(cityId, meetingId, phase), phase)]))),
+        }),
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.

@@ -9,6 +9,7 @@
 import "server-only";
 import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
@@ -24,6 +25,7 @@ import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@
 import { hideLinks } from "@/lib/meetingPublic";
 import { meetingWithAdminBodyInclude } from "./types/meeting";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
+import { notifySubscribersOnRelease } from "@/lib/notifications/meetingNotifications";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
@@ -186,7 +188,11 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
         // The module also releases or hides the other meetings of a postponement.
-        const updatedMeeting = await setMeetingReleased(cityId, id, released);
+        const { meeting: updatedMeeting, changed } = await setMeetingReleased(cityId, id, released);
+        // The tasks create no notifications for an unreleased meeting: the
+        // release does. After the response: rendering one email per reader
+        // must not hold the admin's toggle.
+        if (released && changed) after(() => notifySubscribersOnRelease(cityId, id));
         // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
         revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
