@@ -27,6 +27,7 @@ import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
+import { isNewsPhase } from '@/lib/notifications/freshness';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -75,8 +76,8 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
         released: meeting.released,
         url: meetingUrl(meeting.cityId, meeting.id),
         ...(processAgendaStatus && { processAgendaStatus }),
-        next: 'The meeting is saved as a draft: only administrators see it. '
-            + 'Transcription and release are done on the site, on the admin page of the meeting.',
+        next: 'The meeting is saved as a draft: only administrators see it, and no subscriber is notified '
+            + 'until it is released. Transcription and release are done on the site, on the admin page of the meeting.',
     };
 }
 
@@ -126,6 +127,9 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
     };
 }
 
+const TASK_NOTIFICATIONS_NOTE = 'processAgenda and summarize email the subscribers when they succeed, only for a released '
+    + 'meeting that is still news. get_meeting\'s `notifications` says what they would do now.';
+
 export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArgs) {
     const { cityId, meetingId, ...request } = args;
     await requireMeetingAdmin(identity, cityId, meetingId);
@@ -140,6 +144,9 @@ export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArg
         // The transcribe core stores the video it was given on the meeting.
         ...(request.type === 'transcribe' && request.videoUrl && { youtubeUrl: request.videoUrl }),
         url: meetingUrl(cityId, meetingId),
+        // Fixed text, not a read of the meeting: the job is already submitted, and the
+        // agent decides before it starts, from get_meeting's live `notifications`.
+        ...(isNewsPhase(request.type) && { notifications: TASK_NOTIFICATIONS_NOTE }),
         next: 'The task runs on the task server and takes minutes. Poll get_meeting: its `tasks` list '
             + 'carries the status, and a failed task carries the error.',
     };

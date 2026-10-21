@@ -35,13 +35,27 @@ In Greek text that users read, the name of the feature is «ενημερώσει
 
 ### Notification Creation Triggers
 
-1. **Before Meeting Notifications**
-   - Created when `processAgenda` task completes successfully
-   - **Behavior depends on administrative body's `notificationBehavior` setting**
-   
-2. **After Meeting Notifications**
-   - Created when `summarize` task completes successfully
-   - **Behavior depends on administrative body's `notificationBehavior` setting**
+The app creates notifications by itself only for a released meeting, and only while the meeting is news. Email and Notis (WhatsApp) use one rule for "news", so both channels decide the same way. `@opencouncil/ui/lib/meeting-news` holds the rule. The Notis poller and `src/lib/notifications/freshness.ts` import it.
+
+| Phase | Notification | News when |
+|---|---|---|
+| `processAgenda` succeeds | `beforeMeeting` | the meeting is in the future |
+| `summarize` succeeds | `afterMeeting` | the meeting is in the past |
+
+For both phases, the task must have completed in the last 7 days. A meeting older than 15 days is never news. Email adds one condition that Notis does not check: a postponed or cancelled meeting gets no `beforeMeeting` email.
+
+`notificationOutcome` (`src/lib/notifications/freshness.ts`) is the one decision: no email (and why), sent at once (`NOTIFICATIONS_AUTO`), or left for approval (`NOTIFICATIONS_APPROVAL`). The task callbacks act on it. The release, the release dialog, the review dialog, the task buttons of the meeting admin page and the MCP tools (`get_meeting`, `start_task`) describe it with the same text (`messages/*/notificationOutcome.json`).
+
+1. **After a task**
+   - `notifySubscribersOfTask` runs after the task status becomes `succeeded` (`src/lib/tasks/tasks.ts`), not inside the result handler.
+   - An unreleased meeting gets no notifications at this point.
+
+2. **On release**
+   - Before the release, a dialog in the meeting admin panel shows what the release does: the email recipients, and whether the meeting is eligible for a Notis message.
+   - The release creates the email notifications for the phase that is news (`notifySubscribersOnRelease`). It counts only succeeded tasks, so a task that is still writing its results notifies by itself once it succeeds.
+   - The body's `notificationBehavior` applies, as after a task.
+   - Notis sends its WhatsApp message on its own schedule, once per meeting and phase. The app cannot stop it.
+
 3. **Manual Creation**
    - Admins can manually create notifications from meeting admin page:
      - first, by selecting a NotificationType (before/after meeting)
@@ -178,27 +192,14 @@ export async function generateEmailContent(notification: Notification): Promise<
 
 ### 3. Automatic Notification Triggers
 
-#### In `src/lib/tasks/processAgenda.ts`:
-```typescript
-// After successful subject creation in handleProcessAgendaResult
-const stats = await createNotificationsForMeeting(
-  task.councilMeeting.cityId,
-  task.councilMeeting.id,
-  'beforeMeeting'
-);
-// Log notification creation statistics
-```
+`src/lib/notifications/meetingNotifications.ts` holds the automatic triggers:
 
-#### In `src/lib/tasks/summarize.ts`:
-```typescript
-// After successful summary creation in handleSummarizeResult  
-const stats = await createNotificationsForMeeting(
-  councilMeeting.cityId,
-  councilMeeting.id,
-  'afterMeeting'
-);
-// Log notification creation statistics
-```
+- `notifySubscribersOfTask(cityId, meetingId, phase)`: `handleTaskUpdate` and `processTaskResponse` call it after the status becomes `succeeded`.
+- `notifySubscribersOnRelease(cityId, meetingId)`: `toggleMeetingRelease` calls it through `after()` when a meeting becomes public.
+- `getReleaseOutlook(cityId, meetingId)`: the release dialog reads it through the `getMeetingReleaseOutlook` Server Action.
+- `getTaskNotificationOutcome(cityId, meetingId, phase)`: the MCP tools read it.
+
+A failure in these triggers does not fail the task or the release. A Discord alert asks an admin to create the notifications by hand.
 
 ### 4. Notification View Page
 
