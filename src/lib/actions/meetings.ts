@@ -3,6 +3,8 @@
 import { toggleMeetingRelease as toggleRelease } from "@/lib/db/meetings";
 import type { CouncilMeetingWithAdminBody } from "@/lib/db/meetings";
 import { LifecycleRuleError, type LifecycleRuleCode } from "@/lib/meetingLifecycleRules";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getReleaseOutlook, type ReleaseOutlook } from "@/lib/notifications/meetingNotifications";
 
 export type ToggleReleaseResult =
     | { ok: true; meeting: CouncilMeetingWithAdminBody }
@@ -27,4 +29,13 @@ export async function toggleMeetingRelease(
         if (error instanceof LifecycleRuleError) return { ok: false, code: error.code, message: error.message };
         throw error;
     }
+}
+
+/**
+ * What releasing the meeting tells its subscribers, for the release dialog.
+ * The data module is server-only and caller-gated, so the gate is here.
+ */
+export async function getMeetingReleaseOutlook(cityId: string, id: string): Promise<ReleaseOutlook> {
+    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId });
+    return getReleaseOutlook(cityId, id);
 }

@@ -24,6 +24,7 @@ import { Link } from '@/i18n/routing';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
+import { ReleaseMeetingDialog } from './ReleaseMeetingDialog';
 import { useTranslations } from 'next-intl';
 import MeetingOperator from './MeetingOperator';
 import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
@@ -58,6 +59,7 @@ export default function AdminActions({
     const [forceAgenda, setForceAgenda] = React.useState(false);
     const [forceSummarize, setForceSummarize] = React.useState(false);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = React.useState(false);
+    const [isReleaseDialogOpen, setIsReleaseDialogOpen] = React.useState(false);
     const [notificationType, setNotificationType] = React.useState<'beforeMeeting' | 'afterMeeting'>('beforeMeeting');
     React.useEffect(() => {
         setMediaUrl(meeting.youtubeUrl || '');
@@ -200,9 +202,18 @@ export default function AdminActions({
         setTopics([...topics, '']);
     };
 
-    const handleReleaseToggle = async () => {
+    const handleReleaseToggle = () => {
+        // A release tells the subscribers; the dialog says what before it happens. Hiding needs no confirmation.
+        if (isReleased) {
+            void setRelease(false);
+        } else {
+            setIsReleaseDialogOpen(true);
+        }
+    };
+
+    const setRelease = async (released: boolean) => {
         try {
-            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, released);
             if (!result.ok) {
                 toast({
                     title: t('toasts.errorTogglingRelease.title'),
@@ -213,6 +224,7 @@ export default function AdminActions({
             }
             const updatedMeeting = result.meeting;
             setIsReleased(updatedMeeting.released);
+            setIsReleaseDialogOpen(false);
             toast({
                 title: updatedMeeting.released ? t('toasts.meetingReleased.title') : t('toasts.meetingUnreleased.title'),
                 description: updatedMeeting.released ? t('toasts.meetingReleased.description') : t('toasts.meetingUnreleased.description'),
@@ -458,11 +470,20 @@ export default function AdminActions({
             <div className="flex items-center space-x-2">
                 <Switch
                     id="release-toggle"
+                    // Releasing opens the confirmation dialog; hiding does not.
+                    aria-haspopup={isReleased ? undefined : 'dialog'}
                     checked={isReleased}
                     onCheckedChange={handleReleaseToggle}
                 />
                 <Label htmlFor="release-toggle">{t('forms.released')}</Label>
             </div>
+            <ReleaseMeetingDialog
+                open={isReleaseDialogOpen}
+                onOpenChange={setIsReleaseDialogOpen}
+                cityId={meeting.cityId}
+                meetingId={meeting.id}
+                onConfirm={() => setRelease(true)}
+            />
         </div>
 
         <div className="mt-6">
