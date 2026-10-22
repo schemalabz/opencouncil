@@ -11,6 +11,7 @@ import { applyRules } from './masking';
 import { buildNormalization, dropPgSyncSql, nullOrphanColumnsSql, temporaryIndexSql } from './normalize';
 import { binary, logToStderr, prismaMigrate, psql, redactUrl, run, SUPERUSER_PSQL_ENV, tailLines } from './process';
 import { ContentFilter } from './stream-filter';
+import { countAccountEmails } from './privacy-scan';
 import { allowedTables, knownTables, loadPinnedMeetings, loadTablesConfig, privateTables, MIGRATIONS_TABLE, PINNED_FILE, TABLES_JSON } from './tables';
 import { withScratchCluster } from './transient-postgres';
 import { assertLocalTarget, parseLocalTarget } from './target-guard';
@@ -36,6 +37,22 @@ const HARMLESS_RESTORE_ERRORS = [/role "[^"]+" does not exist/, /aiven_extras/, 
 
 /** The constraint name in a psql foreign-key violation message. */
 const FK_VIOLATION = /violates foreign key constraint "([^"]+)"/;
+
+/** The column whose values no artifact may hold: the emails of the accounts. */
+const ACCOUNT_EMAILS = { table: 'User', column: 'email' };
+
+/**
+ * Stop when a dump holds the email of an account of the backup. The emails come
+ * from the User rows that the filter dropped, and they stay in memory. The message
+ * names tables and counts only.
+ */
+async function assertNoAccountEmails(dumpDir: string, accountEmails: ReadonlySet<string>, kind: 'full' | 'subset', log: (line: string) => void): Promise<void> {
+    const found = Object.entries(await countAccountEmails(dumpDir, accountEmails));
+    if (found.length) {
+        throw new Error(`the ${kind} dump holds the email of an account: ${found.map(([table, n]) => `${table}=${n}`).join(', ')}. Add a masking rule in tables.json for the column that holds it`);
+    }
+    log(`account emails: none of ${accountEmails.size} in the ${kind} dump`);
+}
 
 /** The upper limit of unexpected restore errors that the thrown message quotes. */
 const MAX_REPORTED_ERRORS = 20;
@@ -171,8 +188,11 @@ async function produceInto(outDir: string, o: ProduceOptions): Promise<Manifest>
 
             // 1. Fetch and filter.
             log(`restoring ${o.backupPath} into scratch with private tables filtered out`);
-            const filter = new ContentFilter({ allow, known });
+            const filter = new ContentFilter({ allow, known, collect: ACCOUNT_EMAILS });
             const stderr = await filteredRestore(o.backupPath, scratchUrl, filter);
+            if ((filter.stats.dropped[ACCOUNT_EMAILS.table] ?? 0) > 0 && filter.collected.size === 0) {
+                throw new Error(`the filter read no email from the ${filter.stats.dropped[ACCOUNT_EMAILS.table]} rows of "${ACCOUNT_EMAILS.table}"`);
+            }
             const captured = filter.stats.foreignKeyStatements.map(parseForeignKeyStatement).flatMap((fk) => (fk ? [fk] : []));
             const orphans = orphanForeignKeys(captured, allow);
             // A backup in another format produces no COPY block that the filter keeps.
@@ -262,6 +282,7 @@ async function produceInto(outDir: string, o: ProduceOptions): Promise<Manifest>
             fs.writeFileSync(fullConfig, greenmaskConfigYaml({ ...base, storageDir: fullStorage }));
             log('dumping the full artifact');
             await runGreenmaskDump({ configPath: fullConfig, logFile: path.join(runDir, 'greenmask-full.log'), password: scratchPassword, workDirKept, log });
+            await assertNoAccountEmails(newestDumpDir(fullStorage), filter.collected, 'full', log);
             log('packing the full artifact');
             const full = await packArtifact({ dumpDir: newestDumpDir(fullStorage), postRestoreSql: normalization.postRestoreSql, outFile: path.join(outDir, 'full.tar.zst') });
 
@@ -279,6 +300,7 @@ async function produceInto(outDir: string, o: ProduceOptions): Promise<Manifest>
             fs.writeFileSync(subsetConfig, greenmaskConfigYaml({ ...base, storageDir: subsetStorage, subset: spec, debug: true }));
             log('dumping the subset artifact');
             await runGreenmaskDump({ configPath: subsetConfig, logFile: path.join(runDir, 'greenmask-subset.log'), password: scratchPassword, workDirKept, log });
+            await assertNoAccountEmails(newestDumpDir(subsetStorage), filter.collected, 'subset', log);
             log('packing the subset artifact');
             const subset = await packArtifact({ dumpDir: newestDumpDir(subsetStorage), postRestoreSql: normalization.postRestoreSql, outFile: path.join(outDir, 'subset.tar.zst') });
 

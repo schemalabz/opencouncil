@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import zlib from 'zlib';
-import { scanDumpDir } from './privacy-scan';
+import { countAccountEmails, scanDumpDir, scannableText } from './privacy-scan';
 
 function writeDump(root: string, tables: Record<string, string[]>): void {
     const entries = Object.entries(tables).map(([table, rows], i) => {
@@ -124,5 +124,48 @@ describe('scanDumpDir', () => {
         );
         fs.writeFileSync(path.join(root, 'corrupt.dat.gz'), 'this is not gzip data');
         await expect(scanDumpDir(root, new Set(['Utterance']))).rejects.toThrow();
+    });
+});
+
+describe('countAccountEmails', () => {
+    let root: string;
+
+    afterEach(() => {
+        fs.rmSync(root, { recursive: true, force: true });
+    });
+
+    test('counts the addresses of accounts in every table, public text included, and no other address', async () => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-scan-'));
+        writeDump(root, {
+            Decision: ['d1\t{"correctedBy": {"by": "Admin@OpenCouncil.gr"}}', 'd2\tγράψτε στο dimos@example.gr'],
+            Utterance: ['u1\tadmin@opencouncil.gr και admin@opencouncil.gr'],
+            City: ['athens\tΑθήνα'],
+        });
+        expect(await countAccountEmails(root, new Set(['admin@opencouncil.gr']))).toEqual({ Decision: 1, Utterance: 2 });
+    });
+
+    // In COPY text, a newline before the address arrives as `\n`, so the escape letter would join the local part.
+    test('counts an address that follows a newline or a tab inside a value', async () => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-scan-'));
+        writeDump(root, {
+            UtteranceEdit: ['e1\tγραμμή\\nadmin@opencouncil.gr', 'e2\tστήλη\\tadmin@opencouncil.gr'],
+            Subject: ['s1\tκείμενο\\\\nadmin@opencouncil.gr'],
+        });
+        // Subject holds a backslash and the letters "nadmin", not a newline: that is another address.
+        expect(await countAccountEmails(root, new Set(['admin@opencouncil.gr']))).toEqual({ UtteranceEdit: 2 });
+    });
+});
+
+describe('scannableText', () => {
+    test.each([
+        ['a\\nb', 'a b'],
+        ['a\\tb\\rc', 'a b c'],
+        ['a\\\\nb', 'a\\nb'],
+        ['\\N', ''],
+        ['a\\011b', 'a b'],
+        ['a\\x09b', 'a b'],
+        ['no escapes', 'no escapes'],
+    ])('reads %j as %j', (line, text) => {
+        expect(scannableText(line)).toBe(text);
     });
 });
