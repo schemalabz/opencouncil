@@ -169,9 +169,9 @@ maybe('seed pipeline end to end', () => {
         // removes this key too.
         await createTaskStatus('m1', athens.id, { type: 'transcriptSent', status: 'completed', requestBody: JSON.stringify({ recipientEmails: ['a@b.gr'] }) })
         // A voiceprint is a biometric identifier, so VoicePrint is a private table.
-        // The generateVoiceprint task holds the same embedding in the "voiceprint" key
-        // of its response, and a masking rule removes that key. The audio URL and the
-        // duration stay. Both hang off m1, a meeting the subset keeps.
+        // The generateVoiceprint task links a person to a clip of their voice, so a
+        // masking rule deletes the task from both artifacts. Both hang off m1, a
+        // meeting the subset keeps.
         const speaker = await createPerson(athens.id, { name: 'Voiced Person' })
         await prisma.voicePrint.create({ data: { embedding: '[0.1,0.2]', sourceAudioUrl: 'https://cdn/voice.mp3', startTimestamp: 0, endTimestamp: 10, personId: speaker.id, sourceSegmentId: segmentIds[1] } })
         await createTaskStatus('m1', athens.id, { type: 'generateVoiceprint', status: 'completed', requestBody: '{}', responseBody: JSON.stringify({ audioUrl: 'https://cdn/voice.mp3', voiceprint: '[0.1,0.2]', duration: 10 }) })
@@ -227,7 +227,8 @@ maybe('seed pipeline end to end', () => {
         await createNotificationPreference({ userId: user.id, cityId: athens.id, locationIds: ['loc-reader'] })
         // d0 hangs off the unreleased meeting the subset drops, d1 off one it keeps.
         await prisma.decision.create({ data: { id: 'd0', subjectId: subjectIds[4], title: 'Dropped decision', pdfUrl: 'https://x/d0.pdf', createdById: user.id } })
-        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id, taskId: pollTask.id } })
+        // An admin's correction of the extracted facts names the admin by email, so a masking rule removes it.
+        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id, taskId: pollTask.id, extraction: { number: '12/2026', correctedBy: { by: 'person@test.local', date: '2026-10-01', why: 'wrong number' } } } })
         // d2 sits on m2, but its task sits on m1. A subset-only rule nulls that reference.
         await prisma.decision.create({ data: { id: 'd2', subjectId: subjectIds[2], title: 'Cross-meeting decision', pdfUrl: 'https://x/d2.pdf', taskId: pollTask.id } })
         // A consent period names the account that recorded it, so VoicePrintConsent
@@ -297,7 +298,7 @@ maybe('seed pipeline end to end', () => {
         expect(manifest.counts.User).toBe(0)
         expect(manifest.counts.NotificationPreference).toBe(0)
         expect(manifest.counts.Subject).toBe(4)
-        expect(manifest.counts.TaskStatus).toBe(9)
+        expect(manifest.counts.TaskStatus).toBe(8)
         expect(manifest.counts.Highlight).toBe(2)
         expect(manifest.counts.DecisionCandidate).toBe(1)
         expect(manifest.counts.VoicePrint).toBe(0)
@@ -341,6 +342,7 @@ maybe('seed pipeline end to end', () => {
         expect(fullTaskStatusLines.some((line) => line.includes('"utterances"') && line.includes('"Utterance 1"'))).toBe(true)
         // The voiceprint scores of the transcribe response go from both artifacts.
         expect(fullTaskStatusLines.some((line) => line.includes('person-voiced'))).toBe(false)
+        expect(fullTaskStatusLines.some((line) => line.includes('https://cdn/voice.mp3'))).toBe(false)
 
         // verify restored the full artifact too. It keeps every meeting, the unreleased m4 included.
         const full = new Client({ connectionString: verifyUrls.full })
@@ -364,6 +366,8 @@ maybe('seed pipeline end to end', () => {
             expect(temporaryIndexes.rows[0].n).toBe('0')
             const candidates = await full.query<{ id: string }>('SELECT id FROM "DecisionCandidate" ORDER BY id')
             expect(candidates.rows).toEqual([{ id: 'dc-kept' }])
+            const fullExtraction = await full.query<{ extraction: unknown }>(`SELECT extraction FROM "Decision" WHERE id = 'd1'`)
+            expect(fullExtraction.rows).toEqual([{ extraction: { number: '12/2026' } }])
             // A segment points at its speaker tag, so m4's tag and the identification on it
             // outlive the meeting unless a rule removes the tags that no segment uses.
             const tags = await full.query<{ label: string }>('SELECT label FROM "SpeakerTag" ORDER BY label')
@@ -386,22 +390,23 @@ maybe('seed pipeline end to end', () => {
             expect(bodies.rows).toHaveLength(2)
             expect(bodies.rows.every((r) => r.contactEmails.length === 0)).toBe(true)
             const tasks = await restored.query<{ type: string; requestBody: string; responseBody: string | null }>('SELECT type, "requestBody", "responseBody" FROM "TaskStatus"')
-            expect(tasks.rows).toHaveLength(9)
+            expect(tasks.rows).toHaveLength(8)
             expect(tasks.rows.every((r) => !r.requestBody.includes('callbackUrl'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('recipientEmails'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('a@b.gr'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('voiceprints'))).toBe(true)
-            // The voiceprint response loses the embedding only. The transcribe
-            // response loses its utterances only. Every other task keeps the
-            // response it had.
+            // The voiceprint task is gone. The transcribe response loses its
+            // utterances only. Every other task keeps the response it had.
             const responseOf = (type: string): unknown[] => tasks.rows.filter((r) => r.type === type).map((r) => JSON.parse(r.responseBody ?? 'null'))
-            expect(responseOf('generateVoiceprint')).toEqual([{ audioUrl: 'https://cdn/voice.mp3', duration: 10 }])
+            expect(responseOf('generateVoiceprint')).toEqual([])
             expect(responseOf('transcribe')).toEqual([{
                 videoUrl: 'https://cdn/x.mp4',
                 audioUrl: 'https://cdn/x.mp3',
                 muxPlaybackId: 'mux-x',
                 transcript: { transcription: { speakers: [{ speaker: 0, match: null }] } },
             }])
+            const extraction = await restored.query<{ extraction: unknown }>(`SELECT extraction FROM "Decision" WHERE id = 'd1'`)
+            expect(extraction.rows).toEqual([{ extraction: { number: '12/2026' } }])
             expect(tasks.rows.filter((r) => r.type === 'summarize').map((r) => r.responseBody)).toEqual(['{"ok":true}', '{"ok":true}', '{"ok":true}', '{"ok":true}'])
             const voicePrintCount = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "VoicePrint"')
             expect(voicePrintCount.rows[0].n).toBe('0')
