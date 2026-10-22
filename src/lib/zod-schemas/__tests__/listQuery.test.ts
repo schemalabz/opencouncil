@@ -28,6 +28,14 @@ describe('adminNotificationsQuerySchema paging', () => {
         expect(adminNotificationsQuerySchema.parse({ page: '', pageSize: '' })).toMatchObject({ page: 1, pageSize: 20 });
         expect(adminNotificationsQuerySchema.parse({ page: '2', pageSize: '50' })).toMatchObject({ page: 2, pageSize: 50 });
     });
+
+    it('caps the page size, not the page', () => {
+        expect(adminNotificationsQuerySchema.parse({ page: String(MAX_LIST_LIMIT + 1) })).toMatchObject({ page: MAX_LIST_LIMIT + 1 });
+    });
+
+    it.each(['1.0', '+2', '1e1'])('rejects page %p, as the other lists do', page => {
+        expect(adminNotificationsQuerySchema.safeParse({ page }).success).toBe(false);
+    });
 });
 
 describe('readPageParam', () => {
@@ -59,5 +67,6 @@ describe('page arithmetic', () => {
 
     it('builds the pagination of a response', () => {
         expect(paginationOf(25, 2, 12)).toEqual({ total: 25, page: 2, pageSize: 12, totalPages: 3 });
+        expect(paginationOf(0, 1, 12)).toEqual({ total: 0, page: 1, pageSize: 12, totalPages: 0 });
     });
 });

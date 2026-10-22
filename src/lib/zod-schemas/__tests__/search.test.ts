@@ -69,3 +69,22 @@ describe('searchRequestSchema', () => {
         expect(parsed.location?.radiusMeters).toBe(5000);
     });
 });
+
+describe('searchRequestSchema paging', () => {
+    it('reads the first page of 10 when the request names none', () => {
+        expect(searchRequestSchema.parse({ query: 'πάρκα' })).toMatchObject({ page: 1, pageSize: 10 });
+    });
+
+    it('takes a page size from 1 up to 100', () => {
+        expect(searchRequestSchema.parse({ query: 'πάρκα', page: 3, pageSize: 100 })).toMatchObject({ page: 3, pageSize: 100 });
+    });
+
+    it.each([
+        { page: 0 },
+        { page: 1.5 },
+        { pageSize: 0 },
+        { pageSize: 101 },
+    ])('rejects %o', (paging) => {
+        expect(searchRequestSchema.safeParse({ query: 'πάρκα', ...paging }).success).toBe(false);
+    });
+});

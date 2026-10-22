@@ -93,6 +93,17 @@ describe('meetings list paging - integration', () => {
             expect(await findMeetingIdsMatching(archive.cityId, '1η δημοτικη κοινοτητα', reader, 'el', TZ)).toHaveLength(33)
         })
 
+        test('matches the body name in both languages when the stored name leaves it out', async () => {
+            // «Ειδική Συνεδρίαση Λογοδοσίας» names no body; its card and its body chip do.
+            expect(await findMeetingIdsMatching(archive.cityId, 'λογοδοσιας δημοτικο συμβουλιο', reader, 'el', TZ)).toEqual(['council-24', 'council-12', 'council-0'])
+            expect(await findMeetingIdsMatching(archive.cityId, 'accountability municipal council', reader, 'el', TZ)).toEqual(['council-24', 'council-12', 'council-0'])
+        })
+
+        test('never matches a word made of the end of one field and the start of the next', async () => {
+            // council-0 is «Accountability Meeting 02/10/23», of the «Δημοτικό Συμβούλιο».
+            expect(await findMeetingIdsMatching(archive.cityId, '23δημοτικο', reader, 'el', TZ)).toEqual([])
+        })
+
         test('follows the body filter', async () => {
             const ids = await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', { ...reader, administrativeBodyIds: [archive.bodies.council] }, 'el', TZ)
             expect(ids).not.toEqual(expect.arrayContaining([archive.unassignedIds[0]]))
