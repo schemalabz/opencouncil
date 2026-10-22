@@ -1,0 +1,15 @@
+{
+  "name": "@opencouncil/seed-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Turn a production backup into personal-data-free seed artifacts, verify them, and restore them into a local database.",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "pg": "^8.23.1",
+    "yargs": "^17.7.2",
+    "zod": "^4.6.7"
+  }
+}
