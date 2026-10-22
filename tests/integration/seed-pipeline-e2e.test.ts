@@ -488,5 +488,20 @@ maybe('seed pipeline end to end', () => {
         const brokenRuns = fs.readdirSync(brokenWork).filter((name) => name.startsWith('run-'))
         expect(brokenRuns).toHaveLength(1)
         expect(fs.readdirSync(path.join(brokenWork, brokenRuns[0])).filter((name) => name.startsWith('storage-'))).toEqual([])
+
+        // Without the rule for an admin's correction, the full dump holds the fixture
+        // account's email in Decision, a public-text table. produce stops before it packs.
+        const leakyTables = JSON.parse(fs.readFileSync('packages/seed-pipeline/config/tables.json', 'utf8'))
+        leakyTables.masking = leakyTables.masking.filter((rule: { table: string; column?: string }) => !(rule.table === 'Decision' && rule.column === 'extraction'))
+        const leakyTablesFile = path.join(root, 'leaky-tables.json')
+        fs.writeFileSync(leakyTablesFile, JSON.stringify(leakyTables))
+        const leakyLog: string[] = []
+        await expect(produce({
+            backupPath: path.join(root, 'backup.sql.gz'), outDir: path.join(root, 'leaky-out'), workDir: path.join(root, 'leaky-work'), schemaPath,
+            meetingsPerBody: 2, pinsFile, tablesFile: leakyTablesFile, scratchUrl: await createSiblingDatabase('seed_leaky_scratch'),
+            log: (line) => leakyLog.push(line),
+        })).rejects.toThrow('the full dump holds the email of an account: Decision=1.')
+        expect(leakyLog.some((line) => line.includes('packing the full artifact'))).toBe(false)
+        expect(fs.readdirSync(path.join(root, 'leaky-out'))).toEqual([])
     }, 600_000)
 })
