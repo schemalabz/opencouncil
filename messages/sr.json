@@ -60,6 +60,7 @@
         "adminBodyType_community": "Заједнице",
         "allPeople": "Сви",
         "allBodies": "Сва",
+        "pagination": "Странице",
         "backToHome": "Назад на почетну",
         "loadingError": "Грешка при учитавању",
         "all": "Све",
@@ -1170,7 +1171,6 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",
-        "itemsCapped": "Најновијих {count}",
         "pages": {
             "overview": "Преглед",
             "map": "Мапа",

@@ -3,6 +3,7 @@ import { latitude, longitude } from './primitives';
 import { isoUtcDateTime } from './dates';
 import { administrativeBodyTypeSchema } from './administrativeBody';
 import type { Location } from '@/lib/search/types';
+import { jsonPageFields, MAX_LIST_LIMIT } from './listQuery';
 
 /**
  * A point and a radius in metres: the search's Location. The public API, the
@@ -38,7 +39,7 @@ export const searchRequestSchema = z.strictObject({
         .extend({ radiusMeters: searchLocationSchema.shape.radiusMeters.default(5_000) })
         .optional()
         .describe('Restrict to subjects pinned within `radiusMeters` (metres) of `point`. A subject without a location pin does not match'),
-    page: z.number().int().min(1).default(1),
-    pageSize: z.number().int().min(1).max(100).default(10),
+    page: jsonPageFields.page.default(1),
+    pageSize: jsonPageFields.pageSize.max(MAX_LIST_LIMIT).default(10),
     detailed: z.boolean().default(false)
 });

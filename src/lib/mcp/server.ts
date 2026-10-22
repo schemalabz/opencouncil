@@ -6,6 +6,7 @@ import { currentAdminAccess, currentMcpIdentity } from './realm-context';
 import { registerAdminTools } from './adminTools';
 import { category, run } from './toolSupport';
 import { latitude, longitude } from '@/lib/zod-schemas/primitives';
+import { jsonPageFields } from '@/lib/zod-schemas/listQuery';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -29,7 +30,7 @@ import {
 } from './data';
 
 const paginationShape = {
-    page: z.number().int().min(1).default(1).describe('Page number, starting at 1'),
+    page: jsonPageFields.page.default(1).describe('Page number, starting at 1'),
 };
 
 /**
@@ -69,9 +70,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'Omit the query to list everything matching the filters, newest first — e.g. all ' +
                 'subjects a person spoke about, or all subjects in a date range. ' +
                 'Returns compact results with URLs; ' +
-                'use get_subject / get_subject_transcript with a result id for details. `total` is ' +
+                'use get_subject / get_subject_transcript with a result id for details. `pagination.total` is ' +
                 'the search index\'s own match count — report it as approximate ("about N"), and ' +
-                'note it is omitted entirely when results had to be withheld. It searches subjects, so ' +
+                'note it and `pagination.totalPages` are omitted when results had to be withheld. It searches subjects, so ' +
                 'a meeting that is transcribed but not yet summarized has nothing here to match — use ' +
                 'list_meetings before you report that a topic was never discussed.',
             inputSchema: z.object({
@@ -86,7 +87,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                     .describe('Restrict to these topic labels, as returned in results (e.g. "Παιδεία", "Συγκοινωνίες"). An unknown label answers with the full list'),
                 dateFrom: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
                 dateTo: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
-                pageSize: z.number().int().min(1).max(20).default(10),
+                pageSize: jsonPageFields.pageSize.max(20).default(10),
                 ...paginationShape,
             }),
         },
@@ -256,7 +257,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                 administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
                     .describe('Restrict to these administrative body ids (see get_city). An unknown id is an error, not an empty list. Takes precedence over administrativeBodyTypes'),
                 administrativeBodyTypes: administrativeBodyTypesFilter,
-                pageSize: z.number().int().min(1).max(50).default(10),
+                pageSize: jsonPageFields.pageSize.max(50).default(10),
                 ...paginationShape,
             }),
         },
@@ -359,12 +360,15 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'summarized. For such a meeting this is the only record — summarize it, quote it, ' +
                 'and pick highlight utterances from it. It carries no agenda, decision or vote ' +
                 'tally, so never report those from a transcript alone.',
-            inputSchema: z.object({
+            // Strict: a client that still sends the old segmentsPerPage gets an
+            // error, not the default page size and page numbers that no longer match.
+            inputSchema: z.strictObject({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
                 personId: z.string().optional()
                     .describe('Only this person\'s segments (see list_people)'),
-                segmentsPerPage: z.number().int().min(1).max(100).default(40),
+                pageSize: jsonPageFields.pageSize.max(100).default(40)
+                    .describe('Speaker segments per page'),
                 includeUtteranceIds: z.boolean().default(false),
                 ...paginationShape,
             }),
@@ -376,7 +380,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                     args.meetingId,
                     {
                         page: args.page,
-                        segmentsPerPage: args.segmentsPerPage,
+                        pageSize: args.pageSize,
                         includeUtteranceIds: args.includeUtteranceIds,
                         personId: args.personId,
                     },

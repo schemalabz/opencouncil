@@ -60,6 +60,14 @@ describe('POST /api/search', () => {
         expect(request).not.toHaveProperty('detailed');
     });
 
+    it('reports the pagination of the page and the page size that the request asked for', async () => {
+        mockSearch.mockResolvedValue({ results: [], total: 45, dropped: 0, derivedFilters: {} });
+
+        const response = await post({ query: 'πάρκα', page: 2, pageSize: 20 });
+
+        expect((await response.json()).pagination).toEqual({ total: 45, page: 2, pageSize: 20, totalPages: 3 });
+    });
+
     // A point does not replace a period named in the text: "πάρκα το 2025" with
     // a point must still search 2025, so the extraction stays on.
     it('reads the query text for filters when the request has a location', async () => {

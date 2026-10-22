@@ -369,3 +369,38 @@ describe('creating a highlight and its video in one call', () => {
         );
     });
 });
+
+describe('paging arguments', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('starts every paged tool at page 1', () => {
+        const { meta } = advertised(USER);
+        expect(meta.list_meetings.inputSchema!.parse({ cityId: 'athens' })).toMatchObject({ page: 1, pageSize: 10 });
+        expect(meta.search.inputSchema!.parse({ query: 'πάρκα' })).toMatchObject({ page: 1, pageSize: 10 });
+        expect(meta.get_transcript.inputSchema!.parse({ cityId: 'athens', meetingId: 'm1' })).toMatchObject({ page: 1, pageSize: 40 });
+    });
+
+    it.each([
+        ['search', { query: 'πάρκα' }, 20],
+        ['list_meetings', { cityId: 'athens' }, 50],
+        ['get_transcript', { cityId: 'athens', meetingId: 'm1' }, 100],
+    ])('caps the page size of %s, and refuses a page size of 0 or a page that is not whole', (tool, args, max) => {
+        const schema = advertised(USER).meta[tool].inputSchema!;
+        expect(schema.parse({ ...args, pageSize: max })).toMatchObject({ pageSize: max });
+        expect(() => schema.parse({ ...args, pageSize: max + 1 })).toThrow();
+        expect(() => schema.parse({ ...args, pageSize: 0 })).toThrow();
+        expect(() => schema.parse({ ...args, page: 1.5 })).toThrow();
+    });
+
+    it('forwards the page and the page size of get_transcript to the data layer', async () => {
+        const { handlers } = advertised(USER);
+        await handlers.get_transcript(
+            { cityId: 'athens', meetingId: 'm1', page: 3, pageSize: 7, includeUtteranceIds: false } as never,
+            ctxFor(USER)
+        );
+
+        expect(data.mcpGetTranscript).toHaveBeenCalledWith(
+            'athens', 'm1', expect.objectContaining({ page: 3, pageSize: 7 }), USER
+        );
+    });
+});

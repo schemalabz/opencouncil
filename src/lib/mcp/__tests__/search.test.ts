@@ -79,3 +79,26 @@ describe('mcpSearch open date range', () => {
         expect(searchInRealmMock.mock.calls[0][0].dateRange).toEqual({ start: '2026-01-01', end: '2026-10-05' });
     });
 });
+
+describe('mcpSearch pagination', () => {
+    it('reports the pagination in the shared shape', async () => {
+        searchInRealmMock.mockResolvedValue({ results: [], total: 25, dropped: 0, derivedFilters: {} });
+        const result = await mcpSearch({ query: 'πάρκα', page: 2, pageSize: 10 }, ANONYMOUS);
+        expect(result.pagination).toEqual({ total: 25, page: 2, pageSize: 10, totalPages: 3 });
+        expect(result).not.toHaveProperty('note');
+    });
+
+    it('counts the pages by the page size asked for', async () => {
+        searchInRealmMock.mockResolvedValue({ results: [], total: 25, dropped: 0, derivedFilters: {} });
+        const result = await mcpSearch({ query: 'πάρκα', page: 1, pageSize: 5 }, ANONYMOUS);
+        expect(result.pagination).toEqual({ total: 25, page: 1, pageSize: 5, totalPages: 5 });
+    });
+
+    // A total that may count withheld hits would tell the caller that they exist.
+    it('leaves the total and the page count out when results were withheld', async () => {
+        searchInRealmMock.mockResolvedValue({ results: [], total: 25, dropped: 1, derivedFilters: {} });
+        const result = await mcpSearch({ query: 'πάρκα', page: 2, pageSize: 10 }, ANONYMOUS);
+        expect(result.pagination).toEqual({ page: 2, pageSize: 10 });
+        expect(result).toHaveProperty('note');
+    });
+});

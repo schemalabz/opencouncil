@@ -1,14 +1,24 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
-import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
+import { DEFAULT_MEETING_PAGE_SIZE, findMeetingIdsMatching } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getPublicAdministrativeBodiesForCityCached } from "@/lib/cache";
+import {
+    getCityCached,
+    getCouncilMeetingsPreviewCached,
+    getCouncilMeetingPreviewsByIds,
+    countCouncilMeetingsCached,
+    getAdministrativeBodiesWithPublicMeetingsCached,
+    getPublicAdministrativeBodiesForCityCached,
+} from "@/lib/cache";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
+import { parseCollectionParams, toURLSearchParams } from '@/lib/utils/filterURL';
+import { meetingBodyFilter, meetingsTabFilters } from '@/lib/meetingsTab';
+import { clampPage, pageSlice } from '@/lib/zod-schemas/listQuery';
 
 export async function generateMetadata(
     props: {
@@ -66,41 +76,51 @@ export async function generateMetadata(
     });
 }
 
+type BodyFilter = NonNullable<ReturnType<typeof meetingBodyFilter>>;
 
 /**
- * How many meetings the tab loads.
- *
- * The list filters, searches and pages in the browser, so every row a reader
- * can reach without a reload has to be in the payload. A card carries its
- * meeting's whole agenda, which put a large city's archive — 124 meetings,
- * 1.28 MB — on the wire to draw twelve cards. This bounds that at a constant,
- * and leaves the filter and the search whole over what it covers, which paging
- * the query would not: both run over the loaded rows.
- *
- * Meetings past the window stay reachable through the page header's search and
- * through their own URLs.
+ * One page of the list and its total. The count comes first, so only a page
+ * that exists is queried and cached: an arbitrary ?page= would otherwise reach
+ * the database as an offset, and leave a cache entry for every number tried.
  */
-const MEETINGS_TAB_LIMIT = DEFAULT_MEETING_PAGE_SIZE * 5;
+async function loadListPage(cityId: string, filter: BodyFilter, requestedPage: number, pageSize: number) {
+    const total = await countCouncilMeetingsCached(cityId, filter);
+    const page = clampPage(requestedPage, total, pageSize);
+    const rows = total > 0 ? await getCouncilMeetingsPreviewCached(cityId, { ...filter, page, pageSize }) : [];
+    return { rows, total, page };
+}
 
+/** One page of the meetings whose ids the search found. */
+async function loadSearchPage(cityId: string, ids: string[], requestedPage: number, pageSize: number) {
+    const page = clampPage(requestedPage, ids.length, pageSize);
+    const pageIds = pageSlice(ids, page, pageSize);
+    const rows = pageIds.length > 0 ? await getCouncilMeetingPreviewsByIds(cityId, pageIds) : [];
+    return { rows, total: ids.length, page };
+}
+
+/**
+ * The meetings tab. It reads the view from the URL and loads only the page on
+ * screen and the total, so every meeting of the city is reachable through the
+ * pages and the payload does not grow with the archive.
+ */
 export default async function MeetingsPage(
     props: {
-        params: Promise<{ cityId: string }>;
+        params: Promise<{ cityId: string; locale: string }>;
+        searchParams: Promise<Record<string, string | string[] | undefined>>;
     }
 ) {
-    const params = await props.params;
+    const [{ cityId, locale }, searchParams] = await Promise.all([props.params, props.searchParams]);
 
-    const {
-        cityId
-    } = params;
-
-    const [city, councilMeetings, publicBodies, unreleased] = await Promise.all([
+    const [city, publicBodies, allBodies, unreleased, tCommon] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT }),
-        // The picker's own source. Deriving it from the capped rows above hid
-        // every body whose last meeting fell outside the window.
+        // The picker's own source. Deriving it from the listed rows hid every
+        // body whose last meeting fell outside them.
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
+        // Every body, unreleased-only ones included, for the type-to-ids filter.
+        getPublicAdministrativeBodiesForCityCached(cityId),
         // A city admin edits every meeting; a body admin adds meetings of their bodies.
         getUnreleasedScope(cityId),
+        getTranslations({ locale, namespace: 'Common' }),
     ]);
     const canEdit = unreleased.all || unreleased.bodyIds.length > 0;
     // The picker offers the bodies with a released meeting. A body admin's own
@@ -110,17 +130,32 @@ export default async function MeetingsPage(
         ? publicBodies
         : [
             ...publicBodies,
-            ...(await getPublicAdministrativeBodiesForCityCached(cityId))
-                .filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id)),
+            ...allBodies.filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id)),
         ];
 
     if (!city) {
         notFound();
     }
 
+    const pageSize = DEFAULT_MEETING_PAGE_SIZE;
+    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon));
+    const filter = meetingBodyFilter(view, allBodies);
+    const matchingIds = filter && view.query.trim()
+        ? await findMeetingIdsMatching(cityId, view.query, { ...filter, unreleased }, locale, city.timezone)
+        : null;
+
+    const { rows, total, page } = !filter
+        ? { rows: [], total: 0, page: 1 }
+        : matchingIds
+            ? await loadSearchPage(cityId, matchingIds, view.page, pageSize)
+            : await loadListPage(cityId, filter, view.page, pageSize);
+
     return (
         <CityMeetings
-            councilMeetings={councilMeetings}
+            rows={rows}
+            total={total}
+            page={page}
+            pageSize={pageSize}
             cityId={cityId}
             realm={city.realm}
             timezone={city.timezone}
@@ -128,8 +163,6 @@ export default async function MeetingsPage(
             editableBodyIds={unreleased.all ? undefined : unreleased.bodyIds}
             administrativeBodies={administrativeBodies}
             now={new Date()}
-            cappedAt={MEETINGS_TAB_LIMIT}
-            pageSize={DEFAULT_MEETING_PAGE_SIZE}
         />
     );
 }

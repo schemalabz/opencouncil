@@ -5,7 +5,8 @@ import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
-import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
+import { countCouncilMeetings, getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
+import { pageSlice, paginationOf } from '@/lib/zod-schemas/listQuery';
 import { resolveDateRange } from '@/lib/dates/dayBounds';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
@@ -311,16 +312,18 @@ export async function mcpListMeetings(
         from: options.from ? { kind: 'day', day: options.from } : undefined,
         to: options.to ? { kind: 'day', day: options.to } : undefined,
     }, timezone);
-    const meetings = await getCouncilMeetingsWithSubjectPreview(cityId, {
+    const selection = {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
-        page: options.page,
-        pageSize: options.pageSize,
         from,
         to,
         timeFilter: options.timeFilter,
         administrativeBodyIds: options.administrativeBodyIds,
         administrativeBodyTypes: options.administrativeBodyTypes,
-    });
+    };
+    const [meetings, total] = await Promise.all([
+        getCouncilMeetingsWithSubjectPreview(cityId, { ...selection, page: options.page, pageSize: options.pageSize }),
+        countCouncilMeetings(cityId, selection),
+    ]);
 
     const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
@@ -336,7 +339,7 @@ export async function mcpListMeetings(
             hasTranscript: meeting._count.speakerSegments > 0,
             url: urls.meeting(cityId, meeting.id),
         })),
-        page: options.page,
+        pagination: paginationOf(total, options.page, options.pageSize),
     };
 }
 
@@ -546,8 +549,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
         subjectName: subject.name,
         cityId: subject.cityId,
         meetingId: subject.councilMeetingId,
-        page,
-        totalPages: Math.max(1, Math.ceil(total / SUBJECT_TRANSCRIPT_PAGE_SIZE)),
+        pagination: paginationOf(total, page, SUBJECT_TRANSCRIPT_PAGE_SIZE),
         utterances: utterances.map(utterance => ({
             utteranceId: utterance.id,
             speaker: utterance.speakerSegment.speakerTag.person?.name
@@ -568,7 +570,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
 export async function mcpGetTranscript(
     cityId: string,
     meetingId: string,
-    options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
+    options: { page: number; pageSize: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
     const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
@@ -595,11 +597,7 @@ export async function mcpGetTranscript(
         ? allSegments.filter(segment => segment.speakerTag.personId === options.personId)
         : allSegments;
 
-    const totalPages = Math.max(1, Math.ceil(segments.length / options.segmentsPerPage));
-    const pageSegments = segments.slice(
-        (options.page - 1) * options.segmentsPerPage,
-        options.page * options.segmentsPerPage
-    );
+    const pageSegments = pageSlice(segments, options.page, options.pageSize);
 
     // Resolve speaker names for the page's segments in one query
     const personIds = [...new Set(pageSegments.map(s => s.speakerTag.personId).filter((id): id is string => !!id))];
@@ -613,9 +611,8 @@ export async function mcpGetTranscript(
     return {
         cityId,
         meetingId,
-        page: options.page,
-        totalPages,
-        ...(options.personId && { speaker: speakerName, segmentCount: segments.length }),
+        pagination: paginationOf(segments.length, options.page, options.pageSize),
+        ...(options.personId && { speaker: speakerName }),
         segments: pageSegments.map(segment => ({
             speaker: (segment.speakerTag.personId && personNames.get(segment.speakerTag.personId))
                 || segment.speakerTag.label,
@@ -860,9 +857,11 @@ export async function mcpSearch(
             score: result.score,
         })),
         ...(response.dropped === 0
-            ? { total: response.total }
-            : { note: 'Some results on this page were unavailable; the total count is unknown.' }),
-        page: args.page,
+            ? { pagination: paginationOf(response.total, args.page, args.pageSize) }
+            : {
+                pagination: { page: args.page, pageSize: args.pageSize },
+                note: 'Some results on this page were unavailable; the total count is unknown.',
+            }),
     };
 }
 

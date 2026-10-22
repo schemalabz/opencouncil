@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import type { Paths } from '@/lib/openapi/registry';
 import { searchLocationSchema, searchRequestSchema } from '@/lib/zod-schemas/search';
+import { paginationSchema } from '@/lib/zod-schemas/listQuery';
 import type { DerivedFilters } from '@/lib/search/types';
 import { searchErrorSchema } from '@/lib/api/errors';
 
@@ -17,12 +18,7 @@ const SearchResultSchema = z.object({
             + 'When the request sets `detailed: true`, items are SearchResultDetailed, which additionally '
             + 'include `speakerSegments` and `context`. See src/lib/search/types.ts for the full shape.',
     }),
-    pagination: z.object({
-        total: z.number().int(),
-        page: z.number().int(),
-        pageSize: z.number().int(),
-        totalPages: z.number().int(),
-    }),
+    pagination: paginationSchema,
     // `satisfies` makes a field added to DerivedFilters fail to compile here
     // until the spec documents it.
     derivedFilters: z.object({

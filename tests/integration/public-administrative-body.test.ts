@@ -105,7 +105,7 @@ const reads: Record<string, () => Promise<unknown>> = {
     'MCP get_subject': () => asRequest(() => mcpGetSubject(ids.subjectId, ANON)),
     'MCP get_subject_transcript': () => asRequest(() => mcpGetSubjectTranscript(ids.subjectId, 1, ANON)),
     'MCP get_transcript': () => asRequest(() =>
-        mcpGetTranscript(cityId, pastMeetingId, { page: 1, segmentsPerPage: 10, includeUtteranceIds: true }, ANON)),
+        mcpGetTranscript(cityId, pastMeetingId, { page: 1, pageSize: 10, includeUtteranceIds: true }, ANON)),
 }
 
 describe('public reads return only the public fields of an administrative body', () => {

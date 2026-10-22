@@ -18,6 +18,8 @@ import {
   filterActiveRoles,
   filterInactiveRoles,
   normalizeText,
+  searchTerms,
+  matchesEveryTerm,
   relevanceScore
 } from '../utils';
 import { calculateOfferTotals } from '../pricing';
@@ -955,5 +957,23 @@ describe('sortSubjectsByAgendaIndex', () => {
 
     const sorted = sortSubjectsByAgendaIndex(subjects);
     expect(sorted.map(s => s.name)).toEqual(['Γλυπτό', 'Στέγη', 'Παρέα', 'Ο ΑΛΛΟΣ']);
+  });
+});
+
+describe('searchTerms and matchesEveryTerm', () => {
+  it('splits a query into normalized words, and ignores blank space', () => {
+    expect(searchTerms('  Μαρία   ΠΑΠΑ ')).toEqual(['μαρια', 'παπα']);
+    expect(searchTerms('   ')).toEqual([]);
+  });
+
+  it('needs every word, in any order', () => {
+    const text = normalizeText('Μαρία Παπαδοπούλου');
+    expect(matchesEveryTerm(text, searchTerms('παπα μαρια'))).toBe(true);
+    expect(matchesEveryTerm(text, searchTerms('μαρια γιωργος'))).toBe(false);
+  });
+
+  it('splits on any blank space, such as a tab or a no-break space', () => {
+    expect(searchTerms('μαρια\tπαπα')).toEqual(['μαρια', 'παπα']);
+    expect(searchTerms('μαρια\u00a0παπα')).toEqual(['μαρια', 'παπα']);
   });
 });

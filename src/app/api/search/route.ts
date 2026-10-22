@@ -3,6 +3,7 @@ import { search } from '@/lib/search';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { SearchRequest } from '@/lib/search/types';
 import { searchError } from '@/lib/api/errors';
+import { paginationOf } from '@/lib/zod-schemas/listQuery';
 
 // Hardcoded search configuration
 const SEARCH_CONFIG = {
@@ -31,18 +32,10 @@ export async function POST(request: NextRequest) {
         // Perform the search
         const { results, total, derivedFilters } = await search(searchRequest);
 
-        // Calculate pagination metadata
-        const totalPages = Math.ceil(total / validatedRequest.pageSize);
-
         // Return paginated results
         return NextResponse.json({
             results,
-            pagination: {
-                total,
-                page: validatedRequest.page,
-                pageSize: validatedRequest.pageSize,
-                totalPages
-            },
+            pagination: paginationOf(total, validatedRequest.page, validatedRequest.pageSize),
             // The search reads the query text for filters, so a request that
             // named a municipality or a period in prose comes back narrowed.
             // Reporting it is the difference between a caller that can see the

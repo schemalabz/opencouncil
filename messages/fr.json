@@ -60,6 +60,7 @@
     "adminBodyType_community": "Communautés",
     "allPeople": "Tous",
     "allBodies": "Tous",
+    "pagination": "Pages",
     "backToHome": "Retour à l'accueil",
     "loadingError": "Erreur de chargement",
     "all": "Tout",
@@ -709,7 +710,6 @@
   },
   "CouncilMeeting": {
     "items": "{count, plural, =0 {Aucune séance} =1 {1 séance} other {# séances}}",
-    "itemsCapped": "Les {count} plus récentes",
     "pages": {
       "overview": "Aperçu",
       "map": "Carte",

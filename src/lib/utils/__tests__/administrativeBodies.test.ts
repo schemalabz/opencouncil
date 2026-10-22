@@ -5,7 +5,6 @@ import {
     getAdministrativeBodyTypesForPeople,
     getBodiesOfTypeFromMeetings,
     getBodiesOfTypeFromPeople,
-    filterMeetingByAdminBodyTypes,
     filterPersonByAdminBodyTypes,
     ADMIN_BODY_TYPE_ORDER,
     isAdministrativeBodyType,
@@ -168,24 +167,6 @@ describe('getBodiesOfTypeFromPeople', () => {
 });
 
 // --- Filters ---
-
-describe('filterMeetingByAdminBodyTypes', () => {
-    it('returns true when selectedTypes is empty (show all)', () => {
-        expect(filterMeetingByAdminBodyTypes(makeMeeting(councilBody), [])).toBe(true);
-    });
-
-    it('returns false for a meeting with no admin body', () => {
-        expect(filterMeetingByAdminBodyTypes(makeMeeting(null), ['council'])).toBe(false);
-    });
-
-    it('returns true when meeting type matches', () => {
-        expect(filterMeetingByAdminBodyTypes(makeMeeting(councilBody), ['council'])).toBe(true);
-    });
-
-    it('returns false when meeting type does not match', () => {
-        expect(filterMeetingByAdminBodyTypes(makeMeeting(councilBody), ['community'])).toBe(false);
-    });
-});
 
 describe('filterPersonByAdminBodyTypes', () => {
     it('returns true when selectedTypes is empty (show all)', () => {

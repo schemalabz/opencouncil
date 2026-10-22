@@ -1,5 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import List from '../List';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
+import type { CollectionState } from '@/components/collection/types';
+import { fixedCollection } from '@/components/collection/fixedCollection';
+import { belowHeaderScrollMargin } from '@/components/layout/headerOffset';
 
 let mockSearchParams = new URLSearchParams();
 
@@ -40,31 +44,73 @@ const t = (key: string, params?: { count?: number }) =>
     params?.count === undefined ? key : `${key}:${params.count}`;
 
 type RenderProps = {
-    showSearch?: boolean;
     showCount?: boolean;
+    announceCount?: boolean;
     editable?: boolean;
     items?: Item[];
-    cappedAt?: number;
     searchKeys?: (item: Item) => (string | null | undefined)[];
-    sortItems?: (items: Item[], selectedValues: (string | undefined)[]) => Item[];
+    sortItems?: (items: Item[], selectedValues: (string | undefined)[], selectedBody: string | null) => Item[];
     filterAvailableValues?: { value: string | undefined; label: string }[];
-    filter?: (selectedValues: (string | undefined)[], item: Item) => boolean;
+    filter?: (selectedValues: (string | undefined)[], item: Item, selectedBody: string | null) => boolean;
+    trailing?: { title: string; matches: (item: Item) => boolean };
+    pending?: boolean;
 };
 
-function renderList(props: RenderProps = {}) {
-    const { editable = false, items: rows = items, ...flags } = props;
-    return render(
+/** A page's wiring: the local source fills the state, and List draws it. */
+function LocalList({ editable = false, items: rows = items, showCount, announceCount, searchKeys, sortItems, filterAvailableValues, filter, trailing, pending }: RenderProps) {
+    const state = useLocalCollection<Item, string | undefined>(rows, {
+        searchKeys,
+        sortItems,
+        filterOptions: filterAvailableValues,
+        filter,
+    });
+    return (
         <List<Item>
-            items={rows}
+            state={pending ? { ...state, pending } : state}
             editable={editable}
             ItemComponent={Card}
             FormComponent={() => null}
             formProps={{}}
             t={t}
-            {...flags}
-        />,
+            showCount={showCount}
+            announceCount={announceCount}
+            trailing={trailing}
+        />
     );
 }
+
+function renderList(props: RenderProps = {}) {
+    return render(<LocalList {...props} />);
+}
+
+/** A list with no search: the subject carousel's source. */
+function renderFixedList(props: { showCount?: boolean; editable?: boolean } = {}) {
+    return render(
+        <List<Item> state={fixedCollection(items)} editable={props.editable ?? false} ItemComponent={Card} FormComponent={() => null} formProps={{}} t={t} showCount={props.showCount} />
+    );
+}
+
+// What a server source hands the view: one page of rows, with the page
+// changing only when the navigation lands.
+const serverState = (overrides: Partial<CollectionState<Item, string>> = {}): CollectionState<Item, string> => ({
+    rows: [items[0]],
+    total: 30,
+    page: 1,
+    totalPages: 3,
+    search: null,
+    selectedFilters: [],
+    selectedBody: null,
+    pending: false,
+    setFilters: jest.fn(),
+    setBody: jest.fn(),
+    setPage: jest.fn(),
+    hrefForPage: page => `?page=${page}`,
+    ...overrides,
+});
+
+const drawServer = (state: CollectionState<Item, string>) => (
+    <List<Item, {}, string> state={state} editable={false} ItemComponent={Card} FormComponent={() => null} formProps={{}} t={t} />
+);
 
 const count = () => screen.queryByText('items:2');
 // Closed, the control is an icon button under the same label; the field only
@@ -109,16 +155,14 @@ describe('List — search and count visibility', () => {
         expect(searchToggle()).not.toBeInTheDocument();
     });
 
-    it('hides both when search is off and nothing overrides the count', () => {
-        renderList({ showSearch: false });
+    it('hides both when the source has no search and nothing overrides the count', () => {
+        renderFixedList();
         expect(count()).not.toBeInTheDocument();
         expect(searchToggle()).not.toBeInTheDocument();
     });
 
-    it('keeps the count when search is off but the count is asked for', () => {
-        // The city tabs drop the search box in favour of the page's single search,
-        // but the filtered count still has to be readable.
-        renderList({ showSearch: false, showCount: true });
+    it('keeps the count when the source has no search but the count is asked for', () => {
+        renderFixedList({ showCount: true });
         expect(count()).toBeInTheDocument();
         expect(searchToggle()).not.toBeInTheDocument();
     });
@@ -130,7 +174,7 @@ describe('List — search and count visibility', () => {
     });
 
     it('still renders the editor affordance when both are off', () => {
-        renderList({ showSearch: false, editable: true });
+        renderFixedList({ editable: true });
         expect(count()).not.toBeInTheDocument();
         expect(screen.getByText('add-sheet')).toBeInTheDocument();
     });
@@ -186,43 +230,6 @@ describe('List — what a row is searchable by', () => {
     });
 });
 
-/**
- * A page that caps its query must not report the cap as the collection's own
- * total: the city band a few lines above the meetings list prints the real
- * number, and the two contradicted each other — 125 there, 60 here.
- */
-describe('List count under a capped fetch', () => {
-    beforeEach(() => {
-        mockSearchParams = new URLSearchParams();
-    });
-
-    it('names the window when the cap binds and nothing is filtering', () => {
-        renderList({ showCount: true, cappedAt: 2 });
-        expect(screen.getByText('itemsCapped:2')).toBeInTheDocument();
-        expect(screen.queryByText('items:2')).not.toBeInTheDocument();
-    });
-
-    it('reports the rows on screen once a search narrows them', () => {
-        renderList({ showCount: true, showSearch: true, cappedAt: 2 });
-        search('Επιτροπή');
-        // One row matches, so the count describes what is visible rather than
-        // the window it came from.
-        expect(screen.getByText('items:1')).toBeInTheDocument();
-        expect(screen.queryByText('itemsCapped:2')).not.toBeInTheDocument();
-    });
-
-    it('says nothing about a window the fetch never filled', () => {
-        renderList({ showCount: true, cappedAt: 60 });
-        expect(screen.getByText('items:2')).toBeInTheDocument();
-        expect(screen.queryByText(/itemsCapped/)).not.toBeInTheDocument();
-    });
-
-    it('counts plainly when the page sets no cap', () => {
-        renderList({ showCount: true });
-        expect(screen.getByText('items:2')).toBeInTheDocument();
-    });
-});
-
 describe('List — ordering the rows', () => {
     it('renders the rows in the order the hook returns', () => {
         renderList({ items: people, sortItems: rows => [...rows].reverse() });
@@ -238,7 +245,8 @@ describe('List — ordering the rows', () => {
     });
 
     it('hands the hook the current selection, not an empty one', () => {
-        const sortItems = jest.fn((rows: Item[], _selected: (string | undefined)[]) => rows);
+        mockSearchParams = new URLSearchParams('filters=council');
+        const sortItems = jest.fn((rows: Item[], _selected: (string | undefined)[], _body: string | null) => rows);
         renderList({
             items: people,
             sortItems,
@@ -246,5 +254,158 @@ describe('List — ordering the rows', () => {
         });
         const [, selected] = sortItems.mock.calls[sortItems.mock.calls.length - 1];
         expect(selected).toEqual(['council']);
+    });
+});
+
+describe('List — paging and scrolling', () => {
+    const scrollIntoView = jest.fn();
+
+    beforeEach(() => {
+        scrollIntoView.mockClear();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(0); return 0; });
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('scrolls only once the page the reader picked has landed', () => {
+        const { rerender } = render(drawServer(serverState()));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        rerender(drawServer(serverState({ pending: true })));
+        expect(scrollIntoView).not.toHaveBeenCalled();
+        rerender(drawServer(serverState({ page: 3 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('scrolls when the reader picks the page already on screen, and leaves no scroll for later', () => {
+        const { rerender } = render(drawServer(serverState({ page: 2 })));
+        fireEvent.click(screen.getByRole('link', { name: '2' }));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+        // A later page change the reader did not make through the pager: a
+        // filter or a search sends the list back to page 1.
+        rerender(drawServer(serverState({ page: 1 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the pager as links to each page, in a named navigation', () => {
+        render(drawServer(serverState()));
+        expect(screen.getByRole('navigation', { name: 'pagination' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('href', '?page=2');
+        expect(screen.getByRole('link', { name: '1' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('draws no pager for a source with one page', () => {
+        renderList();
+        expect(screen.queryByRole('navigation')).toBeNull();
+    });
+
+    it('asks the source for the page the reader picked', () => {
+        const setPage = jest.fn();
+        render(drawServer(serverState({ setPage })));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        expect(setPage).toHaveBeenCalledWith(3);
+    });
+
+    it('scrolls once per pick, not again on a later page change', () => {
+        const { rerender } = render(drawServer(serverState()));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        rerender(drawServer(serverState({ page: 3 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        // A filter sends the list back to page 1: no scroll for that.
+        rerender(drawServer(serverState({ page: 1 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks the page on screen as the current one', () => {
+        render(drawServer(serverState({ page: 2 })));
+        expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: '1' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('keeps the list clear of the sticky header when it scrolls into view', () => {
+        render(drawServer(serverState()));
+        const root = screen.getByTestId('collection-rows').parentElement!;
+        for (const name of belowHeaderScrollMargin.split(' ')) expect(root).toHaveClass(name);
+    });
+
+    it('counts every matching row across pages, not the rows on this page', () => {
+        render(<List<Item, {}, string> state={serverState()} editable={false} ItemComponent={Card} FormComponent={() => null} formProps={{}} t={t} showCount />);
+        expect(screen.getByText('items:30')).toBeInTheDocument();
+    });
+
+    it('dims the rows while a page loads', () => {
+        render(drawServer(serverState({ pending: true })));
+        expect(screen.getByTestId('collection-rows')).toHaveClass('opacity-60');
+    });
+});
+
+describe('List — trailing rows', () => {
+    it('lists the matching rows under their own heading, and counts them in the total', () => {
+        renderList({ items: people, showCount: true, trailing: { title: 'former', matches: item => item.id === 'p2' } });
+        expect(screen.getByText('items:2')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'former' })).toBeInTheDocument();
+        expect(renderedNames()).toEqual([people[0].name, people[1].name]);
+    });
+});
+
+describe('List — status for assistive technology', () => {
+    it('announces the count as a status message when asked', () => {
+        renderList({ showCount: true, announceCount: true });
+        expect(screen.getByRole('status')).toHaveTextContent('items:2');
+    });
+
+    it('keeps the count quiet by default, so filtering as the reader types reads no number per letter', () => {
+        renderList({ showCount: true });
+        expect(count()).toBeInTheDocument();
+        expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('marks the rows busy while a page loads', () => {
+        renderList({ pending: true });
+        expect(screen.getByTestId('collection-rows')).toHaveAttribute('aria-busy', 'true');
+    });
+});
+
+describe('List — opening and closing the search', () => {
+    it('focuses the field when the reader opens it', () => {
+        renderList();
+        openSearch();
+        expect(searchBox()).toHaveFocus();
+    });
+
+    it('does not take the focus when a shared ?search= link opens the field', () => {
+        mockSearchParams = new URLSearchParams('search=παπα');
+        renderList({ items: people, searchKeys: item => [item.name] });
+        expect(searchBox()).not.toHaveFocus();
+    });
+
+    it('clears the query and closes when the reader presses the clear button', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        expect(shownNames()).toEqual(['Μαρία Παπαδοπούλου']);
+        fireEvent.click(screen.getByRole('button', { name: 'clearSearch' }));
+        expect(searchBox()).not.toBeInTheDocument();
+        expect(shownNames()).toHaveLength(2);
+    });
+
+    it('clears the query and closes on Escape', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        fireEvent.keyDown(screen.getByPlaceholderText('searchItems'), { key: 'Escape' });
+        expect(searchBox()).not.toBeInTheDocument();
+        expect(shownNames()).toHaveLength(2);
+    });
+
+    it('stays open on blur while it holds a query, and closes on blur when empty', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        fireEvent.blur(screen.getByPlaceholderText('searchItems'));
+        expect(searchBox()).toBeInTheDocument();
+        search('');
+        fireEvent.blur(screen.getByPlaceholderText('searchItems'));
+        expect(searchBox()).not.toBeInTheDocument();
     });
 });

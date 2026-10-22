@@ -1,4 +1,4 @@
-import { formatWeekdayDateTime, formatCalendarDate, localCalendarDate } from '../time';
+import { formatWeekdayDateTime, formatCalendarDate, formatNumericDate, localCalendarDate } from '../time';
 
 describe('formatWeekdayDateTime', () => {
     const tz = 'Europe/Athens';
@@ -32,5 +32,30 @@ describe('formatCalendarDate', () => {
         // The old body sliced the first ten characters, which turned this
         // instant into a plausible '24 Ιουλ 2026' that nobody could catch.
         expect(formatCalendarDate('2026-07-24T21:30:00.000Z', 'el')).toMatch(/Invalid Date/i);
+    });
+});
+
+describe('formatNumericDate', () => {
+    const lateEvening = new Date('2026-07-24T21:30:00Z');
+
+    it('formats day first in the time zone it is given', () => {
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'el')).toBe('25/07/2026');
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'en')).toBe('25/07/2026');
+        expect(formatNumericDate(lateEvening, 'Europe/Paris', 'en')).toBe('24/07/2026');
+    });
+
+    it('builds one formatter per locale and time zone, and reuses it', () => {
+        formatNumericDate(lateEvening, 'Europe/Athens', 'el');
+        const constructor = jest.spyOn(Intl, 'DateTimeFormat');
+        for (let day = 1; day <= 30; day++) formatNumericDate(new Date(Date.UTC(2026, 5, day)), 'Europe/Athens', 'el');
+        expect(constructor).not.toHaveBeenCalled();
+        expect(formatNumericDate(lateEvening, 'Europe/Belgrade', 'el')).toBe('24/07/2026');
+        expect(constructor).toHaveBeenCalledTimes(1);
+        constructor.mockRestore();
+    });
+
+    it('keeps one formatter per locale, so two locales in one time zone format differently', () => {
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'el')).toBe('25/07/2026');
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'sr')).toBe('25.07.2026.');
     });
 });

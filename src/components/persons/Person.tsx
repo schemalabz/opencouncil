@@ -111,15 +111,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             try {
                 setIsLoadingContributions(true);
                 setContributions([]);
-                const { results, totalCount } = await getLatestContributionsForSpeaker(
+                const { results, total } = await getLatestContributionsForSpeaker(
                     person.id,
                     1,
                     5,
                     selectedTopicId,
                 );
                 setContributions(results);
-                setTotalCount(totalCount);
-                if (!selectedTopicId) setCareerCount(totalCount);
+                setTotalCount(total);
+                if (!selectedTopicId) setCareerCount(total);
                 setPage(1);
             } catch (error) {
                 console.error('Error fetching contributions:', error);

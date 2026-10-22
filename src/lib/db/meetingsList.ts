@@ -10,6 +10,9 @@ import { meetingBodyTypeWhere } from "./meetingBodyFilter";
 import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
+import { matchesEveryTerm, normalizeText, searchTerms } from "@/lib/utils";
+import { meetingLabel } from "@/lib/meetingName";
+import { meetingNameSelect } from "./types/meeting";
 
 const meetingWithSubjectsInclude = {
     subjects: {
@@ -91,6 +94,12 @@ export interface MeetingListOptions {
     timeFilter?: 'upcoming' | 'past';
     /** Only meetings that take place on their date: no postponed or cancelled one. */
     takesPlace?: boolean;
+    /**
+     * Only these meetings. The search on the meetings tab finds the ids, and
+     * this loads the card rows of one page of them in the list's own order.
+     * No cached wrapper accepts it: a cache key per id list is never reused.
+     */
+    meetingIds?: string[];
 }
 
 /**
@@ -111,7 +120,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace }: MeetingListOptions,
+    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -146,6 +155,7 @@ function meetingListQuery(
         cityId,
         ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
         AND: [includeUnreleased ? {} : unreleasedMeetingWhere(unreleased), bodyFilter, takesPlace ? TAKES_PLACE_WHERE : {}],
+        ...(meetingIds && { id: { in: meetingIds } }),
     };
 
     return {
@@ -191,6 +201,62 @@ export async function getCouncilMeetingsWithSubjectPreview(cityId: string, optio
         console.error('Error fetching council meeting previews for city:', error);
         throw new Error('Failed to fetch council meetings for city');
     }
+}
+
+/**
+ * How many meetings the options select over every page. It reads the same
+ * `where` as the list, so the total that a pager shows and the rows on its
+ * pages cannot disagree.
+ */
+export async function countCouncilMeetings(cityId: string, options: MeetingListOptions = {}): Promise<number> {
+    const { where } = meetingListQuery(cityId, options);
+    return prisma.councilMeeting.count({ where });
+}
+
+/** What a meeting is found by: the columns of its label, and its subjects' names. */
+const meetingSearchTextSelect = {
+    id: true,
+    ...meetingNameSelect,
+    subjects: { select: { name: true } },
+} satisfies Prisma.CouncilMeetingSelect;
+
+type MeetingSearchTextRow = Prisma.CouncilMeetingGetPayload<{ select: typeof meetingSearchTextSelect }>;
+
+/**
+ * The text a meeting is found by. The same fields the meetings tab searched in
+ * the browser before it paged on the server, so a query finds what it found:
+ * the label the card shows — derived from the kind and number when no name is
+ * stored — in Greek, in English and in the reader's locale (on a Serbian page
+ * that is a transliteration neither stored name holds).
+ */
+function meetingSearchText(meeting: MeetingSearchTextRow, locale: string, timezone: string): string {
+    return [
+        ...[...new Set(['el', 'en', locale])].map(labelLocale => meetingLabel(meeting, labelLocale, timezone)),
+        meeting.administrativeBody?.name,
+        meeting.administrativeBody?.name_en,
+        ...meeting.subjects.map(subject => subject.name),
+    ].filter(Boolean).join(' ');
+}
+
+/**
+ * The ids of the meetings whose text holds every word of the query, in the
+ * list's order (newest first). Null when the query has no words once
+ * normalized — only spaces, or only accent marks — which is no search at all,
+ * so the caller lists the meetings unfiltered.
+ *
+ * The match runs here and not in SQL: Postgres folds case but not accents
+ * without the `unaccent` extension, and `normalizeText` is the folding that
+ * every list in the app already uses. It reads short text only — a few hundred
+ * KB for the largest city — and nothing of it reaches the browser.
+ */
+export async function findMeetingIdsMatching(cityId: string, query: string, options: MeetingListOptions, locale: string, timezone: string): Promise<string[] | null> {
+    const terms = searchTerms(query);
+    if (terms.length === 0) return null;
+    const { where, orderBy } = meetingListQuery(cityId, { ...options, page: undefined, limit: undefined });
+    const rows = await prisma.councilMeeting.findMany({ where, orderBy, select: meetingSearchTextSelect });
+    return rows
+        .filter(row => matchesEveryTerm(normalizeText(meetingSearchText(row, locale, timezone)), terms))
+        .map(row => row.id);
 }
 
 /** Segments per listed meeting: one GROUP BY over those ids on the (meetingId, cityId) index. */

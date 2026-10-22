@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** How long the URL waits behind the box, matching the list search in `List.tsx`. */
-const WRITE_DELAY_MS = 300;
+/** How long the URL waits behind a search box. The list searches (`components/collection`) wait the same. */
+export const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * A text filter whose record is the URL, so the browser's Back button brings
@@ -63,7 +63,7 @@ export function useQueryParamState(param: string, initial: string): [string, (ne
             setValue(next);
             pending.current = next;
             if (timer.current !== null) clearTimeout(timer.current);
-            timer.current = setTimeout(flush, WRITE_DELAY_MS);
+            timer.current = setTimeout(flush, SEARCH_DEBOUNCE_MS);
         },
         [flush],
     );

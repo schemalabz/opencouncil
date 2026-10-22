@@ -1,10 +1,19 @@
 /** @jest-environment node */
 import { Realm } from '@prisma/client'
 import prisma from '@/lib/db/prisma'
-import { mcpGetCity, mcpGetMeeting, mcpListMeetings } from '@/lib/mcp/data'
+import { mcpGetCity, mcpGetMeeting, mcpGetSubjectTranscript, mcpGetTranscript, mcpListMeetings } from '@/lib/mcp/data'
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting } from '../helpers/factories'
+import {
+    createAdministrativeBody,
+    createCity,
+    createMeeting,
+    createPerson,
+    createSpeakerSegment,
+    createSpeakerTag,
+    createSubject,
+    createUtterance,
+} from '../helpers/factories'
 
 // Anonymous, like a public connector: it sees released meetings only.
 const ANON = null
@@ -64,6 +73,38 @@ describe('MCP meeting listing by administrative body - integration', () => {
             id: 'future', dateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             administrativeBodyId: communityId, released: true,
         })
+    })
+
+    test('reports how many meetings match over every page', async () => {
+        const { meetings, pagination } = await asRequest(() =>
+            mcpListMeetings('athens', { page: 2, pageSize: 2, administrativeBodyIds: [communityId] }, ANON))
+        expect(meetings).toHaveLength(1)
+        expect(pagination).toEqual({ total: 3, page: 2, pageSize: 2, totalPages: 2 })
+    })
+
+    test('the total counts drafts for a caller who can see them, and for no one else', async () => {
+        await createMeeting('athens', {
+            id: 'draft', dateTime: new Date('2026-03-03T15:00:00Z'),
+            administrativeBodyId: communityId, released: false,
+        })
+        const anonymous = await asRequest(() =>
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, ANON))
+        const service = await asRequest(() =>
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, SERVICE))
+        expect(anonymous.pagination.total).toBe(3)
+        expect(service.pagination.total).toBe(4)
+    })
+
+    test('the total follows the time filter and the date range', async () => {
+        const past = await asRequest(() =>
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId], timeFilter: 'past' }, ANON))
+        const upcoming = await asRequest(() =>
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId], timeFilter: 'upcoming' }, ANON))
+        const range = await asRequest(() =>
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId], from: '2026-02-01', to: '2026-07-31' }, ANON))
+        expect(past.pagination).toEqual({ total: 2, page: 1, pageSize: 10, totalPages: 1 })
+        expect(upcoming.pagination).toEqual({ total: 1, page: 1, pageSize: 10, totalPages: 1 })
+        expect(range.pagination).toEqual({ total: 1, page: 1, pageSize: 10, totalPages: 1 })
     })
 
     test('administrativeBodyIds returns that body\'s meetings, newest first', async () => {
@@ -258,5 +299,66 @@ describe('MCP meeting tools report the record of a meeting - integration', () =>
         const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar19_2026', SERVICE))
         expect(meeting.postponedFromDate).toBe('2026-03-12T16:00:00.000Z')
         expect(JSON.stringify(meeting)).not.toContain('mar12_2026')
+    })
+})
+
+describe('MCP transcript tools page the record - integration', () => {
+    let personId: string
+    let subjectId: string
+
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        await createCity({ id: 'athens', realm: Realm.greece })
+        await createMeeting('athens', { id: 'long', dateTime: new Date('2026-05-05T15:00:00Z'), released: true })
+        await createMeeting('athens', { id: 'silent', dateTime: new Date('2026-05-12T15:00:00Z'), released: true })
+
+        personId = (await createPerson('athens', { name: 'Μαρία Παππά' })).id
+        const mayor = await createSpeakerTag({ label: 'Δήμαρχος' })
+        const councillor = await createSpeakerTag({ label: 'Σύμβουλος', personId })
+        // Seven segments; the councillor speaks in the 2nd, 4th and 6th.
+        const segmentIds: string[] = []
+        for (let i = 0; i < 7; i++) {
+            const segment = await createSpeakerSegment('long', 'athens', {
+                speakerTagId: i % 2 === 1 ? councillor.id : mayor.id, startTimestamp: i * 60, endTimestamp: i * 60 + 50,
+            })
+            await createUtterance(segment.id, { text: `Τμήμα ${i}`, startTimestamp: i * 60, endTimestamp: i * 60 + 10 })
+            segmentIds.push(segment.id)
+        }
+
+        // A subject discussed over one utterance more than a page of get_subject_transcript holds.
+        subjectId = (await createSubject('long', 'athens', { name: 'Προϋπολογισμός' })).id
+        await prisma.utterance.createMany({
+            data: Array.from({ length: 151 }, (_, i) => ({
+                speakerSegmentId: segmentIds[0], text: `Θέμα ${i}`, startTimestamp: 1000 + i, endTimestamp: 1000 + i + 0.5,
+                discussionSubjectId: subjectId, discussionStatus: 'SUBJECT_DISCUSSION' as const,
+            })),
+        })
+    })
+
+    test('get_transcript pages the segments by the page size asked for', async () => {
+        const result = await asRequest(() =>
+            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 3, includeUtteranceIds: false }, SERVICE))
+        expect(result.pagination).toEqual({ total: 7, page: 2, pageSize: 3, totalPages: 3 })
+        expect(result.segments.map(s => s.text)).toEqual(['Τμήμα 3', 'Τμήμα 4', 'Τμήμα 5'])
+    })
+
+    test('get_transcript counts only the segments of the person asked for', async () => {
+        const result = await asRequest(() =>
+            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 2, includeUtteranceIds: false, personId }, SERVICE))
+        expect(result.pagination).toEqual({ total: 3, page: 2, pageSize: 2, totalPages: 2 })
+        expect(result.segments.map(s => s.text)).toEqual(['Τμήμα 5'])
+    })
+
+    test('get_transcript of a meeting with no transcript reports no pages', async () => {
+        const result = await asRequest(() =>
+            mcpGetTranscript('athens', 'silent', { page: 1, pageSize: 40, includeUtteranceIds: false }, SERVICE))
+        expect(result.pagination).toEqual({ total: 0, page: 1, pageSize: 40, totalPages: 0 })
+        expect(result.segments).toEqual([])
+    })
+
+    test('get_subject_transcript reports the utterances over every page', async () => {
+        const result = await asRequest(() => mcpGetSubjectTranscript(subjectId, 2, SERVICE))
+        expect(result.pagination).toEqual({ total: 151, page: 2, pageSize: 150, totalPages: 2 })
+        expect(result.utterances.map(u => u.text)).toEqual(['Θέμα 150'])
     })
 })

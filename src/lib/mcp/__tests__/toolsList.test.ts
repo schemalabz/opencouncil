@@ -94,3 +94,19 @@ describe.each(CALLERS)('tools/list for $caller', ({ identity, adminAccess, tools
         expect(listed.filter(tool => tool.outputSchema !== undefined && tool.outputSchema.type !== 'object').map(tool => tool.name)).toEqual([]);
     });
 });
+
+// get_transcript took segmentsPerPage before it took pageSize. A schema that
+// strips unknown keys would answer an old client with the default page size.
+describe('get_transcript with the old segmentsPerPage argument', () => {
+    let mcp: Awaited<ReturnType<typeof connectInMemory>>;
+    beforeEach(async () => {
+        mcp = await connectInMemory(serverFor(null, null));
+    });
+    afterEach(() => mcp.close());
+
+    it('rejects the call', async () => {
+        const result = await mcp.call('get_transcript', { cityId: 'athens', meetingId: 'm1', segmentsPerPage: 100 });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain('segmentsPerPage');
+    });
+});

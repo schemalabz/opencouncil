@@ -18,6 +18,7 @@ import { generateEmailContent } from "@/lib/notifications/content";
 import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
+import { pageSlice, paginationOf, type Pagination } from "@/lib/zod-schemas/listQuery";
 import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
@@ -1073,12 +1074,7 @@ export type MeetingNotificationStats = {
 
 export type MeetingNotificationsGrouped = {
     meetings: MeetingNotificationStats[];
-    pagination: {
-        total: number;
-        page: number;
-        pageSize: number;
-        totalPages: number;
-    };
+    pagination: Pagination;
 };
 
 /**
@@ -1150,22 +1146,11 @@ export async function getNotificationsGroupedByMeeting(filters: {
         .map(n => ({ meetingId: n.meetingId, cityId: n.cityId, dateTime: n.meeting.dateTime }))
         .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
-    const totalMeetings = meetingKeys.length;
-    const totalPages = Math.ceil(totalMeetings / pageSize);
-
-    // Paginate the meeting keys
-    const paginatedMeetingKeys = meetingKeys.slice((page - 1) * pageSize, page * pageSize);
+    const pagination = paginationOf(meetingKeys.length, page, pageSize);
+    const paginatedMeetingKeys = pageSlice(meetingKeys, page, pageSize);
 
     if (paginatedMeetingKeys.length === 0) {
-        return {
-            meetings: [],
-            pagination: {
-                total: totalMeetings,
-                page,
-                pageSize,
-                totalPages
-            }
-        };
+        return { meetings: [], pagination };
     }
 
     // Fetch full notification data for the paginated meetings
@@ -1252,15 +1237,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
     const meetings = Array.from(meetingStatsMap.values())
         .sort((a, b) => new Date(b.meetingDate).getTime() - new Date(a.meetingDate).getTime());
 
-    return {
-        meetings,
-        pagination: {
-            total: totalMeetings,
-            page,
-            pageSize,
-            totalPages
-        }
-    };
+    return { meetings, pagination };
 }
 
 /**

@@ -124,19 +124,6 @@ export function getBodiesOfTypeFromPeople(
 }
 
 /**
- * Filter a meeting by selected admin body types.
- * Empty selectedTypes = show all.
- */
-export function filterMeetingByAdminBodyTypes(
-    meeting: MeetingWithAdminBody,
-    selectedTypes: AdministrativeBodyType[]
-): boolean {
-    if (selectedTypes.length === 0) return true;
-    if (!meeting.administrativeBody) return false;
-    return selectedTypes.includes(meeting.administrativeBody.type);
-}
-
-/**
  * Whether a person belongs in the council's view without a council seat: any
  * city-level role. The mayor and the deputy mayors hold one, and a reader
  * looks for them with the council. The one statement of that rule; both

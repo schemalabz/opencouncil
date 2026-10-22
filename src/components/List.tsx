@@ -1,17 +1,14 @@
-import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from '@/components/ui/input';
-import { cn, normalizeText } from '@/lib/utils';
-import { PaginationParams } from '@/lib/db/types';
-import { Badge } from './ui/badge';
-import { MultiSelectDropdown } from './ui/multi-select-dropdown';
+import { cn } from '@/lib/utils';
 import { Button } from './ui/button';
-import { updateFilterURL } from '@/lib/utils/filterURL';
 import { Pagination } from './ui/pagination';
 import { AdminStrip, adminToolClass } from '@/components/admin/AdminStrip';
+import { belowHeaderScrollMargin } from '@/components/layout/headerOffset';
+import type { CollectionState } from './collection/types';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -22,42 +19,23 @@ export interface BaseListProps {
     carouselGap?: number;
 }
 
-
 interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
-    items: T[];
+    /** What to draw. A source hook fills it: useLocalCollection or useServerCollection. */
+    state: CollectionState<T, F>;
     ItemComponent: React.ComponentType<{ item: T, editable: boolean } & P>;
     FormComponent: React.ComponentType<any>;
     formProps: any;
     editable: boolean;
     t: (key: string, params?: any) => string;
     itemProps?: P;
-    filterAvailableValues?: { value: F, label: string }[];
-    filter?: (selectedValues: F[], item: T) => boolean;
-    allText?: string;
-    /**
-     * The page fetched at most this many rows. When the cap actually binds and
-     * nothing is filtering, the count names the window instead of reporting the
-     * fetch limit as the collection's own total — the city band a few lines
-     * above prints the real number, and the two contradicted each other.
-     */
-    cappedAt?: number;
-    showSearch?: boolean;
-    /**
-     * The text a row is searchable by. Without it a row is matched on its own
-     * string fields, which see nothing nested — a person's roles, a party's
-     * members, a meeting's administrative body all live behind a relation.
-     * Keep the callback stable (`useCallback`): the normalized text it produces
-     * is indexed once per items/callback change, not once per keystroke.
-     */
-    searchKeys?: (item: T) => (string | null | undefined)[];
-    /**
-     * The "N items" line. Defaults to `showSearch`, which used to gate it too.
-     * Split out because a list can want one without the other: the city tabs drop
-     * the search box in favour of the page's single search, but still need the
-     * count — it reports the *filtered* total, which the page header (a city-wide
-     * total) cannot stand in for once a filter is applied.
-     */
+    /** The "N items" line. Defaults to whether the source has a search. */
     showCount?: boolean;
+    /**
+     * Reads the count aloud when it changes. For a source whose results arrive
+     * after a wait; a list that filters as the reader types would read a
+     * number for every letter.
+     */
+    announceCount?: boolean;
     /**
      * Extra back-of-house controls for the strip that already holds "add item".
      * A render prop, because a tool usually acts on whatever the filters have
@@ -68,32 +46,18 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
      * does not apply; a strip with nothing in it is not drawn.
      */
     adminTools?: (selectedValues: F[]) => React.ReactNode;
-    defaultFilterValues?: F[];
-    /**
-     * Page size only. The page itself comes from the URL below, and a
-     * `currentPage` prop was read by nobody — the server that passed one only
-     * forced itself dynamic to compute it.
-     */
-    pagination?: Pick<PaginationParams, 'pageSize'>;
     renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
     renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
     /**
-     * Items listed after all the others, under their own heading — the people
-     * who no longer hold a role, say. They pass the same search and filter and
-     * count in the total; they only stop sharing the grid.
+     * Rows listed after all the others, under their own heading: the people
+     * who no longer hold a role, say. They pass the same search and filter
+     * and count in the total; they only stop sharing the grid.
      */
     trailing?: { title: string; matches: (item: T) => boolean };
-    /**
-     * Orders the rows that passed the search and the filter, with the filter
-     * in hand — a list whose order depends on what is selected, such as the
-     * members of one body in that body's order. Without it the rows keep the
-     * order of `items`.
-     */
-    sortItems?: (items: T[], selectedValues: F[]) => T[];
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
-    items,
+    state,
     editable,
     adminTools,
     ItemComponent,
@@ -101,41 +65,25 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     formProps,
     t,
     itemProps,
-    filterAvailableValues = [],
-    filter,
     smColumns = 1,
     mdColumns = 2,
     lgColumns = 3,
-    allText,
-    cappedAt,
-    showSearch = true,
-    searchKeys,
     showCount,
+    announceCount = false,
     layout = 'grid',
     carouselItemWidth = 300,
     carouselGap = 16,
-    defaultFilterValues,
-    pagination,
     renderFilter,
     renderAfterFilters,
     trailing,
-    sortItems,
 }: ListProps<T, P, F>) {
     const tCommon = useTranslations('Common');
-    const searchParams = useSearchParams();
     const listRef = useRef<HTMLDivElement>(null);
     const carouselRef = useRef<HTMLDivElement>(null);
 
-    // Get filter and search values from URL
-    const searchQuery = searchParams.get('search') || '';
-    const rawFilters = searchParams.get('filters');
-    const explicitlyAll = rawFilters === '*';
-    const selectedFilterLabels = explicitlyAll ? [] : (rawFilters?.split(',').filter(Boolean) || []);
-
-    // Local state for search input
-    const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
     // A shared link carrying ?search= opens on its result, not on an icon.
-    const [searchOpen, setSearchOpen] = useState(Boolean(searchQuery));
+    const { search } = state;
+    const [searchOpen, setSearchOpen] = useState(Boolean(search?.query));
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Focus when the reader opens it, never on mount: a page arriving with
@@ -146,26 +94,32 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         openedOnce.current = searchOpen;
     }, [searchOpen]);
 
-    // Sync local search state with URL on browser back/forward navigation
-    useEffect(() => {
-        const urlSearchQuery = searchParams.get('search') || '';
-        if (urlSearchQuery !== localSearchQuery) {
-            setLocalSearchQuery(urlSearchQuery);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams]);
+    const scrollListIntoView = useCallback(() => {
+        requestAnimationFrame(() => {
+            listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }, []);
 
-    // Convert filter labels to values
-    // - URL has specific labels → use those
-    // - URL has '*' → explicitly all (empty array = no filtering)
-    // - URL has nothing → use defaultFilterValues if provided, otherwise all
-    const selectedFilters = selectedFilterLabels.length > 0
-        ? selectedFilterLabels.map(label =>
-            filterAvailableValues.find(f => f.label === label)?.value
-        ).filter((value): value is F => value !== undefined)
-        : explicitlyAll
-            ? [] as F[]
-            : (defaultFilterValues || (renderFilter ? [] as F[] : filterAvailableValues.map(f => f.value)));
+    // Scroll once the page the reader asked for is on screen: at once for a
+    // local source, after the navigation for a server one.
+    const scrollToList = useRef(false);
+    useEffect(() => {
+        if (!scrollToList.current || state.pending) return;
+        scrollToList.current = false;
+        scrollListIntoView();
+    }, [state.page, state.pending, scrollListIntoView]);
+
+    const handlePageChange = (page: number) => {
+        // The page on screen does not change, so the effect above would never
+        // run, and a flag left set would scroll on some later, unrelated
+        // page change. Scroll now instead.
+        if (page === state.page) {
+            scrollListIntoView();
+        } else {
+            scrollToList.current = true;
+        }
+        state.setPage(page);
+    };
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
@@ -197,75 +151,12 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         layout === 'carousel' && `w-[${carouselItemWidth}px]`
     );
 
-    // One normalized haystack per row, so a keystroke costs a substring scan
-    // rather than a re-normalization of every name in the city.
-    const searchIndex = useMemo(() => {
-        if (!showSearch) return null;
-        return new Map(items.map(item => {
-            const values = searchKeys
-                ? searchKeys(item)
-                : Object.values(item).filter((value): value is string => typeof value === 'string');
-            return [item.id, normalizeText(values.filter(Boolean).join(' '))];
-        }));
-    }, [items, searchKeys, showSearch]);
-
-    // Every word has to match, so "μαρια παπα" finds "Μαρία Παπαδοπούλου"
-    // whichever order the reader types the two parts of the name in.
-    const searchTerms = useMemo(
-        () => normalizeText(localSearchQuery).split(/\s+/).filter(Boolean),
-        [localSearchQuery]
-    );
-
-    const matchingItems = items.filter((item) => {
-        // First check search query
-        if (searchIndex && searchTerms.length > 0) {
-            const haystack = searchIndex.get(item.id) ?? '';
-            if (!searchTerms.every(term => haystack.includes(term))) return false;
-        }
-
-        // Then apply filter if it exists and there are selected filters
-        if (filter) {
-            return filter(selectedFilters, item);
-        }
-
-        return true;
-    });
-    const filteredItems = sortItems ? sortItems(matchingItems, selectedFilters) : matchingItems;
-
-    const countVisible = showCount ?? showSearch;
+    const countVisible = showCount ?? search !== null;
+    const mainRows = trailing ? state.rows.filter(item => !trailing.matches(item)) : state.rows;
+    const trailingRows = trailing ? state.rows.filter(trailing.matches) : [];
     // Called once, so the strip can tell a tool that renders from one that
     // returns null: an empty striped box beside a citizen's list is noise.
-    const tools = adminTools?.(selectedFilters) ?? null;
-
-    // Client-side pagination — read current page from URL to avoid
-    // depending on server component re-renders for page changes.
-    // A query the debounce below has not written yet already narrows the list,
-    // so honouring the URL's page here would show page 4 of the old result set.
-    // Only while the cap binds and nothing narrows the list: under a filter the
-    // count describes the rows on screen, which is the useful number and not a
-    // claim about the collection.
-    const capped = cappedAt != null
-        && items.length >= cappedAt
-        && filteredItems.length === items.length;
-
-    const searchPending = localSearchQuery !== searchQuery;
-    const urlPage = searchPending ? 1 : parseInt(searchParams.get('page') || '1', 10);
-    const totalPages = pagination
-        ? Math.ceil(filteredItems.length / pagination.pageSize)
-        : 1;
-
-    const currentPage = pagination
-        ? Math.max(1, Math.min(isNaN(urlPage) ? 1 : urlPage, totalPages))
-        : 1;
-
-    const pagedItems = pagination
-        ? filteredItems.slice(
-            (currentPage - 1) * pagination.pageSize,
-            currentPage * pagination.pageSize
-        )
-        : filteredItems;
-    const paginatedItems = trailing ? pagedItems.filter(item => !trailing.matches(item)) : pagedItems;
-    const trailingItems = trailing ? pagedItems.filter(trailing.matches) : [];
+    const tools = adminTools?.(state.selectedFilters) ?? null;
 
     const renderItem = (item: T) => (
         <div
@@ -281,73 +172,18 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         </div>
     );
 
-    // Debounced URL update for search
-    useEffect(() => {
-        if (!showSearch) return;
-
-        // Avoid overriding pagination/filter URL changes when the search value didn't change.
-        const urlSearchQuery = searchParams.get('search') || '';
-        if (localSearchQuery === urlSearchQuery) return;
-
-        const timeoutId = setTimeout(() => {
-            const params = new URLSearchParams(searchParams.toString());
-            if (localSearchQuery) {
-                params.set('search', localSearchQuery);
-            } else {
-                params.delete('search');
-            }
-            params.delete('page'); // Reset to page 1 on search
-            window.history.replaceState(null, '', `?${params.toString()}`);
-        }, 300); // 300ms debounce delay
-
-        return () => clearTimeout(timeoutId);
-    }, [localSearchQuery, searchParams, showSearch]);
-
-    // Update URL with new search or filter values
-    const handleSearchChange = (query: string) => {
-        if (!showSearch) return;
-        setLocalSearchQuery(query);
-    };
-
     const closeSearch = () => {
-        setLocalSearchQuery('');
+        search?.setQuery('');
         setSearchOpen(false);
     };
 
-    const handleFilterChange = (selectedValues: F[]) => {
-        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams);
-    };
-
-    const handlePageChange = (newPage: number) => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (newPage > 1) {
-            params.set('page', newPage.toString());
-        } else {
-            params.delete('page');
-        }
-        window.history.pushState(null, '', `?${params.toString()}`);
-        requestAnimationFrame(() => {
-            listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    };
-
     return (
-        <div ref={listRef} className="space-y-6">
+        <div ref={listRef} className={cn("space-y-6", belowHeaderScrollMargin)}>
             {/* One toolbar, not two stacked rows. The filter, the total it produces
                 and the control that adds to it are the same thought, and splitting
                 them put the count above a row it was describing. */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                {renderFilter ? (
-                    renderFilter({ selectedValues: selectedFilters, onChange: handleFilterChange })
-                ) : filterAvailableValues && filterAvailableValues.length > 0 ? (
-                    <MultiSelectDropdown
-                        options={filterAvailableValues}
-                        defaultValues={selectedFilters}
-                        onChange={handleFilterChange}
-                        className="w-full sm:w-[300px] justify-between"
-                        allText={allText ?? tCommon('all')}
-                    />
-                ) : null}
+                {renderFilter?.({ selectedValues: state.selectedFilters, onChange: state.setFilters })}
                 <div className={cn('ml-auto flex min-w-0 items-center gap-3', searchOpen && 'max-sm:w-full')}>
                     {/* Closed it is one icon, because the page header already
                         carries a full-width field that searches every transcript
@@ -355,7 +191,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         the width its placeholder needs — the whole row on a
                         phone, and 288px above that, which clears the longest of
                         them («Претрага одборничких група») by 30px. */}
-                    {showSearch && (searchOpen ? (
+                    {search && (searchOpen ? (
                         <div className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
                             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
                             <Input
@@ -364,12 +200,12 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                                 placeholder={t('searchItems')}
                                 aria-label={t('searchItems')}
                                 className="h-8 w-full border-transparent bg-muted/60 pl-8 pr-8 text-base placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-offset-0 sm:text-sm"
-                                value={localSearchQuery}
-                                onChange={(e) => handleSearchChange(e.target.value)}
+                                value={search.query}
+                                onChange={(e) => search.setQuery(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
                                 // Closing on blur would beat the clear button's own
                                 // click; an empty field left open costs nothing.
-                                onBlur={() => { if (!localSearchQuery) setSearchOpen(false); }}
+                                onBlur={() => { if (!search.query) setSearchOpen(false); }}
                             />
                             <button
                                 type="button"
@@ -392,8 +228,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </button>
                     ))}
                     {countVisible && (
-                        <p className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:hidden')}>
-                            {capped ? t('itemsCapped', { count: items.length }) : t('items', { count: filteredItems.length })}
+                        <p role={announceCount ? 'status' : undefined} className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:sr-only')}>
+                            {t('items', { count: state.total })}
                         </p>
                     )}
                     {/* Marked as back-of-house, the way the city page's own tools
@@ -416,13 +252,17 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     )}
                 </div>
             </div>
-            {typeof renderAfterFilters === 'function' ? renderAfterFilters(selectedFilters) : renderAfterFilters}
-            {filteredItems.length > 0 ? (
-                <div className="relative">
+            {typeof renderAfterFilters === 'function' ? renderAfterFilters(state.selectedFilters) : renderAfterFilters}
+            {state.total > 0 ? (
+                <div
+                    className={cn('relative transition-opacity', state.pending && 'opacity-60')}
+                    aria-busy={state.pending}
+                    data-testid="collection-rows"
+                >
                     {layout === 'carousel' && (
                         <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-medium text-muted-foreground">
-                                {t('items', { count: filteredItems.length })}
+                                {t('items', { count: state.total })}
                             </p>
                             <div className="flex space-x-2">
                                 <Button
@@ -445,13 +285,13 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {paginatedItems.map(renderItem)}
+                        {mainRows.map(renderItem)}
                     </div>
-                    {trailingItems.length > 0 && (
+                    {trailingRows.length > 0 && (
                         <section className="mt-8 border-t border-border pt-6">
                             <h3 className="mb-4 text-sm font-medium text-muted-foreground">{trailing?.title}</h3>
                             <div className={gridClasses}>
-                                {trailingItems.map(renderItem)}
+                                {trailingRows.map(renderItem)}
                             </div>
                         </section>
                     )}
@@ -460,13 +300,13 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
             )}
 
-            {pagination && totalPages > 1 && (
+            {state.totalPages > 1 && (
                 <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    pageSize={pagination.pageSize}
+                    page={state.page}
+                    totalPages={state.totalPages}
                     onPageChange={handlePageChange}
-                    labels={{ previous: t('previous'), next: t('next') }}
+                    getHref={state.hrefForPage}
+                    labels={{ previous: t('previous'), next: t('next'), navigation: tCommon('pagination') }}
                 />
             )}
         </div>

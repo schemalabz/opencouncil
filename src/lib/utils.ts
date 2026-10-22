@@ -364,6 +364,21 @@ export function normalizeText(text: string): string {
 }
 
 /**
+ * The words of a list search, normalized. A list search needs every word, so
+ * "μαρια παπα" finds "Μαρία Παπαδοπούλου" in either order. The meetings tab
+ * searches on the server and the people and parties tabs in the browser; both
+ * read the words here, so the two agree.
+ */
+export function searchTerms(query: string): string[] {
+  return normalizeText(query).split(/\s+/).filter(Boolean);
+}
+
+/** Whether a normalized text holds every term. */
+export function matchesEveryTerm(normalizedText: string, terms: string[]): boolean {
+  return terms.every(term => normalizedText.includes(term));
+}
+
+/**
  * Scores how well a search query matches a target string, biased towards
  * prefix and word-start matches so the most relevant result ranks first.
  *
