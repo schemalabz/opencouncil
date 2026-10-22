@@ -18,6 +18,10 @@ export async function POST(request: Request, props: { params: Promise<{ userId: 
         if (!user) {
             return new NextResponse("User not found", { status: 404 })
         }
+        // Nothing can sign a machine account in; an invite link is a sign-in link.
+        if (user.isMachine) {
+            return new NextResponse("A machine account takes no invite", { status: 409 })
+        }
 
         const sent = await sendInviteEmail(user.email, user.name, request)
 

@@ -22,6 +22,7 @@ import { pageSlice, paginationOf, type Pagination } from "@/lib/zod-schemas/list
 import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 
 // Type definitions for user preferences data
@@ -263,7 +264,8 @@ export async function saveNotificationPreferences(
     input: z.input<typeof saveNotificationPreferencesSchema>
 ): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(input);
-    if (!validation.success) {
+    // The machine domain is reserved: a signup must never create a person there.
+    if (!validation.success || isMachineAccountAddress(validation.data.email)) {
         return createError('Invalid input');
     }
     // notifyByPhone/notifyByEmail: the channel consent of the delivery step.
@@ -505,7 +507,7 @@ export async function savePetition(
     input: z.input<typeof savePetitionSchema>
 ): Promise<Result<Petition>> {
     const validation = savePetitionSchema.safeParse(input);
-    if (!validation.success) {
+    if (!validation.success || isMachineAccountAddress(validation.data.email)) {
         return createError('Invalid input');
     }
     const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser, returnTo } = validation.data;

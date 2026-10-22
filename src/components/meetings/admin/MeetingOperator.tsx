@@ -65,7 +65,9 @@ function MeetingOperatorInner({
                 const users = await usersRes.json();
                 setSuperadmins(
                     users
-                        .filter((u: { isSuperAdmin: boolean }) => u.isSuperAdmin)
+                        // People only: the calendar invites the operator by email,
+                        // and a machine account has no mailbox.
+                        .filter((u: { isSuperAdmin: boolean; isMachine: boolean }) => u.isSuperAdmin && !u.isMachine)
                         .map((u: { id: string; name: string | null; email: string }) => ({
                             id: u.id,
                             name: u.name,

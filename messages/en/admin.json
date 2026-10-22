@@ -1009,5 +1009,38 @@
       "choose": "Choose…",
       "draft": "New record, saved when you confirm it"
     }
+  },
+  "machineTokens": {
+    "title": "Tokens of {name}",
+    "description": "An MCP token acts with the rights of this account on the MCP server. Mint one per service that connects, and revoke it when that service stops.",
+    "loading": "Loading…",
+    "create": "New token",
+    "creating": "Creating…",
+    "empty": "No token yet.",
+    "never": "never",
+    "active": "Active",
+    "revokedOn": "Revoked {date}",
+    "revoke": "Revoke",
+    "revokeConfirm": "Yes, revoke it",
+    "revoking": "Revoking…",
+    "cancel": "Cancel",
+    "done": "Done",
+    "columns": {
+      "token": "Token",
+      "created": "Created",
+      "lastUsed": "Last used",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "createdTitle": "The token is ready",
+    "createdNote": "Copy it now. It is shown only once.",
+    "headerForm": "Address and bearer token",
+    "headerNote": "Send the token in the request header Authorization: Bearer, followed by the token.",
+    "pathForm": "Address with the token in the path",
+    "pathFormNote": "Proxies and access logs record the path form. Prefer the header where the client supports it.",
+    "warning": "Anyone who has this token acts with the rights of this account on the MCP server. Store it like a password. You can revoke it at any time.",
+    "errors": {
+      "failed": "The action failed. Reload the page and try again."
+    }
   }
 }

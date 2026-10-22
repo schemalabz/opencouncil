@@ -58,9 +58,10 @@ export async function PUT(
         return NextResponse.json({ operator: null });
     }
 
-    // Verify target user exists and is a superadmin
-    const targetUser = await prisma.user.findUnique({
-        where: { id: userId },
+    // Verify target user exists and is a superadmin. A machine account is not
+    // a person: the calendar invites the operator by email.
+    const targetUser = await prisma.user.findFirst({
+        where: { id: userId, isMachine: false },
         select: { id: true, name: true, email: true, isSuperAdmin: true },
     });
 

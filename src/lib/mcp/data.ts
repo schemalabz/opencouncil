@@ -47,7 +47,7 @@ import { publicRecordFields } from '@/lib/meetingPublic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
-    return `Authentication required: create a personal MCP URL at ${currentBaseUrl()}/mcp and reconnect with it to create highlights.`;
+    return `Authentication required: create a personal MCP URL at ${currentBaseUrl()}/mcp, or use the token of a machine account, and reconnect with it to create highlights.`;
 }
 
 /**

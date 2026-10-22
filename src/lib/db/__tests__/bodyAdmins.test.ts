@@ -31,11 +31,12 @@ jest.mock('@/lib/db/prisma', () => {
     };
 });
 
-import { removeBodyAdmin } from '@/lib/db/bodyAdmins';
+import { addBodyAdmin, removeBodyAdmin } from '@/lib/db/bodyAdmins';
 import { BadRequestError, ForbiddenError } from '@/lib/api/errors';
 
-const ME = { id: 'a1', userId: 'me' };
-const COLLEAGUE = { id: 'a2', userId: 'colleague' };
+const ME = { id: 'a1', userId: 'me', user: { isMachine: false } };
+const COLLEAGUE = { id: 'a2', userId: 'colleague', user: { isMachine: false } };
+const MACHINE = { id: 'a3', userId: 'bot-1', user: { isMachine: true } };
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -92,6 +93,41 @@ describe('removeBodyAdmin with the rules of a body admin', () => {
         });
         mockIsUserAuthorizedToEdit.mockImplementation(asBodyAdmin);
         mockAdministersFindMany.mockResolvedValue([ME]);
+        await expect(removeBodyAdmin('athens', 'youth', 'me')).rejects.toThrow(BadRequestError);
+        expect(mockAdministersDelete).not.toHaveBeenCalled();
+    });
+});
+
+describe('addBodyAdmin', () => {
+    it('refuses an address on the machine domain before any account is read or created', async () => {
+        // A machine account gets its rights from a superadmin only.
+        await expect(addBodyAdmin('athens', 'council', { email: 'Paola@machines.opencouncil.invalid' })).rejects.toThrow(BadRequestError);
+        expect(mockAdministersFindMany).not.toHaveBeenCalled();
+    });
+});
+
+describe('removeBodyAdmin and a machine account', () => {
+    // A body admin of youth: the body scope yes, the city and superadmin scopes no.
+    const asBodyAdmin = async (scope: { cityId?: string; administrativeBodyId?: string }) =>
+        scope.cityId === 'athens' && scope.administrativeBodyId === 'youth';
+
+    beforeEach(() => mockIsUserAuthorizedToEdit.mockImplementation(asBodyAdmin));
+
+    it("refuses a body admin who removes a machine account's grant", async () => {
+        mockAdministersFindMany.mockResolvedValue([ME, MACHINE]);
+        await expect(removeBodyAdmin('athens', 'youth', 'bot-1')).rejects.toThrow(ForbiddenError);
+        expect(mockAdministersDelete).not.toHaveBeenCalled();
+    });
+
+    it("lets a superadmin remove a machine account's grant", async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true);
+        mockAdministersFindMany.mockResolvedValue([ME, MACHINE]);
+        await removeBodyAdmin('athens', 'youth', 'bot-1');
+        expect(mockAdministersDelete).toHaveBeenCalledWith({ where: { id: 'a3' } });
+    });
+
+    it('does not count a machine account as an admin a person can leave the body to', async () => {
+        mockAdministersFindMany.mockResolvedValue([ME, MACHINE]);
         await expect(removeBodyAdmin('athens', 'youth', 'me')).rejects.toThrow(BadRequestError);
         expect(mockAdministersDelete).not.toHaveBeenCalled();
     });

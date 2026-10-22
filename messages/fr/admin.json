@@ -1009,5 +1009,38 @@
       "choose": "Choose…",
       "draft": "New record, saved when you confirm it"
     }
+  },
+  "machineTokens": {
+    "title": "Jetons de {name}",
+    "description": "Un jeton MCP agit avec les droits de ce compte sur le serveur MCP. Créez-en un par service qui se connecte, et révoquez-le quand ce service s'arrête.",
+    "loading": "Chargement…",
+    "create": "Nouveau jeton",
+    "creating": "Création…",
+    "empty": "Aucun jeton pour l'instant.",
+    "never": "jamais",
+    "active": "Actif",
+    "revokedOn": "Révoqué le {date}",
+    "revoke": "Révoquer",
+    "revokeConfirm": "Oui, révoquer",
+    "revoking": "Révocation…",
+    "cancel": "Annuler",
+    "done": "Terminé",
+    "columns": {
+      "token": "Jeton",
+      "created": "Créé",
+      "lastUsed": "Dernière utilisation",
+      "status": "État",
+      "actions": "Actions"
+    },
+    "createdTitle": "Le jeton est prêt",
+    "createdNote": "Copiez-le maintenant. Il n'est affiché qu'une seule fois.",
+    "headerForm": "Adresse et jeton bearer",
+    "headerNote": "Envoyez le jeton dans l'en-tête de la requête Authorization: Bearer, suivi du jeton.",
+    "pathForm": "Adresse avec le jeton dans le chemin",
+    "pathFormNote": "Les proxys et les journaux d'accès enregistrent la forme avec le chemin. Préférez l'en-tête quand le client le permet.",
+    "warning": "Quiconque possède ce jeton agit avec les droits de ce compte sur le serveur MCP. Conservez-le comme un mot de passe. Vous pouvez le révoquer à tout moment.",
+    "errors": {
+      "failed": "L'action a échoué. Rechargez la page et réessayez."
+    }
   }
 }

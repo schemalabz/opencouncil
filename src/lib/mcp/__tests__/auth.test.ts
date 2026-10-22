@@ -16,12 +16,21 @@ describe('verifyMcpToken', () => {
     });
 
     it('resolves a personal token to its owner', async () => {
-        mockToken.mockResolvedValue({ tokenId: 'tok1', userId: 'u1' });
+        mockToken.mockResolvedValue({ tokenId: 'tok1', userId: 'u1', machineName: null });
 
         const info = await verifyMcpToken(req, 'mcp_abc');
 
         expect(mockToken).toHaveBeenCalledWith('mcp_abc');
-        expect(info).toMatchObject({ clientId: 'u1', extra: { identity: { userId: 'u1' } } });
+        expect(info?.extra?.identity).toEqual({ userId: 'u1' });
+        expect(info).toMatchObject({ clientId: 'u1' });
+    });
+
+    it('resolves a machine token to its account, with the name for analytics', async () => {
+        mockToken.mockResolvedValue({ tokenId: 'tok2', userId: 'bot-1', machineName: 'Paola' });
+
+        const info = await verifyMcpToken(req, 'mcp_bot');
+
+        expect(info?.extra?.identity).toEqual({ userId: 'bot-1', machineName: 'Paola' });
     });
 
     it('throws on a revoked or unknown token', async () => {

@@ -54,13 +54,21 @@ describe('createUserMcpToken', () => {
 describe('validateUserMcpToken', () => {
     it('resolves the owning user for a valid token', async () => {
         const token = await createUserMcpToken('u1');
-        mockFindUnique.mockResolvedValue({ id: 't1', userId: 'u1', revokedAt: null });
+        mockFindUnique.mockResolvedValue({ id: 't1', userId: 'u1', revokedAt: null, user: { isMachine: false, name: 'Anna', email: 'anna@example.com' } });
 
         const result = await validateUserMcpToken(token.rawToken);
-        expect(result).toEqual({ userId: 'u1', tokenId: 't1' });
+        expect(result).toEqual({ userId: 'u1', tokenId: 't1', machineName: null });
         expect(mockFindUnique.mock.calls[0][0].where.hashedKey).toBe(
             createHash('sha256').update(token.rawToken).digest('hex')
         );
+    });
+
+    it('names the owner when it is a machine account', async () => {
+        mockFindUnique.mockResolvedValue({ id: 't2', userId: 'bot-1', revokedAt: null, user: { isMachine: true, name: 'Paola', email: 'paola@machines.opencouncil.invalid' } });
+        expect(await validateUserMcpToken('mcp_bot')).toEqual({ userId: 'bot-1', tokenId: 't2', machineName: 'Paola' });
+
+        mockFindUnique.mockResolvedValue({ id: 't3', userId: 'bot-2', revokedAt: null, user: { isMachine: true, name: null, email: 'athens-bot@machines.opencouncil.invalid' } });
+        expect(await validateUserMcpToken('mcp_bot2')).toEqual({ userId: 'bot-2', tokenId: 't3', machineName: 'athens-bot@machines.opencouncil.invalid' });
     });
 
     it('rejects unknown and revoked tokens', async () => {

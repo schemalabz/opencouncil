@@ -32,8 +32,8 @@ const mockListCities = mcpListCities as jest.MockedFunction<typeof mcpListCities
 const mockToken = validateUserMcpToken as jest.MockedFunction<typeof validateUserMcpToken>;
 const mockRights = getUserCityRights as jest.MockedFunction<typeof getUserCityRights>;
 
-const SUPERADMIN_TOKEN = { tokenId: 'tok0', userId: 'admin1' };
-const PERSONAL_TOKEN = { tokenId: 'tok1', userId: 'u1' };
+const SUPERADMIN_TOKEN = { tokenId: 'tok0', userId: 'admin1', machineName: null };
+const PERSONAL_TOKEN = { tokenId: 'tok1', userId: 'u1', machineName: null };
 const NO_RIGHTS = { all: false, cityIds: new Set<string>(), bodies: new Map<string, string>() };
 const ALL_RIGHTS = { all: true, cityIds: new Set<string>(), bodies: new Map<string, string>() };
 

@@ -3,7 +3,7 @@ import { sessionAuthRequirement, editAuthResponses, errorResponseOf, invalidRequ
 import { productUpdateSendSchema } from '@/lib/zod-schemas/productUpdate';
 import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
 import { createTopicSchema, updateTopicSchema } from '@/lib/zod-schemas/topic';
-import { createAdminUserSchema, updateAdminUserSchema } from '@/lib/zod-schemas/user';
+import { createUserRequestSchema, updateAdminUserSchema } from '@/lib/zod-schemas/user';
 
 // The superadmin routes. filterSpecByAccessLevel hides them, and the
 // schemas only they use, from every other viewer.
@@ -12,7 +12,7 @@ const RevalidateRequestSchema = revalidateRequestSchema.meta({ id: 'RevalidateRe
 const ProductUpdateSendSchema = productUpdateSendSchema.meta({ id: 'ProductUpdateSend' });
 const CreateTopicSchema = createTopicSchema.meta({ id: 'CreateTopic' });
 const UpdateTopicSchema = updateTopicSchema.meta({ id: 'UpdateTopic' });
-const CreateAdminUserSchema = createAdminUserSchema.meta({ id: 'CreateAdminUser' });
+const CreateUserRequestSchema = createUserRequestSchema.meta({ id: 'CreateAdminUser' });
 const UpdateAdminUserSchema = updateAdminUserSchema.meta({ id: 'UpdateAdminUser' });
 
 const RevalidateResultSchema = z.object({
@@ -116,16 +116,18 @@ export const adminPaths: Paths = {
     '/api/admin/users': {
         post: {
             ...adminOperation,
-            summary: 'Invite a user',
+            summary: 'Invite a user, or create a machine account',
             description: 'Creates a user and sends the invitation email. When the email fails, the response '
-                + 'carries a `warning` and the user stays created.',
+                + 'carries a `warning` and the user stays created. With `isMachine: true` it creates a machine '
+                + 'account from `label` instead: no invitation, and the address comes from the label.',
             requestBody: {
                 required: true,
-                content: { 'application/json': { schema: CreateAdminUserSchema } },
+                content: { 'application/json': { schema: CreateUserRequestSchema } },
             },
             responses: {
-                200: { description: 'The created user' },
+                200: { description: 'The created user or machine account' },
                 400: invalidBody,
+                409: errorResponseOf('A user with this email, or a machine account with this label, already exists'),
                 ...editAuthResponses,
             },
         },

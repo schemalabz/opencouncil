@@ -5,6 +5,7 @@ import { consultationCommentResponseSelect, type ConsultationCommentResponseView
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendMagicLink } from "@/lib/auth/magicLink";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { plainTextToCommentHtml } from "@/lib/utils/commentText";
 import {
     COMMENT_MAX_LENGTH,
@@ -407,7 +408,9 @@ export async function submitPendingConsultationComment(data: {
     email: string;
 }): Promise<{ emailSent: boolean }> {
     const email = data.email.trim().toLowerCase();
-    if (!EMAIL_PATTERN.test(email)) {
+    // The machine domain is reserved: a comment must never attach to a
+    // machine account, or create a person on that domain.
+    if (!EMAIL_PATTERN.test(email) || isMachineAccountAddress(email)) {
         throw new Error('A valid email is required');
     }
     const name = data.name.trim();

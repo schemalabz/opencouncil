@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TableCell } from "@/components/ui/table"
 import { 
     Bell, 
+    Bot,
     FileText, 
     CheckCircle, 
     XCircle, 
@@ -24,6 +25,8 @@ interface ExpandableUserRowProps {
     user: UserWithRelations
     onEdit: (user: UserWithRelations) => void
     onResendInvite: (userId: string) => void
+    /** Opens the MCP token dialog of a machine account. */
+    onTokens: (user: UserWithRelations) => void
     resendingInvite: string | null
 }
 
@@ -31,6 +34,7 @@ export function ExpandableUserRow({
     user, 
     onEdit, 
     onResendInvite, 
+    onTokens,
     resendingInvite 
 }: ExpandableUserRowProps) {
     const notificationCount = user.notificationPreferences.length
@@ -174,8 +178,14 @@ export function ExpandableUserRow({
             {/* User Info */}
             <TableCell className="w-[300px]">
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium truncate">{user.name || 'Unnamed User'}</span>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                        <span className="font-medium truncate max-w-full">{user.name || 'Unnamed User'}</span>
+                        {user.isMachine && (
+                            <Badge variant="outline" className="text-xs flex-shrink-0">
+                                <Bot className="h-3 w-3 mr-1" />
+                                Machine
+                            </Badge>
+                        )}
                         {user.isSuperAdmin && (
                             <Badge variant="default" className="text-xs flex-shrink-0">
                                 Super Admin
@@ -189,23 +199,31 @@ export function ExpandableUserRow({
             {/* Status */}
             <TableCell className="w-24">
                 <div className="flex items-center gap-2">
-                    {user.onboarded ? (
+                    {user.isMachine ? (
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Never signs in</span>
+                    ) : user.onboarded ? (
                         <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
                         <XCircle className="h-4 w-4 text-red-600" />
                     )}
-                    <span className="text-sm whitespace-nowrap">
-                        {user.onboarded ? 'Onboarded' : 'Pending'}
-                    </span>
+                    {!user.isMachine && (
+                        <span className="text-sm whitespace-nowrap">
+                            {user.onboarded ? 'Onboarded' : 'Pending'}
+                        </span>
+                    )}
                 </div>
             </TableCell>
 
             {/* Contact */}
             <TableCell className="w-20">
-                <div className="flex items-center gap-2">
-                    <Mail className={`h-4 w-4 ${user.allowProductUpdates ? 'text-blue-600' : 'text-gray-300'}`} />
-                    <Phone className={`h-4 w-4 ${user.allowProductUpdates && user.phone ? 'text-green-600' : 'text-gray-300'}`} />
-                </div>
+                {user.isMachine ? (
+                    <span className="text-sm text-muted-foreground">—</span>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <Mail className={`h-4 w-4 ${user.allowProductUpdates ? 'text-blue-600' : 'text-gray-300'}`} />
+                        <Phone className={`h-4 w-4 ${user.allowProductUpdates && user.phone ? 'text-green-600' : 'text-gray-300'}`} />
+                    </div>
+                )}
             </TableCell>
 
             {/* Activity Summary */}
@@ -253,7 +271,19 @@ export function ExpandableUserRow({
                     >
                         Edit
                     </Button>
-                    {!user.onboarded && (
+                    {user.isMachine && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onTokens(user)
+                            }}
+                        >
+                            Tokens
+                        </Button>
+                    )}
+                    {!user.isMachine && !user.onboarded && (
                         <Button
                             variant="outline"
                             size="sm"

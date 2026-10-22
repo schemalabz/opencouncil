@@ -1110,6 +1110,11 @@ model User {
   /// the notis_fanout_targets view carries it on every row.
   notifyByPhone        Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
+  /// A machine account: a service holds it, it never signs in, and its MCP
+  /// tokens carry its rights like a person's (#590). Its address is on the
+  /// reserved domain of src/lib/auth/machineAccounts.ts. The queries that
+  /// mean "people" (recipients, stats, the operator picker) exclude it.
+  isMachine     Boolean         @default(false)
   accounts      Account[]
   sessions      Session[]
   Authenticator Authenticator[]

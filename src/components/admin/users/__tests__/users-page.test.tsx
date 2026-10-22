@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UserWithRelations } from '@/lib/db/users';
-import UsersPage from '../page';
+import { UsersPageClient } from '../users-page';
 
 // The page's own job is the paging of the table: the rows, the dashboards and
 // the dialogs are drawn by components that are not under test.
@@ -17,6 +17,7 @@ jest.mock('@/components/admin/users/user-dialog', () => ({
     UserDialog: ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) =>
         open ? <button onClick={() => onOpenChange(false)}>close dialog</button> : null,
 }));
+jest.mock('@/components/admin/users/machine-token-dialog', () => ({ MachineTokenDialog: () => null }));
 jest.mock('@/hooks/use-toast', () => ({ toast: jest.fn() }));
 
 const usersOf = (count: number) => Array.from({ length: count }, (_, i) => ({
@@ -36,10 +37,10 @@ beforeEach(() => {
     global.fetch = jest.fn(async () => ({ ok: true, json: async () => users })) as unknown as typeof fetch;
 });
 
-describe('UsersPage paging', () => {
+describe('UsersPageClient paging', () => {
     it('pages the table, 20 users a page', async () => {
         users = usersOf(45);
-        render(<UsersPage />);
+        render(<UsersPageClient mcpBaseUrl="http://localhost:3000/mcp" />);
 
         await screen.findByText('user-0@example.com');
         await userEvent.click(screen.getByRole('button', { name: /next/i }));
@@ -50,7 +51,7 @@ describe('UsersPage paging', () => {
 
     it('shows the last page that exists when the list shrinks under the open page', async () => {
         users = usersOf(41);
-        render(<UsersPage />);
+        render(<UsersPageClient mcpBaseUrl="http://localhost:3000/mcp" />);
 
         await screen.findByText('user-0@example.com');
         await userEvent.click(screen.getByRole('button', { name: /next/i }));

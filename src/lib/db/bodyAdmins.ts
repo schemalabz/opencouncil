@@ -2,8 +2,9 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "@/lib/auth";
-import { BadRequestError, NotFoundError } from "@/lib/api/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@/lib/api/errors";
 import { sendInviteEmail } from "@/lib/auth/invite";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 
 /**
  * The admins of one administrative body (#828): the accounts that hold an
@@ -67,6 +68,11 @@ export async function addBodyAdmin(
     await requireBody(cityId, bodyId);
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) throw new BadRequestError("Email cannot be empty");
+    // A machine account gets its rights from a superadmin only, and a person
+    // never gets an address on the machine domain.
+    if (isMachineAccountAddress(normalizedEmail)) {
+        throw new BadRequestError("This address is reserved for machine accounts");
+    }
 
     // One transaction per invite, holding the body row: the count, the
     // account and the admin row are read and written under the same lock, so
@@ -80,7 +86,8 @@ export async function addBodyAdmin(
         });
         if (held) return { row: held, created: false };
 
-        if (await tx.administers.count({ where: { administrativeBodyId: bodyId } }) >= MAX_ADMINS_PER_BODY) {
+        // People only: a machine account's grant is a superadmin's, not a seat.
+        if (await tx.administers.count({ where: { administrativeBodyId: bodyId, user: { isMachine: false } } }) >= MAX_ADMINS_PER_BODY) {
             throw new BadRequestError(`A body has at most ${MAX_ADMINS_PER_BODY} admins`);
         }
         const user = existing ?? await tx.user.create({
@@ -115,10 +122,15 @@ export async function addBodyAdmin(
  * Take the body away from an account. The account stays, with whatever else
  * it administers. The last admin of a body can be removed only by a city
  * admin or a superadmin: a body admin cannot lock the body's own door.
+ *
+ * A machine account (#590) gets and loses its rights through a superadmin
+ * only, and it is not an admin a person can hand the body to: it does not
+ * count for the last-admin rule.
  */
 export async function removeBodyAdmin(cityId: string, bodyId: string, userId: string): Promise<void> {
     await requireBody(cityId, bodyId);
     const mayRemoveLast = await isUserAuthorizedToEdit({ cityId });
+    const isSuperAdmin = await isUserAuthorizedToEdit({});
 
     await prisma.$transaction(async (tx) => {
         // Lock the body row: two admins who remove each other at once must not
@@ -126,12 +138,14 @@ export async function removeBodyAdmin(cityId: string, bodyId: string, userId: st
         await tx.$queryRaw`SELECT id FROM "AdministrativeBody" WHERE id = ${bodyId} FOR UPDATE`;
         const rows = await tx.administers.findMany({
             where: { administrativeBodyId: bodyId },
-            select: { id: true, userId: true },
+            select: { id: true, userId: true, user: { select: { isMachine: true } } },
         });
         const target = rows.find(row => row.userId === userId);
         if (!target) throw new NotFoundError("This account does not administer the body");
 
-        if (rows.length === 1 && !mayRemoveLast) {
+        if (target.user.isMachine) {
+            if (!isSuperAdmin) throw new ForbiddenError("Only a superadmin changes the rights of a machine account");
+        } else if (rows.filter(row => !row.user.isMachine).length === 1 && !mayRemoveLast) {
             throw new BadRequestError("The body needs at least one admin");
         }
 

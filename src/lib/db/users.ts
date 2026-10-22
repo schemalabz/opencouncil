@@ -6,6 +6,8 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors"
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { devToolsAllowed } from "@/lib/deployment";
 import { claimedLink } from "@/lib/db/personClaim";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
+import { findMachineAccount } from "@/lib/db/machineAccounts";
 
 const userWithAdministersInclude = {
     administers: {
@@ -59,8 +61,15 @@ function normalizeEmail(email: string): string {
     if (!normalizedEmail) {
         throw new BadRequestError("Email cannot be empty");
     }
+    // A person never gets an address of the machine domain: the sign-in
+    // guard refuses the whole domain, so such an account could never sign in.
+    if (isMachineAccountAddress(normalizedEmail)) {
+        throw new BadRequestError("This address is reserved for machine accounts");
+    }
     return normalizedEmail;
 }
+
+const MACHINE_ACCOUNT_RETIRE_HINT = "A machine account is retired by revoking its tokens, not deleted";
 
 function normalizeName(name: string | null | undefined): string | null {
     if (typeof name !== "string") {
@@ -155,6 +164,12 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
 
     const { administers, ...userData } = normalizedData;
 
+    // The address of a machine account is derived from its label and is what
+    // the sign-in guard refuses, so it never changes.
+    if (userData.email !== undefined && await findMachineAccount(id)) {
+        throw new BadRequestError("The address of a machine account cannot change");
+    }
+
     try {
         if (administers) {
             const updatedUser = await prisma.$transaction(async (tx) => {
@@ -206,6 +221,9 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
 
 export async function deleteUser(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
+    // The account is the attribution of the highlights its tokens created
+    // (Highlight.createdBy is SetNull on delete), so it stays.
+    if (await findMachineAccount(id)) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     try {
         await prisma.user.delete({
             where: { id },
@@ -223,6 +241,7 @@ export async function deleteUser(id: string): Promise<void> {
 export async function deleteCurrentUser(): Promise<void> {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not authenticated');
+    if (user.isMachine) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     await prisma.user.delete({ where: { id: user.id } });
 }
 
