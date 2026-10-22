@@ -19,15 +19,11 @@ beforeAll(async () => {
     const { databaseUrl } = await ensureTestDb()
     await ensureMigrationsTable(databaseUrl)
     client = new Client({ connectionString: databaseUrl })
-    // tests/setup-integration.ts loads through setupFilesAfterEnv. Its afterAll therefore
-    // registers before this file's own afterAll. Jest runs same-level afterAll hooks in
-    // registration order. The shared container therefore stops first. This file's own
-    // afterAll then calls client.end() on a server that is already stopped. A stray
-    // disconnect notice can still reach the socket at that point. The listener must
-    // already exist to catch it, so it is attached here, right after construction.
-    // Without a listener, Node treats the notice as an unhandled error. Jest then fails
-    // the suite, even though every test passed. The listener does not mask real query
-    // failures. Those reject their own client.query(...) call directly.
+    // A server that goes away under an open client (Ctrl-C, or Ryuk removing the
+    // container) makes pg emit 'error'. Without a listener, Node treats it as an
+    // unhandled error, and Jest fails the suite even when every test passed. The
+    // listener must exist before connect(), so it is attached right after construction.
+    // It does not mask real query failures. Those reject their own client.query(...) call.
     client.on('error', () => {})
     await client.connect()
 })

@@ -2,7 +2,7 @@
 import fs from 'fs'
 import path from 'path'
 import prisma from '@/lib/db/prisma'
-import { ensureTestDb } from '../helpers/test-db'
+import { createSiblingDatabase } from '../helpers/test-db'
 import { splitSqlStatements } from '../helpers/sql'
 import type { PrismaClient as NotisPrismaClient } from '../../services/notis/generated/client'
 import {
@@ -26,7 +26,6 @@ import {
  * A second database in the same container plays the notis DB.
  */
 
-const NOTIS_DB = 'notis_queue_test'
 const MIGRATIONS_DIR = path.join(__dirname, '../../services/notis/prisma/migrations')
 
 let notisDb: NotisPrismaClient
@@ -61,34 +60,33 @@ async function createSubscription(id: string): Promise<string> {
 
 const EVENT = { type: 'user_message', at: '2026-08-16T10:00:00.000Z', text: 'γεια' }
 
+// Both describe blocks use notisDb, so its setup runs at file level.
+beforeAll(async () => {
+    const notisUrl = await createSiblingDatabase('notis')
+
+    // Import after the setup file has set this file's DATABASE_URL. The
+    // generated client dotenv-loads services/notis/.env on require, and the
+    // existing env vars must win.
+    const { PrismaClient } = await import('../../services/notis/generated/client')
+    notisDb = new PrismaClient({ datasources: { db: { url: notisUrl } } })
+
+    await applyNotisMigrations(notisDb)
+    // The follow-up migration must be idempotent — prod applies it once,
+    // but a db-push'd dev database may already carry its objects.
+    await applyNotisMigrations(notisDb, true)
+})
+
+afterAll(async () => {
+    await notisDb?.$disconnect()
+})
+
+beforeEach(async () => {
+    await notisDb.$executeRawUnsafe(
+        'TRUNCATE TABLE "NotisWakeQueue", "NotisCommitment", "NotisSubscription" RESTART IDENTITY CASCADE',
+    )
+})
+
 describe('notis wake queue (live lane)', () => {
-    beforeAll(async () => {
-        const { databaseUrl } = await ensureTestDb()
-        await prisma.$executeRawUnsafe(`DROP DATABASE IF EXISTS ${NOTIS_DB}`)
-        await prisma.$executeRawUnsafe(`CREATE DATABASE ${NOTIS_DB}`)
-
-        // Import AFTER ensureTestDb: the generated client dotenv-loads
-        // services/notis/.env on require, and existing env vars must win.
-        const { PrismaClient } = await import('../../services/notis/generated/client')
-        const notisUrl = databaseUrl.replace(/\/testdb\?/, `/${NOTIS_DB}?`)
-        notisDb = new PrismaClient({ datasources: { db: { url: notisUrl } } })
-
-        await applyNotisMigrations(notisDb)
-        // The follow-up migration must be idempotent — prod applies it once,
-        // but a db-push'd dev database may already carry its objects.
-        await applyNotisMigrations(notisDb, true)
-    })
-
-    afterAll(async () => {
-        await notisDb?.$disconnect()
-    })
-
-    beforeEach(async () => {
-        await notisDb.$executeRawUnsafe(
-            'TRUNCATE TABLE "NotisWakeQueue", "NotisCommitment", "NotisSubscription" RESTART IDENTITY CASCADE',
-        )
-    })
-
     test('enqueue → claim marks running and counts the attempt', async () => {
         const sub = await createSubscription('s1')
         const itemId = await enqueueLiveWake(notisDb, { subscriptionId: sub, event: EVENT })
