@@ -8,11 +8,11 @@
         "SubjectAttendance", "SubjectVote", "MeetingAttendance", "SpeakerSegment",
         "SpeakerContribution", "Utterance", "Word", "TopicLabel", "Summary", "Highlight",
         "HighlightedUtterance", "CityMessage", "Consultation", "TaskStatus",
-        "AttendanceEvent", "SpeakerIdentification"
+        "AttendanceEvent", "SpeakerIdentification", "UtteranceEdit"
       ],
       "private": [
         "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
-        "ServiceApiKey", "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
+        "ServiceApiKey", "UserMcpToken", "Petition", "NotificationPreference",
         "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
         "ConsultationComment", "ConsultationCommentUpvote", "PendingConsultationComment",
         "ConsultationCommentResponse", "MeetingOperator", "Offer",
@@ -51,13 +51,13 @@
   ],
   "subsetOnly": [
     { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },
-    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-path", "path": ["transcript", "transcription", "utterances"] },
     { "table": "Decision", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"Subject\" s JOIN public.\"TaskStatus\" t ON t.id = \"Decision\".\"taskId\" WHERE s.id = \"Decision\".\"subjectId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (s.\"cityId\", s.\"councilMeetingId\"))" },
     { "table": "AttendanceEvent", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"TaskStatus\" t WHERE t.id = \"AttendanceEvent\".\"taskId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (\"AttendanceEvent\".\"cityId\", \"AttendanceEvent\".\"councilMeetingId\"))" }
   ],
   "publicText": [
     "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",
-    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification"
+    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification",
+    "UtteranceEdit"
   ],
   "ignoreTables": ["spatial_ref_sys"]
 }

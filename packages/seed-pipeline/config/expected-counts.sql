@@ -32,6 +32,7 @@ SELECT t AS "table", n::text AS n FROM (VALUES
   ('SpeakerIdentification', (SELECT count(*) FROM "SpeakerIdentification" si WHERE si."speakerTagId" IN (SELECT "speakerTagId" FROM seg))),
   ('Utterance', (SELECT count(*) FROM utt)),
   ('Word', (SELECT count(*) FROM "Word" w JOIN utt ON utt.id = w."utteranceId")),
+  ('UtteranceEdit', (SELECT count(*) FROM "UtteranceEdit" ue JOIN utt ON utt.id = ue."utteranceId")),
   ('Summary', (SELECT count(*) FROM "Summary" s JOIN seg ON seg.id = s."speakerSegmentId")),
   ('TopicLabel', (SELECT count(*) FROM "TopicLabel" tl JOIN seg ON seg.id = tl."speakerSegmentId")),
   ('Highlight', (SELECT count(*) FROM hl)),
