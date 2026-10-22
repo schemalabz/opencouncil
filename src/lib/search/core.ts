@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
-import { publicAdministrativeBodyRelation, roleWithRelationsInclude, subjectDecisionSelect } from '@/lib/db/types';
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude, subjectDecisionSelect, subjectHighlightsInclude } from '@/lib/db/types';
 import { TRANSCRIPT_PUBLIC_WHERE } from '@/lib/db/sharing/publicContent';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
@@ -394,7 +394,7 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
                     }
                 }
             },
-            highlights: true,
+            highlights: subjectHighlightsInclude,
             decision: { select: subjectDecisionSelect },
             discussedIn: {
                 include: {

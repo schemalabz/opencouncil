@@ -356,7 +356,9 @@ export async function getSubjectCountForCityCached(cityId: string) {
 export async function getSubjectsForMeetingCached(cityId: string, meetingId: string) {
   return createCache(
     () => getSubjectsForMeeting(cityId, meetingId),
-    ['city', cityId, 'meeting', meetingId, 'subjects'],
+    // The version names the row shape: the entries have no TTL, so a shape
+    // change must not read the entries of the previous shape.
+    ['city', cityId, 'meeting', meetingId, 'subjects', 'v2'],
     { tags: [`city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] }
   )();
 }

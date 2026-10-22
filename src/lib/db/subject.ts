@@ -3,7 +3,6 @@ import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
     SpeakerContribution,
-    Highlight,
     Location,
     Topic,
     VoteType,
@@ -22,6 +21,7 @@ import { previewDescription } from '@/lib/formatters/markdown';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
+import { subjectHighlightsInclude, type SubjectHighlight } from './types/highlight';
 import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
@@ -113,7 +113,7 @@ export type SubjectWithRelations = Subject & {
     contributions: (SpeakerContribution & {
         speaker: PersonWithRelations | null;
     })[];
-    highlights: Highlight[];
+    highlights: SubjectHighlight[];
     location: LocationWithCoordinates | null;
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
@@ -559,7 +559,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
         const subjects = await prisma.subject.findMany({
             include: {
                 contributions: contributionsInclude,
-                highlights: true,
+                highlights: subjectHighlightsInclude,
                 location: true,
                 topic: true,
                 introducedBy: introducedByInclude,
@@ -591,7 +591,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
             include: {
                 contributions: contributionsInclude,
                 introducedBy: introducedByInclude,
-                highlights: true,
+                highlights: subjectHighlightsInclude,
                 location: true,
                 topic: true,
                 decision: { select: subjectDecisionSelect },
@@ -648,7 +648,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
             include: {
                 contributions: contributionsInclude,
                 introducedBy: introducedByInclude,
-                highlights: true,
+                highlights: subjectHighlightsInclude,
                 location: true,
                 topic: true,
                 decision: { select: subjectDecisionSelect },

@@ -11,7 +11,7 @@ import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
-import { HighlightWithUtterances } from "@/lib/db/highlights";
+import type { SubjectHighlight } from "@/lib/db/types";
 import { subjectTitle, subjectDescription, subjectLocation } from "@/lib/subjectText";
 import type { SearchMatches } from "@/lib/search/types";
 import { formatDate } from "@/lib/formatters/time";
@@ -29,7 +29,7 @@ interface SubjectCardProps {
     parties: Party[];
     persons: PersonWithRelations[];
     fullWidth?: boolean;
-    highlight?: HighlightWithUtterances;
+    highlight?: SubjectHighlight;
     disableHover?: boolean;
     showContext?: boolean;
     openInNewTab?: boolean;

@@ -3,7 +3,6 @@ import { SubjectWithRelations } from "@/lib/db/subject";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { SubjectCard } from "../subject-card";
-import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,10 +12,8 @@ interface HighlightCardsProps {
 
 export function HighlightCards({ subjects }: HighlightCardsProps) {
     const { city, meeting, parties, people } = useCouncilMeetingData();
-    // Filter subjects to only include those that have showcased highlights with video
-    const subjectsWithVideo = subjects.filter(subject => 
-        subject.highlights.some(highlight => highlight.muxPlaybackId && highlight.isShowcased)
-    );
+    // The subject payload carries only showcased highlights with a video.
+    const subjectsWithVideo = subjects.filter(subject => subject.highlights.length > 0);
 
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -25,7 +22,7 @@ export function HighlightCards({ subjects }: HighlightCardsProps) {
     }
 
     const currentSubject = subjectsWithVideo[currentIndex];
-    const videoHighlight = currentSubject.highlights.find(h => h.muxPlaybackId && h.isShowcased) as HighlightWithUtterances;
+    const videoHighlight = currentSubject.highlights[0];
 
     const handlePrevious = () => {
         setCurrentIndex((prev) => (prev === 0 ? subjectsWithVideo.length - 1 : prev - 1));
