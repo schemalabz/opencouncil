@@ -17,6 +17,7 @@ import {
     createMeeting,
     createSpeakerSegment,
     createSpeakerTag,
+    createUser,
     createUtterance,
 } from '../helpers/factories'
 
@@ -26,11 +27,11 @@ jest.mock('@/lib/tasks/generateHighlight-core', () => ({
 }))
 const mockRequestRender = requestGenerateHighlightCore as jest.MockedFunction<typeof requestGenerateHighlightCore>
 
-// A service key bypasses the per-city highlight permission, like the admin panel's.
-const SERVICE = { type: 'service', keyName: 'test' } as const
+// The token of a superadmin account, which passes the per-city highlight permission.
+let SUPERADMIN: { userId: string }
 
 const asRequest = <T>(fn: () => Promise<T>) =>
-    mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', SERVICE), fn)
+    mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', SUPERADMIN), fn)
 
 describe('MCP highlight creation with a video in one call - integration', () => {
     let utteranceIds: string[]
@@ -41,6 +42,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
 
     beforeEach(async () => {
         await resetDatabase(prisma)
+        SUPERADMIN = { userId: (await createUser('bot@example.com', { isSuperAdmin: true })).id }
         mockRequestRender.mockClear()
         await createCity({ id: 'athens', realm: Realm.greece })
 
@@ -66,7 +68,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
     })
 
     test('queues the render in the same call as the highlight', async () => {
-        const result = await asRequest(() => mcpCreateHighlight(SERVICE, {
+        const result = await asRequest(() => mcpCreateHighlight(SUPERADMIN, {
             cityId: 'athens', meetingId: 'recorded', name: 'Κλιπ', utteranceIds,
             video: { aspectRatio: 'social-9x16', includeCaptions: false },
         }))
@@ -85,7 +87,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
     })
 
     test('an empty video object renders the website\'s default landscape clip', async () => {
-        const result = await asRequest(() => mcpCreateHighlight(SERVICE, {
+        const result = await asRequest(() => mcpCreateHighlight(SUPERADMIN, {
             cityId: 'athens', meetingId: 'recorded', name: 'Κλιπ', utteranceIds, video: {},
         }))
 
@@ -96,7 +98,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
     })
 
     test('saves the highlight without a render when video is omitted', async () => {
-        const result = await asRequest(() => mcpCreateHighlight(SERVICE, {
+        const result = await asRequest(() => mcpCreateHighlight(SUPERADMIN, {
             cityId: 'athens', meetingId: 'recorded', name: 'Κλιπ', utteranceIds,
         }))
 
@@ -110,7 +112,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
         // as "nothing was saved": the agent would create the highlight again.
         mockRequestRender.mockRejectedValueOnce(new Error('task API unreachable'))
 
-        const result = await asRequest(() => mcpCreateHighlight(SERVICE, {
+        const result = await asRequest(() => mcpCreateHighlight(SUPERADMIN, {
             cityId: 'athens', meetingId: 'recorded', name: 'Κλιπ', utteranceIds, video: {},
         }))
 
@@ -125,7 +127,7 @@ describe('MCP highlight creation with a video in one call - integration', () => 
             select: { id: true },
         })
 
-        const result = await asRequest(() => mcpCreateHighlight(SERVICE, {
+        const result = await asRequest(() => mcpCreateHighlight(SUPERADMIN, {
             cityId: 'athens', meetingId: 'silent', name: 'Κλιπ', utteranceIds: silent.map(u => u.id),
             video: {},
         }))

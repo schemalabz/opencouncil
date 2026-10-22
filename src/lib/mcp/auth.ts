@@ -1,17 +1,12 @@
 import type { AuthInfo, ServerContext } from '@modelcontextprotocol/server';
 import { validateUserMcpToken } from '@/lib/db/mcpTokens';
-import type { HighlightActor } from '@/lib/db/highlights-core';
 
 /**
  * Who is calling the MCP server. `null` means anonymous (public reads only).
- * A personal token acts as the owning user — same shape as HighlightActor so
- * writes plug straight in.
+ * A token acts as the account that owns it, with that account's rights, read
+ * from the database at each request (#590).
  */
-export type McpIdentity = HighlightActor | null;
-
-export function isSuperIdentity(identity: McpIdentity): boolean {
-    return identity?.type === 'service';
-}
+export type McpIdentity = { userId: string } | null;
 
 /**
  * Unwrap the identity verifyMcpToken stashes in AuthInfo.extra — the one
@@ -46,7 +41,7 @@ export async function verifyMcpToken(_req: Request, bearerToken?: string): Promi
         if (!result) {
             throw new Error('Invalid or revoked MCP token');
         }
-        const identity: McpIdentity = { type: 'user', userId: result.userId };
+        const identity: McpIdentity = { userId: result.userId };
         return {
             token: bearerToken,
             clientId: result.userId,

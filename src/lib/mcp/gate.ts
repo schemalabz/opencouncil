@@ -1,21 +1,20 @@
 import prisma from '@/lib/db/prisma';
 import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { canUserEditCity, getUserCityRights } from '@/lib/db/highlights-core';
-import { isSuperIdentity, type McpIdentity } from './auth';
+import type { McpIdentity } from './auth';
 import { currentRealm } from './realm-context';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
 /**
  * Whether the identity may see every unreleased (draft) meeting of a city:
- * service keys always, personal tokens when their user can edit the city —
- * the same people who see all the drafts of a city on the site. A body admin
- * does not pass this one; see canSeeUnreleasedMeeting.
+ * when its account can edit the city — the same people who see all the
+ * drafts of a city on the site. A body admin does not pass this one; see
+ * canSeeUnreleasedMeeting.
  */
 export async function canSeeUnreleased(identity: McpIdentity, cityId: string): Promise<boolean> {
-    if (isSuperIdentity(identity)) return true;
-    if (identity?.type === 'user') return canUserEditCity(identity.userId, cityId);
-    return false;
+    if (!identity) return false;
+    return canUserEditCity(identity.userId, cityId);
 }
 
 /**
@@ -28,8 +27,7 @@ async function canSeeUnreleasedMeeting(
     cityId: string,
     administrativeBodyId: string | null
 ): Promise<boolean> {
-    if (isSuperIdentity(identity)) return true;
-    if (identity?.type !== 'user') return false;
+    if (!identity) return false;
     const rights = await getUserCityRights(identity.userId);
     if (rights.all || rights.cityIds.has(cityId)) return true;
     return administrativeBodyId !== null && rights.bodies.get(administrativeBodyId) === cityId;

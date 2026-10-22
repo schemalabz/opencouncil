@@ -31,9 +31,8 @@ const DATA = {
     utteranceIds: ['utt1', 'utt2'],
 };
 
-const USER = { type: 'user', userId: 'u1' } as const;
-const OTHER_USER = { type: 'user', userId: 'u2' } as const;
-const SERVICE = { type: 'service', keyName: 'bot' } as const;
+const USER = 'u1';
+const OTHER_USER = 'u2';
 
 function setCityPermission(permission: 'EVERYONE' | 'ADMINS_ONLY') {
     mockCityFindUnique.mockResolvedValue({ highlightCreationPermission: permission });
@@ -132,11 +131,6 @@ describe('canUserEditMeeting', () => {
 describe('canActorManageHighlight', () => {
     const highlight = { cityId: 'athens', meetingId: 'm1', createdById: 'u1' };
 
-    it('allows service actors unconditionally', async () => {
-        expect(await canActorManageHighlight(SERVICE, highlight)).toBe(true);
-        expect(mockUserFindUnique).not.toHaveBeenCalled();
-    });
-
     it('allows the owner without a city-permission lookup', async () => {
         expect(await canActorManageHighlight(USER, highlight)).toBe(true);
         expect(mockUserFindUnique).not.toHaveBeenCalled();
@@ -149,7 +143,7 @@ describe('canActorManageHighlight', () => {
         setUser({ administers: [] });
         expect(await canActorManageHighlight(OTHER_USER, highlight)).toBe(false);
 
-        // unattributed (service-created) highlight: only editors may manage
+        // a highlight whose creator was deleted: only editors may manage
         expect(await canActorManageHighlight(USER, { ...highlight, createdById: null })).toBe(false);
     });
 
@@ -182,12 +176,6 @@ describe('upsertHighlightCore authorization', () => {
         await expect(upsertHighlightCore(USER, DATA)).resolves.toMatchObject({ id: 'h1' });
         setMeetingBody('committee');
         await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow(ForbiddenError);
-    });
-
-    it('ADMINS_ONLY: allows service identity without any user lookup', async () => {
-        setCityPermission('ADMINS_ONLY');
-        await expect(upsertHighlightCore(SERVICE, DATA)).resolves.toMatchObject({ id: 'h1' });
-        expect(mockUserFindUnique).not.toHaveBeenCalled();
     });
 
     it('EVERYONE: allows any user to create', async () => {
@@ -238,15 +226,11 @@ describe('upsertHighlightCore authorization', () => {
         await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow(NotFoundError);
     });
 
-    it('attributes user-created highlights and leaves service ones unattributed', async () => {
+    it('attributes a highlight to the user who creates it', async () => {
         setCityPermission('EVERYONE');
         setUser({ administers: [] });
 
         await upsertHighlightCore(USER, DATA);
         expect(mockHighlightUpsert.mock.calls[0][0].create.createdBy).toEqual({ connect: { id: 'u1' } });
-
-        mockHighlightUpsert.mockClear();
-        await upsertHighlightCore(SERVICE, DATA);
-        expect(mockHighlightUpsert.mock.calls[0][0].create.createdBy).toBeUndefined();
     });
 });

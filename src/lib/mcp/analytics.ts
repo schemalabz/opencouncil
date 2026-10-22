@@ -50,15 +50,9 @@ function identityFromExtra(extra: unknown): McpIdentity {
 async function identifyCaller(_request: unknown, extra?: unknown): Promise<UserIdentity | null> {
     const identity = identityFromExtra(extra);
     if (!identity) return null;
-    if (identity.type === 'user') {
-        // Same distinct id the browser uses (session.user.id), so a person's
-        // MCP activity merges with their site activity.
-        return { distinctId: identity.userId, properties: { mcp_actor_type: 'user' } };
-    }
-    return {
-        distinctId: `service:${identity.keyName}`,
-        properties: { mcp_actor_type: 'service' },
-    };
+    // Same distinct id the browser uses (session.user.id), so a person's MCP
+    // activity merges with their site activity.
+    return { distinctId: identity.userId, properties: { mcp_actor_type: 'user' } };
 }
 
 /**
