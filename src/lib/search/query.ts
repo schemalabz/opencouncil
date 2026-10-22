@@ -590,6 +590,34 @@ export function subjectVisibilityFilters(): QueryContainer[] {
     return [{ term: { 'meeting_released': true } }];
 }
 
+/**
+ * A subject is relevant to a person or a party if they EITHER introduced it OR
+ * spoke in it. The two clauses must be OR-combined inside a single
+ * `bool.should`; pushing them as separate entries in the top-level `filter`
+ * array would AND them, which almost never matches — the introducer rarely
+ * speaks in the same subject, and many subjects have no introducer.
+ */
+function introducedOrSpokeFilter(
+    ids: string[],
+    introducedByField: string,
+    speakerField: string
+): QueryContainer {
+    return {
+        bool: {
+            should: [
+                { terms: { [introducedByField]: ids } },
+                {
+                    nested: {
+                        path: 'speaker_contributions',
+                        query: { terms: { [speakerField]: ids } }
+                    }
+                }
+            ],
+            minimum_should_match: 1
+        }
+    };
+}
+
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): QueryContainer[] {
     const filters: QueryContainer[] = subjectVisibilityFilters();
@@ -603,46 +631,23 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
         });
     }
 
-    // Add person filter if specified.
-    // A subject is relevant to a person if they EITHER introduced it OR spoke in it.
-    // These two clauses must be OR-combined inside a single `bool.should`; pushing
-    // them as separate entries in the top-level `filter` array would AND them, which
-    // almost never matches (the person rarely both introduces and speaks in the same
-    // subject) and breaks search on every person profile page.
     if (request.personIds && request.personIds.length > 0) {
-        filters.push({
-            bool: {
-                should: [
-                    // Introduced by the person
-                    {
-                        terms: {
-                            'introduced_by_person_id': request.personIds
-                        }
-                    },
-                    // Spoke in the subject (nested speaker contributions)
-                    {
-                        nested: {
-                            path: 'speaker_contributions',
-                            query: {
-                                terms: {
-                                    'speaker_contributions.speaker_person_id': request.personIds
-                                }
-                            }
-                        }
-                    }
-                ],
-                minimum_should_match: 1
-            }
-        });
+        filters.push(introducedOrSpokeFilter(
+            request.personIds,
+            'introduced_by_person_id',
+            'speaker_contributions.speaker_person_id'
+        ));
     }
 
-    // Add party filter if specified
+    // The search page adds a person's party whenever it filters by that person,
+    // so a party filter narrower than the person's own would hide subjects the
+    // person spoke in.
     if (request.partyIds && request.partyIds.length > 0) {
-        filters.push({
-            terms: {
-                'introduced_by_party_id': request.partyIds
-            }
-        });
+        filters.push(introducedOrSpokeFilter(
+            request.partyIds,
+            'introduced_by_party_id',
+            'speaker_contributions.speaker_party_id'
+        ));
     }
 
     // Add administrative body filter if specified. The two clauses are

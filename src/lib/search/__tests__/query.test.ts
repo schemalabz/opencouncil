@@ -135,19 +135,27 @@ function queryTextsOf(clause: QueryContainer | undefined): string[] {
     );
 }
 
-function findPersonFilter(
-    filters: QueryContainer[]
+function findIntroducedOrSpokeFilter(
+    filters: QueryContainer[],
+    introducedByField: string
 ): QueryContainer | undefined {
-    // The person filter is the bool/should clause referencing introduced_by_person_id.
     // Use a structural lookup (not a JSON substring match) so the tests can't pass
     // vacuously if key ordering or the serialised shape changes.
     return filters.find(
         (f) =>
             Array.isArray(f.bool?.should) &&
             (f.bool!.should as QueryContainer[]).some(
-                (c) => c.terms?.['introduced_by_person_id'] !== undefined
+                (c) => c.terms?.[introducedByField] !== undefined
             )
     );
+}
+
+function findPersonFilter(filters: QueryContainer[]): QueryContainer | undefined {
+    return findIntroducedOrSpokeFilter(filters, 'introduced_by_person_id');
+}
+
+function findPartyFilter(filters: QueryContainer[]): QueryContainer | undefined {
+    return findIntroducedOrSpokeFilter(filters, 'introduced_by_party_id');
 }
 
 describe('buildFilters person filter', () => {
@@ -208,9 +216,11 @@ describe('buildFilters person filter', () => {
 
         const filters = buildFilters(request);
 
-        expect(findPersonFilter(filters)).toBeDefined();
-        const partyFilter = filters.find((f) => f.terms?.['introduced_by_party_id']);
-        expect(partyFilter?.terms?.['introduced_by_party_id']).toEqual(['party1']);
+        const personFilter = findPersonFilter(filters);
+        const partyFilter = findPartyFilter(filters);
+        expect(personFilter).toBeDefined();
+        expect(partyFilter).toBeDefined();
+        expect(partyFilter).not.toBe(personFilter);
     });
 
     it('omits the person filter entirely when no personIds are given', () => {
@@ -229,6 +239,51 @@ describe('buildFilters person filter', () => {
         expect(findPersonFilter(filters)).toBeUndefined();
     });
 });
+
+describe('buildFilters party filter', () => {
+    // The search page adds the person's party to every person filter, so an
+    // introducer-only party clause cut a person's results to the subjects their
+    // party introduced.
+    it('OR-combines introduced-by-party and a speaker of the party', () => {
+        const request: SearchRequest = { query: 'roads', partyIds: ['party1'] };
+
+        const filters = buildFilters(request);
+        const partyFilter = findPartyFilter(filters);
+
+        expect(partyFilter).toBeDefined();
+
+        const bool = partyFilter!.bool as BoolQuery;
+        const should = (bool.should ?? []) as QueryContainer[];
+
+        expect(bool.minimum_should_match).toBe(1);
+        expect(should).toHaveLength(2);
+
+        const introducedBy = should.find((c) => c.terms?.['introduced_by_party_id']);
+        expect(introducedBy?.terms?.['introduced_by_party_id']).toEqual(['party1']);
+
+        const spokeIn = should.find((c) => c.nested);
+        expect(spokeIn?.nested?.path).toBe('speaker_contributions');
+        expect(
+            (spokeIn?.nested?.query as QueryContainer).terms?.[
+                'speaker_contributions.speaker_party_id'
+            ]
+        ).toEqual(['party1']);
+    });
+
+    it('does not leave an introducer-only party clause at the top level', () => {
+        const request: SearchRequest = { query: 'roads', partyIds: ['party1'] };
+
+        const filters = buildFilters(request);
+
+        expect(filters.filter((f) => f.terms?.['introduced_by_party_id'])).toHaveLength(0);
+    });
+
+    it('omits the party filter when partyIds is empty or absent', () => {
+        expect(findPartyFilter(buildFilters({ query: 'roads' }))).toBeUndefined();
+        expect(findPartyFilter(buildFilters({ query: 'roads', partyIds: [] }))).toBeUndefined();
+    });
+});
+
 
 // The scored query is a single bool (no rank fusion) — see the RRF regression
 // note on the semantic describe block. Unwraps the ranking function_score and
