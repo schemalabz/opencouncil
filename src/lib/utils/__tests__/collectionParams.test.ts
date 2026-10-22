@@ -60,6 +60,11 @@ describe('parseCollectionParams', () => {
         expect(parse('page=').page).toBe(1);
         expect(parse('').page).toBe(1);
     });
+
+    it('reads an empty `filters` as no filter, which applies the defaults', () => {
+        expect(parse('filters=').selectedFilters).toEqual(['council']);
+        expect(parse('filters=Δημοτική Επιτροπή,').selectedFilters).toEqual(['committee']);
+    });
 });
 
 describe('URL builders', () => {
@@ -104,6 +109,17 @@ describe('URL builders', () => {
         const params = base();
         withPage(params, 2);
         withSearchQuery(params, '');
+        expect(params.toString()).toBe(base().toString());
+    });
+
+    it('withBodySelection clears the body for an id that the options do not hold', () => {
+        expect(withBodySelection(base(), 'body-z', communities).get('body')).toBeNull();
+    });
+
+    it('withFilterSelection and withBodySelection never change the params they receive', () => {
+        const params = base();
+        withFilterSelection(params, ['committee'], filterOptions, ['council']);
+        withBodySelection(params, 'body-b', communities);
         expect(params.toString()).toBe(base().toString());
     });
 });

@@ -29,11 +29,15 @@ jest.mock('next/navigation', () => ({
     useSearchParams: () => jest.requireActual('react').useContext(mockNavigation),
 }));
 
+// One router for every render, as in Next: a hook that closes over a stale
+// value would otherwise be rebuilt on every render here and hide it.
+const mockRouter = {
+    push: (href: string, options: unknown) => { push(href, options); navigateTo(href); },
+    replace: (href: string, options: unknown) => { replace(href, options); navigateTo(href); },
+};
+
 jest.mock('@/i18n/routing', () => ({
-    useRouter: () => ({
-        push: (href: string, options: unknown) => { push(href, options); navigateTo(href); },
-        replace: (href: string, options: unknown) => { replace(href, options); navigateTo(href); },
-    }),
+    useRouter: () => mockRouter,
     usePathname: () => '/chania/meetings',
 }));
 
@@ -272,5 +276,65 @@ describe('useServerCollection', () => {
         await goTo('');
         await act(async () => result.current.setPage(2));
         expect(push).toHaveBeenLastCalledWith(url({ page: '2' }), { scroll: false });
+    });
+
+    it('shows the page that the server clamped to, not the page in the URL', async () => {
+        // ?page=99 on a list of 11 pages: the server loaded page 11.
+        const { result } = render('page=99', 11);
+        expect(result.current.page).toBe(11);
+    });
+
+    it('does not navigate when the reader asks for the URL already shown', async () => {
+        const { result } = render('page=2');
+        await act(async () => result.current.setPage(2));
+        expect(push).not.toHaveBeenCalled();
+        expect(result.current.pending).toBe(false);
+    });
+
+    it('sends one navigation for a burst of typing', async () => {
+        jest.useFakeTimers();
+        const { result } = render('');
+        for (const text of ['σ', 'σχ', 'σχο', 'σχολ']) {
+            await act(async () => result.current.search!.setQuery(text));
+            await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1); });
+        }
+        await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
+        expect(replace).toHaveBeenCalledTimes(1);
+        expect(replace).toHaveBeenCalledWith(url({ search: 'σχολ' }), { scroll: false });
+    });
+
+    it('pages within a filter that is still loading', async () => {
+        const { result } = render('');
+        await act(async () => result.current.setFilters(['community']));
+        await act(async () => result.current.setPage(2));
+        expect(push).toHaveBeenLastCalledWith(url({ filters: 'Κοινότητες', page: '2' }), { scroll: false });
+    });
+
+    it('follows Forward back to the URL it sent itself, after a Back', async () => {
+        jest.useFakeTimers();
+        const { result } = render('');
+        await act(async () => result.current.search!.setQuery('πρωτο'));
+        await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
+        await land();
+        // Back to an entry with another search, then Forward to the one this source sent.
+        await goTo('search=αλλο');
+        expect(result.current.search!.query).toBe('αλλο');
+        await goTo('search=πρωτο');
+        expect(result.current.search!.query).toBe('πρωτο');
+        replace.mockClear();
+        await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2); });
+        expect(replace).not.toHaveBeenCalled();
+    });
+
+    it('keeps a page picked while its own search is still loading', async () => {
+        jest.useFakeTimers();
+        const { result } = render('', 1);
+        await act(async () => result.current.search!.setQuery('σχολ'));
+        await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS); });
+        // The search has not landed; the reader turns to page 2 of its results.
+        await act(async () => result.current.setPage(2));
+        expect(push).toHaveBeenLastCalledWith(url({ search: 'σχολ', page: '2' }), { scroll: false });
+        await act(async () => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2); });
+        expect(replace).toHaveBeenCalledTimes(1);
     });
 });

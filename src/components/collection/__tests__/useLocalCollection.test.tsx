@@ -108,4 +108,28 @@ describe('useLocalCollection', () => {
         expect(render('filters=Κοινότητες').result.current.hrefForPage(2)).toBe(`?${new URLSearchParams({ filters: 'Κοινότητες', page: '2' })}`);
         expect(render('page=2').result.current.hrefForPage(1)).toBe('?');
     });
+
+    it('follows the search of an entry that Back or Forward restores', () => {
+        const { result, rerender } = render('search=πρωτο');
+        expect(result.current.search!.query).toBe('πρωτο');
+        mockSearchParams = new URLSearchParams('search=δευτερο');
+        rerender();
+        expect(result.current.search!.query).toBe('δευτερο');
+    });
+
+    it('leaves the URL alone when the search did not change', () => {
+        jest.useFakeTimers();
+        const replace = jest.spyOn(window.history, 'replaceState');
+        render('search=x&page=2');
+        act(() => { jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS * 2); });
+        expect(replace).not.toHaveBeenCalled();
+        jest.useRealTimers();
+    });
+
+    it('writes an explicit "all" when the list has a default selection', () => {
+        const push = jest.spyOn(window.history, 'pushState');
+        const { result } = render('', { defaultFilterValues: ['council'] });
+        act(() => result.current.setFilters([]));
+        expect(push).toHaveBeenLastCalledWith(null, '', '?filters=*');
+    });
 });

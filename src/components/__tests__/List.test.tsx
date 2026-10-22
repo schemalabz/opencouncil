@@ -3,6 +3,7 @@ import List from '../List';
 import { useLocalCollection } from '@/components/collection/useLocalCollection';
 import type { CollectionState } from '@/components/collection/types';
 import { fixedCollection } from '@/components/collection/fixedCollection';
+import { belowHeaderScrollMargin } from '@/components/layout/headerOffset';
 
 let mockSearchParams = new URLSearchParams();
 
@@ -300,6 +301,45 @@ describe('List — paging and scrolling', () => {
         renderList();
         expect(screen.queryByRole('navigation')).toBeNull();
     });
+
+    it('asks the source for the page the reader picked', () => {
+        const setPage = jest.fn();
+        render(drawServer(serverState({ setPage })));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        expect(setPage).toHaveBeenCalledWith(3);
+    });
+
+    it('scrolls once per pick, not again on a later page change', () => {
+        const { rerender } = render(drawServer(serverState()));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        rerender(drawServer(serverState({ page: 3 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        // A filter sends the list back to page 1: no scroll for that.
+        rerender(drawServer(serverState({ page: 1 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks the page on screen as the current one', () => {
+        render(drawServer(serverState({ page: 2 })));
+        expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('aria-current', 'page');
+        expect(screen.getByRole('link', { name: '1' })).not.toHaveAttribute('aria-current');
+    });
+
+    it('keeps the list clear of the sticky header when it scrolls into view', () => {
+        render(drawServer(serverState()));
+        const root = screen.getByTestId('collection-rows').parentElement!;
+        for (const name of belowHeaderScrollMargin.split(' ')) expect(root).toHaveClass(name);
+    });
+
+    it('counts every matching row across pages, not the rows on this page', () => {
+        render(<List<Item, {}, string> state={serverState()} editable={false} ItemComponent={Card} FormComponent={() => null} formProps={{}} t={t} showCount />);
+        expect(screen.getByText('items:30')).toBeInTheDocument();
+    });
+
+    it('dims the rows while a page loads', () => {
+        render(drawServer(serverState({ pending: true })));
+        expect(screen.getByTestId('collection-rows')).toHaveClass('opacity-60');
+    });
 });
 
 describe('List — trailing rows', () => {
@@ -326,5 +366,46 @@ describe('List — status for assistive technology', () => {
     it('marks the rows busy while a page loads', () => {
         renderList({ pending: true });
         expect(screen.getByTestId('collection-rows')).toHaveAttribute('aria-busy', 'true');
+    });
+});
+
+describe('List — opening and closing the search', () => {
+    it('focuses the field when the reader opens it', () => {
+        renderList();
+        openSearch();
+        expect(searchBox()).toHaveFocus();
+    });
+
+    it('does not take the focus when a shared ?search= link opens the field', () => {
+        mockSearchParams = new URLSearchParams('search=παπα');
+        renderList({ items: people, searchKeys: item => [item.name] });
+        expect(searchBox()).not.toHaveFocus();
+    });
+
+    it('clears the query and closes when the reader presses the clear button', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        expect(shownNames()).toEqual(['Μαρία Παπαδοπούλου']);
+        fireEvent.click(screen.getByRole('button', { name: 'clearSearch' }));
+        expect(searchBox()).not.toBeInTheDocument();
+        expect(shownNames()).toHaveLength(2);
+    });
+
+    it('clears the query and closes on Escape', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        fireEvent.keyDown(screen.getByPlaceholderText('searchItems'), { key: 'Escape' });
+        expect(searchBox()).not.toBeInTheDocument();
+        expect(shownNames()).toHaveLength(2);
+    });
+
+    it('stays open on blur while it holds a query, and closes on blur when empty', () => {
+        renderList({ items: people, searchKeys: item => [item.name] });
+        search('μαρια');
+        fireEvent.blur(screen.getByPlaceholderText('searchItems'));
+        expect(searchBox()).toBeInTheDocument();
+        search('');
+        fireEvent.blur(screen.getByPlaceholderText('searchItems'));
+        expect(searchBox()).not.toBeInTheDocument();
     });
 });

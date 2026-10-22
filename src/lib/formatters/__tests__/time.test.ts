@@ -53,4 +53,9 @@ describe('formatNumericDate', () => {
         expect(constructor).toHaveBeenCalledTimes(1);
         constructor.mockRestore();
     });
+
+    it('keeps one formatter per locale, so two locales in one time zone format differently', () => {
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'el')).toBe('25/07/2026');
+        expect(formatNumericDate(lateEvening, 'Europe/Athens', 'sr')).toBe('25.07.2026.');
+    });
 });

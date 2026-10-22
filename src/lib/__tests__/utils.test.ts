@@ -971,4 +971,9 @@ describe('searchTerms and matchesEveryTerm', () => {
     expect(matchesEveryTerm(text, searchTerms('παπα μαρια'))).toBe(true);
     expect(matchesEveryTerm(text, searchTerms('μαρια γιωργος'))).toBe(false);
   });
+
+  it('splits on any blank space, such as a tab or a no-break space', () => {
+    expect(searchTerms('μαρια\tπαπα')).toEqual(['μαρια', 'παπα']);
+    expect(searchTerms('μαρια\u00a0παπα')).toEqual(['μαρια', 'παπα']);
+  });
 });
