@@ -16,6 +16,9 @@ import {
     getRealmStage,
     telHref,
     ALL_REALMS,
+    bodyTypeForHost,
+    bodyDirectoryPath,
+    bodyTypeHostEntryPath,
 } from '../realm';
 
 describe('createRealmResolver', () => {
@@ -285,5 +288,38 @@ describe('metadataBaseForHost', () => {
         expect(metadataBaseForHost('evil.com', 'greece')).toBe('https://opencouncil.gr');
         expect(metadataBaseForHost('localhost:3000', 'france')).toBe('https://opencouncil.fr');
         expect(metadataBaseForHost(null, 'serbia')).toBe('https://opencouncil.rs');
+    });
+});
+
+describe('bodyTypeForHost', () => {
+    it('names the body type a host opens on, port and case aside', () => {
+        expect(bodyTypeForHost('youth.opencouncil.gr')).toBe('youthCouncil');
+        expect(bodyTypeForHost('YOUTH.opencouncil.gr:443')).toBe('youthCouncil');
+    });
+
+    it('is null for the apex, a city host, a preview and nothing', () => {
+        expect(bodyTypeForHost('opencouncil.gr')).toBeNull();
+        expect(bodyTypeForHost('www.youth.opencouncil.gr')).toBeNull();
+        expect(bodyTypeForHost('pr-7.opencouncil.dev')).toBeNull();
+        expect(bodyTypeForHost(null)).toBeNull();
+        // A prototype key is not a host.
+        expect(bodyTypeForHost('constructor')).toBeNull();
+    });
+});
+
+describe('bodyTypeHostEntryPath', () => {
+    const prefixes = ['en', 'el'];
+
+    it('serves the directory at the root of the host, in the locale the path names', () => {
+        expect(bodyTypeHostEntryPath('youth.opencouncil.gr', '/', prefixes)).toBe(bodyDirectoryPath('youthCouncil'));
+        expect(bodyTypeHostEntryPath('youth.opencouncil.gr', '/en', prefixes)).toBe('/en/bodies/youthCouncil');
+    });
+
+    it('leaves every other path, and every other host, alone', () => {
+        expect(bodyTypeHostEntryPath('youth.opencouncil.gr', '/chania', prefixes)).toBeNull();
+        expect(bodyTypeHostEntryPath('youth.opencouncil.gr', '/en/chania', prefixes)).toBeNull();
+        // A locale the realm does not serve is not an entry: the proxy 301s it away.
+        expect(bodyTypeHostEntryPath('youth.opencouncil.gr', '/fr', prefixes)).toBeNull();
+        expect(bodyTypeHostEntryPath('opencouncil.gr', '/', prefixes)).toBeNull();
     });
 });

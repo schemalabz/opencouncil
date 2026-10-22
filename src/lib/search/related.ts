@@ -1,5 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
+import type { AdministrativeBodyType } from '@prisma/client';
 import { env } from '@/env.mjs';
+import { SECONDARY_BODY_TYPES, bodyTier } from '@/lib/utils/bodyTier';
 import type { RelatedScope } from './types';
 import { subjectVisibilityFilters } from './query';
 
@@ -9,6 +11,21 @@ export interface RelatedSubjectSeed {
     name: string;
     cityId: string;
     councilMeetingId: string;
+    /** The type of the body that held the meeting; null for a meeting with no body. */
+    administrativeBodyType: AdministrativeBodyType | null;
+}
+
+/**
+ * The tier clause of the related query (see bodyTier.ts). A municipal
+ * subject never relates to a secondary body's. A secondary body's subject
+ * relates to every body of its own municipality, and to the same kind of
+ * body in the other municipalities.
+ */
+function relatedTierFilters(seed: RelatedSubjectSeed, scope: RelatedScope): estypes.QueryDslQueryContainer[] {
+    if (bodyTier(seed.administrativeBodyType) === 'primary') {
+        return [{ bool: { must_not: [{ terms: { administrative_body_type: [...SECONDARY_BODY_TYPES] } }] } }];
+    }
+    return scope === 'other' ? [{ term: { administrative_body_type: seed.administrativeBodyType! } }] : [];
 }
 
 /** How many related subjects a subject page shows per scope. */
@@ -82,6 +99,7 @@ export function buildRelatedSubjectsQuery(
                 filter: [
                     ...subjectVisibilityFilters(),
                     { terms: { city_id: scopeCityIds } },
+                    ...relatedTierFilters(seed, scope),
                 ],
                 // The subject itself, and its siblings from the same meeting:
                 // the meeting page already lists those. A meeting id is a

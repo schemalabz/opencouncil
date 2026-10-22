@@ -1,6 +1,6 @@
 import "server-only";
 
-import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
+import { AdministrativeBodyType, NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import * as z from 'zod';
 import { auth } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
@@ -22,6 +22,7 @@ import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { SECONDARY_BODY_TYPES, isSecondaryBody } from '@/lib/utils/bodyTier';
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -83,7 +84,9 @@ export async function getNotificationPreferenceForCity(userId: string, cityId: s
     await requireSelfOrSuperadmin(userId);
     return prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
-        include: { interests: true, locations: true },
+        // The bodies the reader follows (#829): the meeting page promises an
+        // update only where one will come.
+        include: { interests: true, locations: true, bodies: { select: { id: true } } },
     });
 }
 
@@ -270,7 +273,7 @@ export async function saveNotificationPreferences(
     // person's (User.notifyByPhone), the email summary is this municipality's.
     const {
         cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
-        notifyByPhone, notifyByEmail, returnTo,
+        notifyByPhone, notifyByEmail, bodyIds, returnTo,
     } = validation.data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
@@ -391,6 +394,23 @@ export async function saveNotificationPreferences(
             validTopicIds = topics.map(topic => topic.id);
         }
 
+        // The bodies a reader may follow: secondary bodies of this city. Any
+        // other id is dropped, as an unknown topic is.
+        const validBodyIds = bodyIds?.length
+            ? (await prisma.administrativeBody.findMany({
+                  where: { id: { in: bodyIds }, cityId, type: { in: [...SECONDARY_BODY_TYPES] } },
+                  select: { id: true },
+              })).map(body => body.id)
+            : [];
+
+        // The scope of the row (#829). In a municipality that does not support
+        // notifications, the signup offers the secondary bodies alone, so the
+        // row follows its bodies and the municipality's own bodies do not reach
+        // it. The server reads the scope: a save in the municipality's own
+        // signup widens it, and nothing a client sends does.
+        const city = await prisma.city.findUniqueOrThrow({ where: { id: cityId }, select: { supportsNotifications: true } });
+        const bodiesOnly = !city.supportsNotifications;
+
         // Create the locations and the preference in one transaction. The
         // locations are created here (server-side, at submit time) rather than
         // by a separate client action, and they commit only together with the
@@ -418,6 +438,9 @@ export async function saveNotificationPreferences(
             const interestConnect = validTopicIds.length > 0
                 ? { connect: validTopicIds.map(id => ({ id })) }
                 : undefined;
+            // The whole list, so an unticked body leaves; nothing when the
+            // caller did not ask about the bodies at all.
+            const bodiesWrite = bodyIds === undefined ? {} : { bodies: { set: validBodyIds.map(id => ({ id })) } };
 
             // Only the channels the caller decided on are written: an older
             // caller that sends neither leaves the flags alone and a new row on
@@ -448,7 +471,7 @@ export async function saveNotificationPreferences(
                 });
                 const updated = await tx.notificationPreference.update({
                     where: { id: existing.id },
-                    data: { locations: locationConnect, interests: interestConnect, ...channels },
+                    data: { locations: locationConnect, interests: interestConnect, ...bodiesWrite, ...channels, bodiesOnly },
                     include: { city: true, locations: true, interests: true },
                 });
                 // The places this save replaced, removed ones included.
@@ -457,7 +480,10 @@ export async function saveNotificationPreferences(
             }
 
             const created = await tx.notificationPreference.create({
-                data: { userId, cityId, locations: locationConnect, interests: interestConnect, ...channels },
+                data: {
+                    userId, cityId, locations: locationConnect, interests: interestConnect, ...channels, bodiesOnly,
+                    ...(validBodyIds.length > 0 ? { bodies: { connect: validBodyIds.map(id => ({ id })) } } : {}),
+                },
                 include: { city: true, locations: true, interests: true },
             });
             return { preference: created, wasNew: true };
@@ -698,6 +724,23 @@ export async function calculateProximityMatches(
 }
 
 /**
+ * The audience of a meeting (#829). A meeting of a secondary body reaches the
+ * preferences that follow that body: a youth council's agenda is not what the
+ * municipality's subscribers signed up for. A meeting of a primary body, or
+ * with no body, reaches every preference of the city except the rows that
+ * follow bodies alone. The Notis poller applies the same rule to the
+ * notis_fanout_targets view; preferenceCoversBody is the rule for one row.
+ */
+function meetingAudienceWhere(
+    cityId: string,
+    meeting: { administrativeBodyId: string | null; administrativeBody: { type: AdministrativeBodyType } | null },
+): Prisma.NotificationPreferenceWhereInput {
+    return isSecondaryBody(meeting.administrativeBody) && meeting.administrativeBodyId
+        ? { cityId, bodies: { some: { id: meeting.administrativeBodyId } } }
+        : { cityId, bodiesOnly: false };
+}
+
+/**
  * A meeting with what the automatic notifications need: the facts the news
  * rule reads, the body's behavior, and the names of the Discord alerts.
  */
@@ -745,9 +788,8 @@ async function matchMeetingRecipients(
         throw new Error(`Meeting ${meetingId} not found`);
     }
 
-    // Get all users with notification preferences for this city
     const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId },
+        where: meetingAudienceWhere(cityId, meeting),
         include: {
             user: true,
             locations: true,
@@ -816,11 +858,14 @@ async function matchMeetingRecipients(
         }
     }
 
-    // Use shared matching logic to determine which users should be notified
+    // Use shared matching logic to determine which users should be notified.
+    // The audience of a secondary body's meeting is its followers (see
+    // meetingAudienceWhere), and the follow is the match.
     const userSubjectMatches = await matchUsersToSubjects(
         subjectsForMatching,
         usersWithPreferences,
-        effectiveOverrides
+        effectiveOverrides,
+        { followedBody: isSecondaryBody(meeting.administrativeBody) },
     );
 
     // Filter out users with no matching subjects
@@ -1395,6 +1440,13 @@ export async function getUserNotificationPreferences(userId: string) {
                         name: true,
                         colorHex: true
                     }
+                },
+                bodies: {
+                    select: {
+                        id: true,
+                        name: true,
+                        name_en: true
+                    }
                 }
             },
             orderBy: {
@@ -1753,7 +1805,9 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    // The scope of the meeting, as on the send: the admin of its body
+    // previews the audience of their own meetings (#828).
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
@@ -1763,7 +1817,8 @@ export async function getNotificationImpactPreviewData(
                     topic: true,
                     location: true
                 }
-            }
+            },
+            administrativeBody: { select: { type: true } },
         }
     });
 
@@ -1771,9 +1826,9 @@ export async function getNotificationImpactPreviewData(
         throw new Error('Meeting not found');
     }
 
-    // Get all users with notification preferences for this city
+    // The preview counts the audience the send will have.
     const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId },
+        where: meetingAudienceWhere(cityId, meeting),
         include: {
             user: true,
             locations: true,

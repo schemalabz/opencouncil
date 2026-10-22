@@ -30,6 +30,14 @@ export function seedProfileFromPreferences(cities: CityPreference[]): string {
       if (city.locations.length === 0) {
         parts.push("Χωρίς συγκεκριμένες περιοχές.");
       }
+      // A body followed by name (#829) is asked for on its own, whatever the
+      // topics say; a reader who follows bodies alone chose nothing else.
+      if (city.bodies?.length) {
+        parts.push(`Παρακολουθεί ονομαστικά: ${city.bodies.join(", ")}.`);
+      }
+      if (city.bodiesOnly) {
+        parts.push("Έχει επιλέξει μόνο αυτά τα όργανα, όχι τον δήμο συνολικά.");
+      }
       return parts.join(" ");
     })
     .join("\n");

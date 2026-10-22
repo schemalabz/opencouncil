@@ -16,6 +16,11 @@ interface OfficialSupportBadgeProps {
     cityId?: string;
     /** Decides whether the guide exists to link to — it is a Greek-realm page. */
     realm?: Realm;
+    /**
+     * Public through a secondary body alone (#829, see isPublicThroughSecondaryOnly):
+     * the chip names that body instead of saying "unofficial" and nothing more.
+     */
+    publicThroughSecondaryOnly?: boolean;
     className?: string;
     size?: 'sm' | 'md' | 'lg';
 }
@@ -36,6 +41,7 @@ export function OfficialSupportBadge({
     authorityType,
     cityId,
     realm,
+    publicThroughSecondaryOnly = false,
     className,
     size = 'md'
 }: OfficialSupportBadgeProps) {
@@ -45,9 +51,13 @@ export function OfficialSupportBadge({
     const iconSizes = { sm: 'w-3 h-3', md: 'w-3.5 h-3.5', lg: 'w-4 h-4' };
 
     const officialSupport = isCustomer(status);
+    const shortLabel = officialSupport
+        ? t('supportBadgeShortOfficial')
+        : publicThroughSecondaryOnly ? t('supportBadgeShortYouthOnly') : t('supportBadgeShortUnofficial');
 
     // The sentence the chip used to carry, now the body of what it opens.
     const detail = () => {
+        if (!officialSupport && publicThroughSecondaryOnly) return t('supportBadgeYouthOnly');
         // Athens credits its co-funding partner.
         if (officialSupport && cityId === 'athens') return t('supportBadgeOfficialAthens');
         if (authorityType === 'municipality') {
@@ -84,7 +94,7 @@ export function OfficialSupportBadge({
                     )}
                     aria-hidden
                 />
-                {officialSupport ? t('supportBadgeShortOfficial') : t('supportBadgeShortUnofficial')}
+                {shortLabel}
             </PopoverTrigger>
             <PopoverContent align="start" sideOffset={6} className="w-64" onClick={keepInsideBadge}>
                 <p className="flex gap-2 text-[13px] leading-snug">

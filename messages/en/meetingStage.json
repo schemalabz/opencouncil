@@ -31,7 +31,8 @@
         "postponed": "The meeting of {date} was postponed. When the municipality sets the new meeting, you will find it in the list of meetings.",
         "cancelled": "The meeting of {date} was cancelled and did not take place. The agenda stays here for reference.",
         "reason": "Reason: {reason}",
-        "byCirculation": "The meeting was held by circulation, with a written vote. There is no video and no transcript; the agenda and the decisions are available."
+        "byCirculation": "The meeting was held by circulation, with a written vote. There is no video and no transcript; the agenda and the decisions are available.",
+        "notRecorded": "The meeting was held with no recording. There is no video and no transcript; the agenda is available."
     },
     "actions": {
         "channel": "YouTube channel",

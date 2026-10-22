@@ -2,10 +2,11 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody, Prisma } from '@prisma/client';
+import { AdministrativeBody, AdministrativeBodyType, NotificationBehavior, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { NotFoundError } from "@/lib/api/errors";
+import { BadRequestError, NotFoundError } from "@/lib/api/errors";
+import { PUBLIC_CITY_WHERE } from "../cityStatus";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
 import {
     administrativeBodySettingsSelect,
@@ -13,7 +14,9 @@ import {
     type AdministrativeBodySettings,
     type AdministrativeBodyWithSettings,
     type PublicAdministrativeBody,
+    type PublicAdministrativeBodyWithUpdates,
 } from "./types/administrativeBody";
+import { bodySendsUpdates, isSecondaryBody } from "../utils/bodyTier";
 
 /**
  * The row with its stored conventions read through parseDecisionConventions.
@@ -48,6 +51,46 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 /**
+ * What the page of a body shows everyone: the public fields (with the hall it
+ * sits in and its channel), and how many public meetings it has held.
+ */
+export const bodyPageSelect = {
+    ...publicAdministrativeBodySelect,
+    // Read on the server only: getBodyPageRow turns it into sendsUpdates.
+    notificationBehavior: true,
+    _count: { select: { meetings: { where: { released: true } } } },
+} satisfies Prisma.AdministrativeBodySelect;
+
+/**
+ * The body as its page shows it to everyone. Of the notification behaviour it
+ * carries only whether the body sends updates (#829): the page offers the
+ * follow of a secondary body by it.
+ */
+export type BodyPageRow = Omit<Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyPageSelect }>, 'notificationBehavior'> & {
+    sendsUpdates: boolean;
+};
+
+/** The body for its page. Null when the body does not exist or belongs to another city. */
+export async function getBodyPageRow(cityId: string, bodyId: string): Promise<BodyPageRow | null> {
+    const row = await prisma.administrativeBody.findFirst({ where: { id: bodyId, cityId }, select: bodyPageSelect });
+    if (!row) return null;
+    const { notificationBehavior, ...body } = row;
+    return { ...body, sendsUpdates: bodySendsUpdates(notificationBehavior) };
+}
+
+/** The settings that an admin of the body may change (#828, #829). Gated on the body. */
+export async function getAdministrativeBodyContacts(
+    cityId: string,
+    bodyId: string,
+): Promise<{ youtubeChannelUrl: string | null; contactEmails: string[]; notificationBehavior: NotificationBehavior } | null> {
+    await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
+    return prisma.administrativeBody.findFirst({
+        where: { id: bodyId, cityId },
+        select: { youtubeChannelUrl: true, contactEmails: true, notificationBehavior: true },
+    });
+}
+
+/**
  * Every administrative body of a city, with the fields anyone may read. The
  * public twin of {@link getAdministrativeBodiesForCity}.
  */
@@ -73,21 +116,24 @@ export async function getPublicAdministrativeBodiesForCity(cityId: string): Prom
  * filter only offers bodies a visitor could actually see meetings for.
  *
  * Public fields only: a browser reaches this through a Server Action that takes
- * any city id, and the meetings tab hands the result to a Client Component.
+ * any city id, and the meetings tab hands the result to a Client Component. Of
+ * the notification behaviour, a row carries only whether the body sends
+ * updates, which the signup reads (#829).
  */
-export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<PublicAdministrativeBody[]> {
+export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<PublicAdministrativeBodyWithUpdates[]> {
     try {
-        return await prisma.administrativeBody.findMany({
+        const bodies = await prisma.administrativeBody.findMany({
             where: {
                 cityId,
                 meetings: { some: { released: true } },
             },
-            select: publicAdministrativeBodySelect,
+            select: { ...publicAdministrativeBodySelect, notificationBehavior: true },
             orderBy: [
                 { type: 'asc' },
                 { name: 'asc' },
             ],
         });
+        return bodies.map(({ notificationBehavior, ...body }) => ({ ...body, sendsUpdates: bodySendsUpdates(notificationBehavior) }));
     } catch (error) {
         console.error('Error fetching administrative bodies with public meetings:', error);
         throw new Error('Failed to fetch administrative bodies');
@@ -148,24 +194,29 @@ export async function editAdministrativeBody(
 }
 
 /**
- * The two settings a body admin may change (#828): where the body's
- * recordings live and who receives its transcripts. The name, the type, the
- * notification behaviour and the Diavgeia scopes stay with the city admin.
+ * The settings a body admin may change (#828): where the body's recordings
+ * live and who receives its transcripts. On a secondary body (#829), whether
+ * its meetings send updates to the readers who follow it; a primary body's
+ * notification behaviour stays with the city admin, as do the name, the type
+ * and the Diavgeia scopes.
  */
 export async function editAdministrativeBodyContacts(
     id: string,
-    { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
+    { youtubeChannelUrl, contactEmails, notificationBehavior }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails' | 'notificationBehavior'>>
 ): Promise<AdministrativeBodyWithSettings> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
-        select: { cityId: true },
+        select: { cityId: true, type: true },
     });
     if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
+    if (notificationBehavior !== undefined && !isSecondaryBody(existingBody)) {
+        throw new BadRequestError('The notification behaviour of this body is set by the city admin');
+    }
     const updatedBody = await prisma.administrativeBody.update({
         where: { id },
-        data: { youtubeChannelUrl, contactEmails },
+        data: { youtubeChannelUrl, contactEmails, notificationBehavior },
     });
     return withParsedConventions(updatedBody);
 }
@@ -186,4 +237,61 @@ export async function deleteAdministrativeBody(id: string): Promise<void> {
         console.error('Error deleting administrative body:', error);
         throw new Error('Failed to delete administrative body');
     }
+}
+
+/**
+ * A body on the directory of its type (#829): its public fields, its city,
+ * and what a card draws: the active members, the released meetings, the
+ * last of them. `now` is the instant a membership counts as active at.
+ */
+function bodyDirectorySelect(now: Date) {
+    return {
+        ...publicAdministrativeBodySelect,
+        city: {
+            select: { id: true, name: true, name_en: true, name_municipality: true, name_municipality_en: true, logoImage: true, timezone: true },
+        },
+        _count: {
+            select: {
+                meetings: { where: { released: true } },
+                roles: {
+                    where: {
+                        AND: [
+                            { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+                            { OR: [{ endDate: null }, { endDate: { gt: now } }] },
+                        ],
+                    },
+                },
+            },
+        },
+        // The last meeting held: a published next meeting is not it.
+        meetings: { where: { released: true, dateTime: { lte: now } }, orderBy: { dateTime: 'desc' }, take: 1, select: { id: true, dateTime: true } },
+    } satisfies Prisma.AdministrativeBodySelect;
+}
+
+export type BodyDirectoryRow = Prisma.AdministrativeBodyGetPayload<{ select: ReturnType<typeof bodyDirectorySelect> }>;
+
+/** The public cities of a realm: by status, or through a secondary body (#829), as PUBLIC_CITY_WHERE reads it. */
+const publicCityOfRealmWhere = (realm: Realm): Prisma.CityWhereInput => ({ realm, ...PUBLIC_CITY_WHERE });
+
+/**
+ * The bodies of one type across a realm that have released a meeting, in
+ * public cities, by city and then by name: the directory of the type (#829).
+ */
+export async function getBodyDirectory(realm: Realm, type: AdministrativeBodyType): Promise<BodyDirectoryRow[]> {
+    return prisma.administrativeBody.findMany({
+        where: {
+            type,
+            meetings: { some: { released: true } },
+            city: publicCityOfRealmWhere(realm),
+        },
+        select: bodyDirectorySelect(new Date()),
+        orderBy: [{ city: { name: 'asc' } }, { name: 'asc' }],
+    });
+}
+
+/** How many bodies the directory of a type lists in a realm: the sitemap advertises a directory that has one. */
+export async function countBodyDirectory(realm: Realm, type: AdministrativeBodyType): Promise<number> {
+    return prisma.administrativeBody.count({
+        where: { type, meetings: { some: { released: true } }, city: publicCityOfRealmWhere(realm) },
+    });
 }

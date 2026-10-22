@@ -258,6 +258,9 @@ describe('PR1: server-side awaits run concurrently', () => {
         const pastD = deferred<unknown[]>();
         const councilUpcomingD = deferred<unknown[]>();
         const councilPastD = deferred<unknown[]>();
+        const secondaryUpcomingD = deferred<unknown[]>();
+        const secondaryPastD = deferred<unknown[]>();
+        const bodiesD = deferred<unknown[]>();
         const subjectCountD = deferred<number>();
         const petitionD = deferred<null>();
 
@@ -269,7 +272,10 @@ describe('PR1: server-side awaits run concurrently', () => {
             .mockReturnValueOnce(upcomingD.promise)
             .mockReturnValueOnce(pastD.promise)
             .mockReturnValueOnce(councilUpcomingD.promise)
-            .mockReturnValueOnce(councilPastD.promise);
+            .mockReturnValueOnce(councilPastD.promise)
+            .mockReturnValueOnce(secondaryUpcomingD.promise)
+            .mockReturnValueOnce(secondaryPastD.promise);
+        cache.getAdministrativeBodiesWithPublicMeetingsCached.mockReturnValue(bodiesD.promise);
         cache.getSubjectCountForCityCached.mockReturnValue(subjectCountD.promise);
         cache.getCityPetitionBucketCached.mockReturnValue(petitionD.promise);
 
@@ -286,11 +292,16 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getPeopleForCityCached).not.toHaveBeenCalled();
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
-        // Both scopes of both bookends: the band's scope switch must not refetch.
-        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(4);
+        // Both scopes of both bookends, and the secondary tier's pair: the band's
+        // scope switch must not refetch, and the secondary card loads with the rest.
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(6);
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
             timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true,
         });
+        expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
+            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['youthCouncil'], takesPlace: true,
+        });
+        expect(cache.getAdministrativeBodiesWithPublicMeetingsCached).toHaveBeenCalledTimes(1);
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
         // The petition bucket needs the city's status (a supported city has no
         // petition card), so like the notification preference it waits.
@@ -320,6 +331,9 @@ describe('PR1: server-side awaits run concurrently', () => {
         pastD.resolve([]);
         councilUpcomingD.resolve([]);
         councilPastD.resolve([]);
+        secondaryUpcomingD.resolve([]);
+        secondaryPastD.resolve([]);
+        bodiesD.resolve([]);
         subjectCountD.resolve(0);
         petitionD.resolve(null);
 
@@ -403,7 +417,7 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         const { default: PeoplePage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/people/page');
 
-        const pending = PeoplePage({ params: { cityId: 'athens' } });
+        const pending = PeoplePage({ params: { cityId: 'athens' }, searchParams: {} });
 
         await flushMicrotasks();
 

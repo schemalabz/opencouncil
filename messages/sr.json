@@ -58,6 +58,8 @@
         "adminBodyType_council": "Скупштина",
         "adminBodyType_committee": "Одбор",
         "adminBodyType_community": "Заједнице",
+        "adminBodyType_youthCouncil": "Савет младих",
+        "showYouthCouncils": "Савети младих",
         "allPeople": "Сви",
         "allBodies": "Сва",
         "backToHome": "Назад на почетну",
@@ -266,6 +268,8 @@
         "supportBadgeUnofficialRegion": "Без званичне подршке округа",
         "supportBadgeShortOfficial": "Званична подршка",
         "supportBadgeShortUnofficial": "Без званичне подршке",
+        "supportBadgeShortYouthOnly": "Само Савет младих",
+        "supportBadgeYouthOnly": "Без званичне подршке општине. Само њен Савет младих објављује овде своје седнице.",
         "supportBadgeLearnMore": "Ко плаћа OpenCouncil?"
     },
     "EmbedConfigurator": {
@@ -278,6 +282,7 @@
         "locationHint": "Прикажите теме о којима се расправљало у кругу од ~500 m од адресе. У коду за уградњу чува се само приближно подручје (не и тачна адреса).",
         "addressPlaceholder": "Потражите адресу…",
         "description": "Уградите седнице скупштине на веб-сајт своје општине. Прилагодите изглед, копирајте iframe код и налепите га у свој CMS (WordPress, Joomla итд.).",
+        "descriptionBody": "Уградите седнице тела „{body}“ на свој веб-сајт. Прилагодите изглед, копирајте iframe кôд и налепите га у свој CMS (WordPress, Joomla итд.).",
         "accentColor": "Боја",
         "accentColorHint": "Главна боја виџета — користи се за наслове, везе и ознаке. Ускладите је са бојом бренда свог сајта.",
         "darkMode": "Тамна позадина",
@@ -383,6 +388,12 @@
         },
         "closedToPublic": "Без присуства јавности",
         "closedToPublicDescription": "Читаоци виде да је седница одржана без присуства јавности.",
+        "noRecording": "Без снимка",
+        "noRecordingDescription": "Седница је одржана без снимања. Страница не обећава ни видео ни транскрипт.",
+        "agendaAsLink": "Веза или датотека",
+        "agendaAsText": "Налепи текст",
+        "agendaTextPlaceholder": "Налепите овде тачке дневног реда, онако како их наводи позив.",
+        "agendaTextDescription": "Тачке се издвајају из текста после чувања. Оне замењују теме које седница већ има.",
         "place": "Место",
         "placeDescription": "Само ако се разликује од сале органа.",
         "administrativeBody": "Управно тело",
@@ -392,7 +403,8 @@
         "administrativeBodyType": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Општинска заједница"
+            "community": "Општинска заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "meetingAgenda": "Дневни ред седнице",
         "meetingAgendaPlaceholder": "URL или датотека дневног реда",
@@ -562,6 +574,7 @@
         "roleEnDescription": "Унесите функцију члана на енглеском.",
         "image": "Слика",
         "imageDescription": "Отпремите слику члана.",
+        "imageOwnersOnly": "Само члан додаје своју фотографију, са свог налога.",
         "failedToSavePerson": "Чување члана није успело.",
         "unexpectedError": "Неочекивана грешка.",
         "submitting": "Слање...",
@@ -882,6 +895,7 @@
             "byAdmin": "Унео/ла {recorder}, {date}. Особа не може да га промени са свог профила.",
             "unknownAccount": "обрисани налог",
             "recordHint": "Унесите га само ако је особа дала пристанак писмено, на штампаном обрасцу са својеручним потписом. Особа ће га видети на свом профилу, али неће моћи да га промени.",
+            "ownOnlyHint": "Ова особа је само члан савета младих: сагласност долази искључиво са њеног налога. Сагласност се не уноси у њено име.",
             "withdrawHint": "Повуците га када особа то затражи. Период пристанка остаје у историји.",
             "record": "Унеси пристанак",
             "withdraw": "Повуци пристанак",
@@ -985,7 +999,8 @@
         "types": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Месна заједница"
+            "community": "Месна заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "youtubeChannelUrl": "URL YouTube канала",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",

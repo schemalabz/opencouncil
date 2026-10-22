@@ -27,6 +27,12 @@ describe('saveNotificationPreferencesSchema channel consent', () => {
     it('rejects a flag that is not a boolean', () => {
         expect(saveNotificationPreferencesSchema.safeParse({ ...base, notifyByPhone: 'yes' }).success).toBe(false);
     });
+
+    it('carries the bodies the reader follows, and leaves them absent for an older caller', () => {
+        expect(saveNotificationPreferencesSchema.safeParse({ ...base, bodyIds: ['ab_youth'] }).data).toMatchObject({ bodyIds: ['ab_youth'] });
+        expect(saveNotificationPreferencesSchema.safeParse(base).data).not.toHaveProperty('bodyIds');
+        expect(saveNotificationPreferencesSchema.safeParse({ ...base, bodyIds: 'ab_youth' }).success).toBe(false);
+    });
 });
 
 describe('savePetitionSchema other relation', () => {

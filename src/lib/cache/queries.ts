@@ -1,7 +1,7 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -14,7 +14,7 @@ import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
-import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
+import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings, getBodyDirectory } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
@@ -52,6 +52,19 @@ export async function getAllCityIdsCached(realm: Realm) {
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Whether a city is public through a secondary body (#829). Keyed per city
+ * under its meetings tag, which a release busts — the one event that changes
+ * the answer.
+ */
+export async function getCityPublicThroughSecondaryCached(cityId: string): Promise<boolean> {
+  return createCache(
+    () => isCityPublicThroughSecondary(cityId),
+    ['city', cityId, 'publicThroughSecondary'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
 
@@ -117,8 +130,9 @@ export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }
   administrativeBodyTypes?: AdministrativeBodyType[];
   administrativeBodyIds?: string[];
 }): string[] {
+  // No type means the primary tier, not every body (see meetingListQuery).
   return [
-    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
+    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:primary',
     administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
   ];
 }
@@ -267,6 +281,20 @@ export async function getAdministrativeBodiesWithPublicMeetingsCached(cityId: st
     () => getAdministrativeBodiesWithPublicMeetings(cityId),
     ['city', cityId, 'administrativeBodies', 'withPublicMeetings'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * The directory of a body type in a realm (#829). Under the realm's city-list
+ * tags: the release of a secondary meeting busts them, and that is what puts
+ * a body on the directory. The counts and the last meeting of a body change
+ * without a tag of their own here, so a TTL bounds the drift.
+ */
+export async function getBodyDirectoryCached(realm: Realm, type: AdministrativeBodyType) {
+  return createCache(
+    () => getBodyDirectory(realm, type),
+    ['bodies', 'directory', realm, type],
+    { tags: ['cities:all', `realm:${realm}:cities:all`], revalidate: 900 }
   )();
 }
 

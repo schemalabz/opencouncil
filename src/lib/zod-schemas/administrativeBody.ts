@@ -47,10 +47,13 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change these two fields and no other.
+// who may change these fields and no other.
+// The updates switch (#829) is on or off: a secondary body has nobody to
+// approve a pending notification, so NOTIFICATIONS_APPROVAL is not offered.
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: youtubeChannelUrlRequest,
     contactEmails: z.array(z.email()).optional(),
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO']).optional(),
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision

@@ -141,8 +141,9 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
  * One meeting as a stamp-led row — shared by both halves, so the next and the
  * latest meeting can never drift apart in shape. The row is the link; a filled
  * button under it would repeat the same target and cost 56px of a phone screen.
+ * The secondary-body card beside this module draws its rows with it too.
  */
-function MeetingRow({
+export function MeetingRow({
     entry,
     cityId,
     timezone,

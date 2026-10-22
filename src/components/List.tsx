@@ -23,11 +23,17 @@ export interface BaseListProps {
 }
 
 
-interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
+interface ListProps<T, P = {}, F = string | undefined, FP = {}> extends BaseListProps {
     items: T[];
     ItemComponent: React.ComponentType<{ item: T, editable: boolean } & P>;
-    FormComponent: React.ComponentType<any>;
-    formProps: any;
+    /**
+     * The "add item" form and its props, typed against each other as in
+     * FormSheet: a prop the form requires and the caller forgets does not
+     * compile. Untyped, the body page once opened the meeting form without
+     * its realm, and the people tab lost the role kinds of the person form.
+     */
+    FormComponent: React.ComponentType<FP & { onSuccess: () => void }>;
+    formProps: FP;
     editable: boolean;
     t: (key: string, params?: any) => string;
     itemProps?: P;
@@ -92,7 +98,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     sortItems?: (items: T[], selectedValues: F[]) => T[];
 }
 
-export default function List<T extends { id: string }, P = {}, F = string | undefined>({
+export default function List<T extends { id: string }, P = {}, F = string | undefined, FP = {}>({
     items,
     editable,
     adminTools,
@@ -120,7 +126,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     renderAfterFilters,
     trailing,
     sortItems,
-}: ListProps<T, P, F>) {
+}: ListProps<T, P, F, FP>) {
     const tCommon = useTranslations('Common');
     const searchParams = useSearchParams();
     const listRef = useRef<HTMLDivElement>(null);
