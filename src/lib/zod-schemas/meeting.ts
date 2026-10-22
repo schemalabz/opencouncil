@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
+import { AGENDA_TEXT_MAX_LENGTH, OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { blankToNull, webUrl } from './primitives';
 import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
@@ -53,10 +53,14 @@ export const baseMeetingFields = {
     }).meta({ description: 'How the meeting takes place.' }),
     closedToPublic: z.boolean()
         .meta({ description: 'The council decided to meet behind closed doors. The meeting is still recorded and transcribed.' }),
+    noRecording: z.boolean()
+        .meta({ description: 'The body states that no recording of the meeting exists: no video and no transcription. The agenda stays.' }),
     place: z.string().trim().max(200)
         .meta({ description: 'Where the meeting takes place, when it is not the usual hall of its body.' }),
     postponedFromId: z.string().min(1)
         .meta({ description: 'The id of the postponed meeting that this meeting replaces.' }),
+    agendaText: z.string().trim().max(AGENDA_TEXT_MAX_LENGTH)
+        .meta({ description: 'The agenda as pasted text, for a body that has no agenda PDF. The app extracts the subjects of the meeting from it after the write.' }),
 };
 
 // The name of a meeting is derived (src/lib/meetingName.ts), so the schema
@@ -87,7 +91,11 @@ export const meetingSchema = z.object({
     sessionNumber: baseMeetingFields.sessionNumber.nullable().optional(),
     format: baseMeetingFields.format.nullable().optional(),
     closedToPublic: baseMeetingFields.closedToPublic.optional(),
+    noRecording: baseMeetingFields.noRecording.optional(),
     place: blankToNull(baseMeetingFields.place),
+    // The agenda as pasted text, for a body that has no PDF (#829). The app
+    // extracts the subjects from it after the write; see lib/agendaText.ts.
+    agendaText: blankToNull(baseMeetingFields.agendaText),
     postponedFromId: baseMeetingFields.postponedFromId.nullable().optional(),
     continuationOfId: z.string().min(1).nullable().optional(),
 });
@@ -136,6 +144,11 @@ export const meetingFormSchema = meetingSchema.extend({
     urgent: baseMeetingFields.urgent,
     scheduleStatus: baseMeetingFields.scheduleStatus,
     closedToPublic: baseMeetingFields.closedToPublic,
+    noRecording: baseMeetingFields.noRecording,
+    // The agenda as a link or a file, or as pasted text (#829, lib/agendaText.ts).
+    // The mode is the form's own: the request carries agendaUrl or agendaText.
+    agendaMode: z.enum(['link', 'text']),
+    agendaText: baseMeetingFields.agendaText.optional(),
     // The form holds the stored format, by circulation too, and does not send
     // back a format that no form offers.
     format: z.enum(MeetingFormat).nullable(),

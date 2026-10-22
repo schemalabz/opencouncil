@@ -35,6 +35,7 @@ const MeetingSchema = z.object({
     format: z.enum(MeetingFormat).meta({ description: baseMeetingFields.format.description })
         .nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
     closedToPublic: baseMeetingFields.closedToPublic,
+    noRecording: baseMeetingFields.noRecording,
     place: baseMeetingFields.place.nullable().meta({ description: 'In public responses, the place of the meeting or else of its body.' }),
     continuationOfId: z.string().nullable().optional().meta({ description: 'Admin responses only.' }),
     postponedFromId: baseMeetingFields.postponedFromId.nullable().optional().meta({ description: 'Admin responses only. Public responses carry postponedFromDate instead.' }),
@@ -58,6 +59,7 @@ const MeetingCreatedSchema = MeetingSchema.extend({
 const MeetingDataSchema = z.object({
     meeting: MeetingSchema,
     transcriptHiddenForReview: z.boolean(),
+    notificationsDisabled: z.boolean().meta({ description: 'The body of the meeting sends no notifications.' }),
     transcript: z.array(z.unknown()),
     speakerTags: z.array(z.unknown()),
     people: z.array(PersonWithRolesSchema),

@@ -1,5 +1,5 @@
 import { AdministrativeBodyType, Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
+import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf, lastMembershipEndOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
@@ -921,3 +921,22 @@ describe('getRoleTitle', () => {
   });
 });
 
+describe('lastMembershipEndOf', () => {
+    const now = new Date('2026-10-22T12:00:00Z');
+    const role = (administrativeBodyId: string | null, endDate: string | null) =>
+        ({ administrativeBodyId, endDate: endDate ? new Date(endDate) : null });
+
+    it('is the latest past end of a role on the body', () => {
+        const people = [
+            { roles: [role('youth', '2024-12-31T00:00:00Z'), role('council', '2026-01-01T00:00:00Z')] },
+            { roles: [role('youth', '2025-06-30T00:00:00Z'), role('youth', null)] },
+        ];
+        expect(lastMembershipEndOf(people, 'youth', now)).toEqual(new Date('2025-06-30T00:00:00Z'));
+    });
+
+    it('is null when no membership of the body has ended, or an end lies ahead', () => {
+        expect(lastMembershipEndOf([{ roles: [role('youth', null)] }], 'youth', now)).toBeNull();
+        expect(lastMembershipEndOf([{ roles: [role('youth', '2027-01-01T00:00:00Z')] }], 'youth', now)).toBeNull();
+        expect(lastMembershipEndOf([], 'youth', now)).toBeNull();
+    });
+});

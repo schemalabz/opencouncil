@@ -252,17 +252,27 @@ async function runQuery(
  * it can be re-run.
  */
 async function runRelated(subjectId: string, minScore?: number): Promise<void> {
-    const seedRes = await client.search<EvalSource & { city_id?: string; councilMeeting_id?: string }>({
+    const seedRes = await client.search<EvalSource & {
+        city_id?: string;
+        councilMeeting_id?: string;
+        administrative_body_type?: NonNullable<RelatedSubjectSeed['administrativeBodyType']>;
+    }>({
         index: process.env.ELASTICSEARCH_INDEX,
         size: 1,
-        _source: ['id', 'name', 'city_id', 'city_name', 'councilMeeting_id', 'meeting_date'],
+        _source: ['id', 'name', 'city_id', 'city_name', 'councilMeeting_id', 'meeting_date', 'administrative_body_type'],
         query: { term: { id: subjectId } },
     });
     const source = seedRes.hits.hits[0]?._source;
     if (!source?.id || !source.name || !source.city_id || !source.councilMeeting_id) {
         throw new Error(`subject ${subjectId} is not in the index`);
     }
-    const seed: RelatedSubjectSeed = { id: source.id, name: source.name, cityId: source.city_id, councilMeetingId: source.councilMeeting_id };
+    const seed: RelatedSubjectSeed = {
+        id: source.id,
+        name: source.name,
+        cityId: source.city_id,
+        councilMeetingId: source.councilMeeting_id,
+        administrativeBodyType: source.administrative_body_type ?? null,
+    };
     console.log(`\n▶ related to "${seed.name}" (${source.city_name}, ${(source.meeting_date ?? '').slice(0, 10)})`);
 
     const cities = await client.search({

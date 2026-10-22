@@ -16,6 +16,7 @@ import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects } from "@/lib/utils/subjects";
 import { hasExplainPage } from "@/lib/explain/availability";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -235,7 +236,9 @@ export default function Subject({ subjectId, highlightedContributionId, related,
     // in-memory twin of the rule the poll itself applies, and the poll refuses a
     // city with no Diavgeia organisation before it dispatches — so both belong
     // here, or the card offers a button whose only outcome is a thrown error.
-    const canPoll = isRecordSubject(subject) && !subject.withdrawn && !!city.diavgeiaUid;
+    // A secondary body publishes no decisions (#829): no card, no button.
+    const noDecisions = isSecondaryBody(meeting.administrativeBody);
+    const canPoll = isRecordSubject(subject) && !subject.withdrawn && !!city.diavgeiaUid && !noDecisions;
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
@@ -376,7 +379,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                             phone: the rail stacks last there, so the decision takes the same
                             compact top slot the stats do. Shut, it is the ΑΔΑ and a chevron;
                             open, it is the whole record the rail shows. */}
-                        {decision && (
+                        {decision && !noDecisions && (
                             <DecisionCard
                                 decision={decision}
                                 locale={locale}
@@ -467,7 +470,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                             shows the shared card, and the phone gets its own shut copy
                             at the top of the page; without one there is nothing to
                             hoist, so this stays where the rail puts it. */}
-                        {decision ? (
+                        {noDecisions ? null : decision ? (
                             <DecisionCard
                                 id="decision"
                                 decision={decision}

@@ -3,6 +3,7 @@ import { env } from "@/env.mjs";
 import { handleApiError } from "@/lib/api/errors";
 import { queryFlag } from "@/lib/zod-schemas/primitives";
 import { pollLivestreamsForRecentMeetings } from "@/lib/tasks/pollLivestreams";
+import { transcribeUnattendedMeetings } from "@/lib/tasks/unattendedTranscription";
 
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
@@ -26,9 +27,14 @@ export async function GET(request: NextRequest) {
         // A value that is not a boolean is a 400, so a typo never runs the real poll.
         const dryRun = queryFlag.default(false).parse(request.nextUrl.searchParams.get("dryRun") ?? undefined);
 
-        const result = await pollLivestreamsForRecentMeetings({ dryRun });
+        // The same tick starts the recordings that a body with no operator saved
+        // before its meeting (#829); the matcher above needs a channel, this does not.
+        const [result, unattended] = await Promise.all([
+            pollLivestreamsForRecentMeetings({ dryRun }),
+            transcribeUnattendedMeetings({ dryRun }),
+        ]);
 
-        return NextResponse.json(result);
+        return NextResponse.json({ ...result, unattended });
     } catch (error) {
         return handleApiError(error, "Failed to poll livestreams");
     }
