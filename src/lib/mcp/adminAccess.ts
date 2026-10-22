@@ -9,9 +9,9 @@ import { mcpRealmStore } from './realm-context';
  * What the caller may administer through the MCP admin tools. `null` means no
  * admin tools at all.
  *
- * A service key is a superadmin. A personal token carries the rights of its
- * owner on the site, read from the database at each request: the same
- * account, the same rights, on the admin pages and through an assistant.
+ * A token carries the rights of its owner on the site, read from the
+ * database at each request: the same account, the same rights, on the admin
+ * pages and through an assistant.
  * `bodyIds` are the administrative bodies the owner administers directly
  * (#828): a body admin reaches the meetings of those bodies, and nothing
  * else in the city.
@@ -24,8 +24,6 @@ export type McpAdminAccess = {
 
 export async function resolveAdminAccess(identity: McpIdentity): Promise<McpAdminAccess | null> {
     if (!identity) return null;
-    if (identity.type === 'service') return { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
-
     const rights = await getUserCityRights(identity.userId);
     if (!rights.all && rights.cityIds.size === 0 && rights.bodies.size === 0) return null;
     return { superadmin: rights.all, cityIds: rights.cityIds, bodyIds: new Set(rights.bodies.keys()) };

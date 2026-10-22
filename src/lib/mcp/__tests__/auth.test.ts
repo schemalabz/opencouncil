@@ -21,7 +21,7 @@ describe('verifyMcpToken', () => {
         const info = await verifyMcpToken(req, 'mcp_abc');
 
         expect(mockToken).toHaveBeenCalledWith('mcp_abc');
-        expect(info).toMatchObject({ clientId: 'u1', extra: { identity: { type: 'user', userId: 'u1' } } });
+        expect(info).toMatchObject({ clientId: 'u1', extra: { identity: { userId: 'u1' } } });
     });
 
     it('throws on a revoked or unknown token', async () => {

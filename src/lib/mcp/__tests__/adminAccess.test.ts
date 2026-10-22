@@ -18,8 +18,7 @@ import { resolveAdminAccess, requireBodyAdmin, requireCityAdmin, requireMeetingA
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { ForbiddenError, UnauthorizedError } from '../../api/errors';
 
-const USER = { type: 'user', userId: 'u1' } as const;
-const SERVICE = { type: 'service', keyName: 'bot' } as const;
+const USER = { userId: 'u1' } as const;
 
 const asCityAdmin = (...cityIds: string[]) =>
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: cityIds.map(cityId => ({ cityId })) });
@@ -46,10 +45,6 @@ beforeEach(() => {
 describe('resolveAdminAccess', () => {
     it('gives nothing to an anonymous caller', async () => {
         await expect(resolveAdminAccess(null)).resolves.toBeNull();
-    });
-
-    it('treats a service key as a superadmin', async () => {
-        await expect(resolveAdminAccess(SERVICE)).resolves.toEqual({ superadmin: true, cityIds: new Set(), bodyIds: new Set() });
     });
 
     it('gives nothing to a token whose owner administers nothing', async () => {
@@ -90,10 +85,9 @@ describe('requireCityAdmin', () => {
         await expect(requireCityAdmin(USER, 'argos')).rejects.toThrow(ForbiddenError);
     });
 
-    it('lets a superadmin and a service key reach every city', async () => {
+    it('lets a superadmin reach every city', async () => {
         asSuperadmin();
         await expect(requireCityAdmin(USER, 'argos')).resolves.toBeUndefined();
-        await expect(requireCityAdmin(SERVICE, 'argos')).resolves.toBeUndefined();
     });
 
     it('refuses a body administrator, even for the city of their body', async () => {
@@ -131,10 +125,9 @@ describe('requireMeetingAdmin', () => {
         }));
     });
 
-    it('lets a superadmin and a service key reach every meeting', async () => {
+    it('lets a superadmin reach every meeting', async () => {
         asSuperadmin();
         await expect(requireMeetingAdmin(USER, 'argos', 'm3')).resolves.toBeUndefined();
-        await expect(requireMeetingAdmin(SERVICE, 'argos', 'm3')).resolves.toBeUndefined();
     });
 });
 
@@ -158,10 +151,9 @@ describe('requireBodyAdmin', () => {
         await expect(requireBodyAdmin(USER, 'argos', 'council')).rejects.toThrow(ForbiddenError);
     });
 
-    it('lets a superadmin and a service key reach every body', async () => {
+    it('lets a superadmin reach every body', async () => {
         asSuperadmin();
         await expect(requireBodyAdmin(USER, 'argos', 'argos-council')).resolves.toBeUndefined();
-        await expect(requireBodyAdmin(SERVICE, 'argos', 'argos-council')).resolves.toBeUndefined();
     });
 });
 
@@ -173,10 +165,9 @@ describe('requireSuperadmin', () => {
         await expect(requireSuperadmin(USER)).rejects.toThrow(ForbiddenError);
     });
 
-    it('passes a superadmin token and a service key', async () => {
+    it('passes a superadmin token', async () => {
         asSuperadmin();
         await expect(requireSuperadmin(USER)).resolves.toBeUndefined();
-        await expect(requireSuperadmin(SERVICE)).resolves.toBeUndefined();
     });
 });
 
