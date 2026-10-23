@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
+import { SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { blankToNull, webUrl } from './primitives';
 import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
@@ -18,9 +18,9 @@ export const MAX_SESSION_NUMBER = 999;
  * tools. Each caller decides how a field is optional and how a blank clears
  * it: REST takes `""`, MCP takes null.
  *
- * The date, youtubeUrl and format messages are plain English, as is the
- * meetingId message of meetingSchema: meetingFormSchema replaces those four
- * fields, so only an API caller or an agent reads them.
+ * The date and youtubeUrl messages are plain English, as is the meetingId
+ * message of meetingSchema: meetingFormSchema replaces those three fields, so
+ * only an API caller or an agent reads them.
  */
 export const baseMeetingFields = {
     date: isoDateOrDateTime({ error: 'Invalid date/time format' })
@@ -47,10 +47,8 @@ export const baseMeetingFields = {
         .meta({ description: 'Whether the meeting takes place. A postponed or cancelled meeting stays public with its status.' }),
     scheduleStatusReason: z.string().trim().max(SCHEDULE_STATUS_REASON_MAX_LENGTH)
         .meta({ description: 'Why the meeting was postponed or cancelled, as the municipality says it.' }),
-    // By circulation waits for its page, as in the form.
-    format: z.enum(OFFERED_FORMATS, {
-        error: `The format is one of ${OFFERED_FORMATS.join(', ')}. A meeting by circulation cannot be set yet.`,
-    }).meta({ description: 'How the meeting takes place.' }),
+    format: z.enum(MeetingFormat)
+        .meta({ description: 'How the meeting takes place. A meeting by circulation has a written vote and no recording.' }),
     closedToPublic: z.boolean()
         .meta({ description: 'The council decided to meet behind closed doors. The meeting is still recorded and transcribed.' }),
     place: z.string().trim().max(200)
@@ -136,9 +134,7 @@ export const meetingFormSchema = meetingSchema.extend({
     urgent: baseMeetingFields.urgent,
     scheduleStatus: baseMeetingFields.scheduleStatus,
     closedToPublic: baseMeetingFields.closedToPublic,
-    // The form holds the stored format, by circulation too, and does not send
-    // back a format that no form offers.
-    format: z.enum(MeetingFormat).nullable(),
+    format: baseMeetingFields.format.nullable(),
     // A text input. The request sends it as a number.
     sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: vmsg('sessionNumberWholeNumber') })
         .refine(val => val.trim() === '' || Number(val) >= 1, { error: vmsg('sessionNumberMin1') })

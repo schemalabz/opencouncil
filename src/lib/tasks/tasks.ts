@@ -279,7 +279,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     }
 
     // Check if generic Discord alerts should be sent for this task type
-    const sendGenericAlerts = getDiscordAlertMode(task.type) !== 'none';
+    const alertMode = getDiscordAlertMode(task.type);
+    const sendGenericAlerts = alertMode !== 'none';
 
     if (update.status === 'success') {
         // The task server retries a callback that times out, while the first
@@ -361,7 +362,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 if (flipped) await notifyIfNews(task);
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
-                if (sendGenericAlerts) {
+                if (alertMode === 'all') {
                     sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
                 }
 

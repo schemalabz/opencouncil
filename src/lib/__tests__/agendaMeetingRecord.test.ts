@@ -1,4 +1,4 @@
-import { checkAgendaIdentity, holdsAnotherMeeting, reconcileAgendaMeetingRecord, type RecordedMeeting, type SiblingCandidate } from '../agendaMeetingRecord';
+import { checkAgendaIdentity, describeAgendaRead, holdsAnotherMeeting, reconcileAgendaMeetingRecord, type RecordedMeeting, type SiblingCandidate } from '../agendaMeetingRecord';
 import type { AgendaMeetingRecord } from '../apiTypes';
 
 const recorded = (overrides: Partial<RecordedMeeting> = {}): RecordedMeeting => ({
@@ -48,10 +48,16 @@ describe('reconcileAgendaMeetingRecord', () => {
         expect(patch.format).toBe('remote');
     });
 
-    it('never sets a meeting by circulation, which has no page yet, and says so', () => {
-        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded(), read({ format: 'byCirculation' }), { formatChosen: false });
+    it('fills a meeting by circulation like any other format', () => {
+        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded({ format: null }), read({ format: 'byCirculation' }), { formatChosen: true });
+        expect(patch.format).toBe('byCirculation');
+        expect(mismatches).toEqual([]);
+    });
+
+    it('reports an invitation by circulation that differs from a chosen format', () => {
+        const { patch, mismatches } = reconcileAgendaMeetingRecord(recorded(), read({ format: 'byCirculation' }), { formatChosen: true });
         expect(patch.format).toBeUndefined();
-        expect(mismatches.map((m) => m.field)).toEqual(['format']);
+        expect(mismatches.map((m) => [m.field, m.recorded, m.read])).toEqual([['format', 'inPerson', 'byCirculation']]);
     });
 
     it('gives a later part of a meeting no kind, no urgency and no number', () => {
@@ -186,5 +192,24 @@ describe('holdsAnotherMeeting', () => {
         expect(holdsAnotherMeeting(ours, row({ id: 'feb26_2026', continuationOfId: 'feb25_2026' }))).toBe(false);
         expect(holdsAnotherMeeting(row({ id: 'feb26_2026', continuationOfId: 'feb25_2026' }), ours)).toBe(false);
         expect(holdsAnotherMeeting(ours, row({ id: 'feb25_2_2026', scheduleStatus: 'cancelled' }))).toBe(false);
+    });
+});
+
+describe('describeAgendaRead', () => {
+    it('lists each fact the invitation states, marks what was written, and quotes the format', () => {
+        expect(describeAgendaRead(
+            read({ format: 'byCirculation', formatEvidence: 'θα πραγματοποιηθεί δια περιφοράς' }),
+            { urgent: true, format: 'byCirculation' },
+        )).toBe([
+            'Kind: ordinary',
+            'Urgent: yes (filled)',
+            'Number: 14',
+            'Format: byCirculation (filled) «θα πραγματοποιηθεί δια περιφοράς»',
+        ].join('\n'));
+    });
+
+    it('says which facts the invitation does not state', () => {
+        expect(describeAgendaRead(read({ kind: null, urgent: false, sessionNumber: null, format: null, formatEvidence: null }), {}))
+            .toBe('Kind: not stated\nUrgent: no\nNumber: not stated\nFormat: not stated');
     });
 });

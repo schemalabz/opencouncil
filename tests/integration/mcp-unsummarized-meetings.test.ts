@@ -80,6 +80,16 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
         expect(meeting.note).not.toContain('get_transcript')
     })
 
+    test('get_meeting says that a meeting by circulation was never recorded', async () => {
+        await createMeeting('athens', {
+            id: 'bycirculation', dateTime: new Date('2026-08-04T07:30:00Z'), released: true, format: 'byCirculation',
+        })
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'bycirculation', ANON))
+
+        expect(meeting.note).toMatch(/by circulation/)
+        expect(meeting.note).not.toMatch(/still be processing/)
+    })
+
     test('get_meeting adds no note once the meeting has an agenda', async () => {
         const meeting = await asRequest(() => mcpGetMeeting('athens', 'summarized', ANON))
 

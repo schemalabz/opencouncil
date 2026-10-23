@@ -105,10 +105,14 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     let actions: ReactNode[];
     switch (stage) {
         case 'upcoming':
-            text = t.rich(subjects.length > 0 ? 'strip.upcoming' : 'strip.upcomingNoAgenda', {
-                when: formatWeekdayDateTime(date, timezone, locale),
-                b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
-            });
+            text = t.rich(
+                subjects.length === 0 ? 'strip.upcomingNoAgenda'
+                    : hasPublicRecording(meeting) ? 'strip.upcoming' : 'strip.upcomingByCirculation',
+                {
+                    when: formatWeekdayDateTime(date, timezone, locale),
+                    b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
+                },
+            );
             actions = [channelPill, agendaPill, notifyPill];
             break;
         case 'live':

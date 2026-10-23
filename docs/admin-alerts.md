@@ -166,6 +166,28 @@ Delivery batch completed for 25 notifications
 [View All Notifications](https://...)
 ```
 
+**processAgenda Alerts:**
+
+`processAgenda` uses `discordAlertMode: 'handlerReportsSuccess'`. The generic started and failed alerts stay. The result handler sends the completed alert, in the same format as every task alert, after it writes the meeting record. So the alert names the meeting by its new title, and it adds what the agenda held:
+
+```
+✅ processAgenda - vrilissia
+Completed: oct8_2026
+Task Type: processAgenda | Municipality: Vrilissia
+Meeting: 29η Έκτακτη
+From the invitation:
+  Kind: ordinary
+  Urgent: yes (filled)
+  Number: 29 (filled)
+  Format: byCirculation (filled) «θα πραγματοποιηθεί δια περιφοράς»
+Subjects: 1
+Task ID: `cmh…` | [Open Admin Panel](https://...)
+```
+
+`(filled)` marks a value that processAgenda wrote into the meeting record. The lines show what the invitation states. A value without the mark was not written by this run, and it can differ from the record: the `⚠️ The agenda needs a look` alert then reports the difference. A city outside Greece has no meeting record, so its alert has no `From the invitation` field.
+
+When the agenda has something that a person must decide, a second alert follows, `⚠️ The agenda needs a look`. A problem is an invitation that differs from a value the record holds, an agenda that holds more than one meeting, or a record that the rules refuse to write. Nothing was overwritten.
+
 ## Troubleshooting
 
 **Admin alerts not appearing?**

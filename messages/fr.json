@@ -1091,6 +1091,7 @@
     "noContributions": "Aucune contribution d'intervenant",
     "unknownSpeaker": "Intervenant inconnu",
     "noStatements": "Aucune intervention d'orateur",
+    "noStatementsByCirculation": "Lors d’une séance par consultation écrite, les membres votent par écrit, sans débat. Il n’y a donc pas d’interventions.",
     "relatedSubjects": "Sujets liés",
     "relatedOtherCities": "Autres communes",
     "relatedSeeMore": "Voir plus dans la recherche",

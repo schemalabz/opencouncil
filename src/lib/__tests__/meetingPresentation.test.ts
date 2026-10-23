@@ -88,10 +88,15 @@ describe('presentation helpers', () => {
             { type: 'cancelled', reason: null },
             { type: 'noRecording' },
         ] as const) {
-            expect(presentationPendingKind(p)).toBeNull();
+            expect(presentationPendingKind(p, { format: null })).toBeNull();
             expect(msUntilPresentationChange(p, MEETING, at(0))).toBeNull();
         }
-        expect(presentationPendingKind({ type: 'stage', stage: 'upcoming' })).toBe('before');
+        expect(presentationPendingKind({ type: 'stage', stage: 'upcoming' }, { format: null })).toBe('before');
+    });
+
+    it('promises no debate and no transcript for a meeting by circulation, also before it starts', () => {
+        expect(presentationPendingKind({ type: 'stage', stage: 'upcoming' }, { format: 'byCirculation' })).toBeNull();
+        expect(presentationPendingKind({ type: 'stage', stage: 'upcoming' }, { format: 'remote' })).toBe('before');
     });
 
     it('links to the sentence on /explain where the realm has one', () => {

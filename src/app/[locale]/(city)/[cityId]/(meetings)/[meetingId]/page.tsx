@@ -35,7 +35,7 @@ export default function MeetingPage() {
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
     const { presentation, stage, deadline, now } = useMeetingStage();
     // What a row says in place of the stats it does not have yet.
-    const pending = presentationPendingKind(presentation);
+    const pending = presentationPendingKind(presentation, meeting);
 
     // The subjects as the shared map language's dense mode: plain topic-coloured
     // dots — what the landing draws when pins crowd. The band is decorative (a

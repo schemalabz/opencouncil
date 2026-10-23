@@ -6,7 +6,7 @@ jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (
 jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true) }))
 
 import prisma from '@/lib/db/prisma'
-import { sendAgendaReadingAlert } from '@/lib/discord'
+import { sendAgendaReadingAlert, sendTaskAdminAlert } from '@/lib/discord'
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda'
 import type { AgendaMeetingInAgenda, AgendaMeetingRecord, ProcessAgendaResult } from '@/lib/apiTypes'
 import { resetDatabase } from '../helpers/test-db'
@@ -14,6 +14,7 @@ import { createAdministrativeBody, createCity, createMeeting, createTaskStatus }
 import { makeSubject } from '../helpers/builders'
 
 const alerts = sendAgendaReadingAlert as unknown as jest.Mock
+const completed = sendTaskAdminAlert as unknown as jest.Mock
 
 const record = (overrides: Partial<AgendaMeetingRecord> = {}): AgendaMeetingRecord => ({
     kind: 'ordinary', kindEvidence: 'τακτική συνεδρίαση',
@@ -47,6 +48,7 @@ describe('processAgenda fills and checks the meeting record (#150)', () => {
     beforeEach(async () => {
         await resetDatabase(prisma)
         alerts.mockClear()
+        completed.mockClear()
         await createCity({ id: 'chalandri', name_municipality: 'Δήμος Χαλανδρίου', realm: 'greece' })
         bodyId = (await createAdministrativeBody('chalandri', { name: 'Δημοτικό Συμβούλιο', type: 'council', notificationBehavior: 'NOTIFICATIONS_DISABLED' })).id
     })
@@ -65,6 +67,21 @@ describe('processAgenda fills and checks the meeting record (#150)', () => {
             kind: 'ordinary', urgent: true, sessionNumber: 12, format: 'inPerson', name: null, name_en: null,
         })
         expect(alerts).not.toHaveBeenCalled()
+    })
+
+    test('fills a meeting by circulation, says so in the success alert, and asks nothing', async () => {
+        await createMeeting('chalandri', { id: 'feb25_2026', name: null, name_en: null, administrativeBodyId: bodyId, dateTime: at })
+        const task = await createTaskStatus('feb25_2026', 'chalandri')
+
+        const read = record({ urgent: true, urgentEvidence: 'κατεπείγουσα', format: 'byCirculation', formatEvidence: 'θα πραγματοποιηθεί δια περιφοράς' })
+        await handleProcessAgendaResult(task.id, v7(read, [inAgenda(read)]))
+
+        expect((await meetingRow('chalandri', 'feb25_2026')).format).toBe('byCirculation')
+        expect(alerts).not.toHaveBeenCalled()
+        expect(completed.mock.calls[0][0].details[0]).toEqual({
+            name: 'From the invitation',
+            value: 'Kind: ordinary (filled)\nUrgent: yes (filled)\nNumber: 12 (filled)\nFormat: byCirculation (filled) «θα πραγματοποιηθεί δια περιφοράς»',
+        })
     })
 
     test('a re-run of the same agenda writes nothing and tells no one', async () => {

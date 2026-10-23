@@ -69,8 +69,16 @@ export function presentationKey(presentation: PublicMeetingPresentation): Presen
     return presentation.type === 'stage' ? presentation.stage : presentation.type;
 }
 
-/** Why a piece of the page is empty. Null for the types that promise nothing. */
-export function presentationPendingKind(presentation: PublicMeetingPresentation): PendingKind | null {
+/**
+ * Why a piece of the page is empty. Null for the types that promise nothing,
+ * and for a meeting without a public recording: no debate or transcript of it
+ * is on its way, also before it starts.
+ */
+export function presentationPendingKind(
+    presentation: PublicMeetingPresentation,
+    meeting: { format: MeetingFormat | null },
+): PendingKind | null {
+    if (!hasPublicRecording(meeting)) return null;
     return presentation.type === 'stage' ? pendingKind(presentation.stage) : null;
 }
 

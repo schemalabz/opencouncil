@@ -52,7 +52,7 @@ describe('meeting form schema', () => {
         expect(issues({ ...valid, meetingId: '' })).toEqual([]);
     });
 
-    it('holds a format that no form offers, which the request does not send back', () => {
+    it('holds a meeting by circulation', () => {
         expect(issues({ ...valid, format: 'byCirculation' })).toEqual([]);
     });
 

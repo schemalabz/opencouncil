@@ -1097,6 +1097,7 @@
         "noContributions": "No speaker contributions",
         "unknownSpeaker": "Unknown speaker",
         "noStatements": "No speaker statements",
+        "noStatementsByCirculation": "In a meeting by circulation, the members vote in writing, without a debate. So there are no statements.",
         "transcript": "Transcript",
         "noSummary": "No automatic summary available for this statement",
         "viewMap": "View map",

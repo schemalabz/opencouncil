@@ -20,6 +20,7 @@
     "strip": {
         "upcoming": "The meeting takes place on <b>{when}</b>. The agenda is already here; the transcript and the summaries are added after the meeting.",
         "upcomingNoAgenda": "The meeting takes place on <b>{when}</b>. The agenda appears here as soon as it is published.",
+        "upcomingByCirculation": "The meeting takes place by circulation, with a written vote, on <b>{when}</b>. It is not broadcast; the decisions appear here as soon as Diavgeia publishes them.",
         "live": "The meeting is in progress. It started at {time}. The transcript arrives here a few hours after it ends.",
         "waiting": "The meeting took place on {date}. We are waiting for the recording; transcription starts as soon as it is published.",
         "transcribing": "We are transcribing the meeting. The transcript arrives in a few hours; the summaries follow after the review.",

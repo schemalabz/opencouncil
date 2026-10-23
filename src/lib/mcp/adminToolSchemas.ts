@@ -50,7 +50,8 @@ const meetingRecordInput = {
     scheduleStatus: baseMeetingFields.scheduleStatus.optional(),
     scheduleStatusReason: baseMeetingFields.scheduleStatusReason.nullable().optional(),
     format: baseMeetingFields.format.nullable().optional()
-        .meta({ description: 'Null (the default on create): not stated yet, the meeting is expected as usual' }),
+        .meta({ description: 'Null (the default on create): not stated yet, the meeting is expected as usual. '
+            + 'byCirculation: a written vote with no recording, so the meeting is never transcribed or polled for a livestream' }),
     closedToPublic: baseMeetingFields.closedToPublic.optional()
         .meta({ description: 'The council decided to meet behind closed doors. Readers see this fact. The meeting is still recorded and transcribed' }),
     place: baseMeetingFields.place.nullable().optional(),

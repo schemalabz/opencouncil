@@ -14,6 +14,7 @@ import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import NotificationOpenTracker from '@/components/analytics/NotificationOpenTracker';
+import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
 
 // Personalized notification view — keep it out of search indexes.
 export const metadata: Metadata = {
@@ -229,22 +230,28 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                         <Card className="bg-muted/30">
                             <CardContent className="pt-4 pb-4">
                                 <p className="text-center text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                    Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {formatDate(meetingDate)}.
-                                    {meeting.administrativeBody?.youtubeChannelUrl ? (
-                                        <> Μπορείτε να τη δείτε{' '}
-                                            <a
-                                                href={meeting.administrativeBody.youtubeChannelUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-baseline gap-1 text-primary hover:text-primary/80 underline"
-                                            >
-                                                <SiYoutube className="w-3.5 h-3.5 shrink-0 relative top-0.5" aria-hidden />
-                                                <span>στο κανάλι του Δήμου στο YouTube</span>
-                                            </a>
-                                            , ή μερικές ώρες αργότερα στο OpenCouncil.
-                                        </>
+                                    {!hasPublicRecording(meeting) ? (
+                                        <>Αυτή η συνεδρίαση θα γίνει δια περιφοράς, με γραπτή ψηφοφορία, στις {formatDate(meetingDate)}. Οι αποφάσεις θα εμφανιστούν στο OpenCouncil μόλις δημοσιευτούν στη Διαύγεια.</>
                                     ) : (
-                                        <> Μπορείτε να τη δείτε μερικές ώρες αργότερα στο OpenCouncil.</>
+                                        <>
+                                            Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {formatDate(meetingDate)}.
+                                            {meeting.administrativeBody?.youtubeChannelUrl ? (
+                                                <> Μπορείτε να τη δείτε{' '}
+                                                    <a
+                                                        href={meeting.administrativeBody.youtubeChannelUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-baseline gap-1 text-primary hover:text-primary/80 underline"
+                                                    >
+                                                        <SiYoutube className="w-3.5 h-3.5 shrink-0 relative top-0.5" aria-hidden />
+                                                        <span>στο κανάλι του Δήμου στο YouTube</span>
+                                                    </a>
+                                                    , ή μερικές ώρες αργότερα στο OpenCouncil.
+                                                </>
+                                            ) : (
+                                                <> Μπορείτε να τη δείτε μερικές ώρες αργότερα στο OpenCouncil.</>
+                                            )}
+                                        </>
                                     )}
                                 </p>
                             </CardContent>

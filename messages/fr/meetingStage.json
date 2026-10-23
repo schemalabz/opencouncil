@@ -20,6 +20,7 @@
     "strip": {
         "upcoming": "La séance a lieu le <b>{when}</b>. L'ordre du jour est déjà là ; la transcription et les résumés sont ajoutés après la séance.",
         "upcomingNoAgenda": "La séance a lieu le <b>{when}</b>. L'ordre du jour apparaît ici dès sa publication.",
+        "upcomingByCirculation": "La séance a lieu par consultation écrite le <b>{when}</b>. Elle n’est pas diffusée ; les décisions apparaissent ici dès leur publication.",
         "live": "La séance est en cours. Elle a commencé à {time}. La transcription arrive ici quelques heures après la fin.",
         "waiting": "La séance a eu lieu le {date}. Nous attendons l'enregistrement ; la transcription commence dès sa publication.",
         "transcribing": "Nous transcrivons la séance. La transcription arrive dans quelques heures ; les résumés suivent après la relecture.",

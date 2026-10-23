@@ -81,13 +81,22 @@ export function reconcileAgendaMeetingRecord(
     }
 
     if (read.format !== null && read.format !== recorded.format) {
-        // A meeting by circulation has no page of its own yet (#150), so the
-        // invitation never sets it; a person decides.
-        if ((recorded.format === null || !formatChosen) && read.format !== 'byCirculation') patch.format = read.format;
+        if (recorded.format === null || !formatChosen) patch.format = read.format;
         else mismatches.push({ field: 'format', recorded: recorded.format, read: read.format, evidence: read.formatEvidence });
     }
 
     return { patch, mismatches };
+}
+
+/** What the invitation states, one fact per line, for the success alert of processAgenda. */
+export function describeAgendaRead(read: AgendaMeetingRecord, written: AgendaRecordReconciliation['patch']): string {
+    const filled = (field: keyof AgendaRecordReconciliation['patch']) => (written[field] !== undefined ? ' (filled)' : '');
+    return [
+        `Kind: ${read.kind ?? 'not stated'}${filled('kind')}`,
+        `Urgent: ${read.urgent ? 'yes' : 'no'}${filled('urgent')}`,
+        `Number: ${read.sessionNumber ?? 'not stated'}${filled('sessionNumber')}`,
+        `Format: ${read.format ?? 'not stated'}${filled('format')}${read.format && read.formatEvidence ? ` «${read.formatEvidence}»` : ''}`,
+    ].join('\n');
 }
 
 export function describeMismatch(m: AgendaRecordMismatch): string {

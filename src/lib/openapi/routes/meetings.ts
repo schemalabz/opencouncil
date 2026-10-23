@@ -1,5 +1,4 @@
 import * as z from 'zod';
-import { MeetingFormat } from '@prisma/client';
 import { sessionAuthRequirement, cityIdParam, meetingIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, lifecycleRuleResponse, type Paths } from '@/lib/openapi/registry';
 import { AdministrativeBodySchema, CityWithGeometrySchema, PartyWithPeopleSchema, PersonWithRolesSchema } from '@/lib/openapi/entities';
 import { baseMeetingFields, meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
@@ -31,9 +30,7 @@ const MeetingSchema = z.object({
     kind: baseMeetingFields.kind.nullable().meta({ description: 'Null: the record states no single kind. The invitation is not read yet, or the record holds several meetings.' }),
     urgent: baseMeetingFields.urgent,
     sessionNumber: baseMeetingFields.sessionNumber.nullable(),
-    // A stored meeting can have any format, by circulation too.
-    format: z.enum(MeetingFormat).meta({ description: baseMeetingFields.format.description })
-        .nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
+    format: baseMeetingFields.format.nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
     closedToPublic: baseMeetingFields.closedToPublic,
     place: baseMeetingFields.place.nullable().meta({ description: 'In public responses, the place of the meeting or else of its body.' }),
     continuationOfId: z.string().nullable().optional().meta({ description: 'Admin responses only.' }),

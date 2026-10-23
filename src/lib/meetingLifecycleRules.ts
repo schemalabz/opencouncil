@@ -106,12 +106,11 @@ export const SCHEDULE_STATUSES = {
 } as const satisfies Record<MeetingScheduleStatus, { takesPlace: boolean }>;
 
 export const MEETING_FORMATS = {
-    inPerson: { publicRecording: true, showsPlace: true, namedInFacts: false, offeredInForm: true },
-    remote: { publicRecording: true, showsPlace: false, namedInFacts: true, offeredInForm: true },
-    hybrid: { publicRecording: true, showsPlace: true, namedInFacts: true, offeredInForm: true },
-    // Offered in no form yet: the by-circulation page is a follow-up.
-    byCirculation: { publicRecording: false, showsPlace: false, namedInFacts: false, offeredInForm: false },
-} as const satisfies Record<MeetingFormat, FormatRules & { offeredInForm: boolean }>;
+    inPerson: { publicRecording: true, showsPlace: true, namedInFacts: false },
+    remote: { publicRecording: true, showsPlace: false, namedInFacts: true },
+    hybrid: { publicRecording: true, showsPlace: true, namedInFacts: true },
+    byCirculation: { publicRecording: false, showsPlace: false, namedInFacts: false },
+} as const satisfies Record<MeetingFormat, FormatRules>;
 
 /**
  * A null format: nobody has stated it yet, and the meeting is expected as
@@ -173,7 +172,6 @@ function keysWhere<K extends string, V>(table: Record<K, V>, test: (value: V) =>
 }
 
 export const TAKES_PLACE_STATUSES = keysWhere(SCHEDULE_STATUSES, (status) => status.takesPlace);
-export const OFFERED_FORMATS = keysWhere(MEETING_FORMATS, (format) => format.offeredInForm);
 export const COUNCIL_ONLY_KINDS: ReadonlySet<MeetingKind> = new Set(keysWhere(MEETING_KINDS, (kind) => kind.councilOnly));
 export const NO_DECISION_KINDS = keysWhere(MEETING_KINDS, (kind) => !kind.takesDecisions);
 

@@ -68,8 +68,8 @@ describe('meetingRequestFields', () => {
         expect(sent).toMatchObject({ scheduleStatus: 'scheduled', format: 'inPerson', closedToPublic: false });
     });
 
-    it('does not send back a format that no form offers', () => {
-        expect(meetingRequestFields({ ...base, format: 'byCirculation' }, { linkChanged: false, greekCodeFacts: true }).format).toBeUndefined();
+    it('sends every format as it is, by circulation too', () => {
+        expect(meetingRequestFields({ ...base, format: 'byCirculation' }, { linkChanged: false, greekCodeFacts: true }).format).toBe('byCirculation');
         expect(meetingRequestFields({ ...base, format: 'hybrid' }, { linkChanged: false, greekCodeFacts: true }).format).toBe('hybrid');
     });
 

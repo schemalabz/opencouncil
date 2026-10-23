@@ -104,6 +104,8 @@ export async function sendTaskAdminAlert(data: {
     cityId: string;
     meetingId: string;
     error?: string;
+    /** What the task's result held, shown after the meeting. */
+    details?: { name: string; value: string; inline?: boolean }[];
 }): Promise<void> {
     const config = TASK_STATUS_CONFIG[data.status];
 
@@ -129,6 +131,7 @@ export async function sendTaskAdminAlert(data: {
                 value: data.meetingName,
                 inline: false,
             },
+            ...(data.details ?? []).map((detail) => ({ ...detail, value: truncateField(detail.value), inline: detail.inline ?? false })),
             {
                 name: 'Task ID',
                 value: `\`${data.taskId}\``,
