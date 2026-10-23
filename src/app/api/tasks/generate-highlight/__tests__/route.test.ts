@@ -4,9 +4,29 @@ import { NextRequest } from 'next/server';
 jest.mock('@/lib/db/tasks', () => ({ getGenerateHighlightTasksForHighlight: jest.fn() }));
 jest.mock('@/lib/tasks/generateHighlight', () => ({ requestGenerateHighlight: jest.fn() }));
 
-import { POST } from '@/app/api/tasks/generate-highlight/route';
+import { GET, POST } from '@/app/api/tasks/generate-highlight/route';
 import { requestGenerateHighlight } from '@/lib/tasks/generateHighlight';
+import { getGenerateHighlightTasksForHighlight } from '@/lib/db/tasks';
 import { validationErrorSchema } from '@/lib/api/errors';
+
+describe('GET /api/tasks/generate-highlight', () => {
+    it('returns the progress of a task and nothing else', async () => {
+        (getGenerateHighlightTasksForHighlight as jest.Mock).mockResolvedValue([{
+            id: 't1', type: 'generateHighlight', status: 'pending', stage: 'rendering', percentComplete: 40,
+            createdAt: new Date('2026-10-23T10:00:00Z'), updatedAt: new Date('2026-10-23T10:01:00Z'),
+            requestBody: '{"callbackUrl":"https://app/x?token=secret"}', responseBody: null,
+            failureReason: 'internal detail', version: 2, cityId: 'athens', councilMeetingId: 'm1',
+        }]);
+
+        const response = await GET(new NextRequest('http://localhost/api/tasks/generate-highlight?cityId=athens&meetingId=m1&highlightId=h1'));
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([{
+            id: 't1', status: 'pending', stage: 'rendering', percentComplete: 40,
+            createdAt: '2026-10-23T10:00:00.000Z', updatedAt: '2026-10-23T10:01:00.000Z',
+        }]);
+    });
+});
 
 const post = (body: unknown) => POST(new NextRequest('http://localhost/api/tasks/generate-highlight', {
     method: 'POST',

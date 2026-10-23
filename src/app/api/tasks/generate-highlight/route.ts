@@ -20,14 +20,16 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Missing params" }, { status: 400 });
         }
         const tasks = await getGenerateHighlightTasksForHighlight(cityId, meetingId, highlightId);
-        // A highlight owner may poll the progress. The request body holds the
-        // callback URL with its token, and the response body is the renderer's
-        // report; neither is theirs to read.
-        const progress = tasks.map(({ requestBody, responseBody, ...task }) => task);
+        // A highlight owner may poll the progress, and only the progress: the
+        // request body holds the callback URL with its token, the response
+        // body is the renderer's report, and the failure reason is internal.
+        const progress = tasks.map(({ id, status, stage, percentComplete, createdAt, updatedAt }) =>
+            ({ id, status, stage, percentComplete, createdAt, updatedAt }));
         return NextResponse.json(progress, { status: 200 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Failed to fetch tasks:", error);
-        return NextResponse.json({ error: error?.message || "Failed to fetch tasks" }, { status: 500 });
+        const message = error instanceof Error ? error.message : "Failed to fetch tasks";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
