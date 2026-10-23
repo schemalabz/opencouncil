@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { getReviewStats, getMeetingsNeedingReview } from '@/lib/db/reviews'
+import { getReviewStats, getMeetingsNeedingReview, getReviewers } from '@/lib/db/reviews'
+import { setMeetingReviewer } from '@/lib/db/meetingReviewers'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createCity,
@@ -150,6 +151,42 @@ describe('review queries', () => {
 
             const forHelper = await getMeetingsNeedingReview({ show: 'all', reviewerId: helper.id })
             expect(forHelper).toHaveLength(0)
+        })
+
+        it('shows an assigned superadmin who has no edits, and filters by them', async () => {
+            await createCity({ id: 'city1', status: 'supported' })
+            const owner = await createUser('owner@example.com', { isSuperAdmin: true })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm1' })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm2' })
+            await setMeetingReviewer({ cityId: 'city1', meetingId: 'm1' }, owner.id)
+
+            const all = await getMeetingsNeedingReview({ show: 'all' })
+            const m1 = all.find(i => i.meetingId === 'm1')
+            expect(m1?.status).toBe('needsReview')
+            expect(m1?.assignedReviewer?.id).toBe(owner.id)
+            expect(all.find(i => i.meetingId === 'm2')?.assignedReviewer).toBeNull()
+
+            const forOwner = await getMeetingsNeedingReview({ show: 'all', reviewerId: owner.id })
+            expect(forOwner.map(i => i.meetingId)).toEqual(['m1'])
+
+            const reviewers = await getReviewers()
+            expect(reviewers.map(r => r.id)).toContain(owner.id)
+        })
+
+        it('filters by the assigned reviewer instead of the primary reviewer', async () => {
+            await createCity({ id: 'city1', status: 'supported' })
+            const owner = await createUser('owner@example.com', { isSuperAdmin: true })
+            const editor = await createUser('editor@example.com')
+            const seeded = await seedMeeting({ cityId: 'city1', meetingId: 'm1' })
+            await createUtteranceEdit(seeded.utterance.id, { editedBy: 'user', userId: editor.id })
+
+            expect(await getMeetingsNeedingReview({ show: 'all', reviewerId: editor.id })).toHaveLength(1)
+
+            await setMeetingReviewer({ cityId: 'city1', meetingId: 'm1' }, owner.id)
+
+            const [item] = await getMeetingsNeedingReview({ show: 'all', reviewerId: owner.id })
+            expect(item.primaryReviewer?.userId).toBe(editor.id)
+            expect(await getMeetingsNeedingReview({ show: 'all', reviewerId: editor.id })).toHaveLength(0)
         })
 
         it('honors the show filter transitions', async () => {
