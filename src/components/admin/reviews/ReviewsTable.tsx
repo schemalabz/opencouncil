@@ -32,12 +32,15 @@ import {
 import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
 import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
 import { SendTranscriptButton } from './SendTranscriptButton';
+import { ReviewerSelect } from './ReviewerSelect';
+import type { ReviewerUser } from '@/lib/db/meetingReviewers';
 
 interface ReviewsTableProps {
   reviews: ReviewListItem[];
+  superAdmins: ReviewerUser[];
 }
 
-export function ReviewsTable({ reviews }: ReviewsTableProps) {
+export function ReviewsTable({ reviews, superAdmins }: ReviewsTableProps) {
   const [selectedReviewId, setSelectedReviewId] = useState<{cityId: string, meetingId: string} | null>(null);
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<ReviewDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -115,7 +118,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </div>
             </TableHead>
             <TableHead>Edits</TableHead>
-            <TableHead>Primary Reviewer</TableHead>
+            <TableHead className="w-48">Reviewer</TableHead>
             <TableHead>Time to review</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -209,38 +212,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </TableCell>
               
               <TableCell>
-                {review.primaryReviewer ? (
-                  <div>
-                    <div className="text-sm font-medium">
-                      {review.primaryReviewer.userName || review.primaryReviewer.userEmail}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {review.primaryReviewer.editCount} edit{review.primaryReviewer.editCount !== 1 ? 's' : ''}
-                    </div>
-                    {review.reviewers.length > 1 && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="text-xs text-muted-foreground cursor-help">
-                              +{review.reviewers.length - 1} other{review.reviewers.length > 2 ? 's' : ''}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs space-y-1">
-                              {review.reviewers.slice(1).map(r => (
-                                <div key={r.userId}>
-                                  {r.userName || r.userEmail}: {r.editCount} edit{r.editCount !== 1 ? 's' : ''}
-                                </div>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground">No edits yet</span>
-                )}
+                <ReviewerSelect review={review} superAdmins={superAdmins} />
               </TableCell>
               
               <TableCell>

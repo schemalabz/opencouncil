@@ -1,5 +1,6 @@
 import { getMeetingsNeedingReview, getReviewers, type ReviewListItem } from '@/lib/db/reviews';
 import { getMeetingUploadLists } from '@/lib/db/meetings';
+import { getSuperAdmins } from '@/lib/db/meetingReviewers';
 import { ExpandableMetricCard } from '@/components/admin/reviews/ExpandableMetricCard';
 import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
 import { ReviewFilters } from '@/components/admin/reviews/ReviewFilters';
@@ -60,9 +61,10 @@ export default async function ReviewsPage(props: PageProps) {
   const last30DaysBool = last30Days !== 'false';
 
   // Fetch all meetings once (with reviewerId filter if specified), then filter client-side
-  const [allReviews, reviewers, uploadLists] = await Promise.all([
+  const [allReviews, reviewers, superAdmins, uploadLists] = await Promise.all([
     getMeetingsNeedingReview({ show: 'all', reviewerId, last30Days: last30DaysBool }),
     getReviewers(),
+    getSuperAdmins(),
     getMeetingUploadLists(last30DaysBool)
   ]);
 
@@ -135,7 +137,7 @@ export default async function ReviewsPage(props: PageProps) {
         />
       </div>
 
-      <ReviewsTable reviews={reviews} />
+      <ReviewsTable reviews={reviews} superAdmins={superAdmins} />
     </div>
   );
 }

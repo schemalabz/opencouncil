@@ -52,7 +52,7 @@ export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProp
 
       <div className="w-full md:w-64">
         <Label htmlFor="reviewer-filter" className="text-sm font-medium mb-2 block">
-          Primary Reviewer
+          Reviewer
         </Label>
         <Select value={reviewerId || 'all-reviewers'} onValueChange={handleReviewerChange} disabled={isPending}>
           <SelectTrigger id="reviewer-filter" disabled={isPending}>
