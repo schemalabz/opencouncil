@@ -7,17 +7,23 @@ const prompts = { system: "SYSTEM", contextPack: "PACK", editorial: "ED", compac
 
 describe("assembleSystem", () => {
   it("orders system prompt then context pack, with the single cache breakpoint on the last block", () => {
-    const system = assembleSystem(prompts);
+    const system = assembleSystem(prompts, "claude-test-1");
     expect(system).toHaveLength(2);
-    expect(system[0].text).toBe("SYSTEM");
+    expect(system[0].text).toMatch(/^SYSTEM\n/);
     expect(system[0].cache_control).toBeUndefined();
     expect(system[1].text).toBe("PACK");
     expect(system[1].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
+  it("names the model so tools that ask for llm_model get the real id", () => {
+    const [first] = assembleSystem(prompts, "claude-test-1");
+    expect(first.text).toContain("Your model identifier is claude-test-1.");
+    expect(first.text).toContain("llm_model");
+  });
+
   it("is byte-stable: no clock or user data can leak into the cacheable prefix", () => {
-    const a = JSON.stringify(assembleSystem(prompts));
-    const b = JSON.stringify(assembleSystem(prompts));
+    const a = JSON.stringify(assembleSystem(prompts, "claude-test-1"));
+    const b = JSON.stringify(assembleSystem(prompts, "claude-test-1"));
     expect(a).toBe(b);
   });
 });

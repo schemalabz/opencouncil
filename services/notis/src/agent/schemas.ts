@@ -32,6 +32,8 @@ export const decisionEntrySchema = z.object({
   unsubscribed: z.boolean().optional(),
   /** The wake was cut at the token ceiling — this entry is not a decision. */
   truncated: z.boolean().optional(),
+  /** Only a holding line reached the reader; the researched answer never did. */
+  holdingOnly: z.boolean().optional(),
 });
 
 /**
