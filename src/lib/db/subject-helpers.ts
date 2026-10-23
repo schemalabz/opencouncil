@@ -177,3 +177,31 @@ export function categorizeSubjectsForUpsert(
         unmatched: candidates.filter((e) => !claimed.has(e.id)),
     };
 }
+
+/**
+ * The description that a processAgenda result gives each stored agenda row,
+ * by row id.
+ *
+ * summarize overwrites a subject's description, so after the first summary
+ * the row no longer holds the agenda's text. A re-run that sends the stored
+ * text starts from the previous summary, and the model keeps its wording and
+ * its errors. The result is matched to the rows with the matcher that its
+ * callback used to write them.
+ *
+ * When a numbered item is on one side only, something else changed the agenda
+ * after this result (an import, a fix by hand), and the position pass could
+ * give a row the text of another item. The whole result is then left out, and
+ * the caller keeps the stored text. An item replaced in its own slot, under a
+ * name that the summary changed, is not detected.
+ */
+export function agendaDescriptionsByRowId(
+    agendaSubjects: Subject[],
+    rows: ExistingSubjectRow[]
+): Map<string, string> {
+    const { toUpdate, toCreate, unmatched } = categorizeSubjectsForUpsert(agendaSubjects, rows);
+    // The matcher pairs numbered items only; an item without a number stays unpaired on both sides and keeps its stored text.
+    const changedSince = unmatched.some((r) => r.agendaItemIndex !== null)
+        || toCreate.some((s) => typeof s.agendaItemIndex === "number");
+    if (changedSince) return new Map();
+    return new Map(toUpdate.map(({ incoming, existingId }) => [existingId, incoming.description]));
+}
