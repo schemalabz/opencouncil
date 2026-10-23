@@ -865,6 +865,16 @@ USAGE
                 exit 2
               fi
 
+              # The app, the seed step, and Prisma Studio run from node_modules, and
+              # nothing else installs it in the Nix path. npm writes
+              # node_modules/.package-lock.json on every install, so it is missing on
+              # a fresh clone and older than package-lock.json after a pull that
+              # changes the dependencies.
+              if [ ! -f "$repo_root/node_modules/.package-lock.json" ] || [ "$repo_root/package-lock.json" -nt "$repo_root/node_modules/.package-lock.json" ]; then
+                echo "📦 Installing the dependencies of package-lock.json (npm ci)..."
+                (cd "$repo_root" && npm ci --no-audit --no-fund)
+              fi
+
               # Load .env so DB_USER/DB_NAME/DB_PASSWORD are available to the runner itself.
               # (process-compose also loads .env, but we need these values before generating config)
               if [ -f "$repo_root/.env" ]; then
