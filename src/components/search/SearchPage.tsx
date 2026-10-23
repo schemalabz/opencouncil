@@ -93,11 +93,17 @@ export default function SearchPage() {
         total: number;
         isLoading: boolean;
         error: Error | null;
+        // The query these results answer. The search runs in an effect, after
+        // the first render, so a page that arrives with a query has nothing
+        // loaded yet and is not loading yet either: without this the server
+        // HTML, and every render until the effect starts, said "no results".
+        resultsFor: string | null;
     }>({
         results: [],
         total: 0,
         isLoading: false,
-        error: null
+        error: null,
+        resultsFor: null
     });
 
     // Update URL parameters
@@ -272,7 +278,7 @@ export default function SearchPage() {
 
         // Skip search if temporarily disabled
         if (SEARCH_TEMPORARILY_DISABLED) {
-            setState(prev => ({ ...prev, results: [], total: 0, isLoading: false }));
+            setState(prev => ({ ...prev, results: [], total: 0, isLoading: false, resultsFor: query }));
             return;
         }
 
@@ -371,7 +377,8 @@ export default function SearchPage() {
                 results: response.results,
                 total: response.total,
                 isLoading: false,
-                error: null
+                error: null,
+                resultsFor: query
             });
 
             if (newlyDerived.length > 0) {
@@ -409,7 +416,7 @@ export default function SearchPage() {
                 page,
                 duration_ms: Math.round(performance.now() - startedAt),
             });
-            setState(prev => ({ ...prev, error, isLoading: false }));
+            setState(prev => ({ ...prev, error, isLoading: false, resultsFor: query }));
             toast({
                 variant: "destructive",
                 title: "Search Error",
@@ -675,7 +682,7 @@ export default function SearchPage() {
                                 </button>
                             </div>
                         </div>
-                    ) : state.isLoading ? (
+                    ) : state.isLoading || (query && state.resultsFor !== query) ? (
                         <div className="flex flex-col gap-4 mt-6">
                             {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                                 <Skeleton key={i} className="h-[136px] w-full rounded-lg" />
