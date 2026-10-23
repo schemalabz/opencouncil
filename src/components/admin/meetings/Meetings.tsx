@@ -9,6 +9,10 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { MeetingDecisionCounts } from "@/lib/db/decisions";
+import type { MeetingDocumentChips } from "@/lib/documents/status";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { BadgePicker, BadgePickerOption } from "@/components/ui/badge-picker";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
@@ -22,21 +26,28 @@ interface MeetingsProps {
     currentCityName: string;
     selectedCityId: string;
     decisionCounts: MeetingDecisionCounts;
+    documentChips: MeetingDocumentChips;
     cityHasDiavgeiaUid: boolean;
 }
 
-export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, cityHasDiavgeiaUid }: MeetingsProps) {
+export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, documentChips, cityHasDiavgeiaUid }: MeetingsProps) {
     const tCommon = useTranslations('Common');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [selectedMeetingIds, setSelectedMeetingIds] = useState<Set<string>>(new Set());
+    const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false);
 
     // Reset selection when city changes
     useEffect(() => {
         setSelectedMeetingIds(new Set());
         setSelectedAdminBodyId(null);
         setSearchQuery("");
+        setNeedsAttentionOnly(false);
     }, [selectedCityId]);
+
+    // A document that needs an operator: failed, sent incomplete, due and not sent, or reviewed with no agenda
+    const needsAttention = (meetingId: string) => (documentChips[meetingId] ?? []).some(chip => chip.attention);
+    const attentionCount = useMemo(() => meetings.filter(meeting => needsAttention(meeting.id)).length, [meetings, documentChips]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Get unique administrative bodies from meetings as BadgePicker options
     const adminBodyOptions = useMemo(() => {
@@ -73,8 +84,12 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
             );
         }
 
+        if (needsAttentionOnly) {
+            filtered = filtered.filter(meeting => needsAttention(meeting.id));
+        }
+
         return filtered;
-    }, [meetings, searchQuery, selectedAdminBodyId]);
+    }, [meetings, searchQuery, selectedAdminBodyId, needsAttentionOnly, documentChips]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -135,17 +150,32 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                 />
             </div>
 
-            {/* Administrative Body Filter */}
-            {adminBodyOptions.length > 1 && (
-                <BadgePicker
-                    options={adminBodyOptions}
-                    selectedValues={selectedAdminBodyId ? [selectedAdminBodyId] : []}
-                    onSelectionChange={(values) => setSelectedAdminBodyId(values.length > 0 ? values[0] : null)}
-                    allLabel={tCommon('allBodies')}
-                    collapsible={false}
-                    className="my-4"
-                />
-            )}
+            {/* Filters: the body chips, and the documents that need an operator */}
+            <div className="my-4 flex flex-wrap items-start gap-x-4 gap-y-2">
+                {adminBodyOptions.length > 1 && (
+                    <BadgePicker
+                        options={adminBodyOptions}
+                        selectedValues={selectedAdminBodyId ? [selectedAdminBodyId] : []}
+                        onSelectionChange={(values) => setSelectedAdminBodyId(values.length > 0 ? values[0] : null)}
+                        allLabel={tCommon('allBodies')}
+                        collapsible={false}
+                    />
+                )}
+                {/* The same chip shape as the body picker (h-7 rounded-full), so it reads as one more filter */}
+                <Button
+                    type="button"
+                    variant={needsAttentionOnly ? "default" : "ghost"}
+                    size="sm"
+                    className="h-7 rounded-full px-2.5 text-xs"
+                    onClick={() => setNeedsAttentionOnly(value => !value)}
+                    disabled={attentionCount === 0 && !needsAttentionOnly}
+                    aria-pressed={needsAttentionOnly}
+                >
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                    Needs attention
+                    <span className={cn("ml-1.5 tabular-nums", needsAttentionOnly ? "text-primary-foreground/80" : "text-muted-foreground")}>{attentionCount}</span>
+                </Button>
+            </div>
 
             {/* Statistics Cards */}
             <StatsCard items={statsItems} columns={3} />
@@ -202,15 +232,15 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                                             </Tooltip>
                                         </TooltipProvider>
                                     </TableHead>
-                                    <TableHead className="w-16 text-center">
+                                    <TableHead className="w-56">
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <span className="cursor-help">📤</span>
+                                                    <span className="cursor-help">Documents</span>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p className="max-w-xs">
-                                                        Transcript Sent - Shows whether the transcript has been emailed to the municipality.
+                                                        The documents the body sends to the municipality (transcript, minutes): sent, sent incomplete with the missing count, waiting, failed, or not sent. Hover a chip for the recipients, the time and the trigger.
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -229,6 +259,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                                         isSelected={selectedMeetingIds.has(meeting.id)}
                                         onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
                                         decisionCounts={decisionCounts[meeting.id]}
+                                        documentChips={documentChips[meeting.id] ?? []}
                                     />
                                 ))}
                             </TableBody>

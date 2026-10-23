@@ -17,6 +17,7 @@ export * from './roles';
 export * from './contribution';
 export * from './meetingSummary';
 export * from './administrativeBody';
+export * from './documentSend';
 
 // Meeting with all related data
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {

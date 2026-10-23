@@ -1,7 +1,8 @@
 import * as z from 'zod';
-import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
+import { AdministrativeBodyType, DocumentKind, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsRecordSchema, decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
+import { DOCUMENT_KINDS, type DocumentSendRule } from '@/lib/documents/settings';
 import { blankToNull, webUrl } from './primitives';
 import { vmsg } from './messages';
 
@@ -32,12 +33,26 @@ const youtubeChannelUrlValue = webUrl({
 // In a request, an absent channel stays as it is. An empty string or null clears it.
 const youtubeChannelUrlRequest = blankToNull(z.union([youtubeChannelUrlValue, z.literal('')]));
 
+// One document of the "Αποστολή Εγγράφων" section, as the routes receive it.
+// An enabled document needs somebody to send it to.
+export const documentSendSettingInputSchema = z.object({
+    document: z.enum(DocumentKind),
+    enabled: z.boolean(),
+    recipientEmails: z.array(z.email()),
+}).refine(setting => !setting.enabled || setting.recipientEmails.length > 0, {
+    error: 'An enabled document needs at least one recipient',
+    path: ['recipientEmails'],
+});
+
+export type DocumentSendSettingInput = z.infer<typeof documentSendSettingInputSchema>;
+
 // JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}.
 // On PUT, an absent field stays as it is.
 export const administrativeBodySchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl: youtubeChannelUrlRequest,
-    contactEmails: z.array(z.email()).optional(),
+    // Absent: the settings of the body stay as they are
+    documentSendSettings: z.array(documentSendSettingInputSchema).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
@@ -47,10 +62,11 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change these two fields and no other.
+// who may change the YouTube channel and the document send settings, and no
+// other field (#828, #874).
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: youtubeChannelUrlRequest,
-    contactEmails: z.array(z.email()).optional(),
+    documentSendSettings: z.array(documentSendSettingInputSchema).optional(),
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision
@@ -68,22 +84,68 @@ export const updateAdministrativeBodyRequestSchema = z.discriminatedUnion('confi
     administrativeBodySchema.extend({ confirmConventions: z.literal(false).optional() }),
 ]);
 
-// Frontend form schema (React Hook Form). The form edits the contact emails as
-// a primary address plus a comma-separated CC list, and joins them on submit.
+const emailSchema = z.email();
+
+/** A comma-separated CC list, as the form holds it, split into addresses. */
+export function splitEmailList(value: string): string[] {
+    return value.split(',').map(email => email.trim()).filter(email => email !== '');
+}
+
+// One card of the "Αποστολή Εγγράφων" section: the switch, the To address and
+// the comma-separated CC list. The addresses are checked whenever they are
+// typed; a To address is required only for a document that is switched on.
+export const documentSendCardSchema = z.object({
+    enabled: z.boolean(),
+    to: z.string().trim(),
+    cc: z.string(),
+}).superRefine((card, ctx) => {
+    if (card.enabled && card.to === '') {
+        ctx.addIssue({ code: 'custom', path: ['to'], message: vmsg('documentRecipientRequired') });
+    } else if (card.to !== '' && !emailSchema.safeParse(card.to).success) {
+        ctx.addIssue({ code: 'custom', path: ['to'], message: vmsg('invalidEmail') });
+    }
+    if (!splitEmailList(card.cc).every(email => emailSchema.safeParse(email).success)) {
+        ctx.addIssue({ code: 'custom', path: ['cc'], message: vmsg('invalidEmailList') });
+    }
+});
+
+export type DocumentSendCard = z.infer<typeof documentSendCardSchema>;
+
+export const documentSendCardsSchema = z.object(
+    Object.fromEntries(DOCUMENT_KINDS.map(document => [document, documentSendCardSchema])) as Record<DocumentKind, typeof documentSendCardSchema>,
+);
+
+export type DocumentSendCards = z.infer<typeof documentSendCardsSchema>;
+
+/** The cards of the form from the stored settings; a document with no row is off and empty. */
+export function documentSendCardsFromSettings(settings: Array<DocumentSendRule & { document: DocumentKind }> | undefined): DocumentSendCards {
+    const cards = {} as DocumentSendCards;
+    for (const document of DOCUMENT_KINDS) {
+        const setting = settings?.find(s => s.document === document);
+        const [to = '', ...cc] = setting?.recipientEmails ?? [];
+        cards[document] = { enabled: setting?.enabled ?? false, to, cc: cc.join(', ') };
+    }
+    return cards;
+}
+
+/** The request body of the routes from the cards of the form. */
+export function documentSendSettingsFromCards(cards: DocumentSendCards): DocumentSendSettingInput[] {
+    return DOCUMENT_KINDS.map(document => {
+        const card = cards[document];
+        return {
+            document,
+            enabled: card.enabled,
+            recipientEmails: [...(card.to.trim() ? [card.to.trim()] : []), ...splitEmailList(card.cc)],
+        };
+    });
+}
+
+// Frontend form schema (React Hook Form).
 export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
     // Sent as it is: the request reads an empty field as a clear.
     youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal('')]).optional(),
-    contactEmailPrimary: z.union([
-        z.email({ error: vmsg('invalidEmail') }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmailsCC: z.string().optional().refine(val => {
-        if (!val || val.trim() === '') return true;
-        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
-        const emailSchema = z.email();
-        return emails.every(email => emailSchema.safeParse(email).success);
-    }, { error: vmsg('invalidEmailList') }),
+    documentSendSettings: documentSendCardsSchema,
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),

@@ -55,7 +55,10 @@ The seeding process follows a specific order to respect entity dependencies:
    - Cities (includes `diavgeiaUid` and all config fields)
 
 2. **City-Related Entities** (depend on cities)
-   - Administrative bodies (includes `diavgeiaUnitIds`, `contactEmails`, etc.)
+   - Administrative bodies. They include `diavgeiaUnitIds`, the other body fields, and the on/off switch of each document send.
+     - The recipient addresses stay out of the dump.
+     - Before you try a send, add a To address in the body form.
+     - In a dump from before #874, a non-empty `contactEmails` list becomes the transcript switch, without its addresses.
    - Parties
 
 3. **Person-Related Entities** (depend on cities and parties)

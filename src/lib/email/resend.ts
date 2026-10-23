@@ -73,7 +73,16 @@ function applyDevOverride(item: BatchEmailItem, override: string): BatchEmailIte
     };
 }
 
-export async function sendEmail(params: EmailParams) {
+/**
+ * The result of one email. A failure says whether the provider refused the
+ * email (`rejected`: it did not go out) or whether the outcome is `unknown`:
+ * the provider failed, or its answer was lost, and the email may have gone out.
+ */
+export type SendEmailResult =
+    | { success: true; message: string }
+    | { success: false; message: string; outcome: 'rejected' | 'unknown' };
+
+export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
     const resend = new Resend(env.RESEND_API_KEY);
     let { from, to, cc, replyTo, subject, html, text, attachments, tags } = params;
 
@@ -132,14 +141,17 @@ export async function sendEmail(params: EmailParams) {
 
         if (result.error) {
             console.error('Failed to send email:', result);
-            throw new Error("An error occurred while sending the email");
+            // The SDK reports a 5xx answer, and a request that got no answer at
+            // all, as these two. Every other error is a 4xx refusal.
+            const unknown = result.error.name === 'application_error' || result.error.name === 'internal_server_error';
+            return { success: false, message: 'Failed to send email', outcome: unknown ? 'unknown' : 'rejected' };
         }
 
         console.log('Email sent successfully:', result);
         return { success: true, message: 'Email sent successfully' };
     } catch (error) {
         console.error('Failed to send email:', error);
-        return { success: false, message: 'Failed to send email' };
+        return { success: false, message: 'Failed to send email', outcome: 'unknown' };
     }
 }
 

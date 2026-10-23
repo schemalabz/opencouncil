@@ -27,6 +27,7 @@
     "youtubeChannelUrl": "Doit être l'URL d'une chaîne YouTube : https://www.youtube.com/@handle ou https://www.youtube.com/channel/UC…",
     "invalidEmail": "Doit être une adresse e-mail valide",
     "invalidEmailList": "Toutes les entrées doivent être des adresses e-mail valides",
+    "documentRecipientRequired": "Saisissez l'adresse qui reçoit le document",
     "roleEndBeforeStart": "La date de fin ne doit pas précéder la date de début.",
     "recipientNameMin2": "Le nom du destinataire doit contenir au moins 2 caractères.",
     "platformPriceNonNegative": "Le prix de la plateforme doit être un nombre positif.",

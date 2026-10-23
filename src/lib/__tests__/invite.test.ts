@@ -99,7 +99,7 @@ describe('sendInviteEmail', () => {
   });
 
   it('returns false and cleans up the token when sendEmail fails', async () => {
-    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed' });
+    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed', outcome: 'rejected' });
 
     const result = await sendInviteEmail('fail@example.com', 'Bob');
 
@@ -131,7 +131,7 @@ describe('sendInviteEmail', () => {
   });
 
   it('returns false gracefully when cleanup also fails', async () => {
-    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed' });
+    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed', outcome: 'rejected' });
     mockDeleteMany.mockRejectedValueOnce(new Error('cleanup error'));
 
     await expect(sendInviteEmail('fail@example.com', 'Eve')).resolves.toBe(false);

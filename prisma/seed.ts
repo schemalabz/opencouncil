@@ -1,4 +1,4 @@
-import { PrismaClient, type CityStatus } from '@prisma/client'
+import { PrismaClient, type CityStatus, type DocumentKind, type Prisma } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { env } from '@/env.mjs'
@@ -581,16 +581,43 @@ async function seedCities(cities: any[]) {
   track('Cities', cityData.length)
 }
 
+/** A document send setting as generate_seed_dump writes it: JSON, so the date is a string, and no addresses. */
+type DumpedDocumentSendSetting = {
+  document: DocumentKind
+  enabled: boolean
+  enabledAt: string | null
+}
+
 /**
  * Seed administrative bodies
  */
 async function seedAdministrativeBodies(bodies: any[]) {
   console.log(`Seeding ${bodies.length} administrative bodies...`)
 
+  // A dump carries the switch of each document of a body, without the
+  // addresses: a developer adds a To address in the body form to send. A dump
+  // from before #874 carries the contactEmails column instead; it turns into
+  // the transcript switch, and its addresses stay out of the database too.
+  // A switch with no address sends nothing.
+  const rows = bodies.map(({ contactEmails, documentSendSettings, ...body }) => body)
   await prisma.administrativeBody.createMany({
-    data: bodies,
+    data: rows,
     skipDuplicates: true,
   })
+  const settings = bodies.flatMap((body): Prisma.DocumentSendSettingCreateManyInput[] => Array.isArray(body.documentSendSettings)
+    ? (body.documentSendSettings as DumpedDocumentSendSetting[]).map(setting => ({
+      administrativeBodyId: body.id,
+      document: setting.document,
+      enabled: setting.enabled,
+      enabledAt: setting.enabledAt ? new Date(setting.enabledAt) : null,
+      recipientEmails: [],
+    }))
+    : Array.isArray(body.contactEmails) && body.contactEmails.length > 0
+      ? [{ administrativeBodyId: body.id, document: 'transcript', enabled: true, enabledAt: null, recipientEmails: [] }]
+      : [])
+  if (settings.length > 0) {
+    await prisma.documentSendSetting.createMany({ data: settings, skipDuplicates: true })
+  }
   track('Administrative Bodies', bodies.length)
 }
 

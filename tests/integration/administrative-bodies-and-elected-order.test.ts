@@ -2,7 +2,7 @@
 import * as z from 'zod'
 import prisma from '@/lib/db/prisma'
 import { paths } from '@/lib/openapi'
-import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities'
+import { AdministrativeBodyWithSendSettingsSchema, AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities'
 import { GET as listBodies, POST as createBody } from '@/app/api/cities/[cityId]/administrative-bodies/route'
 import { PUT as updateBody } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route'
 import { POST as updateElectedOrder } from '@/app/api/cities/[cityId]/roles/elected-order/route'
@@ -48,7 +48,6 @@ describe('administrative body and elected order routes', () => {
         expect(response.status).toBe(201)
         expect(await prisma.administrativeBody.findFirstOrThrow({ where: { cityId } })).toMatchObject({
             type: 'committee',
-            contactEmails: [],
             notificationBehavior: 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: true,
             diavgeiaUnitIds: ['81689', '84655:100010590'],
@@ -61,10 +60,10 @@ describe('administrative body and elected order routes', () => {
         const params = { params: Promise.resolve({ cityId, bodyId: body.id }) }
 
         const ok = await updateBody(jsonRequest(`administrative-bodies/${body.id}`, {
-            name: 'Council', name_en: 'Council', type: 'council', contactEmails: ['clerk@example.com'], youtubeChannelUrl: '',
+            name: 'Council', name_en: 'Council', type: 'council', place: 'Αίθουσα', youtubeChannelUrl: '',
         }, 'PUT') as never, params)
         expect(ok.status).toBe(200)
-        expect((await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })).contactEmails).toEqual(['clerk@example.com'])
+        expect((await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })).place).toBe('Αίθουσα')
 
         const bad = await updateBody(jsonRequest(`administrative-bodies/${body.id}`, {
             name: 'C', name_en: 'Council', type: 'parliament',
@@ -108,7 +107,7 @@ describe('administrative body and elected order routes', () => {
 
         const listed = await listBodies(new Request(`http://localhost/api/cities/${cityId}/administrative-bodies`) as never, { params: Promise.resolve({ cityId }) })
         expect(listed.status).toBe(200)
-        expectDocumented(await listed.json(), z.array(AdministrativeBodyWithSettingsSchema))
+        expectDocumented(await listed.json(), z.array(AdministrativeBodyWithSendSettingsSchema))
 
         // The answer is normalized; the stored row is not rewritten.
         const stored = await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })

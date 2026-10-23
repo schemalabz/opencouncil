@@ -1,6 +1,8 @@
 import { getCities } from "@/lib/db/cities";
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetingsList";
 import { getDecisionCountsForCity, MeetingDecisionCounts } from "@/lib/db/decisions";
+import { getReadinessFactsForCity } from "@/lib/db/documentSends";
+import { documentChipsByMeeting, type MeetingDocumentChips } from "@/lib/documents/status";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
@@ -19,12 +21,16 @@ export default async function AdminMeetingsPage(props: PageProps) {
 
     let meetings: CouncilMeetingWithAdminBodyAndSubjects[] = [];
     let decisionCounts: MeetingDecisionCounts = {};
+    let documentChips: MeetingDocumentChips = {};
     let cityHasDiavgeiaUid = false;
     if (selectedCityId) {
-        [meetings, decisionCounts] = await Promise.all([
+        let readinessFacts;
+        [meetings, decisionCounts, readinessFacts] = await Promise.all([
             getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
             getDecisionCountsForCity(selectedCityId),
+            getReadinessFactsForCity(selectedCityId),
         ]);
+        documentChips = documentChipsByMeeting(readinessFacts);
         cityHasDiavgeiaUid = !!cities.find(c => c.id === selectedCityId)?.diavgeiaUid;
     }
 
@@ -47,6 +53,7 @@ export default async function AdminMeetingsPage(props: PageProps) {
                 currentCityName={currentCityName}
                 selectedCityId={selectedCityId}
                 decisionCounts={decisionCounts}
+                documentChips={documentChips}
                 cityHasDiavgeiaUid={cityHasDiavgeiaUid}
             />
         </div>
