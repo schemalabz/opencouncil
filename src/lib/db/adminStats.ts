@@ -75,10 +75,11 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         searchesThisWeek,
         searchesPrevWeek,
     ] = await Promise.all([
-        prisma.user.count(),
-        prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-        prisma.user.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-        prisma.user.count({ where: { notificationPreferences: { some: {} } } }),
+        // People only: a machine account (a service's user row) is not a reader.
+        prisma.user.count({ where: { isMachine: false } }),
+        prisma.user.count({ where: { isMachine: false, createdAt: { gte: sevenDaysAgo } } }),
+        prisma.user.count({ where: { isMachine: false, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+        prisma.user.count({ where: { isMachine: false, notificationPreferences: { some: {} } } }),
         prisma.notificationPreference.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.notificationDelivery.count({ where: { status: 'sent', sentAt: { gte: sevenDaysAgo } } }),
         prisma.petition.count(),

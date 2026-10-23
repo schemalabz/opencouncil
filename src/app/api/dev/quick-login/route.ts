@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
       where: { email }
     })
 
-    if (!user) {
+    // A machine account never signs in, not even here: its rights are for
+    // its MCP tokens, and a session in its name is a path nothing audits.
+    if (!user || user.isMachine) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 

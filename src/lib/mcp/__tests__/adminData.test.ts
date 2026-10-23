@@ -62,8 +62,9 @@ import { startMeetingTask } from '../../tasks/startMeetingTask';
 import { generatePresignedUrl } from '../../s3';
 import * as cityPopulate from '../../db/cityPopulate';
 
-const ADMIN_TOKEN = { type: 'user', userId: 'u1' } as const;
-const SERVICE = { type: 'service', keyName: 'bot' } as const;
+const ADMIN_TOKEN = { userId: 'u1' } as const;
+// The token of a superadmin account; the route resolved its access.
+const SUPERADMIN_TOKEN = { userId: 'bot' } as const;
 
 const asCityAdmin = (...cityIds: string[]) =>
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: cityIds.map(cityId => ({ cityId })) });
@@ -75,6 +76,8 @@ const asBodyAdmin = (bodyId: string, cityId: string) =>
     });
 
 const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
+// Outside a request scope the guards read the rights from the database.
+const asSuperadmin = () => mockUserFindUnique.mockResolvedValue({ isSuperAdmin: true, administers: [] });
 
 // The bodies of argos, and its meetings: m1 is the council's, m2 the
 // committee's, m3 has no body. requireVisibleMeeting is mocked, so it answers
@@ -86,7 +89,7 @@ const MEETINGS: Record<string, { administrativeBodyId: string | null }> = {
 
 // A request scope with the access the route handler would have resolved.
 const inRealm = <T>(realm: Realm, fn: () => Promise<T>, adminAccess: McpAdminAccess = SUPERADMIN) =>
-    mcpRealmStore.run(requestContext(realm, null, SERVICE, { adminAccess }), fn);
+    mcpRealmStore.run(requestContext(realm, null, SUPERADMIN_TOKEN, { adminAccess }), fn);
 
 
 const MEETING = { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false };
@@ -243,22 +246,24 @@ describe('create_city', () => {
 
     it('creates a pending city in the realm of the connector, in the language of that realm', async () => {
         (createCityDirect as jest.Mock).mockImplementation(async data => data);
-        await inRealm(Realm.france, () => mcpCreateCity(SERVICE, CITY));
+        await inRealm(Realm.france, () => mcpCreateCity(SUPERADMIN_TOKEN, CITY));
         expect(createCityDirect).toHaveBeenCalledWith(expect.objectContaining({
             id: 'lyon', realm: 'france', language: 'fr', status: 'pending', logoImage: null,
         }));
     });
 
     it('reports a taken id as a conflict, from the unique index', async () => {
+        asSuperadmin();
         (createCityDirect as jest.Mock).mockRejectedValue(
             new Prisma.PrismaClientKnownRequestError('taken', { code: 'P2002', clientVersion: 'test' })
         );
-        await expect(mcpCreateCity(SERVICE, CITY)).rejects.toThrow(ConflictError);
+        await expect(mcpCreateCity(SUPERADMIN_TOKEN, CITY)).rejects.toThrow(ConflictError);
     });
 
     it('lets any other database error through as is', async () => {
+        asSuperadmin();
         (createCityDirect as jest.Mock).mockRejectedValue(new Error('connection lost'));
-        await expect(mcpCreateCity(SERVICE, CITY)).rejects.toThrow('connection lost');
+        await expect(mcpCreateCity(SUPERADMIN_TOKEN, CITY)).rejects.toThrow('connection lost');
     });
 });
 
@@ -275,20 +280,22 @@ describe('populate_city', () => {
     });
 
     it('rejects a role that names a party which is not in the call', async () => {
+        asSuperadmin();
         const populate = jest.spyOn(cityPopulate, 'populateCity');
         const data = parsed([{ type: 'party', partyName: 'Αλλο Κόμμα' }]);
-        await expect(mcpPopulateCity(SERVICE, data)).rejects.toThrow(/unknown party "Αλλο Κόμμα"/);
+        await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).rejects.toThrow(/unknown party "Αλλο Κόμμα"/);
         expect(populate).not.toHaveBeenCalled();
     });
 
     it('saves a call whose roles all resolve', async () => {
+        asSuperadmin();
         const populate = jest.spyOn(cityPopulate, 'populateCity')
             .mockResolvedValue({ partiesCount: 1, peopleCount: 1, rolesCount: 2, adminBodiesCount: 1 });
         const data = parsed([
             { type: 'party', partyName: 'Κόμμα' },
             { type: 'adminBody', administrativeBodyName: 'Δημοτικό Συμβούλιο' },
         ]);
-        await expect(mcpPopulateCity(SERVICE, data)).resolves.toMatchObject({ cityId: 'lyon', rolesCount: 2 });
+        await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).resolves.toMatchObject({ cityId: 'lyon', rolesCount: 2 });
         expect(populate).toHaveBeenCalledWith('lyon', data);
     });
 });

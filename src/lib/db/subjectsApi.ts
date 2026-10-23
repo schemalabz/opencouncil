@@ -118,7 +118,7 @@ function meetingWhere(realm: Realm, filters: ApiSubjectFilters): Prisma.CouncilM
  *
  * `includeUnreleased` drops the public-city and realm constraints as well as
  * the release constraint: the callers that pass it have authorized for this
- * city (or hold a service key), so they see their own city whatever its status.
+ * city, so they see their own city whatever its status.
  */
 export function buildApiSubjectWhere(
     realm: Realm,

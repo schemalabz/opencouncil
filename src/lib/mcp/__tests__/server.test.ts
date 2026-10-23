@@ -36,8 +36,7 @@ const HIGHLIGHT_TOOLS = [
     'create_highlight', 'generate_highlight_video', 'list_highlights',
     'set_highlight_showcase', 'get_highlight',
 ];
-const USER: McpIdentity = { type: 'user', userId: 'u1' };
-const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
+const USER: McpIdentity = { userId: 'u1' };
 
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
@@ -103,13 +102,6 @@ describe('highlight tools are advertised only on authenticated connections', () 
         expect(advertised(null).tools.filter((n) => n.includes('highlight'))).toEqual([]);
     });
 
-    it('advertises the suite to service keys as well as user tokens', () => {
-        // Guards a later `identity?.type === 'user'` narrowing quietly stripping
-        // the suite from admin-panel sk_ keys.
-        expect(advertised(SERVICE).tools).toEqual(advertised(USER).tools);
-        expect(advertised(SERVICE).prompts).toEqual(advertised(USER).prompts);
-    });
-
     it('fails closed when there is no request scope at all', () => {
         expect(advertised(null, { inRequestScope: false }).tools)
             .toEqual(advertised(null).tools);
@@ -124,7 +116,6 @@ describe('admin tools are advertised by admin access', () => {
         expect(advertised(USER).tools.filter(n => admin.includes(n))).toEqual([]);
         // The identity alone decides nothing: the route resolves the access.
         expect(advertised(USER).tools.filter(n => admin.includes(n))).toEqual([]);
-        expect(advertised(SERVICE).tools.filter(n => admin.includes(n))).toEqual([]);
     });
 
     it('gives a city administrator the meeting tools only', () => {
@@ -135,17 +126,17 @@ describe('admin tools are advertised by admin access', () => {
 
     it('gives a superadmin the city and user tools as well', () => {
         const base = advertised(USER).tools;
-        const superadmin = advertised(SERVICE, { adminAccess: SUPERADMIN }).tools;
+        const superadmin = advertised(USER, { adminAccess: SUPERADMIN }).tools;
         expect(superadmin.filter(n => !base.includes(n))).toEqual([...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS]);
     });
 
     it('offers no tool that deletes a meeting', () => {
-        const { tools } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        const { tools } = advertised(USER, { adminAccess: SUPERADMIN });
         expect(tools.filter(n => /delete.*meeting|meeting.*delete/.test(n))).toEqual([]);
     });
 
     it('marks the writes that lose data as destructive', () => {
-        const { meta } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        const { meta } = advertised(USER, { adminAccess: SUPERADMIN });
         const destructive = Object.keys(meta).filter(name => meta[name].annotations?.destructiveHint === true);
         // start_task with force deletes a transcript.
         expect(destructive).toEqual(['start_task']);
@@ -199,7 +190,7 @@ describe('tool metadata', () => {
     // place that can notice. Filtering into an array makes Jest name the
     // offending tool.
     it('gives every tool a readOnlyHint and a known category', () => {
-        const { tools, meta } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        const { tools, meta } = advertised(USER, { adminAccess: SUPERADMIN });
         expect(tools.filter(name =>
             typeof meta[name].annotations?.readOnlyHint !== 'boolean'
             || !CATEGORIES.includes(meta[name]._meta?.category ?? '')
@@ -314,9 +305,9 @@ describe('administrative-body filtering', () => {
         // get_city only lists draft-only bodies to a caller who can see
         // drafts, so dropping the identity would silently hide them.
         const { handlers } = advertised(USER);
-        await handlers.get_city({ cityId: 'athens' } as never, ctxFor(SERVICE));
+        await handlers.get_city({ cityId: 'athens' } as never, ctxFor(USER));
 
-        expect(data.mcpGetCity).toHaveBeenCalledWith('athens', SERVICE);
+        expect(data.mcpGetCity).toHaveBeenCalledWith('athens', USER);
     });
 });
 

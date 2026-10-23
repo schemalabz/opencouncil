@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
-import { withServiceOrUserAuth, getUnreleasedScope } from '@/lib/auth';
+import { withUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
 import { ALL_UNRELEASED, NO_UNRELEASED, type UnreleasedScope } from '@/lib/unreleased';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
@@ -19,12 +19,12 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         // runs before the parse, so a caller without rights learns nothing
         // about the schema.
         const bodyId = typeof body?.administrativeBodyId === 'string' && body.administrativeBodyId ? body.administrativeBodyId : undefined;
-        await withServiceOrUserAuth(request, bodyId
+        await withUserAuthorizedToEdit(bodyId
             ? { cityId: params.cityId, administrativeBodyId: bodyId }
             : { cityId: params.cityId });
         const { processAgenda, ...input } = meetingSchema.parse(body);
 
-        // Auth was already verified by withServiceOrUserAuth above. The shared
+        // Auth was already verified by withUserAuthorizedToEdit above. The shared
         // write runs the lifecycle rules and does no auth of its own.
         const { meeting, processAgendaStatus } = await createMeetingWithEffects(params.cityId, { ...input, processAgenda });
 
@@ -45,17 +45,17 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
 
         const { limit, from, to, includeUnreleased } = meetingListQuerySchema.parse(queryParams);
 
-        // includeUnreleased needs a service key or an editor of the city. A
-        // body admin is one: they get the drafts of their bodies and no other,
-        // so the meeting form can offer them the meeting that a new one replaces.
+        // includeUnreleased needs an editor of the city. A body admin is one:
+        // they get the drafts of their bodies and no other, so the meeting form
+        // can offer them the meeting that a new one replaces.
         let unreleased: UnreleasedScope = NO_UNRELEASED;
         if (includeUnreleased) {
             const scope = await getUnreleasedScope(params.cityId);
             if (scope.all || scope.bodyIds.length > 0) {
                 unreleased = scope;
             } else {
-                // No session with rights here: a service key passes, anyone else gets 401.
-                await withServiceOrUserAuth(request, { cityId: params.cityId });
+                // No session with rights here: 401 without a session, 403 with one.
+                await withUserAuthorizedToEdit({ cityId: params.cityId });
                 unreleased = ALL_UNRELEASED;
             }
         }

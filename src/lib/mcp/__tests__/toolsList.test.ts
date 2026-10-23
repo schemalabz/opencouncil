@@ -42,7 +42,7 @@ const HIGHLIGHT_TOOLS = ['create_highlight', 'generate_highlight_video', 'list_h
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
 const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
 
-const USER: McpIdentity = { type: 'user', userId: 'u1' };
+const USER: McpIdentity = { userId: 'u1' };
 
 const CALLERS: { caller: string; identity: McpIdentity; adminAccess: McpAdminAccess | null; tools: string[] }[] = [
     { caller: 'an anonymous caller', identity: null, adminAccess: null, tools: PUBLIC_TOOLS },

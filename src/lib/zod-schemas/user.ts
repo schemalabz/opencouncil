@@ -1,5 +1,7 @@
 import * as z from 'zod';
 import { PHONE_REJECTION_CODES, normalizeMobilePhone } from '@/lib/utils/phone';
+import { machineAccountSlug } from '@/lib/auth/machineAccounts';
+import { vmsg } from '@/lib/zod-schemas/messages';
 
 // --- Profile (self-service) ---
 
@@ -62,6 +64,39 @@ export const updateAdminUserSchema = z.object({
     id: z.string().min(1, "User ID is required"),
     ...adminUserFields,
 }).partial().required({ id: true });
+
+// --- Machine accounts (superadmin only) ---
+
+/**
+ * The label of a machine account: its display name, and the source of its
+ * address (machineAccountSlug), so it needs a Latin letter or a digit.
+ */
+export const machineAccountLabelSchema = z.string().trim()
+    .min(1, { error: vmsg('machineAccountLabelInvalid') })
+    .max(100, { error: vmsg('machineAccountLabelInvalid') })
+    .refine((label) => machineAccountSlug(label) !== null, { error: vmsg('machineAccountLabelInvalid') });
+
+/** JSON body of POST /api/admin/users when it creates a machine account. */
+export const createMachineAccountSchema = z.object({
+    isMachine: z.literal(true),
+    label: machineAccountLabelSchema,
+    isSuperAdmin: adminUserFields.isSuperAdmin,
+    administers: adminUserFields.administers,
+});
+export type CreateMachineAccountInput = z.infer<typeof createMachineAccountSchema>;
+
+/**
+ * JSON body of POST /api/admin/users: a machine account when `isMachine` is
+ * true, a person otherwise. One schema for the route and its OpenAPI entry,
+ * so a body like `isMachine: "true"` is refused, not read as a person.
+ */
+export const createUserRequestSchema = z.discriminatedUnion('isMachine', [
+    createMachineAccountSchema,
+    createAdminUserSchema.extend({ isMachine: z.literal(false).optional() }),
+]);
+
+/** An id a Server Action receives: any JSON value until it is checked. */
+export const entityIdSchema = z.string().min(1);
 
 // --- Admins of an administrative body ---
 

@@ -219,7 +219,7 @@ export async function upsertHighlight(
         throw new UnauthorizedError('Authentication required');
     }
 
-    return upsertHighlightCore({ type: 'user', userId: currentUser.id }, highlightData);
+    return upsertHighlightCore(currentUser.id, highlightData);
 }
 
 /**

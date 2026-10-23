@@ -13,12 +13,13 @@ import {
     createSpeakerTag,
     createSubject,
     createUtterance,
+    createUser,
 } from '../helpers/factories'
 
 // Anonymous, like a public connector: it sees released meetings only.
 const ANON = null
-// A service key, which sees a city's drafts.
-const SERVICE = { type: 'service', keyName: 'test' } as const
+// The token of a superadmin account, which sees every city's drafts.
+let SUPERADMIN: { userId: string }
 
 /** Run a tool implementation inside the realm scope the route handler opens. */
 const asRequest = <T>(fn: () => Promise<T>) =>
@@ -36,6 +37,7 @@ describe('MCP meeting listing by administrative body - integration', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma)
+        SUPERADMIN = { userId: (await createUser('bot@example.com', { isSuperAdmin: true })).id }
         await createCity({ id: 'athens', realm: Realm.greece })
 
         const community = await createAdministrativeBody('athens', {
@@ -90,7 +92,7 @@ describe('MCP meeting listing by administrative body - integration', () => {
         const anonymous = await asRequest(() =>
             mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, ANON))
         const service = await asRequest(() =>
-            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, SERVICE))
+            mcpListMeetings('athens', { ...page, administrativeBodyIds: [communityId] }, SUPERADMIN))
         expect(anonymous.pagination.total).toBe(3)
         expect(service.pagination.total).toBe(4)
     })
@@ -243,13 +245,13 @@ describe('MCP meeting listing by administrative body - integration', () => {
             administrativeBodyId: draftOnly.id, released: false,
         })
 
-        const city = await asRequest(() => mcpGetCity('athens', SERVICE))
+        const city = await asRequest(() => mcpGetCity('athens', SUPERADMIN))
         expect(city.administrativeBodies.map(b => b.id)).toContain(draftOnly.id)
 
         // The id has to be usable, or listing it is worse than withholding it.
         const { meetings } = await asRequest(() => mcpListMeetings('athens', {
             ...page, administrativeBodyIds: [draftOnly.id],
-        }, SERVICE))
+        }, SUPERADMIN))
         expect(meetings.map(m => m.id)).toEqual(['draft'])
     })
 })
@@ -257,6 +259,7 @@ describe('MCP meeting listing by administrative body - integration', () => {
 describe('MCP meeting tools report the record of a meeting - integration', () => {
     beforeEach(async () => {
         await resetDatabase(prisma)
+        SUPERADMIN = { userId: (await createUser('bot@example.com', { isSuperAdmin: true })).id }
         await createCity({ id: 'athens', realm: Realm.greece })
         const council = await createAdministrativeBody('athens', {
             name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council', place: 'Δημαρχείο',
@@ -296,7 +299,7 @@ describe('MCP meeting tools report the record of a meeting - integration', () =>
     })
 
     test('get_meeting of the new meeting carries the original date, not the id', async () => {
-        const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar19_2026', SERVICE))
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar19_2026', SUPERADMIN))
         expect(meeting.postponedFromDate).toBe('2026-03-12T16:00:00.000Z')
         expect(JSON.stringify(meeting)).not.toContain('mar12_2026')
     })
@@ -308,6 +311,7 @@ describe('MCP transcript tools page the record - integration', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma)
+        SUPERADMIN = { userId: (await createUser('bot@example.com', { isSuperAdmin: true })).id }
         await createCity({ id: 'athens', realm: Realm.greece })
         await createMeeting('athens', { id: 'long', dateTime: new Date('2026-05-05T15:00:00Z'), released: true })
         await createMeeting('athens', { id: 'silent', dateTime: new Date('2026-05-12T15:00:00Z'), released: true })
@@ -337,27 +341,27 @@ describe('MCP transcript tools page the record - integration', () => {
 
     test('get_transcript pages the segments by the page size asked for', async () => {
         const result = await asRequest(() =>
-            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 3, includeUtteranceIds: false }, SERVICE))
+            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 3, includeUtteranceIds: false }, SUPERADMIN))
         expect(result.pagination).toEqual({ total: 7, page: 2, pageSize: 3, totalPages: 3 })
         expect(result.segments.map(s => s.text)).toEqual(['Τμήμα 3', 'Τμήμα 4', 'Τμήμα 5'])
     })
 
     test('get_transcript counts only the segments of the person asked for', async () => {
         const result = await asRequest(() =>
-            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 2, includeUtteranceIds: false, personId }, SERVICE))
+            mcpGetTranscript('athens', 'long', { page: 2, pageSize: 2, includeUtteranceIds: false, personId }, SUPERADMIN))
         expect(result.pagination).toEqual({ total: 3, page: 2, pageSize: 2, totalPages: 2 })
         expect(result.segments.map(s => s.text)).toEqual(['Τμήμα 5'])
     })
 
     test('get_transcript of a meeting with no transcript reports no pages', async () => {
         const result = await asRequest(() =>
-            mcpGetTranscript('athens', 'silent', { page: 1, pageSize: 40, includeUtteranceIds: false }, SERVICE))
+            mcpGetTranscript('athens', 'silent', { page: 1, pageSize: 40, includeUtteranceIds: false }, SUPERADMIN))
         expect(result.pagination).toEqual({ total: 0, page: 1, pageSize: 40, totalPages: 0 })
         expect(result.segments).toEqual([])
     })
 
     test('get_subject_transcript reports the utterances over every page', async () => {
-        const result = await asRequest(() => mcpGetSubjectTranscript(subjectId, 2, SERVICE))
+        const result = await asRequest(() => mcpGetSubjectTranscript(subjectId, 2, SUPERADMIN))
         expect(result.pagination).toEqual({ total: 151, page: 2, pageSize: 150, totalPages: 2 })
         expect(result.utterances.map(u => u.text)).toEqual(['Θέμα 150'])
     })

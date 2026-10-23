@@ -17,6 +17,7 @@ declare module "next-auth" {
 
     interface User {
         isSuperAdmin?: boolean
+        isMachine?: boolean
         name?: string | null
         phone?: string | null
     }
@@ -35,8 +36,8 @@ export const authOptions = {
     // Said once here, both paths look for the same cookie names.
     useSecureCookies: usesSecureCookies(),
     callbacks: {
-        signIn({ account, profile }) {
-            return signInAllowed(account, profile);
+        signIn({ user, account, profile }) {
+            return signInAllowed(account, profile, user);
         },
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin

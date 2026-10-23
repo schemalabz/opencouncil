@@ -43,5 +43,6 @@
     "cityMessageLink": "Must be an http(s) URL or a path that starts with a single /",
     "imageMaxSize": "Image must be at most 5 MB",
     "logoType": "Logo must be one of: image/png, image/jpeg",
-    "logoMaxSize": "Logo must be at most 5 MB"
+    "logoMaxSize": "Logo must be at most 5 MB",
+    "machineAccountLabelInvalid": "The label needs 1 to 100 characters, with at least one Latin letter or digit."
 }

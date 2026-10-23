@@ -11,7 +11,6 @@ const mockPersonFindUnique = jest.fn();
 const mockPartyFindUnique = jest.fn();
 
 jest.mock('@/auth', () => ({ auth: (...args: unknown[]) => mockAuth(...args) }));
-jest.mock('@/lib/db/apiKeys', () => ({ validateServiceApiKey: jest.fn() }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
@@ -23,8 +22,7 @@ jest.mock('@/lib/db/prisma', () => ({
     },
 }));
 
-import { NextRequest } from 'next/server';
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, withServiceOrUserAuth, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 
 type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
@@ -184,13 +182,6 @@ describe('an anonymous caller', () => {
         expect(error).toBeInstanceOf(UnauthorizedError);
         expect((error as UnauthorizedError).statusCode).toBe(401);
     });
-
-    it('is refused with a 401 UnauthorizedError by withServiceOrUserAuth', async () => {
-        const request = new NextRequest('http://localhost/api/cities/athens/meetings');
-        const error = await withServiceOrUserAuth(request, { cityId: 'athens' }).catch((e: unknown) => e);
-        expect(error).toBeInstanceOf(UnauthorizedError);
-        expect((error as UnauthorizedError).statusCode).toBe(401);
-    });
 });
 
 describe('a body admin and the other shapes', () => {
@@ -210,12 +201,6 @@ describe('a body admin and the other shapes', () => {
         const error = await withUserAuthorizedToEdit({ cityId: 'athens' }).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(ForbiddenError);
         expect((error as ForbiddenError).statusCode).toBe(403);
-    });
-
-    it('is refused with a 403 ForbiddenError by withServiceOrUserAuth', async () => {
-        const request = new NextRequest('http://localhost/api/cities/athens/meetings');
-        const error = await withServiceOrUserAuth(request, { cityId: 'athens' }).catch((e: unknown) => e);
-        expect(error).toBeInstanceOf(ForbiddenError);
     });
 });
 
