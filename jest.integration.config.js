@@ -2,8 +2,13 @@ module.exports = {
     preset: 'ts-jest',
     testEnvironment: 'node',
     testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
+    // One PostgreSQL server for the whole run: see tests/helpers/test-db.ts.
+    globalSetup: '<rootDir>/tests/global-setup-integration.ts',
+    globalTeardown: '<rootDir>/tests/global-teardown-integration.ts',
     setupFilesAfterEnv: ['<rootDir>/tests/setup-integration.ts'],
-    maxWorkers: '50%',
+    // 4 workers on a 16-core machine ran the suite as fast as 8 or 16 and used
+    // about 30% less CPU than 8.
+    maxWorkers: '25%',
     // Prevent Jest from scanning large build directories
     modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],

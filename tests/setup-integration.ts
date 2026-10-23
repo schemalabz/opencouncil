@@ -1,4 +1,4 @@
-import { ensureTestDb, teardownTestDb } from './helpers/test-db'
+import { assertEmptyTestDb, ensureTestDb } from './helpers/test-db'
 
 // Replace the Prisma singleton with a lazy version that defers PrismaClient
 // creation until first use. This is necessary because Jest loads modules
@@ -30,10 +30,10 @@ jest.setTimeout(180000)
 
 beforeAll(async () => {
     await ensureTestDb()
+    await assertEmptyTestDb()
 })
 
 afterAll(async () => {
     const prisma = (await import('@/lib/db/prisma')).default
     await prisma.$disconnect()
-    await teardownTestDb()
 })

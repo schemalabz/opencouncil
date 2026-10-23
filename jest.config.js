@@ -1,8 +1,6 @@
 // Shared config for both test projects below.
 const shared = {
   preset: 'ts-jest',
-  maxWorkers: '50%',
-  workerIdleMemoryLimit: '512MB',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.css$': '<rootDir>/__mocks__/styleMock.js',
@@ -35,6 +33,10 @@ const shared = {
 // them with polyfills is a losing game (each one undici needs reveals another).
 // Component tests (.test.tsx) that render React still need jsdom.
 module.exports = {
+  // Jest reads these two options only at the top level. Inside a project
+  // config it ignores them without a warning and uses every core but one.
+  maxWorkers: '50%',
+  workerIdleMemoryLimit: '512MB',
   projects: [
     {
       ...shared,
