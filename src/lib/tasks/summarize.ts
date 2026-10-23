@@ -12,19 +12,35 @@ import { requestSummarizeInternal } from "./summarizeInternal";
 import { withUserAuthorizedToEdit } from "../auth";
 import { taskScope } from "./types";
 import { after } from "next/server";
+import * as z from "zod";
 import { generateImagesForMeeting } from "../subjectImages";
+
+// A Server Action has no runtime types. Both fields land in the summarize
+// prompt, so they are bounded here.
+const summarizeInputSchema = z.object({
+    requestedSubjects: z.array(z.string().max(500)).max(100),
+    additionalInstructions: z.string().max(4000).optional(),
+});
 
 /**
  * Browser-facing entry point for the admin panel's summarize button. Callers
  * with no session, such as the MCP admin tools, use requestSummarizeInternal.
+ * A rejected input comes back as a value: production Next hides the message
+ * of an error that a Server Action throws.
  */
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
     force = false
 }: {
     force?: boolean;
-} = {}) {
+} = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit(taskScope({ type: 'summarize', cityId, councilMeetingId }));
-    return requestSummarizeInternal(cityId, councilMeetingId, requestedSubjects, additionalInstructions, { force });
+    const input = summarizeInputSchema.safeParse({ requestedSubjects, additionalInstructions });
+    if (!input.success) {
+        const issue = input.error.issues[0];
+        return { ok: false, message: `${issue.path.join('.')}: ${issue.message}` };
+    }
+    await requestSummarizeInternal(cityId, councilMeetingId, input.data.requestedSubjects, input.data.additionalInstructions, { force });
+    return { ok: true };
 }
 
 export async function handleSummarizeResult(taskId: string, response: SummarizeResult) {

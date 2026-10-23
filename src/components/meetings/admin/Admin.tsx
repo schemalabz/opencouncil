@@ -134,7 +134,15 @@ export default function AdminActions({
     const handleSummarize = async (force: boolean = false) => {
         setIsSummarizing(true);
         try {
-            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions, { force });
+            const result = await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions, { force });
+            if (!result.ok) {
+                toast({
+                    title: t('toasts.errorRequestingSummarization.title'),
+                    description: result.message,
+                    variant: 'destructive'
+                });
+                return;
+            }
             toast({
                 title: t('toasts.summarizationRequested.title'),
                 description: t('toasts.summarizationRequested.description'),
@@ -248,7 +256,15 @@ export default function AdminActions({
     const handleProcessAgenda = async (force: boolean = false) => {
         setIsProcessingAgenda(true);
         try {
-            await requestProcessAgenda(agendaUrl, meeting.id, meeting.cityId, { force });
+            const result = await requestProcessAgenda(agendaUrl, meeting.id, meeting.cityId, { force });
+            if (!result.ok) {
+                toast({
+                    title: t('toasts.errorProcessingAgenda.title'),
+                    description: result.message,
+                    variant: 'destructive'
+                });
+                return;
+            }
             toast({
                 title: t('toasts.agendaProcessingRequested.title'),
                 description: t('toasts.agendaProcessingRequested.description'),
