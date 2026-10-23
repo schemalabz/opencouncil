@@ -189,6 +189,71 @@ describe('review queries', () => {
             expect(await getMeetingsNeedingReview({ show: 'all', reviewerId: editor.id })).toHaveLength(0)
         })
 
+        describe('time since transcription', () => {
+            const HOUR = 60 * 60 * 1000
+
+            it('counts from the latest transcribe until now for an unreviewed meeting', async () => {
+                await createCity({ id: 'city1', status: 'supported' })
+                await seedMeeting({ cityId: 'city1', meetingId: 'm1', transcribe: false })
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'succeeded', updatedAt: new Date(Date.now() - 80 * HOUR),
+                })
+                const retranscribedAt = new Date(Date.now() - 30 * HOUR)
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'succeeded', updatedAt: retranscribedAt,
+                })
+                // A failed run does not restart the clock.
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'failed', updatedAt: new Date(Date.now() - HOUR),
+                })
+
+                const [item] = await getMeetingsNeedingReview({ show: 'all' })
+                expect(item.transcribedAt).toEqual(retranscribedAt)
+                expect(item.reviewWaitMs).toBeGreaterThanOrEqual(30 * HOUR)
+                expect(item.reviewWaitMs).toBeLessThan(31 * HOUR)
+            })
+
+            it('stops at humanReview for a completed meeting', async () => {
+                await createCity({ id: 'city1', status: 'supported' })
+                await seedMeeting({ cityId: 'city1', meetingId: 'm1', transcribe: false })
+                const now = Date.now()
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'succeeded', updatedAt: new Date(now - 50 * HOUR),
+                })
+                await createTaskStatus('m1', 'city1', {
+                    type: 'humanReview', status: 'succeeded', updatedAt: new Date(now - 20 * HOUR),
+                })
+
+                const [item] = await getMeetingsNeedingReview({ show: 'all' })
+                expect(item.status).toBe('completed')
+                expect(item.reviewWaitMs).toBe(30 * HOUR)
+                expect(item.reviewedAt).toEqual(new Date(now - 20 * HOUR))
+            })
+
+            it('counts until now when the review came before a re-transcription', async () => {
+                await createCity({ id: 'city1', status: 'supported' })
+                await seedMeeting({ cityId: 'city1', meetingId: 'm1', transcribe: false })
+                const now = Date.now()
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'succeeded', updatedAt: new Date(now - 100 * HOUR),
+                })
+                // This review belongs to the first transcript.
+                await createTaskStatus('m1', 'city1', {
+                    type: 'humanReview', status: 'succeeded', updatedAt: new Date(now - 90 * HOUR),
+                })
+                await createTaskStatus('m1', 'city1', {
+                    type: 'transcribe', status: 'succeeded', updatedAt: new Date(now - 24 * HOUR),
+                })
+
+                const [item] = await getMeetingsNeedingReview({ show: 'all' })
+                // The status stays completed, but the clock of the new transcript runs.
+                expect(item.status).toBe('completed')
+                expect(item.reviewedAt).toBeNull()
+                expect(item.reviewWaitMs).toBeGreaterThanOrEqual(24 * HOUR)
+                expect(item.reviewWaitMs).toBeLessThan(25 * HOUR)
+            })
+        })
+
         it('honors the show filter transitions', async () => {
             await createCity({ id: 'city1', status: 'supported' })
             await seedMeeting({ cityId: 'city1', meetingId: 'm-open' })

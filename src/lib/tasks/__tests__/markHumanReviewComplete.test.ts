@@ -16,6 +16,7 @@ const MEETING_ID = 'meeting-1';
 const REVIEW_TASK_ID = 'human-review-task-1';
 
 const mockTaskStatusCreate = jest.fn();
+const mockTaskStatusFindFirst = jest.fn();
 const mockMeetingFindUnique = jest.fn();
 const mockCheckTaskIdempotency = jest.fn();
 const mockRequestSummarize = jest.fn();
@@ -28,6 +29,7 @@ jest.mock('../../db/prisma', () => ({
   default: {
     taskStatus: {
       create: (...args: unknown[]) => mockTaskStatusCreate(...args),
+      findFirst: (...args: unknown[]) => mockTaskStatusFindFirst(...args),
     },
     councilMeeting: {
       findUnique: (...args: unknown[]) => mockMeetingFindUnique(...args),
@@ -81,6 +83,8 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
     allowBoth();
     mockTaskStatusCreate.mockResolvedValue({ id: REVIEW_TASK_ID });
+    // The latest succeeded transcribe. None by default, so an existing review counts.
+    mockTaskStatusFindFirst.mockResolvedValue(null);
     mockMeetingFindUnique.mockResolvedValue({
       id: MEETING_ID,
       cityId: CITY_ID,
@@ -196,6 +200,29 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
 
     expect(mockRequestSummarize).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
     expect(mockSendTranscriptToMunicipality).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+  });
+
+  it('reuses a review that came after the latest transcription', async () => {
+    const existingTask = { id: 'existing-human-review', updatedAt: new Date('2026-10-20T10:00:00Z') };
+    mockCheckTaskIdempotency.mockResolvedValueOnce({ proceed: false, existingTask, blockedReason: 'already_succeeded' });
+    mockTaskStatusFindFirst.mockResolvedValue({ updatedAt: new Date('2026-10-19T10:00:00Z') });
+
+    await expect(markHumanReviewComplete(CITY_ID, MEETING_ID)).resolves.toEqual(
+      expect.objectContaining({ review: existingTask })
+    );
+    expect(mockTaskStatusCreate).not.toHaveBeenCalled();
+  });
+
+  it('writes a new review record when the meeting was transcribed again after its review', async () => {
+    // The earlier review looked at the previous transcript.
+    const earlierReview = { id: 'earlier-human-review', updatedAt: new Date('2026-10-20T10:00:00Z') };
+    mockCheckTaskIdempotency.mockResolvedValueOnce({ proceed: false, existingTask: earlierReview, blockedReason: 'already_succeeded' });
+    mockTaskStatusFindFirst.mockResolvedValue({ updatedAt: new Date('2026-10-22T10:00:00Z') });
+
+    await expect(markHumanReviewComplete(CITY_ID, MEETING_ID)).resolves.toEqual(
+      expect.objectContaining({ review: { id: REVIEW_TASK_ID } })
+    );
+    expect(mockTaskStatusCreate).toHaveBeenCalledTimes(1);
   });
 
   it('fails when the meeting does not exist', async () => {

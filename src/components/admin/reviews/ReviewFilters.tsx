@@ -5,13 +5,16 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useUrlParams } from "@/hooks/useUrlParams";
 
+export type ReviewSort = 'date' | 'longestWait';
+
 interface ReviewFiltersProps {
   show: 'needsAttention' | 'all' | 'completed';
   reviewerId?: string;
   reviewers: Array<{ id: string; name: string | null; email: string }>;
+  sort: ReviewSort;
 }
 
-export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProps) {
+export function ReviewFilters({ show, reviewerId, reviewers, sort }: ReviewFiltersProps) {
   const { updateParam, isPending } = useUrlParams();
 
   const handleShowChange = (value: string) => {
@@ -30,6 +33,11 @@ export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProp
     } else {
       updateParam('reviewerId', value);
     }
+  };
+
+  const handleSortChange = (value: string) => {
+    // Remove the parameter if it's the default value
+    updateParam('sort', value === 'date' ? null : value);
   };
 
   return (
@@ -69,6 +77,20 @@ export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProp
         </Select>
       </div>
 
+      <div className="w-full md:w-64">
+        <Label htmlFor="sort-filter" className="text-sm font-medium mb-2 block">
+          Sort
+        </Label>
+        <Select value={sort} onValueChange={handleSortChange} disabled={isPending}>
+          <SelectTrigger id="sort-filter" disabled={isPending}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date">Meeting date, newest first</SelectItem>
+            <SelectItem value="longestWait">Longest wait first</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {isPending && (
         <div className="flex items-end pb-2">
