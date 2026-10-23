@@ -1,4 +1,4 @@
-import { categorizeSubjectsForUpsert, type ExistingSubjectRow } from '../db/subject-helpers';
+import { agendaDescriptionsByRowId, categorizeSubjectsForUpsert, type ExistingSubjectRow } from '../db/subject-helpers';
 import { makeSubject } from '../../../tests/helpers/builders';
 
 describe('categorizeSubjectsForUpsert', () => {
@@ -393,5 +393,56 @@ describe('categorizeSubjectsForUpsert', () => {
             expect(result.toCreate).toEqual([]);
             expect(result.unmatched).toEqual([]);
         });
+    });
+});
+
+describe('agendaDescriptionsByRowId', () => {
+    const agenda = [
+        makeSubject({ name: 'Donation', agendaItemIndex: 1, description: 'Agenda text 1' }),
+        makeSubject({ name: 'Roads', agendaItemIndex: 2, description: 'Agenda text 2' }),
+    ];
+
+    it('gives each row the agenda text of its item, also when the summary renamed it', () => {
+        const rows: ExistingSubjectRow[] = [
+            { id: 'r1', agendaItemIndex: 1, name: 'Donation' },
+            { id: 'r2', agendaItemIndex: 2, name: 'Road works on Main Street' },
+            { id: 'r3', agendaItemIndex: null, name: 'Urgent item', nonAgendaReason: 'outOfAgenda' },
+        ];
+
+        expect(agendaDescriptionsByRowId(agenda, rows)).toEqual(new Map([['r1', 'Agenda text 1'], ['r2', 'Agenda text 2']]));
+    });
+
+    it('gives nothing when the stored agenda has a numbered item that the result lacks', () => {
+        // An import after processAgenda added item 3.
+        const rows: ExistingSubjectRow[] = [
+            { id: 'r1', agendaItemIndex: 1, name: 'Donation' },
+            { id: 'r2', agendaItemIndex: 2, name: 'Culture strategy' },
+            { id: 'r3', agendaItemIndex: 3, name: 'Youth council' },
+        ];
+
+        expect(agendaDescriptionsByRowId(agenda, rows).size).toBe(0);
+    });
+
+    it('gives nothing when the result has a numbered item that the stored agenda lacks', () => {
+        // A fix by hand after processAgenda removed item 2, item 3 moved to slot 2, and the summary renamed it.
+        const withParks = [...agenda, makeSubject({ name: 'Parks', agendaItemIndex: 3, description: 'Agenda text 3' })];
+        const rows: ExistingSubjectRow[] = [
+            { id: 'r1', agendaItemIndex: 1, name: 'Donation' },
+            { id: 'r2', agendaItemIndex: 2, name: 'New park in the north' },
+        ];
+
+        expect(agendaDescriptionsByRowId(withParks, rows).size).toBe(0);
+    });
+
+    it('leaves an item without a number out, on both sides', () => {
+        // Stored payloads hold a null number, which the Subject type does not allow.
+        const withUnnumbered = [...agenda, makeSubject({ name: 'Legacy budget', agendaItemIndex: null as never, description: 'Agenda text' })];
+        const rows: ExistingSubjectRow[] = [
+            { id: 'r1', agendaItemIndex: 1, name: 'Donation' },
+            { id: 'r2', agendaItemIndex: 2, name: 'Roads' },
+            { id: 'r3', agendaItemIndex: null, name: 'Legacy budget' },
+        ];
+
+        expect(agendaDescriptionsByRowId(withUnnumbered, rows)).toEqual(new Map([['r1', 'Agenda text 1'], ['r2', 'Agenda text 2']]));
     });
 });

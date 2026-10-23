@@ -271,6 +271,8 @@ When the result handler throws, the task becomes `failed`. `responseBody` keeps 
 
 The `failureReason` column starts with migration `20261006120000_task_status_failure_reason`. A failed row from before that migration has no `failureReason`, and its `responseBody` can hold failure text instead of a payload. A reprocess refuses such a row when the text is not JSON.
 
+The `responseBody` of a `processAgenda` task is also an input to a later task. For a forced summarize, `getSummarizeRequestBody` reads the newest succeeded one by `createdAt` and sends its description of each agenda subject. A summarize that already succeeded runs again only with force. summarize overwrites `Subject.description`, so after the first summary this payload is the only copy of the agenda text. A change to how `TaskStatus` bodies are kept, masked or deleted must keep these payloads. A replay of an older `processAgenda` task writes its subjects again, but the newer task is still the one that summarize reads.
+
 ### Basic Reprocessing
 
 The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results. It calls the handler of the task type with the stored `responseBody` directly. The rules:

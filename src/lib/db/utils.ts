@@ -17,7 +17,8 @@ import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./s
 import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles } from "../utils";
 import { roleWithRelationsInclude } from "./types";
-import { categorizeSubjectsForUpsert } from "./subject-helpers";
+import { agendaDescriptionsByRowId, categorizeSubjectsForUpsert } from "./subject-helpers";
+import { getLatestProcessAgendaSubjects } from "./tasksInternal";
 import { getRealmCountry } from "@/lib/realm";
 import { getCityRealm } from "./cityRealm";
 import { getRoleTitles } from "@/i18n/roleTitles";
@@ -142,6 +143,11 @@ let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_O
 export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string, { force = false }: { force?: boolean } = {}): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
     const existingSubjects = await getSubjectsForMeeting(cityId, councilMeetingId);
+    // A summarize that already succeeded runs again only with force, and its rows then hold the previous summary.
+    // Without force, the rows still hold the text that processAgenda wrote.
+    const agendaDescriptions = force
+        ? agendaDescriptionsByRowId(await getLatestProcessAgendaSubjects(cityId, councilMeetingId), existingSubjects)
+        : new Map<string, string>();
     return {
         ...baseRequest,
         requestedSubjects,
@@ -153,7 +159,7 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
             // The row's own id, so the result names the row it updates (issue 366).
             id: s.id,
             name: s.name,
-            description: s.description,
+            description: agendaDescriptions.get(s.id) ?? s.description,
             introducedByPersonId: s.introducedBy?.id || null,
             topicLabel: s.topic?.name || null,
             location: s.location && s.location.coordinates ? {
