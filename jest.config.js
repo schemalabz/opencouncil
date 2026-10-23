@@ -12,7 +12,10 @@ const shared = {
     '^client-only$': '<rootDir>/__mocks__/empty.js',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/integration/'],
+  // Worktrees the Claude app keeps under .claude/ hold a second copy of every
+  // workspace package, which the haste map reports as a duplicate module.
+  modulePathIgnorePatterns: ['<rootDir>/.claude/'],
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/integration/', '<rootDir>/.claude/'],
   // next-intl and its ICU message-formatting dependency chain (use-intl,
   // intl-messageformat, icu-minify, the @formatjs/* and @schummar/* packages)
   // ship ESM-only builds. Let ts-jest transpile those too, instead of the

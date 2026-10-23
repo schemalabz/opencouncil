@@ -5,8 +5,8 @@ module.exports = {
     setupFilesAfterEnv: ['<rootDir>/tests/setup-integration.ts'],
     maxWorkers: '50%',
     // Prevent Jest from scanning large build directories
-    modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
-    testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
+    modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/.claude/'],
+    testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/.claude/'],
     moduleNameMapper: {
         // Next.js bundler marker modules with no runtime content — same
         // mapping as jest.config.js.
