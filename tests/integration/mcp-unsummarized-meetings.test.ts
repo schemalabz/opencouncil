@@ -17,6 +17,7 @@ import {
     createSpeakerSegment,
     createSpeakerTag,
     createSubject,
+    createTaskStatus,
     createUtterance,
 } from '../helpers/factories'
 
@@ -54,6 +55,16 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
         })
         await transcribe('summarized')
         await createSubject('summarized', 'athens', { id: 'sub1', name: 'Προϋπολογισμός' })
+        await createTaskStatus('summarized', 'athens', { type: 'summarize', status: 'succeeded' })
+
+        // Transcribed, with the agenda document's items extracted but no
+        // summary yet — the shape that reads like the record of the meeting.
+        await createMeeting('athens', {
+            id: 'agendaonly', dateTime: new Date('2026-08-25T07:30:00Z'), released: true,
+        })
+        await transcribe('agendaonly')
+        await createSubject('agendaonly', 'athens', { id: 'item1', name: 'Αναμόρφωση', agendaItemIndex: 1 })
+        await createTaskStatus('agendaonly', 'athens', { type: 'processAgenda', status: 'succeeded' })
 
         // Neither: a session still to be held.
         await createMeeting('athens', {
@@ -90,23 +101,87 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
         expect(meeting.note).not.toMatch(/still be processing/)
     })
 
-    test('get_meeting adds no note once the meeting has an agenda', async () => {
+    test('get_meeting adds no note once the meeting is summarized', async () => {
         const meeting = await asRequest(() => mcpGetMeeting('athens', 'summarized', ANON))
 
         expect(meeting.subjects.map(s => s.id)).toEqual(['sub1'])
         expect(meeting.hasTranscript).toBe(true)
+        expect(meeting.summarized).toBe(true)
         expect(meeting).not.toHaveProperty('note')
+    })
+
+    test('get_meeting says that agenda-only subjects are not the record', async () => {
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'agendaonly', ANON))
+
+        expect(meeting.subjects.map(s => s.id)).toEqual(['item1'])
+        expect(meeting.hasTranscript).toBe(true)
+        expect(meeting.summarized).toBe(false)
+        expect(meeting.note).toContain('get_transcript')
+        expect(meeting.note).toMatch(/agenda document only/)
+    })
+
+    test('get_meeting treats contributions as a summary when no task row exists', async () => {
+        // Meetings processed before task tracking: the summarization step
+        // left its contributions but no succeeded summarize row.
+        await createSubject('agendaonly', 'athens', { id: 'raised', name: 'Προ ημερησίας', agendaItemIndex: null, nonAgendaReason: 'beforeAgenda' })
+        await prisma.speakerContribution.create({
+            data: { subjectId: 'raised', text: 'Ο πρόεδρος έθεσε το θέμα.', speakerName: 'Πρόεδρος' },
+        })
+
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'agendaonly', ANON))
+
+        expect(meeting.summarized).toBe(true)
+        expect(meeting).not.toHaveProperty('note')
+        expect(meeting.subjects.map(s => [s.id, s.nonAgendaReason])).toEqual([['item1', null], ['raised', 'beforeAgenda']])
+    })
+
+    test('get_meeting treats tagged discussion as a summary when nothing else marks it', async () => {
+        const segment = await prisma.speakerSegment.findFirstOrThrow({ where: { meetingId: 'agendaonly', cityId: 'athens' } })
+        await prisma.utterance.updateMany({
+            where: { speakerSegmentId: segment.id },
+            data: { discussionSubjectId: 'item1', discussionStatus: 'SUBJECT_DISCUSSION' },
+        })
+
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'agendaonly', ANON))
+
+        expect(meeting.summarized).toBe(true)
+        expect(meeting).not.toHaveProperty('note')
+    })
+
+    test('list_meetings treats tagged discussion as a summary, like get_meeting', async () => {
+        const segment = await prisma.speakerSegment.findFirstOrThrow({ where: { meetingId: 'agendaonly', cityId: 'athens' } })
+        await prisma.utterance.updateMany({
+            where: { speakerSegmentId: segment.id },
+            data: { discussionSubjectId: 'item1', discussionStatus: 'SUBJECT_DISCUSSION' },
+        })
+
+        const { meetings } = await asRequest(() =>
+            mcpListMeetings('athens', { page: 1, pageSize: 10 }, ANON))
+
+        expect(meetings.find(m => m.id === 'agendaonly')?.summarized).toBe(true)
+    })
+
+    test('list_meetings treats contributions as a summary when no task row exists', async () => {
+        await prisma.speakerContribution.create({
+            data: { subjectId: 'item1', text: 'Ο εισηγητής παρουσίασε την αναμόρφωση.', speakerName: 'Εισηγητής' },
+        })
+
+        const { meetings } = await asRequest(() =>
+            mcpListMeetings('athens', { page: 1, pageSize: 10 }, ANON))
+
+        expect(meetings.find(m => m.id === 'agendaonly')?.summarized).toBe(true)
     })
 
     test('list_meetings separates "no subjects" from "no record at all"', async () => {
         const { meetings } = await asRequest(() =>
             mcpListMeetings('athens', { page: 1, pageSize: 10 }, ANON))
 
-        expect(meetings.map(m => ({ id: m.id, subjectCount: m.subjectCount, hasTranscript: m.hasTranscript })))
+        expect(meetings.map(m => ({ id: m.id, subjectCount: m.subjectCount, hasTranscript: m.hasTranscript, summarized: m.summarized })))
             .toEqual([
-                { id: 'scheduled', subjectCount: 0, hasTranscript: false },
-                { id: 'transcribed', subjectCount: 0, hasTranscript: true },
-                { id: 'summarized', subjectCount: 1, hasTranscript: true },
+                { id: 'scheduled', subjectCount: 0, hasTranscript: false, summarized: false },
+                { id: 'agendaonly', subjectCount: 1, hasTranscript: true, summarized: false },
+                { id: 'transcribed', subjectCount: 0, hasTranscript: true, summarized: false },
+                { id: 'summarized', subjectCount: 1, hasTranscript: true, summarized: true },
             ])
     })
 
