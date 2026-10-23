@@ -34,7 +34,9 @@ function renderRow(assignedReviewer: ReviewListItem['assignedReviewer'], reviewe
         firstEditAt: null,
         lastEditAt: null,
         meetingDurationMs: 0,
-        reviewDurationMs: null,
+        transcribedAt: null,
+        reviewWaitMs: null,
+        reviewedAt: null,
         transcriptSent: false,
     };
     render(<ReviewerSelect review={review} superAdmins={superAdmins} />);
