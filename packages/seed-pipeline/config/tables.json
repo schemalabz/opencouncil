@@ -15,7 +15,7 @@
         "ServiceApiKey", "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
         "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
         "ConsultationComment", "ConsultationCommentUpvote", "PendingConsultationComment",
-        "ConsultationCommentResponse", "MeetingOperator", "Offer",
+        "ConsultationCommentResponse", "MeetingOperator", "MeetingReviewer", "Offer",
         "VoicePrint", "VoicePrintConsent", "QrCampaign", "PhoneVerification", "PhoneCodeSend"
       ]
     },

@@ -303,6 +303,7 @@ model CouncilMeeting {
 
   notifications Notification[]
   meetingOperator MeetingOperator?
+  meetingReviewer MeetingReviewer?
 
   @@id([cityId, id])
   @@unique([cityId, id])
@@ -315,6 +316,25 @@ model CouncilMeeting {
 }
 
 model MeetingOperator {
+  id        String   @id @default(cuid())
+
+  meeting      CouncilMeeting @relation(fields: [meetingCityId, meetingId], references: [cityId, id], onDelete: Cascade)
+  meetingCityId String
+  meetingId    String
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([meetingCityId, meetingId])
+}
+
+// The superadmin who owns the transcript review of a meeting. A separate
+// table, like MeetingOperator, keeps team-internal data out of the
+// CouncilMeeting types that non-superadmin code reads.
+model MeetingReviewer {
   id        String   @id @default(cuid())
 
   meeting      CouncilMeeting @relation(fields: [meetingCityId, meetingId], references: [cityId, id], onDelete: Cascade)
@@ -1132,6 +1152,7 @@ model User {
   highlights Highlight[]
   decisions Decision[]
   meetingOperatorAssignments MeetingOperator[]
+  meetingReviewerAssignments MeetingReviewer[]
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
