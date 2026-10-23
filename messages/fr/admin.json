@@ -327,6 +327,14 @@
         "rejected": "Rejetée",
         "none": "—",
         "noVote": "—"
+      },
+      "resultFrom": {
+        "sheet": "Le vote vient de la feuille de présence ; aucune décision n’est encore liée",
+        "transcript": "Le vote vient de la transcription ; aucune décision n’est encore liée"
+      },
+      "sourceShort": {
+        "sheet": "feuille",
+        "transcript": "transcription"
       }
     },
     "panel": {
@@ -534,6 +542,35 @@
       "conventionsEdit": "Modifier les règles de l'organe",
       "conventionsNone": "Aucune règle n'est enregistrée pour cet organe. Ses pages de décision ne sont pas lues tant qu'une personne ne les a pas enregistrées ; les faits affichés ont été déduits avec les valeurs par défaut."
     },
+    "sources": {
+      "title": "Sources",
+      "loadFailed": "Les sources n’ont pas pu être chargées.",
+      "actionFailed": "L’action a échoué",
+      "readFailed": "La lecture a échoué : {error}",
+      "warnings": "Avertissements du lecteur",
+      "unmatchedNames": "Noms non reconnus : {names}",
+      "sheet": {
+        "label": "Feuille de présence",
+        "none": "Aucune feuille envoyée. Envoyez une photo ou un PDF de la feuille du secrétariat.",
+        "upload": "Envoyer la feuille",
+        "uploaded": "Envoyée ; le lecteur n’a pas encore répondu.",
+        "readerNotStarted": "La feuille est envoyée, mais la lecture n'a pas démarré",
+        "reading": "Lecture de {file}…",
+        "read": "Lu le {date}.",
+        "reread": "Relire",
+        "remove": "Retirer",
+        "removeConfirm": "Retirer la feuille, sa lecture et tout ce qui en découle ?"
+      },
+      "transcript": {
+        "label": "Transcription",
+        "none": "Pas encore lue.",
+        "reading": "Lecture…",
+        "read": "Lue le {date}.",
+        "counts": "{entries, plural, one {# entrée d’appel} other {# entrées d’appel}} · {changes, plural, one {# changement} other {# changements}} · {votes, plural, one {# déclaration de vote} other {# déclarations de vote}}",
+        "readButton": "Lire la transcription",
+        "reread": "Relire"
+      }
+    },
     "presenceHeadline": "{present} présents sur {total}",
     "presenceAbsentInline": "{n} absents :",
     "presencePresentList": "Présents ({n})",
@@ -579,7 +616,9 @@
         "NAME_MATCHED_TWICE": "One name, two people",
         "OUT_OF_AGENDA_PLACED_FIRST": "Arrivée ou départ hors ordre du jour, placé avant le premier sujet",
         "VOTE_BY_ABSENT_MEMBER": "Vote by an absent member",
-        "NO_VOTE_RESULT": "No vote result"
+        "NO_VOTE_RESULT": "Pas de résultat de vote",
+        "UNPLACEABLE_VOTE": "Vote sans sujet",
+        "PARTY_VOTE_UNRESOLVED": "Vote de groupe non résolu"
       },
       "messages": {
         "NO_ROLL_CALL": "{reason, select, noMajority {Les décisions qui indiquent des présences au début ne concordent pas, et aucune version ne figure dans plus de la moitié d’entre elles. Sans présences au début, le calcul ne peut pas établir qui était présent à chaque sujet. Rien n’est enregistré et les lignes enregistrées restent telles quelles.} other {Aucune décision et aucune autre source ne donne les présences au début. Sans elles, le calcul ne peut pas établir qui était présent à chaque sujet. Rien n’est enregistré et les lignes enregistrées restent telles quelles.}}",
@@ -591,7 +630,7 @@
         "TALLY_MISMATCH": "Le décompte de la décision diffère des votes calculés ({diffs}).",
         "INCOMPLETE_READ": "La lecture n’a pas atteint ΑΠΟΦΑΣΙΖΕΙ. Le texte de la décision et le vote peuvent manquer.",
         "PRESIDING_DISAGREES": "Les décisions de cette séance nomment des présidents différents ({names}).",
-        "SOURCES_DISAGREE": "{kind, select, event {Une arrivée et un départ du membre sont indiqués pour le même sujet («{winRawText}» selon {winSource, select, decision {la décision} transcript {la transcription} manual {la saisie manuelle} other {{winSource}}}, «{loseRawText}» selon {loseSource, select, decision {la décision} transcript {la transcription} manual {la saisie manuelle} other {{loseSource}}}). {winKind, select, ARRIVAL {L’arrivée compte.} other {Le départ compte.}}} statedList {La décision de ce sujet indique que le membre est {status, select, PRESENT {présent} other {absent}}, mais {eventKind, select, ARRIVAL {une arrivée indiquée} other {un départ indiqué}} dit le contraire («{rawText}»). La décision de ce sujet compte.} doubleVote {La décision nomme le membre deux fois avec des votes différents ({firstVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{firstVote}}} et {secondVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{secondVote}}}). Le premier vote compte.} other {Deux sources indiquent des faits différents. La source de plus haute priorité compte.}}",
+        "SOURCES_DISAGREE": "{kind, select, rollCall {L’appel selon {winSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{winSource}}} indique que le membre est {winStatus, select, PRESENT {présent} other {absent}}, celui selon {loseSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{loseSource}}} qu’il est {loseStatus, select, PRESENT {présent} other {absent}} ; le premier compte.} event {Une arrivée et un départ du membre sont indiqués pour le même sujet («{winRawText}» selon {winSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{winSource}}}, «{loseRawText}» selon {loseSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{loseSource}}}). {winKind, select, ARRIVAL {L’arrivée compte.} other {Le départ compte.}}} statedList {La décision de ce sujet indique que le membre est {status, select, PRESENT {présent} other {absent}}, mais {eventKind, select, ARRIVAL {une arrivée indiquée} other {un départ indiqué}} dit le contraire («{rawText}»). La décision de ce sujet compte.} doubleVote {La décision nomme le membre deux fois avec des votes différents ({firstVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{firstVote}}} et {secondVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{secondVote}}}). Le premier vote compte.} eventPosition {Deux sources indiquent le même changement pour ce membre à des moments différents («{winRawText}» selon {winSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{winSource}}}, «{loseRawText}» selon {loseSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{loseSource}}}) ; le premier compte et le second n’est pas appliqué.} outcome {Le résultat du vote diffère : {winSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{winSource}}} indique {winOutcome, select, unanimous {à l’unanimité} majority {à la majorité} rejected {rejeté} other {{winOutcome}}}, {loseSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{loseSource}}} indique {loseOutcome, select, unanimous {à l’unanimité} majority {à la majorité} rejected {rejeté} other {{loseOutcome}}} ; le premier compte.} vote {Le vote de ce membre diffère : {winSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{winSource}}} indique {winVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{winVote}}}, {loseSource, select, decision {la décision} transcript {la transcription} sheet {la feuille} manual {la saisie manuelle} other {{loseSource}}} indique {loseVote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{loseVote}}} ; le premier compte.} other {Deux sources indiquent des faits différents. La source de plus haute priorité compte.}}",
         "NO_STORED_FACTS": "{missing} des {total} décisions n’ont pas de lecture enregistrée : elles ont été lues avant l’enregistrement de leurs éléments, ou n’ont jamais été lues. Relancez la récupération de la séance pour calculer les présences et les votes. Rien n’est enregistré et les lignes enregistrées restent telles quelles.",
         "LAYOUT_DISAGREES": "Les règles de lecture de l’organe disent que les présences au début sont imprimées comme « {expected, select, composition_and_absent {Composition et absents} present_and_absent {Présents et absents} present_only {Présents seulement} mixed {Mixte} other {{expected}}} », mais le document de cette décision les imprime comme « {found, select, composition_and_absent {Composition et absents} present_and_absent {Présents et absents} present_only {Présents seulement} mixed {Mixte} other {{found}}} ».",
         "ITEM_NUMBER_DISAGREES": "La décision indique qu’elle porte sur le point {declared} de l’ordre du jour, mais elle est liée au point {linked}. Si le lien est faux, tous les éléments de la décision vont au mauvais sujet.",
@@ -609,7 +648,9 @@
         "NAME_MATCHED_TWICE": "Le nom « {name} » correspond à des personnes différentes dans différentes décisions de cette séance. Trouvez la bonne personne et corrigez la correspondance.",
         "OUT_OF_AGENDA_PLACED_FIRST": "{kind, select, ARRIVAL {L’arrivée est indiquée} other {Le départ est indiqué}} pendant les sujets hors ordre du jour, mais cette séance n’a pas de sujet hors ordre du jour. Ces sujets viennent avant l’ordre du jour, donc {kind, select, ARRIVAL {l’arrivée} other {le départ}} compte à partir du premier sujet. Si les premiers sujets du membre semblent faux, vérifiez la décision.",
         "VOTE_BY_ABSENT_MEMBER": "La décision nomme le membre avec un vote ({vote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{vote}}}), mais le membre compte comme absent pour ce sujet. Le vote reste. Soit le vote soit l’absence est faux : vérifiez la décision et les arrivées et départs indiqués.",
-        "NO_VOTE_RESULT": "La décision indique ΑΠΟΦΑΣΙΖΕΙ, mais la lecture n’a pas de résultat de vote : ni formule, ni votant nommé, ni décompte. Le sujet n’a pas de votes. Vérifiez la lecture dans le PDF."
+        "NO_VOTE_RESULT": "La décision indique ΑΠΟΦΑΣΙΖΕΙ, mais la lecture n’a pas de résultat de vote : ni formule, ni votant nommé, ni décompte. Le sujet n’a pas de votes. Vérifiez la lecture dans le PDF.",
+        "UNPLACEABLE_VOTE": "La source indique un vote qui ne nomme aucun sujet de cette séance, ou un sujet que la séance n’a pas. La déclaration n’est pas appliquée ; vérifiez-la là où elle a été lue.",
+        "PARTY_VOTE_UNRESOLVED": "Un groupe a répondu {vote, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{vote}}} pour ses membres, et le groupe ou ses membres présents à ce sujet n’ont pas pu être identifiés. Aucun vote n’en est dérivé."
       },
       "tallyDiff": "{type, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N’A PAS VOTÉ} other {{type}}} : dans la décision {printed}, calculés {derived}",
       "title": "Issues",
@@ -639,6 +680,11 @@
       "howDerived": "How the facts are derived",
       "person": {
         "member": "Member: {name}"
+      },
+      "evidence": {
+        "openRecording": "Ouvrir l’enregistrement",
+        "utterance": "Intervention {id}",
+        "sheetLine": "Ligne {line} de la feuille"
       }
     },
     "rederive": "Re-derive",
@@ -740,7 +786,8 @@
           "PRESIDING_DISAGREES": "Des décisions de la même séance nomment des présidents différents.",
           "CONVENTIONS_UNCONFIRMED": "Les règles de l’organe viennent d’un échantillon de décisions, et aucune personne ne les a confirmées.",
           "NAMED_VOTERS_UNEXPECTED": "Une décision qui nomme les votants autrement que ne le disent les règles de l’organe est soit une erreur de lecture, soit le signe que la règle de l’organe est fausse.",
-          "NO_VOTE_RESULT": "Une décision qui indique ΑΠΟΦΑΣΙΖΕΙ enregistre un vote. Si la lecture n’a pas de résultat de vote, elle a perdu le vote, et le sujet n’a pas de votes."
+          "NO_VOTE_RESULT": "Une décision qui indique ΑΠΟΦΑΣΙΖΕΙ enregistre un vote. Si la lecture n’a pas de résultat de vote, elle a perdu le vote, et le sujet n’a pas de votes.",
+          "UNPLACEABLE_VOTE": "La feuille ou la transcription indique un vote qui ne nomme aucun sujet de cette séance, ou un sujet que la séance n’a pas. La déclaration n’est pas appliquée."
         },
         "resolve": {
           "PERSON_IN_BOTH_LISTS": "Une décision inscrit le même membre parmi les ΠΑΡΟΝΤΕΣ et parmi les ΑΠΟΝΤΕΣ. Là où cette décision fixe qui est présent, le membre compte comme absent.",
@@ -748,7 +795,8 @@
           "LATE_ARRIVAL_IN_OPENING_LIST": "Dans un organe où les ΠΑΡΟΝΤΕΣ sont les présences au début, un membre arrivé plus tard ne peut pas en faire partie.",
           "NAMES_SHARE_ID": "Les présences au début et les arrivées et départs sont combinés par personne. Une mauvaise correspondance fusionne deux membres en un.",
           "NAME_MATCHED_TWICE": "Les décisions de récupérations différentes sont appariées séparément, donc un même nom peut correspondre à deux personnes.",
-          "UNPLACEABLE_ANCHOR": "Une décision indique qu’un membre était absent aux votes d’un intervalle de décisions («στις με αρ. 31–40») ou d’une autre décision, mais aucun sujet de la séance n’a une décision avec ce numéro. Les décisions ne sont peut-être pas encore liées aux sujets, ou la lecture a mal lu les numéros. Le calcul n’ajoute ni départ ni arrivée ; un nouveau calcul, une fois les décisions liées, les place."
+          "SOURCES_DISAGREE": "Deux sources indiquent le même type de changement pour un membre à des moments différents de l’ordre. Le changement de la source de plus haute priorité compte ; l’autre est signalé plutôt qu’effacé.",
+          "UNPLACEABLE_ANCHOR": "Une plage de décisions nommée par une page ne couvre encore aucun sujet de la séance ; son départ et son arrivée ne peuvent être placés tant que les décisions ne sont pas liées."
         },
         "place": {
           "UNPLACEABLE_ANCHOR": "Le sujet que la décision indique ne correspond à aucun sujet de la séance. L’arrivée ou le départ apparaît comme un problème au lieu d’aller au mauvais sujet.",
@@ -765,7 +813,8 @@
         "votes": {
           "TALLY_MISMATCH": "Le décompte de la décision ne concorde pas avec les votes calculés. En général, une arrivée ou un départ manque.",
           "SOURCES_DISAGREE": "La décision nomme le même membre avec deux votes différents. Le premier vote compte.",
-          "VOTE_BY_ABSENT_MEMBER": "Une décision nomme le vote d’un membre qui compte comme absent pour ce sujet. L’un des deux est faux : le vote a été mal lu, ou une arrivée ou un départ manque ou est au mauvais sujet."
+          "VOTE_BY_ABSENT_MEMBER": "Une décision nomme le vote d’un membre qui compte comme absent pour ce sujet. L’un des deux est faux : le vote a été mal lu, ou une arrivée ou un départ manque ou est au mauvais sujet.",
+          "PARTY_VOTE_UNRESOLVED": "Un groupe a répondu pour ses membres, et le groupe ou ses membres présents au sujet n’ont pas pu être identifiés. Aucun vote n’est dérivé de la réponse."
         },
         "write": {
           "NO_STORED_FACTS": "Une seule décision sans lecture enregistrée suffit, si son sujet a déjà des votes, ou qu’aucune décision n’ait de lecture. Un enregistrement perdrait les votes de ce sujet, car aucune lecture ne permet de les recalculer. Une nouvelle récupération de la séance complète les lectures.",

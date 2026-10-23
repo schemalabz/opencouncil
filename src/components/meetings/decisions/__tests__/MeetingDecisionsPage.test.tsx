@@ -155,6 +155,13 @@ jest.mock('@/components/ui/link-or-drop', () => ({
 const mockRequestPoll = requestPollDecisions as jest.MockedFunction<typeof requestPollDecisions>;
 const mockReadAdaLookup = readAdaLookup as jest.MockedFunction<typeof readAdaLookup>;
 
+// The transcript reader's start is a Server Action behind the auth module,
+// which jest cannot load; the page renders for a city admin here, who never
+// reaches it.
+jest.mock('@/lib/actions/meetingFacts', () => ({
+    requestReadTranscriptFacts: jest.fn(async () => ({ taskId: 'task' })),
+}));
+
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
 const fetchMock = jest.fn();
@@ -632,7 +639,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
 });
 
 describe('MeetingDecisionsPage — the names an issue prints', () => {
-    const derivation = (issues: Issue[]): DerivationOutput => ({ attendance: [], votes: [], issues, rollCall: [], events: [] });
+    const derivation = (issues: Issue[]): DerivationOutput => ({ attendance: [], votes: [], outcomes: [], issues, rollCall: [], events: [] });
     const original = mockMeetingData.getPerson;
     beforeEach(() => { mockMeetingData.getPerson = id => (id === 'p1' ? { name: 'Παπαδόπουλος Γιώργος' } : undefined); });
     afterEach(() => { mockMeetingData.getPerson = original; });
@@ -681,7 +688,7 @@ describe('MeetingDecisionsPage — from the issues card to the subject', () => {
     afterEach(() => window.localStorage.clear());
 
     it('opens the subject\'s issues under its row, turning audit mode on, and states each issue once', async () => {
-        store.derivation = { attendance: [], votes: [], rollCall: [], events: [], issues: [
+        store.derivation = { attendance: [], votes: [], outcomes: [], rollCall: [], events: [], issues: [
             { code: 'CONVENTIONS_UNCONFIRMED', source: null, params: {} },
             { code: 'UNMATCHED_NAME', subjectId: 's2', decisionId: 'd2', source: 'decision', rawText: 'Κ. Δήμου', params: { name: 'Κ. Δήμου' } },
             { code: 'UNMATCHED_NAME', subjectId: 's2', decisionId: 'd2', source: 'decision', rawText: 'Λ. Λάμπρου', params: { name: 'Λ. Λάμπρου' } },

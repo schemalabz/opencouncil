@@ -15,18 +15,22 @@ const mockGetPeopleForCity = jest.fn(async (): Promise<unknown[]> => []);
 const mockGetMeetingAttendance = jest.fn(async (): Promise<unknown[]> => []);
 const mockAttendanceEventFindMany = jest.fn(async (): Promise<unknown[]> => []);
 const mockGetDecisionReadings = jest.fn(async (): Promise<Map<string, DecisionReading>> => new Map());
+const mockGetExtractedData = jest.fn(async (): Promise<unknown[]> => []);
+const mockExplainMeeting = jest.fn(async (): Promise<{ outcomes: unknown[] }> => ({ outcomes: [] }));
 
 jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: (...a: unknown[]) => mockGetCouncilMeetingDirect(...a) }));
 jest.mock('@/lib/db/subject', () => ({ getSubjectsForMeeting: (...a: unknown[]) => mockGetSubjectsForMeeting(...a) }));
 jest.mock('@/lib/db/cities', () => ({ getCity: (...a: unknown[]) => mockGetCity(...a) }));
 jest.mock('@/lib/db/decisions', () => ({
-    getExtractedDataForMeeting: jest.fn().mockResolvedValue([]),
+    getExtractedDataForMeeting: () => mockGetExtractedData(),
     getMeetingAttendance: () => mockGetMeetingAttendance(),
 }));
 jest.mock('@/lib/db/people', () => ({ getPeopleForCity: () => mockGetPeopleForCity() }));
 // The subject payload carries no stored reading; the minutes load the readings
 // on their own, and each test states the ones it needs.
 jest.mock('@/lib/db/decisionFacts', () => ({ getDecisionReadingsForMeeting: () => mockGetDecisionReadings() }));
+// The minutes ask the derivation for each subject's outcome word; the suites below state it where it matters.
+jest.mock('@/lib/derivation/persist', () => ({ explainMeeting: () => mockExplainMeeting() }));
 
 jest.mock('@/lib/sorting/people', () => ({ ...jest.requireActual('@/lib/sorting/people'), getElectedOrderForBody: () => null }));
 jest.mock('@/lib/db/prisma', () => ({
@@ -160,6 +164,35 @@ describe('getMinutesData — subject names carry the agenda title', () => {
 
         expect(crossNames.length).toBeGreaterThan(0);
         expect(new Set(crossNames)).toEqual(new Set(['ΤΙΤΛΟΣ ΤΡΙΑ']));
+    });
+});
+
+describe('getMinutesData — a vote the transcript states', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetCity.mockResolvedValue({ name: 'Χανιά', name_municipality: 'Δήμος Χανίων', timezone: 'Europe/Athens', logoImage: null, language: 'el' });
+        mockGetCouncilMeetingDirect.mockResolvedValue({ id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-03-04T18:00:00Z'), administrativeBody: null });
+        mockGetSubjectsForMeeting.mockResolvedValue([subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 })]);
+        mockUtteranceFindMany.mockResolvedValue([utterance({ id: 'u1', start: 0, end: 10, subjectId: 's1' })]);
+        // The transcript stated a majority and named one opponent; the derivation
+        // refused to infer the rest, so the rows hold the dissent alone.
+        mockGetExtractedData.mockResolvedValue([{ subjectId: 's1', attendance: [], votes: [{ personId: 'p1', personName: 'Α. Κατά', voteType: 'AGAINST', source: 'transcript' }] }]);
+        mockExplainMeeting.mockResolvedValue({ outcomes: [{ subjectId: 's1', outcome: 'majority', phrase: 'Κατά πλειοψηφία', source: 'transcript' }] });
+    });
+
+    it('prints the statement\'s word, not a rejection counted from the dissent alone', async () => {
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        const result = data.subjects.find(s => s.subjectId === 's1')!.voteResult;
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase: 'Κατά πλειοψηφία' });
+        expect(result!.againstMembers).toHaveLength(1);
+        expect(result!.forMembers).toHaveLength(0);
+    });
+
+    it('prints a rejection the transcript states, which no phrase of a page would permit', async () => {
+        mockGetExtractedData.mockResolvedValue([{ subjectId: 's1', attendance: [], votes: [] }]);
+        mockExplainMeeting.mockResolvedValue({ outcomes: [{ subjectId: 's1', outcome: 'rejected', phrase: 'Απορρίπτεται', source: 'transcript' }] });
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        expect(data.subjects.find(s => s.subjectId === 's1')!.voteResult).toMatchObject({ fromPhraseOnly: true, outcome: null, phrase: 'Απορρίπτεται' });
     });
 });
 

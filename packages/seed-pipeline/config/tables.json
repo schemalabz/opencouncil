@@ -8,7 +8,7 @@
         "SubjectAttendance", "SubjectVote", "MeetingAttendance", "SpeakerSegment",
         "SpeakerContribution", "Utterance", "Word", "TopicLabel", "Summary", "Highlight",
         "HighlightedUtterance", "CityMessage", "Consultation", "TaskStatus",
-        "AttendanceEvent", "SpeakerIdentification"
+        "AttendanceEvent", "SpeakerIdentification", "MeetingFactSource"
       ],
       "private": [
         "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
@@ -45,7 +45,8 @@
     { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-key", "key": "voiceprint" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" },
     { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-array-key", "path": ["transcript", "transcription", "speakers"], "key": "confidence" },
-    { "table": "AdministrativeBody", "column": "decisionConventions", "action": "json-remove-path", "path": ["provenance", "confirmedBy"] }
+    { "table": "AdministrativeBody", "column": "decisionConventions", "action": "json-remove-path", "path": ["provenance", "confirmedBy"] },
+    { "table": "MeetingFactSource", "column": "fileKey", "action": "null-when", "when": "\"fileKey\" IS NOT NULL" }
   ],
   "subsetOnly": [
     { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },

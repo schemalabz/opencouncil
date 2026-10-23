@@ -23,6 +23,13 @@ function scopedTaskStatus(taskStatusId: string, scope: TaskStatusScope): Prisma.
     return { id: taskStatusId, cityId: scope.cityId, councilMeetingId: scope.councilMeetingId };
 }
 
+/** What a result handler needs of its task: the meeting it belongs to, the task server's version, and the request it answered. Ungated: the callback carries no session. */
+export type TaskResultScope = Pick<TaskStatus, 'cityId' | 'councilMeetingId' | 'version' | 'requestBody'>;
+
+export async function getTaskResultScope(taskId: string): Promise<TaskResultScope | null> {
+    return prisma.taskStatus.findUnique({ where: { id: taskId }, select: { cityId: true, councilMeetingId: true, version: true, requestBody: true } });
+}
+
 export async function getTaskStatusDirect(taskStatusId: string, scope: TaskStatusScope): Promise<TaskStatus | null> {
     return prisma.taskStatus.findFirst({ where: scopedTaskStatus(taskStatusId, scope) });
 }
