@@ -5,6 +5,7 @@ import { DecisionsTable, type TableRow, type DecisionsTableProps } from '../Deci
 import type { AuditSignal } from '../auditSignal';
 import type { Issue } from '@/lib/derivation/types';
 import admin from '../../../../../messages/el/admin.json';
+import decisionsTable from '../../../../../messages/el/decisionsTable.json';
 import el from '../../../../../messages/el.json';
 
 const subject = (over: Partial<TableRow['subject']> = {}): TableRow['subject'] => ({
@@ -51,7 +52,7 @@ const props: DecisionsTableProps = {
 };
 
 const renderTable = (over: Partial<typeof props> = {}) => render(
-    <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+    <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
         <DecisionsTable {...props} {...over} />
     </NextIntlClientProvider>,
 );

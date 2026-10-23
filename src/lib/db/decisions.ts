@@ -138,7 +138,7 @@ export async function deleteDecision(subjectId: string): Promise<void> {
  * `extraction`.
  */
 const CLEARED_EXTRACTION = {
-    excerpt: null, references: null,
+    excerpt: null, references: null, summary: null,
     voteResultPhrase: null, mayorPresent: null, declaredItemNumber: null, declaredOutOfAgenda: null,
     incomplete: false, unmatchedNames: [], extractorVersion: null, extraction: Prisma.DbNull,
 } satisfies Prisma.DecisionUpdateManyMutationInput;
