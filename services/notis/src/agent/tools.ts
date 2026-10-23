@@ -124,6 +124,16 @@ export const CLIENT_TOOLS = [
       type: "object" as const,
       properties: {
         text: { type: "string", description: "The message text, in the reader's language." },
+        // Explicit, not inferred: a short linkless message can be a complete
+        // answer («Όχι, δεν συζητήθηκε.»), so only the model can say which
+        // send was the holding line. The shell then knows that the answer is
+        // still owed once research follows.
+        holding: {
+          type: "boolean",
+          description:
+            "true for the one short holding line («Μισό, να το κοιτάξω») you send before " +
+            "researching, never for an answer. The answer must follow in this wake.",
+        },
       },
       required: ["text"],
     },

@@ -39,9 +39,16 @@ function readerPlaces(state: WakeState, cityId: string): ReaderPlace[] {
 
 export function assembleSystem(
   prompts: Prompts,
+  model: string,
 ): Array<{ type: "text"; text: string; cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" } }> {
   return [
-    { type: "text", text: prompts.system },
+    // The model id is a deployment constant, so the block stays byte-identical
+    // across users and wakes. Without it the model guesses when an MCP tool
+    // asks for llm_model, and the analytics read four different models.
+    {
+      type: "text",
+      text: `${prompts.system}\n\nYour model identifier is ${model}. When a tool asks for llm_model, pass exactly that.`,
+    },
     { type: "text", text: prompts.contextPack, cache_control: { type: "ephemeral", ttl: "1h" } },
   ];
 }
@@ -132,7 +139,7 @@ export function toDecisionEntry(row: {
   outcome?: unknown;
   truncated?: boolean | null;
 }): DecisionEntry {
-  const o = row.outcome as { profileRewrite?: string; unsubscribe?: unknown } | null;
+  const o = row.outcome as { profileRewrite?: string; unsubscribe?: unknown; holdingOnly?: boolean } | null;
   return {
     at: row.eventAt.toISOString(),
     event: row.eventType as DecisionEntry["event"],
@@ -141,6 +148,7 @@ export function toDecisionEntry(row: {
     ...(o?.profileRewrite !== undefined ? { profileRewritten: true } : {}),
     ...(o?.unsubscribe ? { unsubscribed: true } : {}),
     ...(row.truncated ? { truncated: true } : {}),
+    ...(o?.holdingOnly ? { holdingOnly: true } : {}),
   };
 }
 
@@ -153,13 +161,16 @@ export function toDecisionEntry(row: {
  */
 export function decisionLine(
   d: Pick<DecisionEntry, "at" | "event" | "decision" | "rationale"> &
-    Partial<Pick<DecisionEntry, "truncated" | "profileRewritten" | "unsubscribed">>,
+    Partial<Pick<DecisionEntry, "truncated" | "profileRewritten" | "unsubscribed" | "holdingOnly">>,
 ): string {
   return (
     `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""}` +
     ` → ${decisionOutcome(d)}` +
     `${d.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""}` +
     `${d.unsubscribed ? "\n  (unsubscribed them this wake)" : ""}` +
+    // The shell's own line, in the register DECISIONS_CAVEAT vouches for:
+    // the model's «why» below it claims an answer that never went out.
+    `${d.holdingOnly ? "\n  (σύστημα) only the holding line reached the reader — the researched answer was never sent; the «why» below claims otherwise" : ""}` +
     `\n  why: ${d.rationale}`
   );
 }

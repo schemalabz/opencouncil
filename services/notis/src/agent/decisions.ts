@@ -26,5 +26,6 @@ export function buildDecisionEntry(events: WakeEvent[], outcome: WakeOutcome): D
     ...(outcome.profileRewrite !== undefined ? { profileRewritten: true } : {}),
     ...(outcome.unsubscribe ? { unsubscribed: true } : {}),
     ...(outcome.truncated ? { truncated: true } : {}),
+    ...(outcome.holdingOnly ? { holdingOnly: true } : {}),
   };
 }
