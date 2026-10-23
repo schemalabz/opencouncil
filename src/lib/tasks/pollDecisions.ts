@@ -10,6 +10,7 @@ import { startTask } from "./tasks";
 import { after } from "next/server";
 import prisma from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
+import * as z from "zod";
 import { TAKES_PLACE_WHERE, takesPlace } from "@/lib/meetingLifecycleRules";
 
 import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
@@ -27,18 +28,35 @@ import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, TAKES_
 import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
+import { normalizeAda } from "@/lib/utils/ada";
 
 /** A manual poll either starts, or finds one already running for the meeting. */
 export type PollStart =
     | { status: 'started'; taskId: string }
     | { status: 'alreadyRunning'; taskId: string };
 
+// A Server Action has no runtime types. The ADAs reach the Diavgeia client on
+// the task server, so only a value in Diavgeia's own ADA form passes.
+const adaSchema = z.string().transform((value, ctx) => {
+    const ada = normalizeAda(value);
+    if (ada === null) {
+        ctx.addIssue({ code: 'custom', message: 'must be a Diavgeia ADA' });
+        return z.NEVER;
+    }
+    return ada;
+});
+const pollOptionsSchema = z.object({
+    forceExtract: z.boolean().optional(),
+    lookupAdas: z.array(adaSchema).max(50).optional(),
+}).optional();
+
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
-    options?: { forceExtract?: boolean; lookupAdas?: string[] },
+    rawOptions?: { forceExtract?: boolean; lookupAdas?: string[] },
 ): Promise<PollStart> {
     await withUserAuthorizedToEdit({ cityId });
+    const options = pollOptionsSchema.parse(rawOptions);
 
     // The plain poll stays city-admin: a manual link starts extraction
     // automatically through this path. Cache-busting re-extraction is a

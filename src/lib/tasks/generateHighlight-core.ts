@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import { startTask } from './tasks';
+import { generateHighlightOptionsSchema } from './generateHighlightOptions';
 import { GenerateHighlightRequest } from '@/lib/apiTypes';
 import { getSpeakerDisplayInfo, getRoleTitle } from '@/lib/utils/roles';
 import { getRoleTitles } from '@/i18n/roleTitles';
@@ -17,7 +18,11 @@ export type GenerateHighlightOptions = Pick<
     force?: boolean;
 };
 
-export async function requestGenerateHighlightCore(highlightId: string, options?: GenerateHighlightOptions) {
+export async function requestGenerateHighlightCore(highlightId: string, rawOptions?: GenerateHighlightOptions) {
+    // Every caller (the API route, the MCP server) passes through here, so the
+    // schema runs here even when the route already ran it.
+    const options = rawOptions === undefined ? undefined : generateHighlightOptionsSchema.parse(rawOptions);
+
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
         include: {

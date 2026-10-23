@@ -15,17 +15,27 @@ import { checkAgendaIdentity, describeAgendaRead, type AgendaRecordReconciliatio
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
 import { errorMessage } from '@/lib/utils/errors';
 import { sendAgendaReadingAlert, sendTaskAdminAlert } from '@/lib/discord';
+import { webUrl } from '@/lib/zod-schemas/primitives';
 
 /**
  * User-facing Server Action that checks authorization before processing.
+ * A rejected URL comes back as a value: production Next hides the message of
+ * an error that a Server Action throws.
  */
 export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: string, cityId: string, {
     force = false
 }: {
     force?: boolean;
-} = {}) {
+} = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit(taskScope({ type: 'processAgenda', cityId, councilMeetingId }));
-    return requestProcessAgendaInternal(agendaUrl, councilMeetingId, cityId, { force });
+    // The task server fetches this URL, so the same rule as the REST and MCP
+    // paths applies: http(s) only.
+    const url = webUrl().safeParse(agendaUrl);
+    if (!url.success) {
+        return { ok: false, message: 'The agenda URL must start with http:// or https://' };
+    }
+    await requestProcessAgendaInternal(url.data, councilMeetingId, cityId, { force });
+    return { ok: true };
 }
 
 export async function handleProcessAgendaResult(taskId: string, response: ProcessAgendaResult) {

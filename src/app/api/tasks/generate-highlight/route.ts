@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as z from "zod";
 import { getGenerateHighlightTasksForHighlight } from "@/lib/db/tasks";
 import { requestGenerateHighlight } from "@/lib/tasks/generateHighlight";
+import { generateHighlightOptionsSchema } from "@/lib/tasks/generateHighlightOptions";
+import { handleApiError } from "@/lib/api/errors";
+
+const generateRequestSchema = z.object({
+    highlightId: z.string().min(1),
+    options: generateHighlightOptionsSchema.optional(),
+});
 
 export async function GET(req: NextRequest) {
     try {
@@ -12,24 +20,30 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Missing params" }, { status: 400 });
         }
         const tasks = await getGenerateHighlightTasksForHighlight(cityId, meetingId, highlightId);
-        return NextResponse.json(tasks, { status: 200 });
-    } catch (error: any) {
+        // A highlight owner may poll the progress, and only the progress: the
+        // request body holds the callback URL with its token, the response
+        // body is the renderer's report, and the failure reason is internal.
+        const progress = tasks.map(({ id, status, stage, percentComplete, createdAt, updatedAt }) =>
+            ({ id, status, stage, percentComplete, createdAt, updatedAt }));
+        return NextResponse.json(progress, { status: 200 });
+    } catch (error: unknown) {
         console.error("Failed to fetch tasks:", error);
-        return NextResponse.json({ error: error?.message || "Failed to fetch tasks" }, { status: 500 });
+        const message = error instanceof Error ? error.message : "Failed to fetch tasks";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { highlightId, options } = body || {};
-        if (!highlightId) {
-            return NextResponse.json({ error: "Missing highlightId" }, { status: 400 });
-        }
+        const { highlightId, options } = generateRequestSchema.parse(await req.json());
         const task = await requestGenerateHighlight(highlightId, options);
         return NextResponse.json(task, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (error instanceof z.ZodError) {
+            return handleApiError(error);
+        }
         console.error("Failed to start generation:", error);
-        return NextResponse.json({ error: error?.message || "Failed to start generation" }, { status: 500 });
+        const message = error instanceof Error ? error.message : "Failed to start generation";
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 } 

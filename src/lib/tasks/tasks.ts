@@ -168,7 +168,8 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     // Prepare callback URL; the task server posts back to it verbatim, so the
     // token authenticates the callback without any task-server involvement
     const callbackUrl = `${env.NEXTAUTH_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}?token=${mintCallbackToken(newTask.id)}`;
-    console.log(`Callback URL: ${callbackUrl}`);
+    // The token stays out of the log: whoever reads the log could forge the callback.
+    console.log(`Callback URL: ${callbackUrl.split('?')[0]}`);
 
     // Add callback URL to request body
     const fullRequestBody = { ...requestBody, callbackUrl };
@@ -177,7 +178,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     let response;
     let error;
     try {
-        console.log(`Calling ${env.TASK_API_URL}/${taskType} with body ${JSON.stringify(fullRequestBody)}`);
+        console.log(`Calling ${env.TASK_API_URL}/${taskType} with body ${JSON.stringify({ ...requestBody, callbackUrl: callbackUrl.split('?')[0] })}`);
         response = await fetch(`${env.TASK_API_URL}/${taskType}`, {
             method: 'POST',
             headers: {

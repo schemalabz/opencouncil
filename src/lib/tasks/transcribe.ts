@@ -10,6 +10,7 @@ import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
+import { webUrl } from '@/lib/zod-schemas/primitives';
 import { PipelineBusyError, TaskAlreadyExistsError, taskScope } from './types';
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
@@ -27,8 +28,15 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit(taskScope({ type: 'transcribe', cityId, councilMeetingId }));
 
+    // The URL reaches yt-dlp on the task server and the public meeting page,
+    // so the same rule as the REST and MCP paths applies: http(s) only.
+    const mediaUrl = webUrl().safeParse(youtubeUrl);
+    if (!mediaUrl.success) {
+        return { ok: false, message: 'The media URL must start with http:// or https://' };
+    }
+
     try {
-        await requestTranscribeInternal(youtubeUrl, councilMeetingId, cityId, options);
+        await requestTranscribeInternal(mediaUrl.data, councilMeetingId, cityId, options);
         return { ok: true };
     } catch (error) {
         // Every refusal that an admin can act on comes back as a value:

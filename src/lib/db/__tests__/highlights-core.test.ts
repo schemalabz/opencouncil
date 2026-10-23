@@ -5,6 +5,8 @@ const mockUserFindUnique = jest.fn();
 const mockHighlightFindUnique = jest.fn();
 const mockHighlightUpsert = jest.fn();
 const mockMeetingFindUnique = jest.fn();
+const mockUtteranceFindMany = jest.fn();
+const mockSubjectFindUnique = jest.fn();
 
 jest.mock('../prisma', () => ({
     __esModule: true,
@@ -12,6 +14,8 @@ jest.mock('../prisma', () => ({
         city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
         user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
         councilMeeting: { findUnique: (...args: unknown[]) => mockMeetingFindUnique(...args) },
+        utterance: { findMany: (...args: unknown[]) => mockUtteranceFindMany(...args) },
+        subject: { findUnique: (...args: unknown[]) => mockSubjectFindUnique(...args) },
         highlight: {
             findUnique: (...args: unknown[]) => mockHighlightFindUnique(...args),
             upsert: (...args: unknown[]) => mockHighlightUpsert(...args),
@@ -55,9 +59,15 @@ function setMeetingBody(administrativeBodyId: string | null) {
     mockMeetingFindUnique.mockResolvedValue({ administrativeBodyId });
 }
 
+// The utterances of DATA, in DATA's meeting.
+function setUtterancesIn(cityId: string, meetingId: string, ids: string[] = DATA.utteranceIds) {
+    mockUtteranceFindMany.mockResolvedValue(ids.map(id => ({ id, speakerSegment: { cityId, meetingId } })));
+}
+
 beforeEach(() => {
     jest.clearAllMocks();
     mockMeetingFindUnique.mockResolvedValue(null);
+    setUtterancesIn(DATA.cityId, DATA.meetingId);
     mockHighlightUpsert.mockImplementation((args: { create: unknown }) => ({
         id: 'h1',
         highlightedUtterances: [],
@@ -248,5 +258,116 @@ describe('upsertHighlightCore authorization', () => {
         mockHighlightUpsert.mockClear();
         await upsertHighlightCore(SERVICE, DATA);
         expect(mockHighlightUpsert.mock.calls[0][0].create.createdBy).toBeUndefined();
+    });
+});
+
+describe('upsertHighlightCore utterance scope', () => {
+    beforeEach(() => {
+        setCityPermission('EVERYONE');
+        setUser({ administers: [] });
+        mockHighlightUpsert.mockResolvedValue({ id: 'h1' });
+    });
+
+    it('creates a highlight from utterances of the named meeting', async () => {
+        await upsertHighlightCore(USER, DATA);
+
+        expect(mockUtteranceFindMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: { in: DATA.utteranceIds } },
+        }));
+        expect(mockHighlightUpsert).toHaveBeenCalled();
+    });
+
+    it('refuses an utterance of another meeting', async () => {
+        mockUtteranceFindMany.mockResolvedValue([
+            { id: 'utt1', speakerSegment: { cityId: 'athens', meetingId: 'm1' } },
+            { id: 'utt2', speakerSegment: { cityId: 'athens', meetingId: 'unreleased' } },
+        ]);
+
+        await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow(BadRequestError);
+        expect(mockHighlightUpsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses an utterance of another city, even in a meeting of the same id', async () => {
+        mockUtteranceFindMany.mockResolvedValue([
+            { id: 'utt1', speakerSegment: { cityId: 'athens', meetingId: 'm1' } },
+            { id: 'utt2', speakerSegment: { cityId: 'chania', meetingId: 'm1' } },
+        ]);
+
+        await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow('All utterances must belong to the specified meeting');
+    });
+
+    it('refuses an unknown utterance id', async () => {
+        setUtterancesIn('athens', 'm1', ['utt1']);
+
+        await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow('Unknown utterance id');
+    });
+});
+
+describe('upsertHighlightCore subject scope', () => {
+    beforeEach(() => {
+        setCityPermission('EVERYONE');
+        setUser({ administers: [] });
+        mockHighlightUpsert.mockResolvedValue({ id: 'h1' });
+    });
+
+    it('links a subject of the named meeting', async () => {
+        mockSubjectFindUnique.mockResolvedValue({ cityId: 'athens', councilMeetingId: 'm1' });
+
+        await upsertHighlightCore(USER, { ...DATA, subjectId: 's1' });
+
+        expect(mockHighlightUpsert).toHaveBeenCalled();
+    });
+
+    it('refuses a subject of another meeting', async () => {
+        mockSubjectFindUnique.mockResolvedValue({ cityId: 'athens', councilMeetingId: 'unreleased' });
+
+        await expect(upsertHighlightCore(USER, { ...DATA, subjectId: 's1' })).rejects.toThrow('The subject must belong to the specified meeting');
+        expect(mockHighlightUpsert).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown subject', async () => {
+        mockSubjectFindUnique.mockResolvedValue(null);
+
+        await expect(upsertHighlightCore(USER, { ...DATA, subjectId: 's1' })).rejects.toThrow('Unknown subject id');
+    });
+
+    it('does not look the subject up when none is given', async () => {
+        await upsertHighlightCore(USER, DATA);
+
+        expect(mockSubjectFindUnique).not.toHaveBeenCalled();
+    });
+});
+
+describe('upsertHighlightCore kept subject on update', () => {
+    beforeEach(() => {
+        setCityPermission('EVERYONE');
+        setUser({ administers: [] });
+        mockHighlightUpsert.mockResolvedValue({ id: 'h1' });
+    });
+
+    // A highlight linked to a foreign subject before the scope check existed.
+    const foreign = { cityId: 'athens', meetingId: 'm1', createdById: 'u1', subject: { cityId: 'athens', councilMeetingId: 'unreleased' } };
+
+    it('refuses an update that keeps a subject of another meeting', async () => {
+        mockHighlightFindUnique.mockResolvedValue(foreign);
+
+        await expect(upsertHighlightCore(USER, { ...DATA, id: 'h1' })).rejects.toThrow('belongs to another meeting');
+        expect(mockHighlightUpsert).not.toHaveBeenCalled();
+    });
+
+    it('allows the update that clears that subject', async () => {
+        mockHighlightFindUnique.mockResolvedValue(foreign);
+
+        await upsertHighlightCore(USER, { ...DATA, id: 'h1', subjectId: null });
+
+        expect(mockHighlightUpsert).toHaveBeenCalled();
+    });
+
+    it('allows an update that keeps a subject of the same meeting', async () => {
+        mockHighlightFindUnique.mockResolvedValue({ ...foreign, subject: { cityId: 'athens', councilMeetingId: 'm1' } });
+
+        await upsertHighlightCore(USER, { ...DATA, id: 'h1' });
+
+        expect(mockHighlightUpsert).toHaveBeenCalled();
     });
 });
