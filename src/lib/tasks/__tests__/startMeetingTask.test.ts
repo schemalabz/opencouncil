@@ -11,9 +11,11 @@ jest.mock('../../db/prisma', () => ({
 jest.mock('../processAgendaInternal', () => ({ requestProcessAgendaInternal: jest.fn() }));
 jest.mock('../transcribeInternal', () => ({ requestTranscribeInternal: jest.fn() }));
 jest.mock('../fixTranscriptInternal', () => ({ requestFixTranscriptInternal: jest.fn() }));
+jest.mock('../fixFromMinutesInternal', () => ({ requestFixFromMinutesInternal: jest.fn() }));
 jest.mock('../summarizeInternal', () => ({ requestSummarizeInternal: jest.fn() }));
 
 import { startMeetingTask } from '../startMeetingTask';
+import { requestFixFromMinutesInternal } from '../fixFromMinutesInternal';
 import { requestProcessAgendaInternal } from '../processAgendaInternal';
 import { requestTranscribeInternal } from '../transcribeInternal';
 import { requestFixTranscriptInternal } from '../fixTranscriptInternal';
@@ -33,7 +35,7 @@ const meeting = (overrides: object = {}) => ({
 beforeEach(() => {
     jest.clearAllMocks();
     mockMeetingFindUnique.mockResolvedValue(meeting());
-    for (const fn of [requestProcessAgendaInternal, requestTranscribeInternal, requestFixTranscriptInternal, requestSummarizeInternal]) {
+    for (const fn of [requestProcessAgendaInternal, requestTranscribeInternal, requestFixTranscriptInternal, requestFixFromMinutesInternal, requestSummarizeInternal]) {
         (fn as jest.Mock).mockResolvedValue(TASK);
     }
 });
@@ -109,5 +111,25 @@ describe('startMeetingTask', () => {
         const failure = startMeetingTask('athens', 'm1', { type: 'transcribe' });
         await expect(failure).rejects.toBeInstanceOf(ApiError);
         await expect(failure).rejects.toThrow(/queue full/);
+    });
+});
+
+describe('fixFromMinutes', () => {
+    it('refuses a meeting without a transcript, and one without the minutes', async () => {
+        await expect(startMeetingTask('athens', 'm1', { type: 'fixFromMinutes' })).rejects.toThrow(BadRequestError);
+
+        mockMeetingFindUnique.mockResolvedValue(meeting({ _count: { speakerSegments: 3 }, municipalMinutesUrl: null }));
+        await expect(startMeetingTask('athens', 'm1', { type: 'fixFromMinutes' })).rejects.toThrow(/no municipal minutes/);
+        expect(requestFixFromMinutesInternal).not.toHaveBeenCalled();
+    });
+
+    it('starts with the minutes of the meeting, or with the minutes it is given', async () => {
+        mockMeetingFindUnique.mockResolvedValue(meeting({ _count: { speakerSegments: 3 }, municipalMinutesUrl: 'https://example.com/m.pdf' }));
+        await startMeetingTask('athens', 'm1', { type: 'fixFromMinutes', force: true });
+        expect(requestFixFromMinutesInternal).toHaveBeenCalledWith('m1', 'athens', { force: true, municipalMinutesUrl: undefined });
+
+        mockMeetingFindUnique.mockResolvedValue(meeting({ _count: { speakerSegments: 3 }, municipalMinutesUrl: null }));
+        await startMeetingTask('athens', 'm1', { type: 'fixFromMinutes', municipalMinutesUrl: 'https://example.com/new.pdf' });
+        expect(requestFixFromMinutesInternal).toHaveBeenLastCalledWith('m1', 'athens', { force: false, municipalMinutesUrl: 'https://example.com/new.pdf' });
     });
 });

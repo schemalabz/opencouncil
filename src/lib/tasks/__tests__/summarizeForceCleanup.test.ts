@@ -87,6 +87,11 @@ jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockStartMinutesCorrection = jest.fn();
+jest.mock('../fixFromMinutesInternal', () => ({
+  startMinutesCorrectionIfDue: (...args: unknown[]) => mockStartMinutesCorrection(...args),
+}));
+
 const EMPTY_RESPONSE: SummarizeResult = {
   speakerSegmentSummaries: [],
   subjects: [],
@@ -133,6 +138,17 @@ describe('requestSummarize — force controls idempotency only', () => {
 describe('handleSummarizeResult — always cleans up stale data on success', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('resumes a refused correction from the municipal minutes once the summary is saved (#876)', async () => {
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+    expect(mockStartMinutesCorrection).toHaveBeenCalledWith(TASK_ID, 'summarize');
+  });
+
+  it('keeps a saved summary when the minutes check fails', async () => {
+    mockStartMinutesCorrection.mockRejectedValueOnce(new Error('database down'));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(handleSummarizeResult(TASK_ID, EMPTY_RESPONSE)).resolves.toBeUndefined();
   });
 
   it('schedules the subject illustrations with after(), once the subjects are saved', async () => {

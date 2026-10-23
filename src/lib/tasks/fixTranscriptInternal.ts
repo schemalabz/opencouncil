@@ -14,6 +14,7 @@ import { FixTranscriptResult } from '@/lib/apiTypes';
 import { getFixTranscriptRequestBody } from '@/lib/db/utils';
 import { startTask } from '@/lib/tasks/tasks';
 import { applySpeakerHints } from './speakerHints';
+import { startMinutesCorrectionIfDue } from './fixFromMinutesInternal';
 
 export const requestFixTranscriptInternal = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     const requestBody = await getFixTranscriptRequestBody(councilMeetingId, cityId);
@@ -21,12 +22,13 @@ export const requestFixTranscriptInternal = async (councilMeetingId: string, cit
 };
 
 /**
- * A later transcribe or fixTranscript run of the meeting has succeeded since
- * this task was requested. The result then describes a transcript that is gone
- * or has been corrected again: its text would put old wording back, and its
- * speaker hints name tags that no longer mean the same thing.
+ * A later transcribe, fixTranscript or fixFromMinutes run of the meeting has
+ * succeeded since this task was requested. The result then describes a
+ * transcript that is gone or has been corrected again: its text would put old
+ * wording back, and its speaker hints name tags that no longer mean the same
+ * thing.
  */
-async function isSuperseded(taskId: string): Promise<boolean> {
+export async function isSupersededCorrection(taskId: string): Promise<boolean> {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
         select: { cityId: true, councilMeetingId: true, createdAt: true },
@@ -42,7 +44,7 @@ async function isSuperseded(taskId: string): Promise<boolean> {
             cityId: task.cityId,
             councilMeetingId: task.councilMeetingId,
             OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
-            type: { in: ['transcribe', 'fixTranscript'] },
+            type: { in: ['transcribe', 'fixTranscript', 'fixFromMinutes'] },
             createdAt: { gt: task.createdAt },
         },
         select: { id: true },
@@ -60,8 +62,8 @@ async function isSuperseded(taskId: string): Promise<boolean> {
  * result can reach this with any old task of the meeting.
  */
 export const handleFixTranscriptResult = async (taskId: string, result: FixTranscriptResult) => {
-    if (await isSuperseded(taskId)) {
-        console.log(`fixTranscript result of task ${taskId} ignored: a later transcribe or fixTranscript run supersedes it`);
+    if (await isSupersededCorrection(taskId)) {
+        console.log(`fixTranscript result of task ${taskId} ignored: a later transcribe, fixTranscript or fixFromMinutes run supersedes it`);
         return;
     }
 
@@ -95,6 +97,7 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
                 beforeText: utterance.text,
                 afterText: update.text,
                 editedBy: 'task',
+                taskId,
             }
         });
     }
@@ -116,4 +119,9 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
             console.error(`Failed to apply speaker hints of task ${taskId}; the text corrections stand:`, error);
         }
     }
+
+    // A meeting that has the municipality's minutes is corrected from them next
+    // (#876): transcribe → fixTranscript → fixFromMinutes → summarize, with no
+    // step for a person.
+    await startMinutesCorrectionIfDue(taskId, 'fixTranscript');
 };

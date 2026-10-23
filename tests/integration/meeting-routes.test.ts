@@ -12,7 +12,7 @@ jest.mock('@/lib/discord', () => ({ sendMeetingCreatedAdminAlert: jest.fn() }))
 import { NextRequest } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { POST, GET as LIST } from '@/app/api/cities/[cityId]/meetings/route'
-import { PUT } from '@/app/api/cities/[cityId]/meetings/[meetingId]/route'
+import { GET as READ, PUT } from '@/app/api/cities/[cityId]/meetings/[meetingId]/route'
 import { getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries'
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList'
 import { setMeetingReleased } from '@/lib/db/meetingLifecycle'
@@ -210,6 +210,20 @@ describe('meeting API routes', () => {
                     postponedFromDate: '2026-03-12T16:00:00.000Z',
                 }),
             ])
+        })
+
+        test('keeps the municipal minutes out of the public list, the public meeting and the cached list (#876)', async () => {
+            const minutes = 'https://example.com/private-minutes.pdf'
+            await createMeeting(CITY, { id: 'mar26_2026', dateTime: new Date('2026-03-26T16:00:00Z'), administrativeBodyId: councilId, kind: 'ordinary', name: null, name_en: null, municipalMinutesUrl: minutes })
+            await setMeetingReleased(CITY, 'mar26_2026', true)
+
+            expect(await (await LIST(request(`/api/cities/${CITY}/meetings`), cityParams)).text()).not.toContain('private-minutes')
+            expect(await (await READ(request(`/api/cities/${CITY}/meetings/mar26_2026`), meetingParams('mar26_2026'))).text()).not.toContain('private-minutes')
+            expect(JSON.stringify(await getCouncilMeetingsForCityPublicCached(CITY))).not.toContain('private-minutes')
+
+            // The editor list carries it: the edit form reads it from there.
+            const rows = await (await LIST(request(`/api/cities/${CITY}/meetings?includeUnreleased=true`), cityParams)).json()
+            expect(rows.find((r: { id: string }) => r.id === 'mar26_2026').municipalMinutesUrl).toBe(minutes)
         })
 
         test('gives an editor the raw rows, links included', async () => {

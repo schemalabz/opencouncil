@@ -31,9 +31,17 @@ describe('voiceprint source tags', () => {
         personId = person.id
     })
 
-    /** A segment of the person's, on a tag whose person was set by `personSetBy`. */
-    async function speaks(personSetBy: SpeakerAssignmentSource | null, seconds: number) {
+    /**
+     * A segment of the person's, on a tag whose person was set by `personSetBy`.
+     * `voiceFor` adds the voiceprint opinion of the tag, naming that person.
+     */
+    async function speaks(personSetBy: SpeakerAssignmentSource | null, seconds: number, voiceFor?: string) {
         const tag = await prisma.speakerTag.create({ data: { label: 'SPEAKER_1', personId, personSetBy } })
+        if (voiceFor) {
+            await prisma.speakerIdentification.create({
+                data: { speakerTagId: tag.id, method: 'voiceprint', personId: voiceFor, actionable: true },
+            })
+        }
         return createSpeakerSegment(meetingId, cityId, { speakerTagId: tag.id, startTimestamp: 0, endTimestamp: seconds })
     }
 
@@ -67,11 +75,46 @@ describe('voiceprint source tags', () => {
         expect(await findLongestSpeakerSegmentForPerson(personId)).toBeNull()
     })
 
-    test.each([null, 'voiceprint', 'both', 'user'] as const)('a tag whose person was set by %s is a source', async (personSetBy) => {
+    test.each([null, 'voiceprint', 'user'] as const)('a tag whose person was set by %s is a source', async (personSetBy) => {
         const segment = await speaks(personSetBy, 120)
 
         expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).eligiblePeople).toEqual([{ id: personId, name: 'Speaker' }])
         expect((await findLongestSpeakerSegmentForPerson(personId))?.id).toBe(segment.id)
+    })
+
+    test('an agreement is a source when the voiceprint is part of it', async () => {
+        const segment = await speaks('both', 120, personId)
+
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).eligiblePeople).toEqual([{ id: personId, name: 'Speaker' }])
+        expect((await findLongestSpeakerSegmentForPerson(personId))?.id).toBe(segment.id)
+    })
+
+    describe('names that no voice vouches for (#876)', () => {
+        test('a name only the municipal minutes gave is not a source', async () => {
+            await speaks('minutes', 120)
+
+            expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+            expect(await findLongestSpeakerSegmentForPerson(personId)).toBeNull()
+        })
+
+        test('the transcript and the minutes agreeing without the voice is not a source', async () => {
+            await speaks('both', 120)
+            expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+
+            const other = await createPerson(cityId, { name: 'Other' })
+            await prisma.speakerTag.deleteMany({})
+            await speaks('both', 120, other.id)
+            expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+        })
+
+        test('the correction from the minutes does not confirm it; a human review does', async () => {
+            await speaks('minutes', 120)
+            await createTaskStatus(meetingId, cityId, { type: 'fixFromMinutes', status: 'succeeded', createdAt: minutesFromNow(5) })
+            expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
+
+            await reviewed(minutesFromNow(10))
+            expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).eligiblePeople).toEqual([{ id: personId, name: 'Speaker' }])
+        })
     })
 
     test('the source is the longest segment that is not the transcript\'s alone', async () => {
