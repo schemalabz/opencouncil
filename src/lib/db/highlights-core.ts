@@ -269,13 +269,24 @@ export async function upsertHighlightCore(
 ): Promise<HighlightWithUtterances> {
     const { id, name, meetingId, cityId, utteranceIds, subjectId } = highlightData;
 
-    const [highlightPermission, canEdit, existingHighlight] = await Promise.all([
+    const [highlightPermission, canEdit, existingHighlight, utterances, subject] = await Promise.all([
         getCityHighlightPermission(cityId),
         actor.type === 'service' ? Promise.resolve(true) : canUserEditMeeting(actor.userId, cityId, meetingId),
         id ? prisma.highlight.findUnique({
             where: { id },
-            select: { cityId: true, meetingId: true, createdById: true }
-        }) : Promise.resolve(null)
+            select: {
+                cityId: true, meetingId: true, createdById: true,
+                subject: { select: { cityId: true, councilMeetingId: true } },
+            }
+        }) : Promise.resolve(null),
+        prisma.utterance.findMany({
+            where: { id: { in: utteranceIds } },
+            select: { id: true, speakerSegment: { select: { cityId: true, meetingId: true } } },
+        }),
+        subjectId ? prisma.subject.findUnique({
+            where: { id: subjectId },
+            select: { cityId: true, councilMeetingId: true },
+        }) : Promise.resolve(null),
     ]);
 
     // Validate existing highlight
@@ -307,6 +318,30 @@ export async function upsertHighlightCore(
             // For new highlights when EVERYONE is allowed, no additional check needed
             // User is authenticated and city allows everyone to create
         }
+    }
+
+    // The rights above are on the meeting the caller named, so every utterance
+    // and the subject must be in it. A highlight could otherwise carry, and
+    // later render or display, content of a meeting the caller may not read.
+    if (utterances.length !== new Set(utteranceIds).size) {
+        throw new BadRequestError('Unknown utterance id');
+    }
+    if (utterances.some(u => u.speakerSegment.cityId !== cityId || u.speakerSegment.meetingId !== meetingId)) {
+        throw new BadRequestError('All utterances must belong to the specified meeting');
+    }
+    if (subjectId) {
+        if (!subject) {
+            throw new BadRequestError('Unknown subject id');
+        }
+        if (subject.cityId !== cityId || subject.councilMeetingId !== meetingId) {
+            throw new BadRequestError('The subject must belong to the specified meeting');
+        }
+    }
+    // An update that leaves the subject as it is keeps a subject linked before
+    // this check existed. Such a subject must not survive the edit either.
+    const keptSubject = subjectId === undefined ? existingHighlight?.subject : null;
+    if (keptSubject && (keptSubject.cityId !== cityId || keptSubject.councilMeetingId !== meetingId)) {
+        throw new BadRequestError('The subject of this highlight belongs to another meeting. Clear it (subjectId: null) to edit the highlight.');
     }
 
     // Generate auto name if no name provided
