@@ -3,11 +3,22 @@
 import { signIn } from "@/auth"
 import { safeRedirectPath } from "@/lib/safeRedirect"
 import { signInFailurePath } from "@/lib/auth/signInResult"
+import { isUserOnboardedByEmail } from "@/lib/db/users"
 
 export async function signInWithEmail(formData: FormData): Promise<void> {
-    const email = formData.get("email")
-    const redirectTo = safeRedirectPath(formData.get("callbackUrl"))
+    const rawEmail = formData.get("email")
+    if (typeof rawEmail !== "string" || !rawEmail.trim()) {
+        throw new Error("Email is required")
+    }
+
+    const email = rawEmail.toLowerCase().trim()
+
+    // Check if the user already exists and has completed onboarding via centralized DB helper
+    const isOnboarded = await isUserOnboardedByEmail(email)
+    const fallback = isOnboarded ? "/" : "/profile"
+    const redirectTo = safeRedirectPath(formData.get("callbackUrl"), fallback)
     console.log(`Sign-in requested (redirectTo: ${redirectTo})`)
+
     // redirect: false — with the default, Auth.js finishes by throwing Next's
     // NEXT_REDIRECT through the caller's await, and the sign-in form reported
     // every successful request as an error. The caller shows its own

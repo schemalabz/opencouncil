@@ -226,3 +226,19 @@ export async function deleteCurrentUser(): Promise<void> {
     await prisma.user.delete({ where: { id: user.id } });
 }
 
+/**
+ * Checks if a user with the given email exists and has completed onboarding.
+ */
+export async function isUserOnboardedByEmail(email: string): Promise<boolean> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return false;
+
+    const user = await prisma.user.findUnique({
+        where: { email: normalized },
+        select: { onboarded: true, name: true },
+    });
+
+    return Boolean(user?.onboarded && user?.name);
+}
+
+
