@@ -23,8 +23,19 @@ describe('buildRelatedSubjectsQuery', () => {
     // The floor is the product decision the feature turns on, measured on
     // the production index; the cases below read it back, so this one pins it.
     it('keeps the measured similarity floor and the page size', () => {
-        expect(RELATED_MIN_SIMILARITY).toBe(0.93);
+        expect(RELATED_MIN_SIMILARITY).toBe(0.75);
         expect(RELATED_SUBJECTS_SIZE).toBe(5);
+    });
+
+    // The runtime resolves the index behind the alias and its model's floor
+    // together; the query must name that index, so the floor never meets
+    // another index's scores.
+    it('searches the resolved index with its floor when given a profile', () => {
+        const query = buildRelatedSubjectsQuery(SEED, 'city', REALM_CITIES, {
+            index: 'subjects-2026-08', semanticMinScore: 0.934, semanticMappedScale: 320, relatedMinSimilarity: 0.93,
+        });
+        expect(query.index).toBe('subjects-2026-08');
+        expect(query.min_score).toBe(0.93);
     });
 
     it('asks the semantic fields with the subject name and nothing else', () => {
