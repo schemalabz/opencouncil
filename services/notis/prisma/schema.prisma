@@ -195,6 +195,9 @@ model NotisWake {
   // ΣΤΟΠ pre-step, a cap skip, a phone-gone unsubscribe) record what happened
   // without a model run. Null model ⇒ null trace, zero cost and tokens.
   model            String?
+  // The effort the wake ran at; reactive and proactive wakes differ. Null on
+  // a model-less wake and on rows older than the column.
+  effort           String?
   inputTokens      Int   @default(0)
   outputTokens     Int   @default(0)
   cacheReadTokens  Int   @default(0)

@@ -590,6 +590,7 @@ async function runOneWake(
         truncated: outcome.truncated ?? false,
         finishWakeMissing: outcome.finishWakeMissing ?? false,
         model: deps.config.model,
+        effort: trace.effort,
         inputTokens: trace.usageTotal.input,
         outputTokens: trace.usageTotal.output,
         cacheReadTokens: trace.usageTotal.cacheRead,

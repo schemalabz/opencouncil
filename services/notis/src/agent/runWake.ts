@@ -12,6 +12,7 @@ import {
   WakeOutcome,
   WakeState,
   WakeTrace,
+  isResearchBlock,
   isTextBlock,
   isToolUseBlock,
 } from "./types";
@@ -95,6 +96,28 @@ export function proseLooksLikeAMessage(prose: string, sent: string[]): boolean {
   );
 }
 
+/**
+ * The nudge for a wake that sent its holding line («Μισό, να το κοιτάξω»),
+ * researched, and finished without the answer. In production the answer sat
+ * in a thinking block, finish_wake said «send», and the reader got only the
+ * holding line — the zero-send check cannot see it because the holding line
+ * is a send.
+ */
+function holdingOnlyNudge(line: string, where: "finish" | "end-turn"): string {
+  const lead =
+    where === "end-turn" ? "Your final text above is an operator rationale — it was NOT delivered. " : "";
+  return (
+    `(system check) ${lead}The only thing the reader has received in this wake is your holding line:\n«` +
+    line.slice(0, 300) +
+    "»\nYou researched after sending it, and NOTHING has gone out since — the answer you " +
+    "found exists only in your reasoning, and nothing reaches the reader except " +
+    "send_message content. They are still waiting for it. Call send_message with the " +
+    "answer now, then finish_wake again with the wake's own rationale — about the reader " +
+    "and this wake's decision, never about this check. If there is truly nothing more to " +
+    "tell them, call finish_wake again to confirm."
+  );
+}
+
 function textOf(content: unknown[]): string {
   return content
     .filter(isTextBlock)
@@ -125,8 +148,9 @@ export async function runWake(
   if (eventsInput.length === 0) throw new Error("runWake: no events");
   const events = [...eventsInput].sort((a, b) => a.at.localeCompare(b.at));
   const hasUserMessage = events.some((e) => e.type === "user_message");
+  const effort = hasUserMessage ? deps.config.reactiveEffort : deps.config.effort;
   const started = deps.now().getTime();
-  const system = assembleSystem(deps.prompts);
+  const system = assembleSystem(deps.prompts, deps.config.model);
   // <current_time> is when this wake is being processed — the caller says
   // when that is. The shell passes the wall clock: a quiet-hours clamp or a
   // pause deferral can put hours or days between an event and its wake, and
@@ -166,6 +190,15 @@ export async function runWake(
   };
 
   const sent: string[] = [];
+  // True while a research block sits after the last delivered send. A holding
+  // line followed by research and no further send is an answer the reader
+  // never got; a send held by the shell delivered nothing and does not reset it.
+  let researchedSinceLastSend = false;
+  // Whether the last delivered send was declared a holding line (send_message
+  // with holding: true). Declared, not inferred: a short linkless message can
+  // be a complete answer, so only the model can say which send was the line
+  // before the research.
+  let lastSendIsHolding = false;
   // Commitments opened and closed this wake. The shell applies them; the core
   // stays free of side effects apart from deliver/absorb.
   const commitmentsRecorded: Array<{ slug: string; what: string }> = [];
@@ -229,6 +262,10 @@ export async function runWake(
   let profileRewrite: string | undefined;
   const scheduledWakes: Array<{ at: string; reason: string }> = [];
   let unsubscribe: { reason: string } | undefined;
+  // Reactive wakes only: the prompt defines holding lines for reader
+  // questions. Not gated on declaredDecision — a declared «silence» after a
+  // holding line is the same lost answer.
+  const holdingOwed = () => hasUserMessage && lastSendIsHolding && researchedSinceLastSend && !unsubscribe;
   // The support request this wake opened or withdrew. The two are exclusive
   // within one wake and the later call wins, so an open that the reader
   // declines before the wake ends files nothing. Unlike the unsubscribe
@@ -401,7 +438,7 @@ export async function runWake(
       messages,
       tools: buildTools(),
       mcp_servers: buildMcpServers(deps.config.mcpUrl),
-      output_config: { effort: deps.config.effort },
+      output_config: { effort },
     });
 
     const usage = normalizeUsage(response.usage);
@@ -410,6 +447,9 @@ export async function runWake(
 
     const text = textOf(response.content);
     if (text) rationale = text;
+    // A turn that holds only server-side blocks never reaches the dispatch
+    // loop below, so the research is noted here as well.
+    if (response.content.some(isResearchBlock)) researchedSinceLastSend = true;
 
     if (response.stop_reason === "refusal") {
       refused = true;
@@ -471,6 +511,12 @@ export async function runWake(
         ? groundingText(response.content)
         : "";
       for (const block of response.content) {
+        // In order: a send that precedes the research in the same turn is a
+        // holding line; one that follows it is the answer.
+        if (isResearchBlock(block)) {
+          researchedSinceLastSend = true;
+          continue;
+        }
         if (!isToolUseBlock(block)) continue;
         let ack = "noted";
         switch (block.name) {
@@ -497,6 +543,8 @@ export async function runWake(
             }
             if (t) {
               sent.push(t);
+              researchedSinceLastSend = false;
+              lastSendIsHolding = block.input.holding === true;
               if (deps.deliver) {
                 deliveryAttempts++;
                 const result = await deps.deliver(t);
@@ -744,6 +792,12 @@ export async function runWake(
               "reasoning, call finish_wake again with the wake's own rationale — about the " +
               "reader and this wake's decision, never about this check.",
           };
+        } else if (!deliveryRepaired && holdingOwed()) {
+          nudge = {
+            kind: "delivery",
+            tag: "holding-only/finish",
+            text: holdingOnlyNudge(sent[sent.length - 1], "finish"),
+          };
         } else if (
           !bookkeepingRepaired &&
           (declaredPromise || sent.some((s) => PROMISE_PATTERN.test(s))) &&
@@ -850,7 +904,23 @@ export async function runWake(
         messages.push({ role: "user", content: nudge });
         continue;
       }
-      // (b) A tool-calling turn carried substantive prose next to its tool
+      // (b) Only the holding line went out before the research. Before the
+      // stranded-prose check on purpose: that one has no language gate, and
+      // most stranded prose is reasoning — the single delivery budget must
+      // go to the answer the reader is waiting for.
+      if (holdingOwed()) {
+        saveRationaleBeforeNudge();
+        deliveryRepaired = true;
+        nudgeOutstanding = true;
+        grantTurnForNudge(turn);
+        repairs.push("holding-only/end-turn");
+        const nudge = holdingOnlyNudge(sent[sent.length - 1], "end-turn");
+        recordInjected(nudge);
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({ role: "user", content: nudge });
+        continue;
+      }
+      // (c) A tool-calling turn carried substantive prose next to its tool
       // calls: that prose was never delivered, and is often the missing half
       // of a multi-message answer.
       if (strandedProse) {
@@ -922,6 +992,10 @@ export async function runWake(
   // finish_wake is REQUIRED by the prompt; when the loop ends without it (and
   // without a terminal anomaly explaining why), record the contract breach.
   const finishWakeMissing = !everFinished && !refused && !truncated && !partialDeliveryError;
+  // Read from the state, not from which nudge fired: a stranded-prose nudge
+  // can take the one delivery repair, and the reader still has the holding
+  // line alone when the model then finishes without a send.
+  const holdingOnly = holdingOwed();
 
   const outcome: WakeOutcome = {
     decision,
@@ -930,6 +1004,7 @@ export async function runWake(
     ...(repairs.length > 0 ? { repairs } : {}),
     ...(truncated ? { truncated: true as const } : {}),
     ...(finishWakeMissing ? { finishWakeMissing: true as const } : {}),
+    ...(holdingOnly ? { holdingOnly: true as const } : {}),
     ...(profileRewrite !== undefined ? { profileRewrite } : {}),
     scheduledWakes,
     ...(commitmentsRecorded.length > 0 || commitmentsResolved.length > 0
@@ -956,6 +1031,7 @@ export async function runWake(
     usageTotal,
     costUsd: usageToCost(usageTotal, deps.config.model),
     durationMs: deps.now().getTime() - started,
+    effort,
   };
 
   return { outcome, trace, absorbed: absorbedAll };

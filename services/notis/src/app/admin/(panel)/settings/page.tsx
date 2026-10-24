@@ -105,7 +105,8 @@ export default async function SettingsPage() {
             <p className="text-sm font-medium">Μοντέλο</p>
             <div className="mt-2">
               <Row label="model" value={DEFAULT_CONFIG.model} />
-              <Row label="effort" value={DEFAULT_CONFIG.effort} />
+              <Row label="effort (proactive)" value={DEFAULT_CONFIG.effort} />
+              <Row label="effort (reader message)" value={DEFAULT_CONFIG.reactiveEffort} />
               <Row label="max turns / wake" value={DEFAULT_CONFIG.maxTurns} />
               <Row label="MCP" value={DEFAULT_CONFIG.mcpUrl} />
             </div>

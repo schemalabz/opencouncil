@@ -54,6 +54,9 @@ export function buildDeps(overrides: DepsOverrides = {}): Deps {
       maxTurns: Math.max(1, Math.min(12, overrides.maxTurns ?? DEFAULT_CONFIG.maxTurns)),
       mcpUrl: env.NOTIS_MCP_URL,
       effort: overrides.effort ?? DEFAULT_CONFIG.effort,
+      // One override sets both: the playground and the dry run test a level,
+      // not a split.
+      reactiveEffort: overrides.effort ?? DEFAULT_CONFIG.reactiveEffort,
     },
     mcp: sharedMcp,
   };
