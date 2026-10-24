@@ -181,7 +181,6 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 ### Development Configuration
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `DEV_TEST_CITY_ID` | The city ID used for creating development test users. | No | `chania` |
 | `DEV_EMAIL_OVERRIDE` | Email address that receives outgoing email instead of the real recipients. See [Email Testing in Development](#email-testing-in-development) for which emails it redirects. | No | - |
 | `SEED_DATA_URL` | URL to fetch seed data from if local file doesn't exist. | No | [link](https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json) |
 | `SEED_DATA_PATH` | Path to local seed data file. | No | `./prisma/seed_data.json` |
