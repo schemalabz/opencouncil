@@ -12,6 +12,7 @@ declare module "next-auth" {
         user: {
             isSuperAdmin?: boolean
             phone?: string | null
+            onboarded?: boolean
         } & DefaultSession["user"]
     }
 
@@ -19,6 +20,7 @@ declare module "next-auth" {
         isSuperAdmin?: boolean
         name?: string | null
         phone?: string | null
+        onboarded?: boolean
     }
 }
 
@@ -70,7 +72,8 @@ export const authOptions = {
                     ...session.user,
                     isSuperAdmin: user.isSuperAdmin,
                     name: user.name,
-                    phone: user.phone
+                    phone: user.phone,
+                    onboarded: user.onboarded
                 }
             }
         }
