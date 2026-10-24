@@ -5,6 +5,7 @@ import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { reviewerUserSelect, type ReviewerUser } from './meetingReviewers';
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -64,11 +65,15 @@ const includePattern = {
     administrativeBody: { select: { id: true, name: true, name_en: true } },
     taskStatuses: {
       where: whereClause.reviewTaskStatuses(),
-      // Only the fields hasSucceededTask reads. The full rows carry the
-      // request/response payloads (~1.7 GB across production), which
-      // overflow the engine's result buffer on unfiltered lists (#303).
-      select: { type: true, status: true }
-    }
+      // Only the fields hasSucceededTask and getReviewWait read. The full
+      // rows carry the request/response payloads (~1.7 GB across
+      // production), which overflow the engine's result buffer on
+      // unfiltered lists (#303).
+      select: { type: true, status: true, updatedAt: true }
+    },
+    // A relation include, so Prisma loads it in its own small query and the
+    // edit aggregation in getAggregatedMeetingStatsBatch stays unchanged.
+    meetingReviewer: { select: { user: { select: reviewerUserSelect } } }
   }),
 
   /** Utterances with user edits for session calculation */
@@ -156,10 +161,24 @@ export interface ReviewListItem {
   progressPercentage: number;
   reviewers: ReviewerInfo[];
   primaryReviewer: ReviewerInfo | null;
+  /** The superadmin assigned on the dashboard. When set, the dashboard shows this person as the reviewer. */
+  assignedReviewer: ReviewerUser | null;
   firstEditAt: Date | null;
   lastEditAt: Date | null;
   meetingDurationMs: number;
-  reviewDurationMs: number | null;
+  /** When the latest succeeded transcribe task finished. */
+  transcribedAt: Date | null;
+  /**
+   * How long the latest transcript has waited for its review: until
+   * reviewedAt, else until now.
+   */
+  reviewWaitMs: number | null;
+  /**
+   * The humanReview that stopped the clock, or null while it runs. It differs
+   * from status: a meeting reviewed before a re-transcription is still
+   * completed, but its new transcript waits.
+   */
+  reviewedAt: Date | null;
   transcriptSent: boolean;
 }
 
@@ -201,6 +220,43 @@ function hasSucceededTask(
   type: string
 ): boolean {
   return taskStatuses.some(t => t.type === type && t.status === 'succeeded');
+}
+
+/**
+ * When the latest succeeded task of a type finished. A task's updatedAt is
+ * the moment it became succeeded: transcribe through the task callback,
+ * humanReview because it is created succeeded.
+ */
+function latestSucceededAt(
+  taskStatuses: Array<{ type: string; status: string; updatedAt: Date }>,
+  type: string
+): Date | null {
+  let latest: Date | null = null;
+  for (const t of taskStatuses) {
+    if (t.type === type && t.status === 'succeeded' && (!latest || t.updatedAt > latest)) {
+      latest = t.updatedAt;
+    }
+  }
+  return latest;
+}
+
+/**
+ * The time since transcription. The latest transcribe starts the clock, so a
+ * re-transcription restarts it. A humanReview stops it only when it came
+ * after that transcribe: an older one reviewed the previous transcript.
+ */
+function getReviewWait(
+  taskStatuses: Array<{ type: string; status: string; updatedAt: Date }>,
+  now: Date
+): Pick<ReviewListItem, 'transcribedAt' | 'reviewWaitMs' | 'reviewedAt'> {
+  const transcribedAt = latestSucceededAt(taskStatuses, 'transcribe');
+  if (!transcribedAt) {
+    return { transcribedAt: null, reviewWaitMs: null, reviewedAt: null };
+  }
+  const latestReview = latestSucceededAt(taskStatuses, 'humanReview');
+  const reviewedAt = latestReview && latestReview >= transcribedAt ? latestReview : null;
+  const end = reviewedAt ?? now;
+  return { transcribedAt, reviewWaitMs: end.getTime() - transcribedAt.getTime(), reviewedAt };
 }
 
 /**
@@ -575,8 +631,8 @@ function calculateSessionData(
 //
 // STAGE 2: JAVASCRIPT FILTERING (after fetch)
 //   - Calculates detailed review progress for each meeting
-//   - Applies the reviewer filter: verifies user is PRIMARY reviewer
-//     (most edits), not just any contributor
+//   - Applies the reviewer filter: matches the ASSIGNED reviewer, else the
+//     PRIMARY reviewer (most edits), not just any contributor
 //   - Excludes meetings that don't meet final criteria
 //
 // FILTER OPTIONS:
@@ -584,7 +640,8 @@ function calculateSessionData(
 //         'all' - Has transcribe (any humanReview status)
 //         'completed' - Has both transcribe AND humanReview
 //   
-//   reviewerId: Filter to show only meetings where specified user is primary reviewer
+//   reviewerId: Filter to show only meetings where specified user is the
+//               assigned reviewer, or the primary reviewer if nobody is assigned
 //
 // ============================================================================
 
@@ -711,7 +768,8 @@ async function getAggregatedMeetingStats(
 
 type AggregatedMeetingStats = Omit<
   ReviewListItem,
-  'meetingId' | 'cityId' | 'cityName' | 'administrativeBodyName' | 'meetingName' | 'meetingDate' | 'status'
+  | 'meetingId' | 'cityId' | 'cityName' | 'administrativeBodyName' | 'meetingName' | 'meetingDate' | 'status'
+  | 'assignedReviewer' | 'transcribedAt' | 'reviewWaitMs' | 'reviewedAt'
 >;
 
 function getMeetingMapKey(meeting: MeetingId): string {
@@ -730,7 +788,6 @@ function getEmptyAggregatedMeetingStats(): AggregatedMeetingStats {
     firstEditAt: null,
     lastEditAt: null,
     meetingDurationMs: 0,
-    reviewDurationMs: null,
     transcriptSent: false,
   };
 }
@@ -969,12 +1026,16 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   const meetingIds: MeetingId[] = meetings.map((m) => ({ cityId: m.cityId, meetingId: m.id }));
   const statsByMeeting = await getAggregatedMeetingStatsBatch(meetingIds);
 
+  const now = new Date();
   const items: ReviewListItem[] = [];
   for (const m of meetings) {
     const stats = statsByMeeting.get(getMeetingMapKey({ cityId: m.cityId, meetingId: m.id })) ?? getEmptyAggregatedMeetingStats();
+    const assignedReviewer = m.meetingReviewer?.user ?? null;
 
-    // If filtering by reviewer, verify they are the PRIMARY reviewer
-    if (reviewerId && stats.primaryReviewer?.userId !== reviewerId) {
+    // The filter matches the reviewer that the table shows: the assigned
+    // person, else the primary reviewer.
+    const shownReviewerId = assignedReviewer?.id ?? stats.primaryReviewer?.userId;
+    if (reviewerId && shownReviewerId !== reviewerId) {
       continue;
     }
 
@@ -989,10 +1050,6 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
     const hasTranscriptSent = hasSucceededTask(m.taskStatuses, 'transcriptSent');
     const status = determineReviewStatus(hasTranscribe, hasHumanReview, stats.reviewedUtterances);
 
-    const reviewDurationMs = stats.lastEditAt && m.dateTime
-      ? stats.lastEditAt.getTime() - m.dateTime.getTime()
-      : null;
-
     items.push({
       meetingId: m.id,
       cityId: m.cityId,
@@ -1003,7 +1060,8 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       meetingDate: m.dateTime,
       status,
       ...stats,
-      reviewDurationMs,
+      assignedReviewer,
+      ...getReviewWait(m.taskStatuses, now),
       transcriptSent: hasTranscriptSent,
     });
   }
@@ -1115,11 +1173,6 @@ export async function getReviewProgressForMeeting(
     stats.reviewedUtterances
   );
 
-  // Calculate review duration
-  const reviewDurationMs = stats.lastEditAt && meetingRecord.dateTime
-    ? stats.lastEditAt.getTime() - meetingRecord.dateTime.getTime()
-    : null;
-
   // Load utterances with edits ONLY for session calculation
   const utterancesForSessions = await prisma.utterance.findMany({
     where: whereClause.utterancesByMeeting(meetingId),
@@ -1152,10 +1205,11 @@ export async function getReviewProgressForMeeting(
     progressPercentage: stats.progressPercentage,
     reviewers: stats.reviewers,
     primaryReviewer: stats.primaryReviewer,
+    assignedReviewer: meetingRecord.meetingReviewer?.user ?? null,
     firstEditAt: stats.firstEditAt,
     lastEditAt: stats.lastEditAt,
     meetingDurationMs: stats.meetingDurationMs,
-    reviewDurationMs,
+    ...getReviewWait(meetingRecord.taskStatuses, new Date()),
     transcriptSent: hasTranscriptSent,
     // Session data
     ...sessionData,
@@ -1163,24 +1217,25 @@ export async function getReviewProgressForMeeting(
 }
 
 /**
- * Get list of all reviewers who have worked on transcripts
- * Returns unique list of users who have made edits
+ * Get the people for the reviewer filter: every superadmin, who can be
+ * assigned before they edit, and every user who has edited a transcript.
  */
-export async function getReviewers(): Promise<Array<{ id: string; name: string | null; email: string }>> {
+export async function getReviewers(): Promise<ReviewerUser[]> {
   await withUserAuthorizedToEdit({});
   const users = await prisma.user.findMany({
     where: {
-      utteranceEdits: {
-        some: {
-          editedBy: 'user'
+      OR: [
+        { isSuperAdmin: true },
+        {
+          utteranceEdits: {
+            some: {
+              editedBy: 'user'
+            }
+          }
         }
-      }
+      ]
     },
-    select: {
-      id: true,
-      name: true,
-      email: true
-    },
+    select: reviewerUserSelect,
     orderBy: {
       name: 'asc'
     }
