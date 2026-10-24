@@ -70,3 +70,41 @@ describe('UserDialog for a machine account', () => {
         expect(savedBody().body).not.toHaveProperty('email');
     });
 });
+
+describe('UserDialog email of a person', () => {
+    it('keeps the email locked on an edit, and sends none, until the admin asks to change it', async () => {
+        render(<UserDialog open user={cityAdmin} onOpenChange={() => {}} />);
+        expect(screen.getByLabelText('Email')).toBeDisabled();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(savedBody().method).toBe('PUT'));
+        expect(savedBody().body).not.toHaveProperty('email');
+    });
+
+    it('sends the new email once the admin unlocks it', async () => {
+        render(<UserDialog open user={cityAdmin} onOpenChange={() => {}} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Change email' }));
+        const email = screen.getByLabelText('Email');
+        expect(email).toBeEnabled();
+        expect(email).toHaveFocus();
+        await userEvent.clear(email);
+        await userEvent.type(email, 'new@example.com');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(savedBody().body).toMatchObject({ email: 'new@example.com' }));
+    });
+
+    it('locks the email again when the dialog reopens', async () => {
+        const { rerender } = render(<UserDialog open user={cityAdmin} onOpenChange={() => {}} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Change email' }));
+        rerender(<UserDialog open={false} user={cityAdmin} onOpenChange={() => {}} />);
+        rerender(<UserDialog open user={cityAdmin} onOpenChange={() => {}} />);
+        expect(screen.getByLabelText('Email')).toBeDisabled();
+    });
+
+    it('asks for an email on a create, with no lock', () => {
+        render(<UserDialog open onOpenChange={() => {}} />);
+        expect(screen.getByLabelText('Email')).toBeEnabled();
+        expect(screen.queryByRole('button', { name: 'Change email' })).not.toBeInTheDocument();
+    });
+});

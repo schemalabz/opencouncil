@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import type { UserWithAdministers } from "@/lib/db/types"
@@ -38,6 +38,10 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
     const [selectedEntities, setSelectedEntities] = useState<AdminEntity[]>([])
     const [loadingEntities, setLoadingEntities] = useState(false)
     const [label, setLabel] = useState("")
+    // A person's email is how they sign in: an edit keeps it locked until
+    // the admin asks to change it.
+    const [emailUnlocked, setEmailUnlocked] = useState(false)
+    const emailInput = useRef<HTMLInputElement>(null)
     const isEditing = !!user
     const isMachine = user ? user.isMachine : machine
     // The address a new machine account gets, shown as the label is typed.
@@ -50,8 +54,14 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
     useEffect(() => {
         if (!open) return
         setLabel("")
+        setEmailUnlocked(false)
         setSelectedEntities(user ? mapAdministersToEntities(user.administers) : [])
     }, [open, user])
+
+    // The "Change email" link unmounts on click; the field it unlocks takes the focus.
+    useEffect(() => {
+        if (emailUnlocked) emailInput.current?.focus()
+    }, [emailUnlocked])
 
     // Fetch entities when dialog opens
     useEffect(() => {
@@ -96,7 +106,7 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
         // changes, so an edit sends no email; a create sends the label.
         const data = isMachine
             ? (isEditing ? { name: name || null, ...rights } : { isMachine: true, label, ...rights })
-            : { email, name: name || null, ...rights }
+            : { ...(isEditing && !emailUnlocked ? {} : { email }), name: name || null, ...rights }
 
         try {
             const response = await fetch("/api/admin/users", {
@@ -215,12 +225,23 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email</Label>
                                 <Input
+                                    ref={emailInput}
                                     id="email"
                                     name="email"
                                     type="email"
                                     defaultValue={user?.email}
+                                    disabled={isEditing && !emailUnlocked}
                                     required
                                 />
+                                {isEditing && !emailUnlocked && (
+                                    <button
+                                        type="button"
+                                        className="w-fit text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                                        onClick={() => setEmailUnlocked(true)}
+                                    >
+                                        Change email
+                                    </button>
+                                )}
                             </div>
                         )}
                         {(!isMachine || isEditing) && (
