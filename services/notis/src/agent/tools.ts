@@ -74,7 +74,8 @@ export const CLIENT_TOOLS = [
       "Remember something you owe this reader — a follow-up you promised, an update " +
       "they asked you to watch for. It stays in front of you on every future wake, " +
       "however long the conversation gets, until you resolve it. Use it whenever you " +
-      "tell them you will come back to them.",
+      "tell them you will come back to them. Never for the meetings of a city outside " +
+      "their profile: you are not woken for it, so the promise cannot be kept.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -147,7 +148,8 @@ export const CLIENT_TOOLS = [
       "Wake yourself at a future moment for something NO event will cover — a " +
       "process to recheck, a deadline outside the meeting flow. Never schedule " +
       "for a meeting's aftermath: the published record wakes you automatically " +
-      "(meeting_summarized), and record_commitment carries any promise you made.",
+      "(meeting_summarized), and record_commitment carries any promise you made. " +
+      "Never to follow a city outside the reader's profile.",
     input_schema: {
       type: "object" as const,
       properties: {
