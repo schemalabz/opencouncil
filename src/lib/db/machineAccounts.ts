@@ -1,12 +1,13 @@
 // Server-only: machine accounts (#590). The callers authorize a superadmin
-// first: the users route, and the token actions in src/lib/actions. Keep
-// these functions off the Server Action surface.
+// first: the users route, the machine accounts page, and the token actions
+// in src/lib/actions. Keep these functions off the Server Action surface.
 import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { machineAccountAddress, machineAccountSlug } from "@/lib/auth/machineAccounts";
 import type { CreateMachineAccountInput } from "@/lib/zod-schemas/user";
+import { machineAccountWithTokensInclude, machineAccountsOnly, type MachineAccountWithTokens } from "@/lib/db/types";
 
 const machineAccountSelect = {
     id: true,
@@ -18,7 +19,16 @@ const machineAccountSelect = {
 
 /** The row behind an id, when it is a machine account; null otherwise. */
 export async function findMachineAccount(id: string) {
-    return prisma.user.findFirst({ where: { id, isMachine: true }, select: machineAccountSelect });
+    return prisma.user.findFirst({ where: { id, ...machineAccountsOnly }, select: machineAccountSelect });
+}
+
+/** Every machine account with its rights and its tokens, oldest first. */
+export async function listMachineAccounts(): Promise<MachineAccountWithTokens[]> {
+    return prisma.user.findMany({
+        where: machineAccountsOnly,
+        include: machineAccountWithTokensInclude,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
 }
 
 /**

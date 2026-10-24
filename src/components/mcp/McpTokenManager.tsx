@@ -6,18 +6,10 @@ import { CopyButton } from "./CopyButton";
 import { createMcpToken, revokeMcpToken } from "@/app/[locale]/(other)/mcp/actions";
 import { formatDate } from "@/lib/formatters/time";
 import { isGeneratedMcpTokenName } from "@/lib/mcp/tokenNames";
-
-type TokenRow = {
-    id: string;
-    name: string;
-    keyPrefix: string;
-    createdAt: Date;
-    lastUsedAt: Date | null;
-    revokedAt: Date | null;
-};
+import type { McpTokenListRow } from "@/lib/db/types";
 
 /** Personal-token manager. Styled for the dark "personal access" panel on /mcp. */
-export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: TokenRow[]; mcpBaseUrl: string }) {
+export function McpTokenManager({ initialTokens, mcpBaseUrl }: { initialTokens: McpTokenListRow[]; mcpBaseUrl: string }) {
     const t = useTranslations("mcp.tokens");
     const [tokens, setTokens] = useState(initialTokens);
     const [creating, setCreating] = useState(false);

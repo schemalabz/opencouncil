@@ -13,88 +13,45 @@ import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
-import { UserWithRelations } from "@/lib/db/users"
+import type { UserWithAdministers } from "@/lib/db/types"
+import { machineAccountAddress, machineAccountSlug } from "@/lib/auth/machineAccounts"
+import { mapAdministersToEntities } from "@/components/admin/users/administers"
+import type { AdminEntity } from "@/lib/db/adminEntities"
 import Combobox from "@/components/Combobox"
 import { toast } from "@/hooks/use-toast"
 import { useValidationMessage } from "@/hooks/useLocalizedValidation"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 
-interface UserDialogProps {
+interface UserDialogProps<U extends UserWithAdministers> {
     open: boolean
     onOpenChange: (open: boolean) => void
-    onDelete: (user: UserWithRelations) => void;
-    user?: UserWithRelations
+    onDelete?: (user: U) => void;
+    user?: U
+    /** Create a machine account (#590) instead of inviting a person. */
+    machine?: boolean
 }
 
-type EntityType = 'city' | 'party' | 'person' | 'body'
-
-interface EntityOption {
-    id: string
-    name: string
-    displayName: string
-    type: EntityType
-    city?: {
-        id: string
-        name: string
-    }
-}
-
-function mapAdministersToEntities(administers: NonNullable<UserDialogProps['user']>['administers']): EntityOption[] {
-    if (!administers) return []
-
-    const entities: EntityOption[] = []
-
-    for (const a of administers) {
-        if (a.city) {
-            entities.push({
-                id: a.city.id,
-                name: a.city.name,
-                displayName: a.city.name,
-                type: 'city'
-            })
-        } else if (a.party?.city) {
-            entities.push({
-                id: a.party.id,
-                name: a.party.name,
-                displayName: `${a.party.city.name} / ${a.party.name}`,
-                type: 'party',
-                city: a.party.city
-            })
-        } else if (a.person?.city) {
-            entities.push({
-                id: a.person.id,
-                name: a.person.name,
-                displayName: `${a.person.city.name} / ${a.person.name}`,
-                type: 'person',
-                city: a.person.city
-            })
-        } else if (a.administrativeBody?.city) {
-            entities.push({
-                id: a.administrativeBody.id,
-                name: a.administrativeBody.name,
-                displayName: `${a.administrativeBody.city.name} / ${a.administrativeBody.name}`,
-                type: 'body',
-                city: a.administrativeBody.city
-            })
-        }
-    }
-
-    return entities
-}
-
-export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogProps) {
+export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, user, onDelete, machine = false }: UserDialogProps<U>) {
     const validationMessage = useValidationMessage()
     const [loading, setLoading] = useState(false)
-    const [entities, setEntities] = useState<EntityOption[]>([])
-    const [selectedEntities, setSelectedEntities] = useState<EntityOption[]>([])
+    const [entities, setEntities] = useState<AdminEntity[]>([])
+    const [selectedEntities, setSelectedEntities] = useState<AdminEntity[]>([])
     const [loadingEntities, setLoadingEntities] = useState(false)
+    const [label, setLabel] = useState("")
     const isEditing = !!user
+    const isMachine = user ? user.isMachine : machine
+    // The address a new machine account gets, shown as the label is typed.
+    const slug = machineAccountSlug(label)
+    const noun = isMachine ? "machine account" : "user"
 
-    // Reset selected entities when user changes
+    // Every open starts from the account it edits, or from nothing: the
+    // dialog stays mounted, so a create must not inherit the grants of the
+    // last account edited.
     useEffect(() => {
-        if (!user?.administers) return
-        setSelectedEntities(mapAdministersToEntities(user.administers))
-    }, [user])
+        if (!open) return
+        setLabel("")
+        setSelectedEntities(user ? mapAdministersToEntities(user.administers) : [])
+    }, [open, user])
 
     // Fetch entities when dialog opens
     useEffect(() => {
@@ -126,9 +83,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
         const formData = new FormData(e.currentTarget)
         const email = String(formData.get("email") ?? "")
         const name = String(formData.get("name") ?? "")
-        const data = {
-            email,
-            name: name || null,
+        const rights = {
             isSuperAdmin: formData.get("isSuperAdmin") === "on",
             administers: selectedEntities.map(entity => ({
                 cityId: entity.type === 'city' ? entity.id : null,
@@ -137,6 +92,11 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                 administrativeBodyId: entity.type === 'body' ? entity.id : null,
             }))
         }
+        // A machine account's address is derived from its label and never
+        // changes, so an edit sends no email; a create sends the label.
+        const data = isMachine
+            ? (isEditing ? { name: name || null, ...rights } : { isMachine: true, label, ...rights })
+            : { email, name: name || null, ...rights }
 
         try {
             const response = await fetch("/api/admin/users", {
@@ -166,7 +126,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
             } else {
                 toast({
                     title: "Success",
-                    description: isEditing ? "User updated successfully." : "User created successfully.",
+                    description: isEditing ? `The ${noun} was updated.` : `The ${noun} was created.`,
                 })
             }
 
@@ -209,33 +169,70 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{isEditing ? "Edit User" : "Create User"}</DialogTitle>
+                    <DialogTitle>
+                        {isMachine
+                            ? (isEditing ? "Edit machine account" : "New machine account")
+                            : (isEditing ? "Edit User" : "Create User")}
+                    </DialogTitle>
                     <DialogDescription>
-                        {isEditing
-                            ? "Edit user details and permissions."
-                            : "Create a new user by entering their email. They will receive a magic link to sign in."}
+                        {isMachine
+                            ? (isEditing
+                                ? "A machine account never signs in. Its MCP tokens act with the rights below."
+                                : "For one service that connects to the MCP server. It never signs in. You mint its tokens after you create it.")
+                            : (isEditing
+                                ? "Edit user details and permissions."
+                                : "Create a new user by entering their email. They will receive a magic link to sign in.")}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={onSubmit}>
                     <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                defaultValue={user?.email}
-                                required
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Name</Label>
-                            <Input
-                                id="name"
-                                name="name"
-                                defaultValue={user?.name || ""}
-                            />
-                        </div>
+                        {isMachine && !isEditing ? (
+                            <div className="grid gap-2">
+                                <Label htmlFor="label">Label</Label>
+                                <Input
+                                    id="label"
+                                    name="label"
+                                    placeholder="e.g. Paola"
+                                    maxLength={100}
+                                    value={label}
+                                    onChange={(e) => setLabel(e.target.value)}
+                                    required
+                                    autoFocus
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    {slug
+                                        ? <>Address: <code>{machineAccountAddress(slug)}</code></>
+                                        : "The label needs a Latin letter or a digit; it becomes the address of the account."}
+                                </p>
+                            </div>
+                        ) : isMachine ? (
+                            <div className="grid gap-1">
+                                <span className="text-sm font-medium">Address</span>
+                                <code className="text-sm">{user?.email}</code>
+                                <p className="text-xs text-muted-foreground">The address stays the same when the name changes.</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    defaultValue={user?.email}
+                                    required
+                                />
+                            </div>
+                        )}
+                        {(!isMachine || isEditing) && (
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Name</Label>
+                                <Input
+                                    id="name"
+                                    name="name"
+                                    defaultValue={user?.name || ""}
+                                />
+                            </div>
+                        )}
                         <div className="flex items-center space-x-2">
                             <Switch
                                 id="isSuperAdmin"
@@ -250,12 +247,12 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                                 items={availableEntities}
                                 value={null}
                                 onChange={(entity) => {
-                                    if (entity) addEntity((entity as EntityOption).id)
+                                    if (entity) addEntity((entity as AdminEntity).id)
                                 }}
                                 placeholder={loadingEntities ? "Loading..." : "Add entity to administer..."}
                                 searchPlaceholder="Search entities..."
-                                getItemLabel={(entity) => (entity as EntityOption).displayName}
-                                getItemValue={(entity) => `${(entity as EntityOption).displayName} ${(entity as EntityOption).type}`}
+                                getItemLabel={(entity) => (entity as AdminEntity).displayName}
+                                getItemValue={(entity) => `${(entity as AdminEntity).displayName} ${(entity as AdminEntity).type}`}
                                 groups={[
                                     { key: 'cities', label: 'Cities', items: groupedEntities.cities },
                                     { key: 'parties', label: 'Parties', items: groupedEntities.parties },
@@ -276,6 +273,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                                         <button
                                             type="button"
                                             onClick={() => removeEntity(entity.id)}
+                                            aria-label={`Remove ${entity.displayName}`}
                                             className="ml-1 hover:text-destructive"
                                         >
                                             <X className="h-3 w-3" />
@@ -287,7 +285,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                     </div>
                     <DialogFooter className="sm:justify-between">
                         <div>
-                            {isEditing && (
+                            {isEditing && !isMachine && onDelete && (
                                 <Button
                                     type="button"
                                     variant="destructive"
@@ -299,7 +297,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                         </div>
                         <div className="flex gap-2">
                             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                            <Button type="submit" disabled={loading}>
+                            <Button type="submit" disabled={loading || (isMachine && !isEditing && !slug)}>
                                 {loading ? "Saving..." : "Save Changes"}
                             </Button>
                         </div>

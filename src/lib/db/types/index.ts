@@ -18,6 +18,7 @@ export * from './contribution';
 export * from './meetingSummary';
 export * from './administrativeBody';
 export * from './user';
+export * from './mcpToken';
 
 // Meeting with all related data
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {

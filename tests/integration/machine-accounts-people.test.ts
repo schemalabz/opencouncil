@@ -13,6 +13,7 @@ import { getUsers } from '@/lib/db/users'
 import { addBodyAdmin, listBodyAdmins } from '@/lib/db/bodyAdmins'
 import { countEmailRecipientsForMeeting, getNotificationImpactPreviewData } from '@/lib/db/notifications'
 import { getPeopleWithVoicePrintsForCity } from '@/lib/db/people'
+import { listMachineAccounts } from '@/lib/db/machineAccounts'
 import { sendInviteEmail } from '@/lib/auth/invite'
 import { mintMachineToken } from '@/lib/actions/machineAccounts'
 import { NotFoundError } from '@/lib/api/errors'
@@ -93,6 +94,15 @@ describe('a machine account is not a person', () => {
         const bots = await Promise.all(Array.from({ length: 3 }, (_, i) => createUser(`bot${i}@machines.opencouncil.invalid`, { isMachine: true })))
         await prisma.administers.createMany({ data: [...people, ...bots].map(u => ({ userId: u.id, administrativeBodyId: body.id })) })
         await expect(addBodyAdmin('athens', body.id, { email: 'twentieth@example.com' })).resolves.toMatchObject({ created: true })
+    })
+    test("the machines page lists machine accounts only, so it never shows a person's tokens", async () => {
+        const person = await createUser('anna@example.com')
+        await prisma.userMcpToken.create({ data: { userId: person.id, name: 'Claude', keyPrefix: 'mcp_anna', hashedKey: 'anna-hash' } })
+        await mintMachineToken(machineId)
+        const accounts = await listMachineAccounts()
+        expect(accounts.map(a => a.id)).toEqual([machineId])
+        expect(accounts[0].mcpTokens).toHaveLength(1)
+        expect(accounts[0].mcpTokens[0]).not.toHaveProperty('hashedKey')
     })
     test("the machine-token actions never mint a token for a person's account", async () => {   // T8
         const person = await createUser('anna@example.com')

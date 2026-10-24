@@ -259,6 +259,10 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/export/meetings.tsx', type: 'AudioExportFailure' },
     },
     {
+        group: 'admin.machineAccounts.grantType.',
+        members: { file: 'src/lib/db/adminEntities.ts', type: 'AdminEntityType' },
+    },
+    {
         group: 'notificationOutcome.phase.',
         members: { file: 'packages/ui/src/lib/meeting-news.ts', type: 'MeetingNewsPhase' },
     },

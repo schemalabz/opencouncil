@@ -114,8 +114,8 @@ sends no roles.
 The MCP admin tools `create_meeting`, `update_meeting` and `start_task` apply
 the same scopes.
 
-A service holds a machine account: a user that a superadmin creates and that
-never signs in. Its address is on a reserved domain. A superadmin mints its
-MCP tokens. A token acts with the
+A service holds a machine account: a user that a superadmin creates on
+`/admin/machines` and that never signs in. Its address is on a reserved
+domain. A superadmin mints its MCP tokens on that page. A token acts with the
 rights of its account, the superadmin flag and the grants, like the token of a
 person. The REST routes accept a session only.

@@ -4,6 +4,7 @@
 import "server-only";
 import { createHash, randomBytes } from 'crypto';
 import prisma from '@/lib/db/prisma';
+import { mcpTokenListOrder, mcpTokenListSelect } from '@/lib/db/types';
 import { GENERATED_MCP_TOKEN_NAME } from '@/lib/mcp/tokenNames';
 
 const MCP_TOKEN_PREFIX = 'mcp_';
@@ -48,23 +49,12 @@ export async function createUserMcpToken(userId: string) {
 
 /**
  * List a user's MCP tokens (without revealing the actual token).
- *
- * The id breaks a tie on createdAt. The token manager numbers the rows by
- * position, so two addresses created in the same instant would otherwise be
- * free to swap labels between page loads — and a user revokes by label.
  */
 export async function listUserMcpTokens(userId: string) {
     return prisma.userMcpToken.findMany({
         where: { userId },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: {
-            id: true,
-            name: true,
-            keyPrefix: true,
-            createdAt: true,
-            lastUsedAt: true,
-            revokedAt: true,
-        },
+        orderBy: mcpTokenListOrder,
+        select: mcpTokenListSelect,
     });
 }
 

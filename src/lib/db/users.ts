@@ -8,30 +8,7 @@ import { devToolsAllowed } from "@/lib/deployment";
 import { claimedLink } from "@/lib/db/personClaim";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { findMachineAccount } from "@/lib/db/machineAccounts";
-import { peopleOnly } from "@/lib/db/types";
-
-const userWithAdministersInclude = {
-    administers: {
-        include: {
-            city: true,
-            party: {
-                include: {
-                    city: true
-                }
-            },
-            person: {
-                include: {
-                    city: true
-                }
-            },
-            administrativeBody: {
-                include: {
-                    city: true
-                }
-            }
-        }
-    }
-} satisfies Prisma.UserInclude;
+import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
     ...userWithAdministersInclude,
@@ -50,7 +27,6 @@ const userWithRelationsInclude = {
 } satisfies Prisma.UserInclude;
 
 
-export type UserWithAdministers = Prisma.UserGetPayload<{ include: typeof userWithAdministersInclude }>;
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userWithRelationsInclude }>;
 
 export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin' | 'onboarded'>> & {
