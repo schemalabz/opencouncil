@@ -34,6 +34,22 @@ The transient cluster holds production rows before masking. Only the user who ru
 
 Every command refuses a database URL that does not name one local database in a form that psql, pg_restore, node-postgres, and Prisma all read the same way: `postgresql://user[:password]@host:port/database`, with the port, the user, and the database required, and with `localhost`, `127.0.0.1`, or `[::1]` as the host, or a socket directory in `?host=/path`. The only other query parameters it accepts are `password`, `sslmode`, `connect_timeout`, and `application_name`. Prisma ignores `port`, `user`, and `dbname` in the query string, and `service` and `hostaddr` can lead libpq to another host, so it refuses them.
 
+## Publish a release
+
+The `seed` command of every development setup downloads the newest release of [schemalabz/opencouncil-seed-data](https://github.com/schemalabz/opencouncil-seed-data/releases). The team publishes one on demand, from a run that `verify` passed:
+
+    RUN=./seed-out/seed-20261022T101500Z-AbC123
+    nix run .#seed-pipeline -- verify "$RUN"
+    gh release create seed-2026-10-22 --repo schemalabz/opencouncil-seed-data --latest \
+      --title "Seed artifact of 2026-10-22" --notes-file notes.md \
+      "$RUN/manifest.json" "$RUN/subset.tar.zst" "$RUN/verify-report.json"
+
+- Name the release after the date of the backup, which `manifest.json` records in `backup.date`.
+- Upload the subset, `manifest.json`, and `verify-report.json`. The `seed` command reads `manifest.json` first, and checks the archive against it.
+- Do not upload `full.tar.zst`. The full set holds every content row of production, so it goes to OpenCouncil's private storage, for staging and previews only. The manifest still describes it.
+- The newest release of the repository must be a seed release, because the `seed` command reads `releases/latest/download/`.
+- Keep the older releases. A checkout that does not have the migrations of the newest release can restore an older one with `--from https://github.com/schemalabz/opencouncil-seed-data/releases/download/<tag>`.
+
 ## Configuration, one source each
 
 - `tables.json`: every Prisma model of the main and the Notis schema, classified as content or private. Masking rules, subset-only rules, explicit-query tables, public-text tables, ignored tables. A Jest test fails when a model is not classified.
