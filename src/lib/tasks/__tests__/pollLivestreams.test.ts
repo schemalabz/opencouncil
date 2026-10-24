@@ -140,6 +140,12 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockMeetingFindMany).not.toHaveBeenCalled();
     });
 
+    it('takes candidates only in supported cities', async () => {
+        mockMeetingFindMany.mockResolvedValue([]);
+        await pollLivestreamsForRecentMeetings();
+        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({ city: { status: 'supported' } });
+    });
+
     it('never takes a postponed, cancelled or by-circulation meeting as a candidate', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();

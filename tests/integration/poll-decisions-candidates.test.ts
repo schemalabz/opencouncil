@@ -6,10 +6,11 @@ jest.mock('@/lib/tasks/generateHighlight', () => ({
 }))
 
 import prisma from '@/lib/db/prisma'
-import { findDecisionPollCandidates } from '@/lib/tasks/pollDecisions'
+import { findDecisionPollCandidates, getPollingHistoryForMeeting } from '@/lib/tasks/pollDecisions'
+import { getPollingStats } from '@/lib/tasks/pollingStats'
 import { getPollableMeetingDateRange } from '@/lib/tasks/pollDecisionsBackoff'
 import { resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, createSubject } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createMeeting, createSubject, createTaskStatus } from '../helpers/factories'
 
 describe('findDecisionPollCandidates', () => {
     beforeEach(async () => {
@@ -26,7 +27,7 @@ describe('findDecisionPollCandidates', () => {
     }
 
     test('skips λογοδοσία by the kind, not by the name', async () => {
-        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const council = await createAdministrativeBody('c1', { type: 'council' })
         const administrativeBodyId = council.id
 
@@ -41,7 +42,7 @@ describe('findDecisionPollCandidates', () => {
     })
 
     test('skips every meeting that takes no decisions, and its later parts', async () => {
-        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const council = await createAdministrativeBody('c1', { type: 'council' })
         const administrativeBodyId = council.id
         const { gte } = getPollableMeetingDateRange()
@@ -62,8 +63,33 @@ describe('findDecisionPollCandidates', () => {
         expect(ids).toEqual(['budget', 'financial', 'regular-2', 'special'])
     })
 
+    test('polls only supported cities', async () => {
+        for (const status of ['supported', 'pending', 'demo'] as const) {
+            const city = await createCity({ id: status, diavgeiaUid: `DIAV-${status}`, status })
+            const council = await createAdministrativeBody(city.id, { type: 'council' })
+            const { gte, lte } = getPollableMeetingDateRange()
+            const meeting = await createMeeting(city.id, { id: `${status}-meeting`, dateTime: new Date((gte.getTime() + lte.getTime()) / 2),
+                                                         kind: 'ordinary', administrativeBodyId: council.id })
+            await createSubject(meeting.id, city.id, { agendaItemIndex: 1 })
+        }
+
+        const ids = (await findDecisionPollCandidates()).map((m) => m.id)
+        expect(ids).toEqual(['supported-meeting'])
+        // The stats show only meetings that the cron can still poll.
+        expect((await getPollingStats()).meetingsStillPolling.map((m) => m.meetingId)).toEqual(['supported-meeting'])
+
+        // After a manual poll, a meeting of a pending city shows no next automatic poll.
+        await createTaskStatus('pending-meeting', 'pending', { type: 'pollDecisions', status: 'succeeded' })
+        await createTaskStatus('supported-meeting', 'supported', { type: 'pollDecisions', status: 'succeeded' })
+        expect(await getPollingHistoryForMeeting('pending', 'pending-meeting')).toMatchObject({
+            totalPolls: 1, currentTier: null, nextPollEligible: null,
+            currentTierLabel: 'No automatic polls: the city is not supported',
+        })
+        expect((await getPollingHistoryForMeeting('supported', 'supported-meeting')).currentTier).toEqual({ kind: 'everyRun' })
+    })
+
     test('keeps a meeting whose name is null', async () => {
-        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const council = await createAdministrativeBody('c1', { type: 'council' })
         const administrativeBodyId = council.id
 
