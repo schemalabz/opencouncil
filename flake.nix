@@ -560,6 +560,9 @@ EOF
             runtimeInputs = (mkPrismaToolchain pkgs) ++ [
               pkgs.coreutils
               postgres
+              # seed restore unpacks the artifact with tar --zstd.
+              pkgs.gnutar
+              pkgs.zstd
             ];
             text = ''
               set -euo pipefail
@@ -589,10 +592,17 @@ EOF
                   -c 'CREATE EXTENSION IF NOT EXISTS postgis;' >/dev/null
               fi
 
-              # Apply migrations, generate Prisma client, and seed.
-              (cd "$repo_root" && npm run db:deploy:seed)
-
               cd "$repo_root"
+              db_url="postgresql://$db_user:$db_password@127.0.0.1:$port/$db_name?sslmode=disable"
+              # Every step below writes to this database, the old seed and the
+              # migrations included. The .env of a checkout can name a remote one.
+              export DATABASE_URL="$db_url" DIRECT_URL="$db_url"
+
+              # An empty database gets the published seed artifact, a database with
+              # data gets new migrations, and both get the test accounts. See
+              # `seed setup` in scripts/seed/cli.ts.
+              npm run db:deploy:seed
+
               export APP_PORT="$app_port"
               if [ "''${OC_LAN:-1}" = "1" ]; then
                 lan_flag="-H 0.0.0.0"

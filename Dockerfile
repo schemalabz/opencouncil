@@ -5,13 +5,16 @@ FROM node:24-alpine AS base
 WORKDIR /app
 
 # Install necessary system dependencies
-RUN apk add --no-cache openssl openssl-dev
+# The seed command needs the Postgres 16 client tools and a tar that reads
+# zstd (busybox tar does not), for `./run.sh --prod` with the local database.
+RUN apk add --no-cache openssl openssl-dev postgresql16-client tar zstd
 
 # Copy package.json, package-lock.json, and .npmrc (the latter carries
 # legacy-peer-deps=true, required for the React 19 peer-dep set to install).
 # Workspace member manifests must be present before npm install, or npm
 # resolves the workspace-shaped lockfile against missing directories.
 COPY package*.json .npmrc ./
+COPY packages/seed-pipeline/package.json packages/seed-pipeline/
 COPY packages/subject-images/package.json packages/subject-images/
 COPY packages/ui/package.json packages/ui/
 COPY services/notis/package.json services/notis/
