@@ -44,7 +44,9 @@ export default async function SignInPage(
         if (raw && isTrustedExternalRedirect(raw)) {
             redirect(raw)
         }
-        redirect(safeRedirectPath(raw))
+        const isOnboarded = Boolean(session.user?.onboarded && session.user?.name)
+        const fallback = isOnboarded ? "/" : "/profile"
+        redirect(safeRedirectPath(raw, fallback))
     }
 
     let callbackUrl = firstSearchParam(searchParams.callbackUrl) || null

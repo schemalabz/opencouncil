@@ -226,3 +226,16 @@ export async function deleteCurrentUser(): Promise<void> {
     await prisma.user.delete({ where: { id: user.id } });
 }
 
+export async function isUserOnboardedByEmail(email: string): Promise<boolean> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return false;
+
+    const user = await prisma.user.findUnique({
+        where: { email: normalized },
+        select: { onboarded: true, name: true },
+    });
+
+    return Boolean(user?.onboarded && user?.name);
+}
+
+

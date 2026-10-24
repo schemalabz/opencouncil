@@ -31,6 +31,7 @@ jest.mock('../db/prisma', () => ({
   __esModule: true,
   default: {
     user: {
+      findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -46,9 +47,29 @@ jest.mock('../db/prisma', () => ({
 
 import prisma from '../db/prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { createUser, updateUser, deleteUser } from '../db/users';
+import { createUser, updateUser, deleteUser, isUserOnboardedByEmail } from '../db/users';
+import type { User } from '@prisma/client';
+
+const buildUserFixture = (fields: Partial<User>): User => ({
+  id: 'user-1',
+  email: 'test@example.com',
+  name: 'Test',
+  emailVerified: null,
+  phone: null,
+  phoneVerifiedAt: null,
+  onboarded: false,
+  allowProductUpdates: true,
+  allowPetitionUpdates: false,
+  allowFeedbackCalls: true,
+  notifyByPhone: true,
+  isSuperAdmin: false,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...fields,
+});
 
 const mockWithUserAuthorizedToEdit = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
+const mockFindUnique = prisma.user.findUnique as jest.MockedFunction<typeof prisma.user.findUnique>;
 const mockCreate = prisma.user.create as jest.MockedFunction<typeof prisma.user.create>;
 const mockUpdate = prisma.user.update as jest.MockedFunction<typeof prisma.user.update>;
 const mockDelete = prisma.user.delete as jest.MockedFunction<typeof prisma.user.delete>;
@@ -296,6 +317,56 @@ describe('users db layer - normalization and duplicate handling', () => {
       mockDelete.mockRejectedValueOnce(new Error('connection failed'));
 
       await expect(deleteUser('user-1')).rejects.toThrow('Failed to delete user');
+    });
+  });
+
+  describe('isUserOnboardedByEmail', () => {
+    it('returns true when user exists, is onboarded, and has a name', async () => {
+      mockFindUnique.mockResolvedValueOnce(buildUserFixture({ onboarded: true, name: 'Alice' }));
+
+      const result = await isUserOnboardedByEmail('alice@example.com');
+      expect(result).toBe(true);
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { email: 'alice@example.com' },
+        select: { onboarded: true, name: true },
+      });
+    });
+
+    it('returns false when user exists but is not onboarded', async () => {
+      mockFindUnique.mockResolvedValueOnce(buildUserFixture({ onboarded: false, name: 'Bob' }));
+
+      const result = await isUserOnboardedByEmail('bob@example.com');
+      expect(result).toBe(false);
+    });
+
+    it('returns false when user exists but has no name set', async () => {
+      mockFindUnique.mockResolvedValueOnce(buildUserFixture({ onboarded: true, name: null }));
+
+      const result = await isUserOnboardedByEmail('noname@example.com');
+      expect(result).toBe(false);
+    });
+
+    it('returns false when user does not exist in database', async () => {
+      mockFindUnique.mockResolvedValueOnce(null);
+
+      const result = await isUserOnboardedByEmail('unknown@example.com');
+      expect(result).toBe(false);
+    });
+
+    it('returns false and skips query for empty or whitespace-only email', async () => {
+      const result = await isUserOnboardedByEmail('   ');
+      expect(result).toBe(false);
+      expect(mockFindUnique).not.toHaveBeenCalled();
+    });
+
+    it('normalizes email casing and surrounding whitespace', async () => {
+      mockFindUnique.mockResolvedValueOnce(buildUserFixture({ onboarded: true, name: 'Charlie' }));
+
+      await isUserOnboardedByEmail('  Charlie@Example.COM  ');
+      expect(mockFindUnique).toHaveBeenCalledWith({
+        where: { email: 'charlie@example.com' },
+        select: { onboarded: true, name: true },
+      });
     });
   });
 });
