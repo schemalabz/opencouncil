@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingScheduleStatus } from '@prisma/client';
+import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingFormat, type MeetingScheduleStatus } from '@prisma/client';
 import { hasPublicRecording, takesPlace } from '@/lib/meetingLifecycleRules';
+import { stageSignalsFromPreview } from '@/lib/meetingStage';
 import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
@@ -17,7 +18,9 @@ import {
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
+import { getMeetingTaskStatus } from '@/lib/db/tasks';
 import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
+import { normalizeText } from '@/lib/utils';
 import { NEWS_PHASES, type NewsPhase } from '@/lib/notifications/freshness';
 import { getTaskNotificationOutcome } from '@/lib/notifications/meetingNotifications';
 import { notificationOutcomeEn } from '@/lib/notifications/outcomeTextEn';
@@ -325,7 +328,12 @@ export async function mcpListMeetings(
         countCouncilMeetings(cityId, selection),
     ]);
 
-    const postponedFromDates = await originalScheduledDates(cityId, meetings);
+    // The same evidence of a summary as mcpGetMeeting: the stage rule, plus
+    // the tagged discussion time — one aggregate over the page's subjects.
+    const [postponedFromDates, discussionSeconds] = await Promise.all([
+        originalScheduledDates(cityId, meetings),
+        getDiscussionSecondsForSubjects(meetings.flatMap(meeting => meeting.subjects.map(subject => subject.id))),
+    ]);
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
@@ -337,10 +345,50 @@ export async function mcpListMeetings(
             released: meeting.released,
             subjectCount: meeting.subjects.length,
             hasTranscript: meeting._count.speakerSegments > 0,
+            summarized: stageSignalsFromPreview(meeting).summarized
+                || meeting.subjects.some(subject => (discussionSeconds.get(subject.id) ?? 0) > 0),
             url: urls.meeting(cityId, meeting.id),
         })),
         pagination: paginationOf(total, options.page, options.pageSize),
     };
+}
+
+/**
+ * What an agent must know before it reads the agenda as the record. Two
+ * shapes mislead it: an empty agenda looks like an empty meeting, and an
+ * agenda copied from the agenda document looks like the record of the
+ * meeting. In both the transcript is usually there and only the summarization
+ * step has not run.
+ */
+function meetingNote(
+    meeting: { scheduleStatus: MeetingScheduleStatus; format: MeetingFormat | null; dateTime: Date; subjects: unknown[] },
+    transcribed: boolean,
+    summarized: boolean
+): string | null {
+    if (!takesPlace(meeting)) return SCHEDULE_STATUS_NOTES[meeting.scheduleStatus];
+    if (meeting.subjects.length > 0) {
+        if (!transcribed || summarized) return null;
+        return 'The subjects below come from the agenda document only: the meeting is transcribed but not '
+            + 'summarized yet, so no subject carries discussion time, contributions, a decision or the items '
+            + 'raised before the agenda (προ ημερησίας). Everything that was said is in get_transcript — '
+            + 'personId for one person\'s words, query for a word or a name. Never report an item as absent '
+            + 'from this meeting on the strength of this list.';
+    }
+    if (transcribed) {
+        return 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
+            + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '
+            + 'pick utterances for a highlight). Summarize it yourself from the transcript rather than reporting '
+            + 'the meeting as empty.';
+    }
+    if (meeting.dateTime > new Date()) {
+        return 'This meeting has not been held yet, so there is nothing to read beyond the agenda document at agendaUrl.';
+    }
+    if (!hasPublicRecording(meeting)) {
+        return 'This meeting was held by circulation: the members voted in writing, so it has no recording and no '
+            + 'transcript. Read the agenda document at agendaUrl; its decisions are on Diavgeia.';
+    }
+    return 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
+        + 'processing, or the meeting may never have been recorded.';
 }
 
 export async function mcpGetMeeting(cityId: string, meetingId: string, identity: McpIdentity) {
@@ -353,7 +401,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
             city: { select: { timezone: true } },
             subjects: {
                 orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
-                include: { topic: true, location: true },
+                include: { topic: true, location: true, _count: { select: { contributions: true } } },
             },
         },
     });
@@ -363,12 +411,23 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     // how significant it was, since agenda order says nothing about weight.
     // The task list is administration: it names failures and the answers of
     // the task server. The same people who see the drafts of a city see it.
-    const [discussionSeconds, transcribed, tasks] = await Promise.all([
+    const [discussionSeconds, transcribed, taskStatus, tasks] = await Promise.all([
         getDiscussionSecondsForSubjects(meeting.subjects.map(s => s.id)),
         hasTranscript(cityId, meetingId),
+        getMeetingTaskStatus(cityId, meetingId),
         Promise.resolve(visible.editor ?? canSeeUnreleased(identity, cityId))
             .then(editor => editor ? getTasksForMeetingDirect(cityId, meetingId) : null),
     ]);
+    // The rule of the public meeting stage (stageSignalsFromMeetingData in
+    // lib/meetingStage.ts): a succeeded summarize task, or the marks the
+    // summarization step writes — meetings processed before task tracking
+    // have no task row. The tagged discussion time is already in hand, so it
+    // counts too: an old import whose subjects drew no contribution text is
+    // still summarized when any of them was discussed.
+    const summarized = taskStatus.summarize
+        || meeting.subjects.some(subject => subject._count.contributions > 0)
+        || [...discussionSeconds.values()].some(seconds => seconds > 0);
+    const note = meetingNote(meeting, transcribed, summarized);
 
     // Location coordinates for mapped subjects. Centroids, not ST_X/ST_Y of
     // the raw geometry: locations can be lines or polygons. Raw SQL because
@@ -393,35 +452,19 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
+        summarized,
         ...(tasks && {
             tasks: tasks.map(mcpTaskSummary),
             // What processAgenda and summarize would do with email if they succeeded now, read before start_task.
             notifications: Object.fromEntries(await Promise.all((Object.keys(NEWS_PHASES) as NewsPhase[]).map(async (phase) =>
                 [phase, notificationOutcomeEn(await getTaskNotificationOutcome(cityId, meetingId, phase), phase)]))),
         }),
-        // An empty agenda is the one shape an agent reads wrongly: it looks
-        // like an empty meeting, when in fact the transcript is usually there
-        // and only the summarization step has not run. Say so in the payload.
-        ...(!takesPlace(meeting) ? {
-            note: SCHEDULE_STATUS_NOTES[meeting.scheduleStatus],
-        } : meeting.subjects.length === 0 && {
-            note: transcribed
-                ? 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
-                + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '
-                + 'pick utterances for a highlight). Summarize it yourself from the transcript rather than reporting '
-                + 'the meeting as empty.'
-                : meeting.dateTime > new Date()
-                    ? 'This meeting has not been held yet, so there is nothing to read beyond the agenda document at agendaUrl.'
-                    : !hasPublicRecording(meeting)
-                        ? 'This meeting was held by circulation: the members voted in writing, so it has no recording and no '
-                        + 'transcript. Read the agenda document at agendaUrl; its decisions are on Diavgeia.'
-                        : 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
-                        + 'processing, or the meeting may never have been recorded.',
-        }),
+        ...(note && { note }),
         subjects: meeting.subjects.map(subject => ({
             id: subject.id,
             name: subject.name,
             agendaItemIndex: subject.agendaItemIndex,
+            nonAgendaReason: subject.nonAgendaReason,
             topic: subject.topic?.name ?? null,
             discussionSeconds: Math.round(discussionSeconds.get(subject.id) ?? 0),
             description: truncate(subject.description, 200),
@@ -570,10 +613,71 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
 
 // --- Transcripts ----------------------------------------------------------
 
+/**
+ * Accent- and case-insensitive form for the transcript word filter. The
+ * transcript writes the final sigma; a query typed in capitals or without
+ * accents must still find it.
+ */
+function foldGreek(text: string): string {
+    return normalizeText(text).replace(/ς/g, 'σ');
+}
+
+function segmentText(segment: { utterances: { text: string }[] }): string {
+    return segment.utterances.map(u => u.text).join(' ');
+}
+
+const SNIPPET_RADIUS = 120;
+const SNIPPETS_PER_SEGMENT = 3;
+
+/**
+ * The folded text with, for every folded position, the position in the
+ * original it came from. Folding the whole string at once is the fold the
+ * filter matched with, and it keeps the character count unless a combining
+ * accent was stored on its own; only then is each character folded alone so
+ * the positions can be mapped back.
+ */
+function foldWithOrigins(text: string): { folded: string; originOf: (index: number) => number } {
+    const whole = foldGreek(text);
+    if (whole.length === text.length) return { folded: whole, originOf: index => index };
+    const origins: number[] = [];
+    let folded = '';
+    let offset = 0;
+    for (const char of text) {
+        const foldedChar = foldGreek(char);
+        for (let i = 0; i < foldedChar.length; i++) origins.push(offset);
+        folded += foldedChar;
+        offset += char.length;
+    }
+    return { folded, originOf: index => origins[index] };
+}
+
+/**
+ * Short windows around the first hits of the query terms, so a long segment
+ * does not cost the agent its whole text to see where a word fell.
+ */
+function snippetsAround(text: string, terms: string[]): string[] {
+    const { folded, originOf } = foldWithOrigins(text);
+    const snippets: string[] = [];
+    let from = 0;
+    while (snippets.length < SNIPPETS_PER_SEGMENT) {
+        const hits = terms.map(term => folded.indexOf(term, from)).filter(index => index >= 0);
+        if (hits.length === 0) break;
+        const hit = Math.min(...hits);
+        const at = originOf(hit);
+        const start = Math.max(0, at - SNIPPET_RADIUS);
+        const end = Math.min(text.length, at + SNIPPET_RADIUS);
+        snippets.push((start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : ''));
+        // The next search starts where the window ended, in folded positions.
+        from = hit + 1;
+        while (from < folded.length && originOf(from) < end) from++;
+    }
+    return snippets;
+}
+
 export async function mcpGetTranscript(
     cityId: string,
     meetingId: string,
-    options: { page: number; pageSize: number; includeUtteranceIds: boolean; personId?: string },
+    options: { page: number; pageSize: number; includeUtteranceIds: boolean; personId?: string; query?: string },
     identity: McpIdentity
 ) {
     const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
@@ -596,9 +700,20 @@ export async function mcpGetTranscript(
         if (!person) throw new NotFoundError('Person not found in this municipality');
         speakerName = person.name;
     }
-    const segments = options.personId
+    const bySpeaker = options.personId
         ? allSegments.filter(segment => segment.speakerTag.personId === options.personId)
         : allSegments;
+
+    // Word filter: "was X mentioned", "what was said about X". The search
+    // index holds subject summaries, not the transcript, so a verbatim
+    // mention is reachable only here.
+    const terms = options.query ? foldGreek(options.query).split(/\s+/).filter(Boolean) : [];
+    const segments = terms.length > 0
+        ? bySpeaker.filter(segment => {
+            const folded = foldGreek(segmentText(segment));
+            return terms.every(term => folded.includes(term));
+        })
+        : bySpeaker;
 
     const pageSegments = pageSlice(segments, options.page, options.pageSize);
 
@@ -616,6 +731,7 @@ export async function mcpGetTranscript(
         meetingId,
         pagination: paginationOf(segments.length, options.page, options.pageSize),
         ...(options.personId && { speaker: speakerName }),
+        ...(terms.length > 0 && { query: options.query }),
         segments: pageSegments.map(segment => ({
             speaker: (segment.speakerTag.personId && personNames.get(segment.speakerTag.personId))
                 || segment.speakerTag.label,
@@ -624,8 +740,9 @@ export async function mcpGetTranscript(
             endSec: segment.endTimestamp,
             summary: segment.summary?.text ?? null,
             topics: segment.topicLabels.map(label => label.topic.name),
-            text: segment.utterances.map(u => u.text).join(' '),
+            text: segmentText(segment),
             url: urls.moment(cityId, meetingId, segment.startTimestamp),
+            ...(terms.length > 0 && { snippets: snippetsAround(segmentText(segment), terms) }),
             ...(options.includeUtteranceIds && {
                 utterances: segment.utterances.map(utterance => ({
                     utteranceId: utterance.id,
