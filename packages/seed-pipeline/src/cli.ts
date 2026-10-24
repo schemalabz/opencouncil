@@ -29,7 +29,7 @@ import { produce } from './produce';
 import { loadPinnedMeetings, pipelineHome } from './tables';
 import { runningClusters } from './transient-postgres';
 import { verify } from './verify';
-import { assertMatchesManifest, restoreArtifact } from './restore';
+import { checkedSnapshot, restoreArtifact } from './restore';
 import { assertLocalTarget } from './target-guard';
 import { formatError } from './errors';
 
@@ -139,9 +139,8 @@ async function main(): Promise<void> {
             .option('work', { type: 'string' }),
         async (argv) => {
             assertLocalTargets([argv.into]);
-            await assertMatchesManifest(argv.from);
-            await withWorkDir(argv.work, false, (dir) =>
-                restoreArtifact({ tarPath: argv.from, databaseUrl: argv.into, schemaPath: schemaPath(), workDir: dir }),
+            await withWorkDir(argv.work, false, async (dir) =>
+                restoreArtifact({ tarPath: await checkedSnapshot(argv.from, dir), databaseUrl: argv.into, schemaPath: schemaPath(), workDir: dir }),
             );
         })
         .command('measure-tasks', 'Report task-row sizes and the taskId invariant for the selected meetings', (y) => y
