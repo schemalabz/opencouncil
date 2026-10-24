@@ -2051,7 +2051,6 @@ EOF
               ${pkgs.curl}/bin/curl -fsSL "$SEED_DATA_URL" -o "$SEED_DATA_PATH"
             fi
             export SEED_DATA_PATH
-            export DEV_TEST_CITY_ID="chania"
 
             if [ -f prisma/seed.mjs ]; then
               ${pkgs.nodejs}/bin/node prisma/seed.mjs

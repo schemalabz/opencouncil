@@ -88,9 +88,6 @@ SEED_DATA_URL=https://custom-url/seed_data.json
 
 # Path to local seed data file
 SEED_DATA_PATH=./custom/path/seed_data.json
-
-# City ID for test users (default: chania)
-DEV_TEST_CITY_ID=chania
 ```
 
 ## Test Users
@@ -98,9 +95,10 @@ DEV_TEST_CITY_ID=chania
 The seeding process automatically creates test users with different permission levels:
 
 - **Super Admin**: Full access across all cities
-- **City Admin**: Admin access to the configured test city
-- **Party Admin**: Admin access to a specific party
-- **Person Admin**: Admin access to a specific person
+- **City Admin**: Admin access to every supported city
+- **Party Admin**: Admin access to one party in each supported city: the party with the most roles
+- **Person Admin**: Admin access to one person in each supported city, as a claim: the person with the most speaker segments that no other account has claimed
+- **Body Admin**: Admin access to one administrative body in each supported city: the body with the most meetings, other than the council when the city has one
 - **Read Only**: No administrative permissions
 
 In development mode, a floating panel appears for instant user switching without email authentication.
