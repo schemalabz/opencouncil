@@ -24,7 +24,7 @@ export const baseAdministrativeBodyFields = {
 // pollLivestreams can only use a URL that parseChannelRef resolves, so reject
 // any other URL here (a /c/ vanity URL, a playlist, a search results page).
 // webUrl first: parseChannelRef reads a value without a slash as a bare handle.
-const youtubeChannelUrlValue = webUrl({
+export const youtubeChannelUrlValue = webUrl({
     error: vmsg('invalidUrl'),
 }).refine(val => parseChannelRef(val) !== null, {
     error: vmsg('youtubeChannelUrl'),

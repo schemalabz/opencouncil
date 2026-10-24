@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
-import { baseAdministrativeBodyFields } from './administrativeBody';
+import { baseAdministrativeBodyFields, youtubeChannelUrlValue } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
 import { blankToNull, webUrl } from './primitives';
 
@@ -39,7 +39,18 @@ export const cityPopulationSchema = z.object({
         logo: optionalLink.describe('Absolute http(s) URL of the party logo, or null'),
     })).describe('Political parties/coalitions in the council'),
     // A city without a body has nowhere to hold a meeting.
-    administrativeBodies: z.array(z.object(baseAdministrativeBodyFields))
+    administrativeBodies: z.array(z.object({
+        ...baseAdministrativeBodyFields,
+        // Found by research (the add-city skill).
+        // The "unit" / "unit:signer" form that parseDiavgeiaUnitScope reads, narrowed to digits:
+        // Diavgeia unit and signer uids are numbers, so a comma-joined paste ("1,2") or a stray
+        // colon ("1:") is refused instead of saved as one entry.
+        diavgeiaUnitIds: z.array(z.string().trim().regex(/^\d+(:\d+)?$/, { error: 'Expected a Diavgeia unit uid, or unit:signer' }))
+            .nullable().optional()
+            .describe('Greece: the Diavgeia units that publish this body\'s decisions, each "unit" or "unit:signer", or null'),
+        youtubeChannelUrl: youtubeChannelUrlValue.nullable().optional()
+            .describe('The YouTube channel that streams this body\'s meetings, for example https://www.youtube.com/@handle, or null'),
+    }))
         .min(1, { error: 'Add at least one administrative body, e.g. the council.' })
         .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
     people: z.array(z.object({
@@ -71,3 +82,4 @@ export const cityPopulationSchema = z.object({
 
 export type CityPopulationInput = z.input<typeof cityPopulationSchema>;
 export type CityPopulationData = z.output<typeof cityPopulationSchema>;
+

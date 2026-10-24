@@ -64,4 +64,29 @@ describe('populateCity', () => {
             'Councillor:party': { startDate: null, endDate: null, electedOrder: null },
         })
     })
+
+    it('saves the Diavgeia units and the YouTube channel of a body, and none when the payload has none', async () => {
+        await populate({
+            cityId,
+            parties: [],
+            administrativeBodies: [
+                {
+                    name: 'Council', name_en: 'Council', type: 'council',
+                    diavgeiaUnitIds: ['83734', '84655:100010590'], youtubeChannelUrl: 'https://www.youtube.com/@city',
+                },
+                { name: 'Committee', name_en: 'Committee', type: 'committee' },
+            ],
+            people: [],
+        })
+
+        const bodies = await prisma.administrativeBody.findMany({
+            where: { cityId },
+            select: { name: true, diavgeiaUnitIds: true, youtubeChannelUrl: true },
+            orderBy: { name: 'asc' },
+        })
+        expect(bodies).toEqual([
+            { name: 'Committee', diavgeiaUnitIds: [], youtubeChannelUrl: null },
+            { name: 'Council', diavgeiaUnitIds: ['83734', '84655:100010590'], youtubeChannelUrl: 'https://www.youtube.com/@city' },
+        ])
+    })
 })

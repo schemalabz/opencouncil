@@ -89,7 +89,7 @@ describe('populate_city through the SDK', () => {
         const tool = (await mcp.listTools()).find(t => t.name === 'populate_city');
         const text = JSON.stringify(tool?.inputSchema);
         expect(tool?.inputSchema.type).toBe('object');
-        for (const field of ['startDate', 'endDate', 'electedOrder', 'administrativeBodyName']) {
+        for (const field of ['startDate', 'endDate', 'electedOrder', 'administrativeBodyName', 'diavgeiaUnitIds', 'youtubeChannelUrl']) {
             expect(text).toContain(`"${field}"`);
         }
         expect(text).not.toContain('$ref');

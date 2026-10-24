@@ -42,6 +42,8 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
                         name: adminBody.name,
                         name_en: adminBody.name_en,
                         type: adminBody.type,
+                        diavgeiaUnitIds: adminBody.diavgeiaUnitIds ?? [],
+                        youtubeChannelUrl: adminBody.youtubeChannelUrl ?? null,
                         cityId: cityId,
                     },
                 })

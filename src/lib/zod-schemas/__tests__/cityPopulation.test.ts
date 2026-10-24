@@ -30,6 +30,32 @@ describe('cityPopulationSchema', () => {
         expect(cityPopulationSchema.safeParse(withParty('red')).success).toBe(false);
     });
 
+    it('accepts the Diavgeia units of a body and rejects a malformed entry', () => {
+        const withUnits = (diavgeiaUnitIds: string[]) => ({
+            ...payload({}),
+            administrativeBodies: [{ name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council', diavgeiaUnitIds }],
+        });
+        expect(cityPopulationSchema.parse(withUnits(['83734', '84655:100010590'])).administrativeBodies[0].diavgeiaUnitIds)
+            .toEqual(['83734', '84655:100010590']);
+        expect(cityPopulationSchema.safeParse(withUnits(['1:2:3'])).success).toBe(false);
+        expect(cityPopulationSchema.safeParse(withUnits(['83734,100086486'])).success).toBe(false);
+        expect(cityPopulationSchema.safeParse(withUnits(['83734:'])).success).toBe(false);
+        // null means none: a payload can write null for a missing value.
+        expect(cityPopulationSchema.safeParse({ ...withUnits([]), administrativeBodies: [{ name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council', diavgeiaUnitIds: null, youtubeChannelUrl: null }] }).success).toBe(true);
+        expect(cityPopulationSchema.safeParse(withUnits([' '])).success).toBe(false);
+    });
+
+    it('accepts a YouTube channel that livestream polling can resolve, and nothing else', () => {
+        const withChannel = (youtubeChannelUrl: string) => ({
+            ...payload({}),
+            administrativeBodies: [{ name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council', youtubeChannelUrl }],
+        });
+        expect(cityPopulationSchema.safeParse(withChannel('https://www.youtube.com/channel/UCug6tnPtrpJoo38gIRb_OPg')).success).toBe(true);
+        expect(cityPopulationSchema.safeParse(withChannel('https://www.youtube.com/@trikalacity')).success).toBe(true);
+        expect(cityPopulationSchema.safeParse(withChannel('https://www.youtube.com/watch?v=s0moUuyQbHA')).success).toBe(false);
+        expect(cityPopulationSchema.safeParse(withChannel('https://example.com/@trikalacity')).success).toBe(false);
+    });
+
     it('rejects a city without an administrative body', () => {
         const result = cityPopulationSchema.safeParse({ ...payload({}), administrativeBodies: [], people: [] });
         expect(result.success).toBe(false);
