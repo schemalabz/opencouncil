@@ -41,6 +41,8 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - NODE_OPTIONS=--max-old-space-size=8192
       - NEXT_TELEMETRY_DISABLED=1
+      # The seed artifact cache, in the mounted checkout so it outlives the container.
+      - XDG_CACHE_HOME=/app/.data/cache
     volumes:
       - .:/app
     depends_on:

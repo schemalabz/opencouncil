@@ -22,7 +22,7 @@
     "prisma:studio": "prisma studio",
     "prisma:migrate:reset": "prisma migrate reset",
     "db:deploy": "prisma migrate deploy && prisma generate",
-    "db:deploy:seed": "npm run db:deploy && prisma db seed",
+    "db:deploy:seed": "prisma generate && tsx scripts/seed/cli.ts setup",
     "production:build": "patch-package --error-on-fail && next build",
     "production:start": "NODE_OPTIONS=--max-old-space-size=$(node -p \"Math.floor(require('os').totalmem() / 1048576 * 0.75)\") next start",
     "email": "tsx scripts/email_municipality.ts",
@@ -36,7 +36,8 @@
     "generate-openapi": "tsx scripts/generate-openapi.ts",
     "generate-pwa-icons": "tsx scripts/generate-pwa-icons.ts",
     "decisions": "tsx scripts/decisions.ts",
-    "seed-pipeline": "tsx packages/seed-pipeline/src/cli.ts"
+    "seed-pipeline": "tsx packages/seed-pipeline/src/cli.ts",
+    "seed": "tsx scripts/seed/cli.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -35,7 +35,8 @@ if [ "$USE_LOCAL_DB" = "true" ]; then
   export DIRECT_URL=$LOCAL_DIRECT_URL
   
   echo "🔄 Running database migrations and seeding..."
-  npm run db:deploy:seed
+  # db is the database service of docker-compose.yml, so the seed tools may write to it.
+  npm run db:deploy:seed -- --trust-host db
 else
   echo "🌐 Using REMOTE database"
   echo "🔄 Running database migrations (but NOT seeding)..."
