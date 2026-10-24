@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { IS_DEV } from '@/lib/utils'
 import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
+import { peopleOnly } from '@/lib/db/types'
 
 export async function POST(request: NextRequest) {
   // Only allow in development or on preview deployments — never on real production
@@ -18,8 +19,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user exists in database
-    const user = await prisma.user.findUnique({
-      where: { email }
+    // People only: a machine account never signs in, not even here.
+    const user = await prisma.user.findFirst({
+      where: { email, ...peopleOnly }
     })
 
     if (!user) {

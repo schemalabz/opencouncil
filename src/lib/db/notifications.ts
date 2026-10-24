@@ -12,6 +12,7 @@ import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
 import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 import { publicAdministrativeBodyRelation, publicAdministrativeBodySelect } from "./types/administrativeBody";
+import { peopleOnly } from "./types/user";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent } from "@/lib/notifications/content";
@@ -22,6 +23,7 @@ import { pageSlice, paginationOf, type Pagination } from "@/lib/zod-schemas/list
 import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 
 // Type definitions for user preferences data
@@ -263,7 +265,8 @@ export async function saveNotificationPreferences(
     input: z.input<typeof saveNotificationPreferencesSchema>
 ): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(input);
-    if (!validation.success) {
+    // The machine domain is reserved: a signup must never create a person there.
+    if (!validation.success || isMachineAccountAddress(validation.data.email)) {
         return createError('Invalid input');
     }
     // notifyByPhone/notifyByEmail: the channel consent of the delivery step.
@@ -505,7 +508,7 @@ export async function savePetition(
     input: z.input<typeof savePetitionSchema>
 ): Promise<Result<Petition>> {
     const validation = savePetitionSchema.safeParse(input);
-    if (!validation.success) {
+    if (!validation.success || isMachineAccountAddress(validation.data.email)) {
         return createError('Invalid input');
     }
     const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser, returnTo } = validation.data;
@@ -748,7 +751,7 @@ async function matchMeetingRecipients(
 
     // Get all users with notification preferences for this city
     const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId },
+        where: { cityId, user: peopleOnly },
         include: {
             user: true,
             locations: true,
@@ -1750,7 +1753,7 @@ export async function getNotificationImpactPreviewData(
 
     // Get all users with notification preferences for this city
     const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId },
+        where: { cityId, user: peopleOnly },
         include: {
             user: true,
             locations: true,

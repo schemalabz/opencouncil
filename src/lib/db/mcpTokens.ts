@@ -81,13 +81,16 @@ export async function revokeUserMcpToken(userId: string, tokenId: string) {
 
 /**
  * Validate a raw MCP token. Returns the owning user's id if valid, null
- * otherwise. Updates lastUsedAt on successful validation.
+ * otherwise. Updates lastUsedAt on successful validation. `machineName` names
+ * the owner when it is a machine account (#590), for analytics; null for a
+ * person.
  */
-export async function validateUserMcpToken(rawToken: string): Promise<{ userId: string; tokenId: string } | null> {
+export async function validateUserMcpToken(rawToken: string): Promise<{ userId: string; tokenId: string; machineName: string | null } | null> {
     const hashedKey = hashToken(rawToken);
 
     const token = await prisma.userMcpToken.findUnique({
         where: { hashedKey },
+        include: { user: { select: { isMachine: true, name: true, email: true } } },
     });
 
     if (!token || token.revokedAt) {
@@ -102,5 +105,6 @@ export async function validateUserMcpToken(rawToken: string): Promise<{ userId: 
         console.error('Failed to update lastUsedAt for MCP token:', err);
     });
 
-    return { userId: token.userId, tokenId: token.id };
+    const machineName = token.user.isMachine ? (token.user.name || token.user.email) : null;
+    return { userId: token.userId, tokenId: token.id, machineName };
 }

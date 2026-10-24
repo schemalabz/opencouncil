@@ -6,7 +6,11 @@ import { validateUserMcpToken } from '@/lib/db/mcpTokens';
  * A token acts as the account that owns it, with that account's rights, read
  * from the database at each request (#590).
  */
-export type McpIdentity = { userId: string } | null;
+export type McpIdentity = {
+    userId: string;
+    /** The name of the owner when it is a machine account; analytics reads it. */
+    machineName?: string;
+} | null;
 
 /**
  * Unwrap the identity verifyMcpToken stashes in AuthInfo.extra — the one
@@ -41,7 +45,9 @@ export async function verifyMcpToken(_req: Request, bearerToken?: string): Promi
         if (!result) {
             throw new Error('Invalid or revoked MCP token');
         }
-        const identity: McpIdentity = { userId: result.userId };
+        const identity: McpIdentity = result.machineName
+        ? { userId: result.userId, machineName: result.machineName }
+        : { userId: result.userId };
         return {
             token: bearerToken,
             clientId: result.userId,

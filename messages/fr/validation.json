@@ -43,5 +43,6 @@
     "cityMessageLink": "Doit être une URL http(s) ou un chemin qui commence par un seul /",
     "imageMaxSize": "L’image ne doit pas dépasser 5 Mo",
     "logoType": "Le logo doit être de l’un de ces types : image/png, image/jpeg",
-    "logoMaxSize": "Le logo ne doit pas dépasser 5 Mo"
+    "logoMaxSize": "Le logo ne doit pas dépasser 5 Mo",
+    "machineAccountLabelInvalid": "Le libellé compte de 1 à 100 caractères, dont au moins une lettre latine ou un chiffre."
 }

@@ -37,7 +37,7 @@ export async function resolveAdminAccess(identity: McpIdentity): Promise<McpAdmi
  */
 async function requireAdminAccess(identity: McpIdentity): Promise<McpAdminAccess> {
     if (!identity) {
-        throw new UnauthorizedError('Authentication required: connect with a personal MCP URL from the /mcp page of the site.');
+        throw new UnauthorizedError('Authentication required: connect with a personal MCP URL from the /mcp page of the site, or with the token of a machine account.');
     }
     const store = mcpRealmStore.getStore();
     const access = store ? store.adminAccess : await resolveAdminAccess(identity);

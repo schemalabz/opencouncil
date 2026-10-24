@@ -26,13 +26,14 @@ jest.mock('@/lib/db/prisma', () => {
         __esModule: true,
         default: {
             administrativeBody: { findUnique: (...a: unknown[]) => mockBodyFindUnique(...a) },
-            $transaction: (fn: (t: typeof tx) => unknown) => fn(tx),
+            $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
         },
     };
 });
 
-import { removeBodyAdmin } from '@/lib/db/bodyAdmins';
-import { BadRequestError, ForbiddenError } from '@/lib/api/errors';
+import prisma from '@/lib/db/prisma';
+import { addBodyAdmin, removeBodyAdmin } from '@/lib/db/bodyAdmins';
+import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 
 const ME = { id: 'a1', userId: 'me' };
 const COLLEAGUE = { id: 'a2', userId: 'colleague' };
@@ -93,6 +94,38 @@ describe('removeBodyAdmin with the rules of a body admin', () => {
         mockIsUserAuthorizedToEdit.mockImplementation(asBodyAdmin);
         mockAdministersFindMany.mockResolvedValue([ME]);
         await expect(removeBodyAdmin('athens', 'youth', 'me')).rejects.toThrow(BadRequestError);
+        expect(mockAdministersDelete).not.toHaveBeenCalled();
+    });
+});
+
+describe('addBodyAdmin', () => {
+    it('refuses an address on the machine domain before any account is read or created', async () => {
+        // A machine account gets its rights from a superadmin only.
+        await expect(addBodyAdmin('athens', 'council', { email: 'Paola@machines.opencouncil.invalid' })).rejects.toThrow(BadRequestError);
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+});
+
+describe('removeBodyAdmin and a machine account', () => {
+    it('reads the admins of the body as people only', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
+        mockAdministersFindMany.mockResolvedValue([ME, COLLEAGUE]);
+        await removeBodyAdmin('athens', 'youth', 'colleague');
+        expect(mockAdministersFindMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { administrativeBodyId: 'youth', user: { isMachine: false } },
+        }));
+    });
+
+    it("answers not found for a machine account's grant, even to a superadmin", async () => {
+        // The people-only read leaves the machine account out: its rights
+        // change on the machine accounts page.
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true);
+        // The mock answers like the database: the machine row only to a read
+        // that does not ask for people only.
+        const BOT = { id: 'a3', userId: 'bot-1', isMachine: true };
+        mockAdministersFindMany.mockImplementation(async ({ where }: { where: { user?: { isMachine?: boolean } } }) =>
+            [{ ...ME, isMachine: false }, BOT].filter(row => where.user?.isMachine !== false || !row.isMachine));
+        await expect(removeBodyAdmin('athens', 'youth', 'bot-1')).rejects.toThrow(NotFoundError);
         expect(mockAdministersDelete).not.toHaveBeenCalled();
     });
 });
