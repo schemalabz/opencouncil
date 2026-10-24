@@ -73,8 +73,9 @@ non-production host (see the preview deployments guide):
   released meeting with a Cyrillic-stored and a Latin-stored speaker segment,
   agenda subjects and Serbian topics; use the Ћир | Lat switcher (or the
   `/lat` URL prefix) to check both scripts.
-- **Local dev**: `http://localhost:3000/?realm=serbia` after `npx prisma db
-  seed` (the fixture seeds idempotently alongside the dump).
+- **Local dev**: `http://localhost:3000/?realm=serbia` after `npm run
+  db:deploy:seed` or `npm run seed -- fixtures` (both add the fixture
+  idempotently to the restored artifact).
 - Alternatively, spoof the Host header: `curl -H 'Host: opencouncil.rs'
   localhost:3000/beograd`.
 

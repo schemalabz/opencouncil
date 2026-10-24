@@ -169,17 +169,15 @@ maybe('seed pipeline end to end', () => {
         // removes this key too.
         await createTaskStatus('m1', athens.id, { type: 'transcriptSent', status: 'completed', requestBody: JSON.stringify({ recipientEmails: ['a@b.gr'] }) })
         // A voiceprint is a biometric identifier, so VoicePrint is a private table.
-        // The generateVoiceprint task holds the same embedding in the "voiceprint" key
-        // of its response, and a masking rule removes that key. The audio URL and the
-        // duration stay. Both hang off m1, a meeting the subset keeps.
+        // The generateVoiceprint task links a person to a clip of their voice, so a
+        // masking rule deletes the task from both artifacts. Both hang off m1, a
+        // meeting the subset keeps.
         const speaker = await createPerson(athens.id, { name: 'Voiced Person' })
         await prisma.voicePrint.create({ data: { embedding: '[0.1,0.2]', sourceAudioUrl: 'https://cdn/voice.mp3', startTimestamp: 0, endTimestamp: 10, personId: speaker.id, sourceSegmentId: segmentIds[1] } })
         await createTaskStatus('m1', athens.id, { type: 'generateVoiceprint', status: 'completed', requestBody: '{}', responseBody: JSON.stringify({ audioUrl: 'https://cdn/voice.mp3', voiceprint: '[0.1,0.2]', duration: 10 }) })
         // A transcribe request carries the voiceprints of the speakers, which are
         // biometric data, and a masking rule removes that key. The response holds
-        // the whole transcript. The Utterance and Word tables hold the same words,
-        // so a subset-only rule removes the utterances from the response. The full
-        // artifact keeps the whole response.
+        // the whole transcript, and both artifacts keep it.
         await createTaskStatus('m1', athens.id, {
             type: 'transcribe',
             status: 'completed',
@@ -208,6 +206,10 @@ maybe('seed pipeline end to end', () => {
         // summarize made has no creator and stays as sample data. Each has a generateHighlight
         // task that names it in requestBody.parts[0].id.
         const m1Utterance = await prisma.utterance.findFirstOrThrow({ where: { speakerSegment: { meetingId: 'm1' } } })
+        // An edit names the account that made it, through a key to the private User table,
+        // so that key goes. The edit itself ships. Its text holds an address that the
+        // municipality published, as Utterance.text does.
+        await prisma.utteranceEdit.create({ data: { utteranceId: m1Utterance.id, beforeText: 'Utterance 1 before', afterText: 'Utterance 1 write to dimos@athens.gr', editedBy: 'user', userId: user.id } })
         for (const [id, createdById, isShowcased] of [['h-reader', user.id, false], ['h-task', null, false], ['h-showcased', user.id, true]] as const) {
             await prisma.highlight.create({ data: { id, name: `Highlight ${id}`, meetingId: 'm1', cityId: athens.id, createdById, isShowcased, highlightedUtterances: { create: { utteranceId: m1Utterance.id } } } })
             if (id !== 'h-showcased') {
@@ -227,7 +229,8 @@ maybe('seed pipeline end to end', () => {
         await createNotificationPreference({ userId: user.id, cityId: athens.id, locationIds: ['loc-reader'] })
         // d0 hangs off the unreleased meeting the subset drops, d1 off one it keeps.
         await prisma.decision.create({ data: { id: 'd0', subjectId: subjectIds[4], title: 'Dropped decision', pdfUrl: 'https://x/d0.pdf', createdById: user.id } })
-        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id, taskId: pollTask.id } })
+        // An admin's correction of the extracted facts names the admin by email, so a masking rule removes it.
+        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id, taskId: pollTask.id, extraction: { number: '12/2026', correctedBy: { by: 'person@test.local', date: '2026-10-01', why: 'wrong number' } } } })
         // d2 sits on m2, but its task sits on m1. A subset-only rule nulls that reference.
         await prisma.decision.create({ data: { id: 'd2', subjectId: subjectIds[2], title: 'Cross-meeting decision', pdfUrl: 'https://x/d2.pdf', taskId: pollTask.id } })
         // A consent period names the account that recorded it, so VoicePrintConsent
@@ -297,7 +300,8 @@ maybe('seed pipeline end to end', () => {
         expect(manifest.counts.User).toBe(0)
         expect(manifest.counts.NotificationPreference).toBe(0)
         expect(manifest.counts.Subject).toBe(4)
-        expect(manifest.counts.TaskStatus).toBe(9)
+        expect(manifest.counts.TaskStatus).toBe(8)
+        expect(manifest.counts.UtteranceEdit).toBe(1)
         expect(manifest.counts.Highlight).toBe(2)
         expect(manifest.counts.DecisionCandidate).toBe(1)
         expect(manifest.counts.VoicePrint).toBe(0)
@@ -331,8 +335,7 @@ maybe('seed pipeline end to end', () => {
 
         // The masking rule for the voiceprint embedding applies to both artifacts, so
         // the full artifact's TaskStatus rows never carry the embedding value either.
-        // The subsetOnly rule for the transcribe response only applies to the subset,
-        // so the full artifact keeps the whole transcribe response, utterances included.
+        // Both artifacts keep the whole transcribe response, utterances included.
         // Each restore unpacks into its own artifact-* directory.
         const [fullDumpDir] = fs.readdirSync(path.join(root, 'verify-work', 'full')).filter((name) => name.startsWith('artifact-'))
         const fullTaskStatusLines = readTableDataLines(path.join(root, 'verify-work', 'full', fullDumpDir), 'TaskStatus')
@@ -341,6 +344,7 @@ maybe('seed pipeline end to end', () => {
         expect(fullTaskStatusLines.some((line) => line.includes('"utterances"') && line.includes('"Utterance 1"'))).toBe(true)
         // The voiceprint scores of the transcribe response go from both artifacts.
         expect(fullTaskStatusLines.some((line) => line.includes('person-voiced'))).toBe(false)
+        expect(fullTaskStatusLines.some((line) => line.includes('https://cdn/voice.mp3'))).toBe(false)
 
         // verify restored the full artifact too. It keeps every meeting, the unreleased m4 included.
         const full = new Client({ connectionString: verifyUrls.full })
@@ -364,6 +368,8 @@ maybe('seed pipeline end to end', () => {
             expect(temporaryIndexes.rows[0].n).toBe('0')
             const candidates = await full.query<{ id: string }>('SELECT id FROM "DecisionCandidate" ORDER BY id')
             expect(candidates.rows).toEqual([{ id: 'dc-kept' }])
+            const fullExtraction = await full.query<{ extraction: unknown }>(`SELECT extraction FROM "Decision" WHERE id = 'd1'`)
+            expect(fullExtraction.rows).toEqual([{ extraction: { number: '12/2026' } }])
             // A segment points at its speaker tag, so m4's tag and the identification on it
             // outlive the meeting unless a rule removes the tags that no segment uses.
             const tags = await full.query<{ label: string }>('SELECT label FROM "SpeakerTag" ORDER BY label')
@@ -386,22 +392,25 @@ maybe('seed pipeline end to end', () => {
             expect(bodies.rows).toHaveLength(2)
             expect(bodies.rows.every((r) => r.contactEmails.length === 0)).toBe(true)
             const tasks = await restored.query<{ type: string; requestBody: string; responseBody: string | null }>('SELECT type, "requestBody", "responseBody" FROM "TaskStatus"')
-            expect(tasks.rows).toHaveLength(9)
+            expect(tasks.rows).toHaveLength(8)
             expect(tasks.rows.every((r) => !r.requestBody.includes('callbackUrl'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('recipientEmails'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('a@b.gr'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('voiceprints'))).toBe(true)
-            // The voiceprint response loses the embedding only. The transcribe
-            // response loses its utterances only. Every other task keeps the
-            // response it had.
+            // The voiceprint task is gone. The transcribe response loses the voiceprint
+            // scores only. Every other task keeps the response it had.
             const responseOf = (type: string): unknown[] => tasks.rows.filter((r) => r.type === type).map((r) => JSON.parse(r.responseBody ?? 'null'))
-            expect(responseOf('generateVoiceprint')).toEqual([{ audioUrl: 'https://cdn/voice.mp3', duration: 10 }])
+            expect(responseOf('generateVoiceprint')).toEqual([])
             expect(responseOf('transcribe')).toEqual([{
                 videoUrl: 'https://cdn/x.mp4',
                 audioUrl: 'https://cdn/x.mp3',
                 muxPlaybackId: 'mux-x',
-                transcript: { transcription: { speakers: [{ speaker: 0, match: null }] } },
+                transcript: { transcription: { utterances: [{ text: 'Utterance 1', start: 0, end: 5, speaker: 0, drift: 0 }], speakers: [{ speaker: 0, match: null }] } },
             }])
+            const edits = await restored.query<{ userId: string | null; afterText: string }>('SELECT "userId", "afterText" FROM "UtteranceEdit"')
+            expect(edits.rows).toEqual([{ userId: null, afterText: 'Utterance 1 write to dimos@athens.gr' }])
+            const extraction = await restored.query<{ extraction: unknown }>(`SELECT extraction FROM "Decision" WHERE id = 'd1'`)
+            expect(extraction.rows).toEqual([{ extraction: { number: '12/2026' } }])
             expect(tasks.rows.filter((r) => r.type === 'summarize').map((r) => r.responseBody)).toEqual(['{"ok":true}', '{"ok":true}', '{"ok":true}', '{"ok":true}'])
             const voicePrintCount = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "VoicePrint"')
             expect(voicePrintCount.rows[0].n).toBe('0')
@@ -479,5 +488,20 @@ maybe('seed pipeline end to end', () => {
         const brokenRuns = fs.readdirSync(brokenWork).filter((name) => name.startsWith('run-'))
         expect(brokenRuns).toHaveLength(1)
         expect(fs.readdirSync(path.join(brokenWork, brokenRuns[0])).filter((name) => name.startsWith('storage-'))).toEqual([])
+
+        // Without the rule for an admin's correction, the full dump holds the fixture
+        // account's email in Decision, a public-text table. produce stops before it packs.
+        const leakyTables = JSON.parse(fs.readFileSync('packages/seed-pipeline/config/tables.json', 'utf8'))
+        leakyTables.masking = leakyTables.masking.filter((rule: { table: string; column?: string }) => !(rule.table === 'Decision' && rule.column === 'extraction'))
+        const leakyTablesFile = path.join(root, 'leaky-tables.json')
+        fs.writeFileSync(leakyTablesFile, JSON.stringify(leakyTables))
+        const leakyLog: string[] = []
+        await expect(produce({
+            backupPath: path.join(root, 'backup.sql.gz'), outDir: path.join(root, 'leaky-out'), workDir: path.join(root, 'leaky-work'), schemaPath,
+            meetingsPerBody: 2, pinsFile, tablesFile: leakyTablesFile, scratchUrl: await createSiblingDatabase('seed_leaky_scratch'),
+            log: (line) => leakyLog.push(line),
+        })).rejects.toThrow('the full dump holds the email of an account: Decision=1.')
+        expect(leakyLog.some((line) => line.includes('packing the full artifact'))).toBe(false)
+        expect(fs.readdirSync(path.join(root, 'leaky-out'))).toEqual([])
     }, 600_000)
 })

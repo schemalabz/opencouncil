@@ -16,7 +16,6 @@ const defaults: Record<string, string> = {
     TASK_API_KEY: 'test-task-key',
     ELASTICSEARCH_URL: 'https://example.com',
     ELASTICSEARCH_API_KEY: 'test-es-key',
-    DEV_TEST_CITY_ID: 'testcity',
     SEED_DATA_URL: 'https://example.com/seed.json',
     SEED_DATA_PATH: './prisma/seed_data.json',
     BIRD_API_KEY: 'test-bird',

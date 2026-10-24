@@ -15,7 +15,7 @@ The team shares Claude Code skills via the [`schemalabz/claude-plugins`](https:/
 
 The database is automatically seeded with sample data and test users during setup. The seed data provides a realistic development environment while excluding sensitive information.
 
-During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
+On the first run, every setup (Nix, Docker, or `npm run db:deploy:seed` by hand) loads the latest published seed artifact: the public content of production, refreshed by the team. When it cannot load the artifact, it stops and says what to do.
 
 For detailed information about database seeding and test user management, see [Database Seeding Guide](./docs/database-seeding.md).
 

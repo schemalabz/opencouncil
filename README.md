@@ -42,7 +42,7 @@ Next.js 14 (TypeScript) + PostgreSQL/PostGIS + Prisma. A separate [task server](
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL 14+ with the postgis extension
+- PostgreSQL 16 with the postgis extension, the PostgreSQL 16 client tools (`pg_restore`, `psql`), and `zstd`. The Nix and Docker setups include them.
 - Docker (optional, but recommended)
 - Nix (optional, recommended for the flake-based setup)
 
@@ -110,23 +110,17 @@ If you prefer to run without Docker:
      ```bash
      docker compose up db -d
      ```
-   - Alternatively, you can connect to any PostgreSQL database (local or remote) by setting the `DATABASE_URL` environment variable in your `.env` file:
+   - Alternatively, you can use a PostgreSQL 16 database of your own on this machine by setting the `DATABASE_URL` environment variable in your `.env` file:
      ```
-     DATABASE_URL="postgresql://user:password@host:port/database"
+     DATABASE_URL="postgresql://user:password@localhost:5432/database"
      ```
-     The database must have the `postgis` extension installed.
+     The database must have the `postgis` extension installed. The next step writes only to a database on this machine.
 
 3. Set up the database:
    ```bash
-   # Run migrations
-   npx prisma migrate deploy
-   
-   # Generate Prisma client
-   npx prisma generate
-   
-   # Optionally, seed the database with sample data
-   npx prisma db seed
+   npm run db:deploy:seed
    ```
+   On an empty local database, this loads the latest published seed artifact (real public content of production), applies the migrations, generates the Prisma client, and adds the test accounts. It needs the PostgreSQL 16 client tools (`pg_restore`, `psql`) and `zstd`, and it stops with what to install when they are missing. On a database with data, it applies new migrations and puts back the test accounts and the Serbian review city when they are missing. See the [Database Seeding Guide](./docs/database-seeding.md).
 
 4. Start the development server:
    ```bash

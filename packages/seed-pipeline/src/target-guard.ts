@@ -46,8 +46,12 @@ function decode(raw: string): string {
  * reads them, so a URL that leaves one out can reach two databases. Query keys
  * are decoded first, as libpq decodes them, so `?%68ost=` counts as `host`.
  * Returns the connection that the URL names.
+ *
+ * `trustedHosts` adds host names that the caller knows are local, such as `db`,
+ * the database service of docker-compose.yml. Only a caller that set up that
+ * host passes it; a URL alone never makes a host local.
  */
-export function parseLocalTarget(url: string): LocalTarget {
+export function parseLocalTarget(url: string, trustedHosts: readonly string[] = []): LocalTarget {
     // libpq reads `#` as text, so `?host=/tmp/x#&host=staging` would reach staging
     // while a URL parser sees only the socket.
     if (url.includes('#')) throw new RemoteTargetError('it contains "#", which libpq does not read as the start of a fragment');
@@ -69,10 +73,11 @@ export function parseLocalTarget(url: string): LocalTarget {
     const socketDir = params.get('host');
     if (socketDir?.includes(',')) throw new RemoteTargetError(`host="${socketDir}" names more than one host`);
     if (socketDir !== undefined && !socketDir.startsWith('/')) throw new RemoteTargetError(`host="${socketDir}" is not a socket directory`);
-    if (socketDir === undefined && !LOCAL_HOSTS.has(authorityHost)) {
+    const isLocal = (host: string) => LOCAL_HOSTS.has(host) || trustedHosts.includes(host);
+    if (socketDir === undefined && !isLocal(authorityHost)) {
         throw new RemoteTargetError(authorityHost ? `"${authorityHost}" is not a local host` : 'it names no host');
     }
-    if (socketDir !== undefined && authorityHost !== '' && !LOCAL_HOSTS.has(authorityHost)) {
+    if (socketDir !== undefined && authorityHost !== '' && !isLocal(authorityHost)) {
         throw new RemoteTargetError(`"${authorityHost}" is not a local host`);
     }
 
@@ -91,6 +96,6 @@ export function parseLocalTarget(url: string): LocalTarget {
     };
 }
 
-export function assertLocalTarget(url: string): void {
-    parseLocalTarget(url);
+export function assertLocalTarget(url: string, trustedHosts: readonly string[] = []): void {
+    parseLocalTarget(url, trustedHosts);
 }

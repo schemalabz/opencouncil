@@ -1,7 +1,7 @@
 import { ContentFilter } from './stream-filter';
 
-async function runFilter(input: string, allow: string[], known: string[]): Promise<{ output: string; filter: ContentFilter }> {
-    const filter = new ContentFilter({ allow: new Set(allow), known: new Set(known) });
+async function runFilter(input: string, allow: string[], known: string[], collect?: { table: string; column: string }): Promise<{ output: string; filter: ContentFilter }> {
+    const filter = new ContentFilter({ allow: new Set(allow), known: new Set(known), collect });
     const chunks: Buffer[] = [];
     filter.on('data', (c: Buffer) => chunks.push(c));
     const done = new Promise<void>((resolve, reject) => {
@@ -140,5 +140,26 @@ describe('ContentFilter', () => {
         const output = Buffer.concat(chunks).toString('utf8');
         expect(output).toContain('Αθήνα');
         expect(output).not.toContain('�');
+    });
+
+    test('keeps the values of one column of a dropped table, in lowercase, and nothing of the output', async () => {
+        const dump = [
+            'COPY public."User" (id, "createdAt", email) FROM stdin;',
+            'u1\t2026-01-01\tAdmin@OpenCouncil.gr',
+            'u2\t2026-01-01\t\\N',
+            '\\.',
+            'COPY public."City" (id, email) FROM stdin;',
+            'athens\tcity@athens.gr',
+            '\\.',
+            '',
+        ].join('\n');
+        const { output, filter } = await runFilter(dump, ['City'], ['User', 'City'], { table: 'User', column: 'email' });
+        expect([...filter.collected]).toEqual(['admin@opencouncil.gr']);
+        expect(output).not.toContain('opencouncil');
+    });
+
+    test('stops when the dropped table has no such column', async () => {
+        const dump = ['COPY public."User" (id, name) FROM stdin;', 'u1\tA', '\\.', ''].join('\n');
+        await expect(runFilter(dump, [], ['User'], { table: 'User', column: 'email' })).rejects.toThrow('the COPY of "User" has no column "email"');
     });
 });

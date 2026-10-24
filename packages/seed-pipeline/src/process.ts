@@ -204,11 +204,6 @@ export function psql(url: string, sql: string, opts: RunOptions = {}): Promise<R
     return run(binary('psql'), ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', url], { ...opts, input: sql });
 }
 
-/** Run a SQL file against a URL, stopping at the first error. */
-export function psqlFile(url: string, file: string, opts: RunOptions = {}): Promise<RunResult> {
-    return run(binary('psql'), ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', url, '-f', file], opts);
-}
-
 /**
  * Run a Prisma CLI command against a URL. Prisma prefers DIRECT_URL when it is
  * set, and the shell's .env can set it to another database, so both point here.

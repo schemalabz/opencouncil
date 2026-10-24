@@ -4,7 +4,6 @@ import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
-import { devToolsAllowed } from "@/lib/deployment";
 import { claimedLink } from "@/lib/db/personClaim";
 
 const userWithAdministersInclude = {
@@ -101,17 +100,8 @@ export async function getUsers(): Promise<UserWithRelations[]> {
     }
 }
 
-export async function createUser(data: AdminUserData, options: { skipAuthCheck?: boolean } = {}): Promise<UserWithAdministers> {
-    // `skipAuthCheck` exists only for dev/preview seeding (seed-test-users). This
-    // is a "use server" module, so a client can pass options directly — honoring
-    // the bypass in production would let anyone create a superadmin. Gate it
-    // behind DEV_TOOLS_ALLOWED so it is inert on real production.
-    if (options.skipAuthCheck && !devToolsAllowed()) {
-        throw new Error("skipAuthCheck is only permitted when dev tools are enabled");
-    }
-    if (!options.skipAuthCheck) {
-        await withUserAuthorizedToEdit({});
-    }
+export async function createUser(data: AdminUserData): Promise<UserWithAdministers> {
+    await withUserAuthorizedToEdit({});
 
     const normalizedData = normalizeAdminUserData(data);
     if (!normalizedData.email) {

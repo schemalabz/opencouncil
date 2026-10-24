@@ -25,7 +25,7 @@ Run commands (`npm`, `npx`, etc.) directly. Optionally, use `nix develop` for a 
 - `npm run prisma:migrate` - Run migrations in dev
 - `npm run prisma:studio` - Open Prisma Studio (visual editor)
 - `npm run prisma:migrate:reset` - Reset database and re-run migrations
-- `npx prisma db seed` - Seed database with sample data
+- `npm run db:deploy:seed` - Migrate and seed a local database: the published seed artifact on an empty one (see `docs/database-seeding.md`)
 
 **IMPORTANT**: When making schema changes, always use `--create-only` to generate the migration file without applying it:
 ```
@@ -399,7 +399,7 @@ Do not narrate each step. Do not repeat what the diff already shows.
 ## Environment Setup
 
 Required services:
-- PostgreSQL 14+ with PostGIS extension
+- PostgreSQL 16 with PostGIS extension; the seed restore needs the PostgreSQL 16 client tools
 - Elasticsearch instance
 - Task API server (separate backend)
 - S3-compatible storage (DigitalOcean Spaces)

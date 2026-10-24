@@ -6,7 +6,7 @@
 
 // Define test user emails in one place
 // These are fake emails - set DEV_EMAIL_OVERRIDE to receive login links at a real address
-const TEST_USER_EMAILS = {
+export const TEST_USER_EMAILS = {
   SUPER_ADMIN: 'superadmin@test.com',
   CITY_ADMIN: 'city@test.com',
   PARTY_ADMIN: 'party@test.com',

@@ -5,6 +5,8 @@ import { env } from '@/env.mjs'
 import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
 import { importBodyConventions, type BodyConventionsRecord } from "@/lib/db/bodyConventionsImport"
+import { ensureTestUsers } from "@/lib/db/testUsers"
+import { ensureSerbianFixture } from "@/lib/db/serbianFixture"
 // Imported, not read from disk: the preview runs a bundle of this file with no fixtures/ beside it.
 import bodyConventions from "../fixtures/body-conventions.json"
 
@@ -80,112 +82,8 @@ const SEED_DATA_PATH = env.SEED_DATA_PATH
  * Create development test users with proper permissions
  */
 async function createTestUsers() {
-  // Import test user definitions
-  const { TEST_USERS } = require('../src/lib/dev/test-users')
-  const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
-
-  console.log(`Creating development test users for city: ${DEV_TEST_CITY_ID}`)
-
-  try {
-    // Verify the test city exists
-    const testCity = await prisma.city.findUnique({
-      where: { id: DEV_TEST_CITY_ID },
-      select: { id: true, name: true }
-    })
-
-    if (!testCity) {
-      console.log(`Test city with id "${DEV_TEST_CITY_ID}" not found. Skipping test user creation.`)
-      return
-    }
-
-    // Get one party and one person from the test city for specific admin users
-    const testParty = await prisma.party.findFirst({
-      where: { cityId: DEV_TEST_CITY_ID },
-      select: { id: true, name: true }
-    })
-
-    const testPerson = await prisma.person.findFirst({
-      where: { cityId: DEV_TEST_CITY_ID },
-      select: { id: true, name: true }
-    })
-
-    // A body other than the council when there is one: the council is the
-    // body that a city admin's rights already cover.
-    const testBody = await prisma.administrativeBody.findFirst({
-      where: { cityId: DEV_TEST_CITY_ID },
-      orderBy: [{ type: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true }
-    })
-
-    for (const testUser of TEST_USERS) {
-      // Check if user already exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email: testUser.email }
-      })
-
-      if (existingUser) {
-        console.log(`Test user with email ${testUser.email} already exists`)
-        continue
-      }
-
-      // Determine user name and permissions based on admin type
-      let finalName = testUser.name
-      let administers: any[] = []
-
-      switch (testUser.adminType) {
-        case 'superadmin':
-          // Super admin needs no additional permissions
-          break
-        case 'city':
-          administers = [{ cityId: testCity.id }]
-          break
-        case 'party':
-          if (testParty) {
-            finalName = `Party Admin (${testParty.name})`
-            administers = [{ partyId: testParty.id }]
-          } else {
-            finalName = 'Party Admin (No party available)'
-          }
-          break
-        case 'person':
-          if (testPerson) {
-            finalName = `Person Admin (${testPerson.name})`
-            // Claimed, as a QR scan would: the test person admin is the person.
-            administers = [{ personId: testPerson.id, claimedAt: new Date() }]
-          } else {
-            finalName = 'Person Admin (No person available)'
-          }
-          break
-        case 'body':
-          if (testBody) {
-            finalName = `Body Admin (${testBody.name})`
-            administers = [{ administrativeBodyId: testBody.id }]
-          } else {
-            finalName = 'Body Admin (No body available)'
-          }
-          break
-        case 'readonly':
-          // Read-only user has no administers
-          break
-      }
-
-      // Create test user
-      await prisma.user.create({
-        data: {
-          email: testUser.email,
-          name: finalName,
-          isSuperAdmin: testUser.isSuperAdmin,
-          onboarded: true,
-          administers: {
-            create: administers
-          }
-        }
-      })
-
-      console.log(`Created test user: ${finalName} (${testUser.email})`)
-    }
-  } catch (error) {
-    console.error('Error creating test users:', error)
+  for (const user of await ensureTestUsers(prisma)) {
+    console.log(`Test user ${user.email}: ${user.administers.length} admin rights`)
   }
 }
 
@@ -338,7 +236,7 @@ async function main() {
       existingMeetings.length === seedData.meetings.length) {
       console.log('Database already contains all seed data. Skipping seeding...')
       // The Serbian fixture is not part of the dump — keep it in sync anyway.
-      await seedSerbianFixture()
+      await ensureSerbianFixture(prisma, console.log)
       return
     }
 
@@ -372,7 +270,7 @@ async function main() {
     await seedConsultations()
 
     // Serbian review fixture (not in the production dump)
-    await seedSerbianFixture()
+    await ensureSerbianFixture(prisma, console.log)
 
     await createTestUsers()
 
@@ -1206,234 +1104,6 @@ async function seedMeetingTaskStatuses(meetings: any[]) {
 
   track('Task Statuses', taskCount)
   console.log(`Created ${taskCount} task statuses`);
-}
-
-/**
- * Serbian review fixture: a small Belgrade dataset for exercising the serbia
- * realm (Cyrillic/Latin transliteration, sr / sr-Latn locales, realm-scoped
- * topics). The production dump has no Serbian content, so previews and local
- * dev get it from here. All rows use fixed `seed-sr-*` ids and upserts, so
- * re-running the seed is a no-op — this also runs when the dump seeding is
- * skipped as already present.
- *
- * One speaker segment is stored in Cyrillic and one in Latin on purpose:
- * transcripts arrive in either script, and rendering normalizes to the view's
- * script (`toScript`), so the fixture exercises both directions.
- */
-async function seedSerbianFixture() {
-  console.log('Seeding Serbian review fixture (beograd)...')
-
-  const city = {
-    name: 'Београд',
-    name_en: 'Belgrade',
-    name_municipality: 'Град Београд',
-    name_municipality_en: 'City of Belgrade',
-    timezone: 'Europe/Belgrade',
-    // The demo city: published on opencouncil.rs without claiming official
-    // support, which is what this whole status exists for.
-    status: 'demo' as const,
-    authorityType: 'municipality' as const,
-    language: 'sr' as const,
-    realm: 'serbia' as const,
-    population: 1197714,
-  }
-  await prisma.city.upsert({ where: { id: 'beograd' }, update: city, create: { id: 'beograd', ...city } })
-
-  const body = {
-    name: 'Скупштина града Београда',
-    name_en: 'City Assembly of Belgrade',
-    type: 'council' as const,
-    cityId: 'beograd',
-  }
-  await prisma.administrativeBody.upsert({
-    where: { id: 'seed-sr-skupstina' },
-    update: body,
-    create: { id: 'seed-sr-skupstina', ...body },
-  })
-
-  const topics = [
-    { id: 'seed-sr-topic-saobracaj', name: 'Саобраћај', name_en: 'Transport', colorHex: '#2563eb' },
-    { id: 'seed-sr-topic-urbanizam', name: 'Урбанизам', name_en: 'Urban Planning', colorHex: '#d97706' },
-    { id: 'seed-sr-topic-zivotna-sredina', name: 'Животна средина', name_en: 'Environment', colorHex: '#16a34a' },
-  ]
-  for (const { id, ...topic } of topics) {
-    await prisma.topic.upsert({
-      where: { id },
-      update: { ...topic, realm: 'serbia' },
-      create: { id, ...topic, realm: 'serbia' },
-    })
-  }
-
-  // Fictional party and people — review data, not real Belgrade politics.
-  const party = {
-    name: 'Грађанска листа',
-    name_en: 'Civic List',
-    name_short: 'ГЛ',
-    name_short_en: 'CL',
-    colorHex: '#7c3aed',
-    cityId: 'beograd',
-  }
-  await prisma.party.upsert({ where: { id: 'seed-sr-party-gl' }, update: party, create: { id: 'seed-sr-party-gl', ...party } })
-
-  const persons = [
-    {
-      id: 'seed-sr-person-jovanovic',
-      name: 'Милица Јовановић',
-      name_en: 'Milica Jovanović',
-      name_short: 'М. Јовановић',
-      name_short_en: 'M. Jovanović',
-    },
-    {
-      id: 'seed-sr-person-petrovic',
-      name: 'Марко Петровић',
-      name_en: 'Marko Petrović',
-      name_short: 'М. Петровић',
-      name_short_en: 'M. Petrović',
-    },
-  ]
-  for (const { id, ...person } of persons) {
-    await prisma.person.upsert({
-      where: { id },
-      update: { ...person, cityId: 'beograd' },
-      create: { id, ...person, cityId: 'beograd' },
-    })
-    await prisma.role.upsert({
-      where: { id: `seed-sr-role-${id}` },
-      update: {},
-      create: {
-        id: `seed-sr-role-${id}`,
-        personId: id,
-        cityId: 'beograd',
-        name: 'Одборник',
-        name_en: 'Councillor',
-      },
-    })
-    await prisma.role.upsert({
-      where: { id: `seed-sr-role-party-${id}` },
-      update: {},
-      create: { id: `seed-sr-role-party-${id}`, personId: id, partyId: 'seed-sr-party-gl' },
-    })
-  }
-
-  const meeting = {
-    name: 'Седница Скупштине града Београда',
-    name_en: 'Session of the City Assembly of Belgrade',
-    dateTime: new Date('2026-06-15T10:00:00+02:00'),
-    released: true,
-    administrativeBodyId: 'seed-sr-skupstina',
-  }
-  await prisma.councilMeeting.upsert({
-    where: { cityId_id: { cityId: 'beograd', id: 'seed-sr-jun-2026' } },
-    update: meeting,
-    create: { cityId: 'beograd', id: 'seed-sr-jun-2026', ...meeting },
-  })
-
-  // Segment 1: stored in Cyrillic. Segment 2: stored in Latin.
-  const segments = [
-    {
-      id: 'seed-sr-seg-1',
-      personId: 'seed-sr-person-jovanovic',
-      label: 'Милица Јовановић',
-      startTimestamp: 0,
-      endTimestamp: 90,
-      topicId: 'seed-sr-topic-saobracaj',
-      summary:
-        'Одборница Јовановић представила је предлог измене режима саобраћаја у центру града, са нагласком на проширење пешачких зона и нове бициклистичке стазе.',
-      utterances: [
-        'Поштоване колеге, на дневном реду је предлог одлуке о измени режима саобраћаја у центру града.',
-        'Предлог обухвата проширење пешачке зоне у Кнез Михаиловој улици и изградњу нових бициклистичких стаза.',
-        'Молим да размотримо и примедбе грађана достављене током јавне расправе.',
-      ],
-    },
-    {
-      id: 'seed-sr-seg-2',
-      personId: 'seed-sr-person-petrovic',
-      label: 'Марко Петровић',
-      startTimestamp: 90,
-      endTimestamp: 180,
-      topicId: 'seed-sr-topic-zivotna-sredina',
-      summary:
-        'Odbornik Petrović je govorio o uređenju zelenih površina na Novom Beogradu i predložio sadnju novih stabala duž Bulevara Mihajla Pupina.',
-      utterances: [
-        'Zahvaljujem se koleginici Jovanović na iscrpnom izlaganju.',
-        'Predlažem da se u plan uvrsti i uređenje zelenih površina na Novom Beogradu.',
-        'Sadnja novih stabala duž Bulevara Mihajla Pupina značajno bi poboljšala kvalitet vazduha.',
-      ],
-    },
-  ]
-  for (const seg of segments) {
-    await prisma.speakerTag.upsert({
-      where: { id: `seed-sr-tag-${seg.id}` },
-      update: { label: seg.label, personId: seg.personId },
-      create: { id: `seed-sr-tag-${seg.id}`, label: seg.label, personId: seg.personId },
-    })
-    await prisma.speakerSegment.upsert({
-      where: { id: seg.id },
-      update: {},
-      create: {
-        id: seg.id,
-        cityId: 'beograd',
-        meetingId: 'seed-sr-jun-2026',
-        speakerTagId: `seed-sr-tag-${seg.id}`,
-        startTimestamp: seg.startTimestamp,
-        endTimestamp: seg.endTimestamp,
-      },
-    })
-    await prisma.summary.upsert({
-      where: { speakerSegmentId: seg.id },
-      update: { text: seg.summary },
-      create: { speakerSegmentId: seg.id, text: seg.summary, type: 'substantive' },
-    })
-    await prisma.topicLabel.upsert({
-      where: { id: `seed-sr-label-${seg.id}` },
-      update: {},
-      create: { id: `seed-sr-label-${seg.id}`, speakerSegmentId: seg.id, topicId: seg.topicId },
-    })
-    const utteranceLength = (seg.endTimestamp - seg.startTimestamp) / seg.utterances.length
-    for (const [i, text] of seg.utterances.entries()) {
-      await prisma.utterance.upsert({
-        where: { id: `${seg.id}-utt-${i}` },
-        update: { text },
-        create: {
-          id: `${seg.id}-utt-${i}`,
-          speakerSegmentId: seg.id,
-          text,
-          startTimestamp: seg.startTimestamp + i * utteranceLength,
-          endTimestamp: seg.startTimestamp + (i + 1) * utteranceLength,
-        },
-      })
-    }
-  }
-
-  const subjects = [
-    {
-      id: 'seed-sr-subj-saobracaj',
-      name: 'Измена режима саобраћаја у центру града',
-      description:
-        'Предлог одлуке о измени режима саобраћаја у центру града: проширење пешачке зоне у Кнез Михаиловој улици, нове бициклистичке стазе и измене траса линија јавног превоза.',
-      agendaItemIndex: 1,
-      topicId: 'seed-sr-topic-saobracaj',
-      personId: 'seed-sr-person-jovanovic',
-    },
-    {
-      id: 'seed-sr-subj-zelenilo',
-      name: 'Уређење зелених површина на Новом Београду',
-      description:
-        'Предлог програма уређења зелених површина на Новом Београду, укључујући садњу нових стабала дуж Булевара Михајла Пупина.',
-      agendaItemIndex: 2,
-      topicId: 'seed-sr-topic-zivotna-sredina',
-      personId: 'seed-sr-person-petrovic',
-    },
-  ]
-  for (const { id, ...subject } of subjects) {
-    await prisma.subject.upsert({
-      where: { id },
-      update: subject,
-      create: { id, cityId: 'beograd', councilMeetingId: 'seed-sr-jun-2026', ...subject },
-    })
-  }
-
-  console.log('Serbian review fixture seeded.')
 }
 
 main()

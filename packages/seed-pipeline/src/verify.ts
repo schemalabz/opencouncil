@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import type { Client } from 'pg';
-import { sha256File } from './artifact';
+import { fileFailures } from './artifact';
 import { listTables, primaryKeyColumns, tableRowCounts, withClient } from './catalog';
-import { FileInfo, Manifest, readManifest } from './manifest';
+import { Manifest, readManifest } from './manifest';
 import { maskingCheckSql } from './masking';
 import { quoteIdent } from './normalize';
 import { logToStderr, prisma, prismaMigrate, redactUrl } from './process';
@@ -49,18 +49,6 @@ function writeReport(outDir: string, report: VerifyReport, log: (line: string) =
     fs.writeFileSync(temporary, JSON.stringify(report, null, 2) + '\n');
     fs.renameSync(temporary, file);
     log(`wrote ${file}`);
-}
-
-/** Compare one artifact file against the size and the checksum the manifest records. */
-export async function fileFailures(outDir: string, info: FileInfo): Promise<string[]> {
-    const file = path.join(outDir, info.name);
-    if (!fs.existsSync(file)) return [`${info.name} is missing from ${outDir}`];
-    const failures: string[] = [];
-    const bytes = fs.statSync(file).size;
-    if (bytes !== info.bytes) failures.push(`${info.name}: the manifest records ${info.bytes} bytes, the file has ${bytes}`);
-    const sha256 = await sha256File(file);
-    if (sha256 !== info.sha256) failures.push(`${info.name}: the manifest records sha256 ${info.sha256}, the file has ${sha256}`);
-    return failures;
 }
 
 /** An update of one row that changes no value. It fires the row triggers and the rules of the table. */
@@ -242,8 +230,8 @@ export async function verify(o: VerifyOptions): Promise<VerifyReport> {
     const countDiffs: VerifyReport['countDiffs'] = {};
     fs.mkdirSync(o.workDir, { recursive: true });
 
-    // A file that does not match the manifest belongs to another run. The counts of
-    // the manifest then describe other data, so the restore never starts.
+    // A file that does not match the manifest is not the file that the run wrote. The
+    // counts of the manifest then describe other data, so the restore never starts.
     failures.push(...await fileFailures(o.outDir, manifest.files.subset));
     failures.push(...await fileFailures(o.outDir, manifest.files.full));
     if (failures.length) {
