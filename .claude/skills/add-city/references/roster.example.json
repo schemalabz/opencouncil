@@ -1,0 +1,121 @@
+{
+ "cityId": "example-city",
+ "parties": [
+  {
+   "name": "Πρώτη Παράταξη",
+   "name_en": "First Faction",
+   "name_short": "Πρώτη",
+   "name_short_en": "First",
+   "colorHex": "#2563EB"
+  },
+  {
+   "name": "Δεύτερη Παράταξη",
+   "name_en": "Second Faction",
+   "name_short": "Δεύτερη",
+   "name_short_en": "Second",
+   "colorHex": "#F59E0B"
+  }
+ ],
+ "council": {
+  "name": "Δημοτικό Συμβούλιο",
+  "name_en": "Municipal Council",
+  "diavgeiaUnitIds": ["83734"],
+  "youtubeChannelUrl": "https://www.youtube.com/@example-city"
+ },
+ "committee": {
+  "name": "Δημοτική Επιτροπή",
+  "name_en": "Municipal Committee"
+ },
+ "mayor": {
+  "name": "Γεώργιος Δημάρχου",
+  "name_en": "Georgios Dimarchou",
+  "party": "Πρώτη Παράταξη"
+ },
+ "factions": [
+  {
+   "party": "Πρώτη Παράταξη",
+   "leader": "Γεώργιος Δημάρχου",
+   "members": [
+    {
+     "name": "Μαρία Πρόεδρου",
+     "name_en": "Maria Proedrou"
+    },
+    {
+     "name": "Ιωάννης Αντιδημάρχου",
+     "name_en": "Ioannis Antidimarchou"
+    },
+    {
+     "name": "Ελένη Μέλους",
+     "name_en": "Eleni Melous"
+    }
+   ]
+  },
+  {
+   "party": "Δεύτερη Παράταξη",
+   "leader": "Νικόλαος Επικεφαλής",
+   "members": [
+    {
+     "name": "Νικόλαος Επικεφαλής",
+     "name_en": "Nikolaos Epikefalis"
+    },
+    {
+     "name": "Κωνσταντίνος Αντιπροέδρου",
+     "name_en": "Konstantinos Antiproedrou"
+    },
+    {
+     "name": "Δημήτριος Ανεξάρτητος",
+     "name_en": "Dimitrios Anexartitos",
+     "independent": true
+    }
+   ]
+  }
+ ],
+ "presidium": {
+  "startDate": "2026-07-02",
+  "president": "Μαρία Πρόεδρου",
+  "vicePresident": "Κωνσταντίνος Αντιπροέδρου",
+  "secretary": {
+   "name": "Ελένη Μέλους",
+   "startDate": "2026-07-02",
+   "endDate": "2026-10-01"
+  }
+ },
+ "committeeMembers": {
+  "startDate": "2026-07-06",
+  "chair": "Γεώργιος Δημάρχου",
+  "vicePresident": {
+   "name": "Νικόλαος Επικεφαλής",
+   "startDate": "2026-07-13"
+  },
+  "regulars": [
+   "Ιωάννης Αντιδημάρχου",
+   "Νικόλαος Επικεφαλής"
+  ],
+  "alternates": [
+   "Ελένη Μέλους",
+   "Δημήτριος Ανεξάρτητος"
+  ]
+ },
+ "cityRoles": [
+  {
+   "person": "Ιωάννης Αντιδημάρχου",
+   "name": "Αντιδήμαρχος Οικονομικών",
+   "name_en": "Deputy Mayor of Finance",
+   "startDate": "2026-07-06",
+   "endDate": null
+  }
+ ],
+ "others": [
+  {
+   "name": "Ανδρέας Γραμματέως",
+   "name_en": "Andreas Grammateos",
+   "roles": [
+    {
+     "name": "Γενικός Γραμματέας",
+     "name_en": "Secretary General",
+     "startDate": "2024-01-15"
+    }
+   ]
+  }
+ ]
+}
