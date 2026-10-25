@@ -48,6 +48,17 @@ export function defaultNotificationBehavior(type: AdministrativeBodyType): Notif
 }
 
 /**
+ * Whether the pipeline of a body's meetings runs with no operator (#829). A
+ * secondary body runs its own meetings: a recording starts the transcription,
+ * the summary follows the corrected transcript, and the meeting is released
+ * when the summary lands. Nobody reviews the transcript first, so the page
+ * shows it unreviewed. A primary body keeps the human review step.
+ */
+export function pipelineRunsUnattended(body: { type: AdministrativeBodyType } | null | undefined): boolean {
+    return isSecondaryBody(body);
+}
+
+/**
  * The meetings of a city's primary bodies, as a Prisma where clause. It keeps
  * a meeting with no body: cities imported before bodies existed have many, and
  * they are the council's. A relation filter alone would drop them.
