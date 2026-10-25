@@ -51,6 +51,25 @@ export const cityPopulationSchema = z.object({
         partyName: optionalText.describe('Reference to party name (null for independents)'),
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),
+}).superRefine((data, ctx) => {
+    // populateCity links a role by the name of a party or body in the same payload,
+    // and saves a role whose name matches nothing with no link. An agent writes these
+    // names by hand, so a wrong one is routine and must fail loudly.
+    const parties = new Set(data.parties.map(party => party.name));
+    const bodies = new Set(data.administrativeBodies.map(body => body.name));
+    data.people.forEach((person, personIndex) => {
+        person.roles?.forEach((role, roleIndex) => {
+            const path = ['people', personIndex, 'roles', roleIndex];
+            if (role.type === 'party' && !(role.partyName && parties.has(role.partyName))) {
+                ctx.addIssue({ code: 'custom', path: [...path, 'partyName'],
+                    message: `${person.name}: party role names the unknown party "${role.partyName ?? ''}". Name a party of this payload by its exact \`name\`.` });
+            }
+            if (role.type === 'adminBody' && !(role.administrativeBodyName && bodies.has(role.administrativeBodyName))) {
+                ctx.addIssue({ code: 'custom', path: [...path, 'administrativeBodyName'],
+                    message: `${person.name}: adminBody role names the unknown body "${role.administrativeBodyName ?? ''}". Name a body of this payload by its exact \`name\`.` });
+            }
+        });
+    });
 });
 
 export type CityPopulationInput = z.input<typeof cityPopulationSchema>;

@@ -65,6 +65,14 @@ describe('populate_city through the SDK', () => {
         });
     });
 
+    it('refuses a role that names a party which is not in the call, before the handler runs', async () => {
+        const people = [{ ...COUNCIL.people[0], roles: [{ type: 'party', partyName: 'Άλλο Κόμμα' }] }];
+        const result = await mcp.call('populate_city', { ...COUNCIL, people });
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain('unknown party \\"Άλλο Κόμμα\\"');
+        expect(mcpPopulateCity).not.toHaveBeenCalled();
+    });
+
     it('refuses a role that ends before it starts', async () => {
         const people = [{ ...COUNCIL.people[0], roles: [{ ...COUNCIL.people[0].roles[0], startDate: '2028-01-01', endDate: '2024-01-01' }] }];
         const result = await mcp.call('populate_city', { ...COUNCIL, people });

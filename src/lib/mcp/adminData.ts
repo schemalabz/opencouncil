@@ -242,41 +242,12 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
     };
 }
 
-/**
- * populateCity writes a role whose party or body name matches nothing with a
- * null link. An agent writes those names by hand, so a wrong name is routine
- * and must fail loudly.
- */
-function assertRoleReferences(data: CityPopulationData) {
-    const parties = new Set(data.parties.map(party => party.name));
-    const bodies = new Set(data.administrativeBodies.map(body => body.name));
-    const problems: string[] = [];
-
-    for (const person of data.people) {
-        for (const role of person.roles ?? []) {
-            if (role.type === 'party' && !(role.partyName && parties.has(role.partyName))) {
-                problems.push(`${person.name}: party role names the unknown party "${role.partyName ?? ''}"`);
-            }
-            if (role.type === 'adminBody' && !(role.administrativeBodyName && bodies.has(role.administrativeBodyName))) {
-                problems.push(`${person.name}: adminBody role names the unknown body "${role.administrativeBodyName ?? ''}"`);
-            }
-        }
-    }
-
-    if (problems.length > 0) {
-        throw new BadRequestError(
-            `Roles must name a party or an administrative body from this same call, by its exact \`name\`. ${problems.join('; ')}.`
-        );
-    }
-}
-
 export async function mcpPopulateCity(
     identity: McpIdentity,
     data: CityPopulationData
 ) {
     await requireSuperadmin(identity);
     await requireRealmCity(data.cityId);
-    assertRoleReferences(data);
 
     const stats = await populateCity(data);
     revalidateAfterResponse({ tags: [`city:${data.cityId}`] });

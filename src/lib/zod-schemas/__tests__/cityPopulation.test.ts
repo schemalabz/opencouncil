@@ -70,3 +70,21 @@ describe('cityPopulationSchema role dates and elected order', () => {
         expect(cityPopulationSchema.safeParse(payload({ electedOrder: 1.5 })).success).toBe(false);
     });
 });
+
+describe('cityPopulationSchema role references', () => {
+    it('refuses each role whose party or body is not in the payload, at the field that names it', () => {
+        const body = payload({ administrativeBodyName: 'Δημοτική Επιτροπή' });
+        body.parties = [{ name: 'Party', name_en: 'Party', name_short: 'PA', name_short_en: 'PA', colorHex: '#123456' }] as never[];
+        body.people[0].roles.push({ type: 'party', partyName: 'Other' } as never);
+        const result = cityPopulationSchema.safeParse(body);
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map(i => [i.path.join('.'), i.message])).toEqual([
+            ['people.0.roles.0.administrativeBodyName', expect.stringContaining('adminBody role names the unknown body "Δημοτική Επιτροπή"')],
+            ['people.0.roles.1.partyName', expect.stringContaining('party role names the unknown party "Other"')],
+        ]);
+    });
+
+    it('accepts a payload whose every name matches', () => {
+        expect(cityPopulationSchema.safeParse(payload({})).success).toBe(true);
+    });
+});

@@ -278,14 +278,6 @@ describe('populate_city', () => {
         people: [person(roles)],
     });
 
-    it('rejects a role that names a party which is not in the call', async () => {
-        asSuperadmin();
-        const populate = jest.spyOn(cityPopulate, 'populateCity');
-        const data = parsed([{ type: 'party', partyName: 'Αλλο Κόμμα' }]);
-        await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).rejects.toThrow(/unknown party "Αλλο Κόμμα"/);
-        expect(populate).not.toHaveBeenCalled();
-    });
-
     it('saves a call whose roles all resolve', async () => {
         asSuperadmin();
         const populate = jest.spyOn(cityPopulate, 'populateCity')
