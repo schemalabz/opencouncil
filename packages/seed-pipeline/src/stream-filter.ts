@@ -12,12 +12,24 @@ export type FilterOptions = {
     allow: Set<string>;
     /** Every table the classification knows. A COPY for any other public table is an error. */
     known: Set<string>;
+    /**
+     * A column of a dropped table whose values the filter keeps, in lowercase, in
+     * `collected`. `produce` passes the emails of the accounts, so it can prove
+     * that no artifact holds one. The values stay in memory only.
+     */
+    collect?: { table: string; column: string };
 };
 
 const COPY_LINE = /^COPY ([A-Za-z0-9_]+)\.("?)([A-Za-z0-9_]+)\2 /;
 const ALTER_TABLE_LINE = /^ALTER TABLE ONLY public\."?[A-Za-z0-9_]+"?$/;
 const ADD_FOREIGN_KEY_LINE = /^\s+ADD CONSTRAINT .* FOREIGN KEY /;
 const COPY_END = '\\.';
+
+/** The column names of a COPY header: `COPY public."User" (id, email, "createdAt") FROM stdin;`. */
+function copyColumns(line: string): string[] {
+    const list = line.slice(line.indexOf('(') + 1, line.lastIndexOf(')'));
+    return list.split(',').map((name) => name.trim().replace(/^"|"$/g, ''));
+}
 
 /**
  * Line filter over a plain-format pg_dump. Every statement passes through; the
@@ -30,6 +42,9 @@ const COPY_END = '\\.';
  */
 export class ContentFilter extends Transform {
     readonly stats: FilterStats = { kept: {}, dropped: {}, foreignKeyStatements: [] };
+    readonly collected = new Set<string>();
+    // The index of opts.collect.column in the COPY block that the filter drops now, or null.
+    private collectIndex: number | null = null;
     // The unfinished last line, in the pieces it arrived in. A COPY line of TaskStatus
     // runs to 14 MB, which arrives as hundreds of chunks. Joining and splitting the
     // whole line again on every chunk is quadratic in its length, so the pieces are
@@ -78,8 +93,16 @@ export class ContentFilter extends Transform {
 
     private handleLine(line: string, out: string[]): Error | null {
         if (this.dropping) {
-            if (line === COPY_END) this.dropping = null;
-            else this.stats.dropped[this.dropping] += 1;
+            if (line === COPY_END) {
+                this.dropping = null;
+                this.collectIndex = null;
+            } else {
+                this.stats.dropped[this.dropping] += 1;
+                if (this.collectIndex !== null) {
+                    const value = line.split('\t')[this.collectIndex];
+                    if (value !== undefined && value !== '\\N') this.collected.add(value.toLowerCase());
+                }
+            }
             return null;
         }
         if (this.keeping) {
@@ -103,6 +126,11 @@ export class ContentFilter extends Transform {
             } else {
                 this.dropping = table;
                 this.stats.dropped[table] = 0;
+                if (schema === 'public' && table === this.opts.collect?.table) {
+                    const index = copyColumns(line).indexOf(this.opts.collect.column);
+                    if (index < 0) return new Error(`the COPY of "${table}" has no column "${this.opts.collect.column}"`);
+                    this.collectIndex = index;
+                }
             }
             return null;
         }

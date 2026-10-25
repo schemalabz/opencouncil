@@ -193,8 +193,9 @@ For Prisma-specific operations, you can use `exec.sh`:
 # Push schema to database
 ./exec.sh npx prisma db push
 
-# Seed database
-./exec.sh npm run db:deploy:seed
+# Seed database. The command names the compose database: `.env` can name a remote one.
+# db is the compose database service, so the seed tools may write to it.
+./exec.sh sh -c 'npm run db:deploy:seed -- --db "postgresql://$DATABASE_USER:$DATABASE_PASSWORD@db:$DB_PORT/$DATABASE_NAME" --trust-host db'
 
 # Reset database (WARNING: destructive!)
 ./exec.sh npx prisma migrate reset

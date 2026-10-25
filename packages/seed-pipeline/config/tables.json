@@ -8,11 +8,11 @@
         "SubjectAttendance", "SubjectVote", "MeetingAttendance", "SpeakerSegment",
         "SpeakerContribution", "Utterance", "Word", "TopicLabel", "Summary", "Highlight",
         "HighlightedUtterance", "CityMessage", "Consultation", "TaskStatus",
-        "AttendanceEvent", "SpeakerIdentification"
+        "AttendanceEvent", "SpeakerIdentification", "UtteranceEdit"
       ],
       "private": [
         "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
-        "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
+        "UserMcpToken", "Petition", "NotificationPreference",
         "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
         "ConsultationComment", "ConsultationCommentUpvote", "PendingConsultationComment",
         "ConsultationCommentResponse", "MeetingOperator", "Offer",
@@ -39,23 +39,25 @@
     { "table": "TaskStatus", "action": "delete-when", "when": "type = 'generateHighlight' AND pg_input_is_valid(\"requestBody\", 'jsonb') AND NOT EXISTS (SELECT 1 FROM public.\"Highlight\" h WHERE h.id = \"requestBody\"::jsonb #>> '{parts,0,id}')" },
     { "table": "Location", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.\"locationId\" = \"Location\".id)" },
     { "table": "SpeakerIdentification", "action": "delete-when", "when": "method = 'voiceprint'" },
+    { "table": "TaskStatus", "action": "delete-when", "when": "type = 'generateVoiceprint'" },
     { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
     { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-key", "key": "voiceprint" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" },
     { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-array-key", "path": ["transcript", "transcription", "speakers"], "key": "confidence" },
-    { "table": "AdministrativeBody", "column": "decisionConventions", "action": "json-remove-path", "path": ["provenance", "confirmedBy"] }
+    { "table": "AdministrativeBody", "column": "decisionConventions", "action": "json-remove-path", "path": ["provenance", "confirmedBy"] },
+    { "table": "Decision", "column": "extraction", "action": "json-remove-path", "path": ["correctedBy"] }
   ],
   "subsetOnly": [
     { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },
-    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-path", "path": ["transcript", "transcription", "utterances"] },
     { "table": "Decision", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"Subject\" s JOIN public.\"TaskStatus\" t ON t.id = \"Decision\".\"taskId\" WHERE s.id = \"Decision\".\"subjectId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (s.\"cityId\", s.\"councilMeetingId\"))" },
     { "table": "AttendanceEvent", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"TaskStatus\" t WHERE t.id = \"AttendanceEvent\".\"taskId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (\"AttendanceEvent\".\"cityId\", \"AttendanceEvent\".\"councilMeetingId\"))" }
   ],
   "publicText": [
     "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",
-    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification"
+    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification",
+    "UtteranceEdit"
   ],
   "ignoreTables": ["spatial_ref_sys", "ServiceApiKey"]
 }

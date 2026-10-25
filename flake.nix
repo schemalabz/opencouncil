@@ -560,6 +560,9 @@ EOF
             runtimeInputs = (mkPrismaToolchain pkgs) ++ [
               pkgs.coreutils
               postgres
+              # seed restore unpacks the artifact with tar --zstd.
+              pkgs.gnutar
+              pkgs.zstd
             ];
             text = ''
               set -euo pipefail
@@ -589,10 +592,17 @@ EOF
                   -c 'CREATE EXTENSION IF NOT EXISTS postgis;' >/dev/null
               fi
 
-              # Apply migrations, generate Prisma client, and seed.
-              (cd "$repo_root" && npm run db:deploy:seed)
-
               cd "$repo_root"
+              db_url="postgresql://$db_user:$db_password@127.0.0.1:$port/$db_name?sslmode=disable"
+              # Every step below writes to this database, the old seed and the
+              # migrations included. The .env of a checkout can name a remote one.
+              export DATABASE_URL="$db_url" DIRECT_URL="$db_url"
+
+              # An empty database gets the published seed artifact, a database with
+              # data gets new migrations, and both get the test accounts. See
+              # `seed setup` in scripts/seed/cli.ts.
+              npm run db:deploy:seed
+
               export APP_PORT="$app_port"
               if [ "''${OC_LAN:-1}" = "1" ]; then
                 lan_flag="-H 0.0.0.0"
@@ -853,6 +863,16 @@ USAGE
               if [ ! -f "$repo_root/package.json" ]; then
                 echo "Run from the repo root (package.json not found)." >&2
                 exit 2
+              fi
+
+              # The app, the seed step, and Prisma Studio run from node_modules, and
+              # nothing else installs it in the Nix path. npm writes
+              # node_modules/.package-lock.json on every install, so it is missing on
+              # a fresh clone and older than package-lock.json after a pull that
+              # changes the dependencies.
+              if [ ! -f "$repo_root/node_modules/.package-lock.json" ] || [ "$repo_root/package-lock.json" -nt "$repo_root/node_modules/.package-lock.json" ]; then
+                echo "📦 Installing the dependencies of package-lock.json (npm ci)..."
+                (cd "$repo_root" && npm ci --no-audit --no-fund)
               fi
 
               # Load .env so DB_USER/DB_NAME/DB_PASSWORD are available to the runner itself.
@@ -2051,7 +2071,6 @@ EOF
               ${pkgs.curl}/bin/curl -fsSL "$SEED_DATA_URL" -o "$SEED_DATA_PATH"
             fi
             export SEED_DATA_PATH
-            export DEV_TEST_CITY_ID="chania"
 
             if [ -f prisma/seed.mjs ]; then
               ${pkgs.nodejs}/bin/node prisma/seed.mjs

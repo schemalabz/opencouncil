@@ -24,13 +24,12 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { withClient } from './catalog';
 import { meetingSetSql } from './greenmask-config';
-import { readManifest, MANIFEST_FILE } from './manifest';
 import { resolvePgBin } from './process';
 import { produce } from './produce';
 import { loadPinnedMeetings, pipelineHome } from './tables';
 import { runningClusters } from './transient-postgres';
-import { fileFailures, verify } from './verify';
-import { restoreArtifact } from './restore';
+import { verify } from './verify';
+import { checkedSnapshot, restoreArtifact } from './restore';
 import { assertLocalTarget } from './target-guard';
 import { formatError } from './errors';
 
@@ -83,19 +82,6 @@ function assertLocalTargets(urls: (string | undefined)[]): void {
 async function preparePostgres(urls: (string | undefined)[]): Promise<void> {
     assertLocalTargets(urls);
     await resolvePgBin({ log: (line) => console.error(line) });
-}
-
-/**
- * An archive next to a manifest.json must be the one that manifest records. A
- * failed `produce` can leave an archive of another run beside it.
- */
-async function assertMatchesManifest(tarPath: string): Promise<void> {
-    const outDir = path.dirname(tarPath);
-    if (!fs.existsSync(path.join(outDir, MANIFEST_FILE))) return;
-    const info = Object.values(readManifest(outDir).files).find((file) => file.name === path.basename(tarPath));
-    if (!info) throw new Error(`${MANIFEST_FILE} in ${outDir} does not record ${path.basename(tarPath)}`);
-    const failures = await fileFailures(outDir, info);
-    if (failures.length) throw new Error(`${tarPath} does not match ${MANIFEST_FILE}:\n${failures.join('\n')}`);
 }
 
 async function measureTasks(db: string, n: number): Promise<void> {
@@ -153,9 +139,8 @@ async function main(): Promise<void> {
             .option('work', { type: 'string' }),
         async (argv) => {
             assertLocalTargets([argv.into]);
-            await assertMatchesManifest(argv.from);
-            await withWorkDir(argv.work, false, (dir) =>
-                restoreArtifact({ tarPath: argv.from, databaseUrl: argv.into, schemaPath: schemaPath(), workDir: dir }),
+            await withWorkDir(argv.work, false, async (dir) =>
+                restoreArtifact({ tarPath: await checkedSnapshot(argv.from, dir), databaseUrl: argv.into, schemaPath: schemaPath(), workDir: dir }),
             );
         })
         .command('measure-tasks', 'Report task-row sizes and the taskId invariant for the selected meetings', (y) => y

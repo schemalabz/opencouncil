@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { FileInfo } from './manifest';
 import { run } from './process';
 
 export const POST_RESTORE_FILE = 'post-restore.sql';
@@ -10,6 +11,18 @@ export async function sha256File(file: string): Promise<string> {
         const hash = crypto.createHash('sha256');
         fs.createReadStream(file).on('data', (d) => hash.update(d)).on('end', () => resolve(hash.digest('hex'))).on('error', reject);
     });
+}
+
+/** Compare one artifact file against the size and the checksum the manifest records. */
+export async function fileFailures(outDir: string, info: FileInfo): Promise<string[]> {
+    const file = path.join(outDir, info.name);
+    if (!fs.existsSync(file)) return [`${info.name} is missing from ${outDir}`];
+    const failures: string[] = [];
+    const bytes = fs.statSync(file).size;
+    if (bytes !== info.bytes) failures.push(`${info.name}: the manifest records ${info.bytes} bytes, the file has ${bytes}`);
+    const sha256 = await sha256File(file);
+    if (sha256 !== info.sha256) failures.push(`${info.name}: the manifest records sha256 ${info.sha256}, the file has ${sha256}`);
+    return failures;
 }
 
 /** Greenmask names each dump directory by a millisecond timestamp. */
