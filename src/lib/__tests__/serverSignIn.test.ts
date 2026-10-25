@@ -26,6 +26,20 @@ describe('signInWithEmail', () => {
     });
   });
 
+  it('uses defaultRedirect when callbackUrl is absent to preserve locale', async () => {
+    const formData = new FormData();
+    formData.append('email', 'reader@example.com');
+    formData.append('defaultRedirect', '/en/sign-in');
+
+    await signInWithEmail(formData);
+
+    expect(mockSignIn).toHaveBeenCalledWith('resend', {
+      email: 'reader@example.com',
+      redirectTo: '/en/sign-in',
+      redirect: false,
+    });
+  });
+
   it('preserves an explicit safe callbackUrl', async () => {
     const formData = new FormData();
     formData.append('email', 'reader@example.com');

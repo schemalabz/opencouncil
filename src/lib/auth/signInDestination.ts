@@ -12,11 +12,11 @@ function isRootPath(path: string): boolean {
 
 /**
  * Builds a sign-in path carrying a destination (callbackUrl).
- * If no destination is given, or if the destination is the sign-in page or homepage itself,
- * returns "/sign-in" without a redundant destination so new users do not skip onboarding.
+ * If no destination is given, or if the destination is the sign-in page itself,
+ * returns "/sign-in" without a redundant destination.
  */
 export function signInPath(callbackUrl?: string | null): string {
-    if (!callbackUrl || isSignInPath(callbackUrl) || isRootPath(callbackUrl)) return '/sign-in';
+    if (!callbackUrl || isSignInPath(callbackUrl)) return '/sign-in';
     return `/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
 

@@ -10,7 +10,8 @@ export async function signInWithEmail(formData: FormData): Promise<void> {
         throw new Error("Email is required")
     }
 
-    const redirectTo = safeRedirectPath(formData.get("callbackUrl"), "/sign-in")
+    const fallback = safeRedirectPath(formData.get("defaultRedirect"), "/sign-in")
+    const redirectTo = safeRedirectPath(formData.get("callbackUrl"), fallback)
     console.log(`Sign-in requested (redirectTo: ${redirectTo})`)
 
     // redirect: false — with the default, Auth.js finishes by throwing Next's

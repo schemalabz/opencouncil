@@ -14,18 +14,15 @@ describe('signInDestination', () => {
             expect(signInPath('/chania/meetings/dec23_2025?tab=agenda#item-1')).toBe(
                 '/sign-in?callbackUrl=%2Fchania%2Fmeetings%2Fdec23_2025%3Ftab%3Dagenda%23item-1',
             );
+            expect(signInPath('/')).toBe('/sign-in?callbackUrl=%2F');
+            expect(signInPath('/en')).toBe('/sign-in?callbackUrl=%2Fen');
+            expect(signInPath('/lat')).toBe('/sign-in?callbackUrl=%2Flat');
         });
 
         it('avoids adding redundant callbackUrl when destination is sign-in itself', () => {
             expect(signInPath('/sign-in')).toBe('/sign-in');
             expect(signInPath('/en/sign-in')).toBe('/sign-in');
             expect(signInPath('/sign-in?callbackUrl=/profile')).toBe('/sign-in');
-        });
-
-        it('avoids adding callbackUrl when destination is homepage so new users do not skip onboarding', () => {
-            expect(signInPath('/')).toBe('/sign-in');
-            expect(signInPath('/en')).toBe('/sign-in');
-            expect(signInPath('/lat')).toBe('/sign-in');
         });
     });
 
@@ -104,6 +101,23 @@ describe('signInDestination', () => {
                     fallback: '/en/profile',
                 }),
             ).toBe('/en/profile');
+        });
+
+        it('preserves homepage callbackUrl for onboarded readers', () => {
+            expect(
+                resolvePostSignInPath({
+                    callbackUrl: '/',
+                    onboarded: true,
+                }),
+            ).toBe('/');
+
+            expect(
+                resolvePostSignInPath({
+                    callbackUrl: '/en',
+                    onboarded: true,
+                    fallback: '/en',
+                }),
+            ).toBe('/en');
         });
 
         it('rejects protocol-relative URLs and uses onboarded fallback', () => {
