@@ -119,11 +119,9 @@ export function instrumentMcpAnalytics(server: McpServer): void {
         // drafts and user-owned highlights, and any of their free text —
         // parameters, responses, even the agent-written intent — may describe
         // that restricted content. Strip all of it; the metadata (tool,
-        // duration, errors, realm) still flows. The $identify event embeds the
-        // raw request and only fires for authenticated callers, so it is
-        // scrubbed unconditionally.
+        // duration, errors, realm) still flows.
         beforeSend: (event) => {
-            if (event.properties?.mcp_authenticated === true || event.event === '$identify') {
+            if (event.properties?.mcp_authenticated === true) {
                 delete event.properties?.$mcp_parameters;
                 delete event.properties?.$mcp_response;
                 delete event.properties?.$mcp_intent;

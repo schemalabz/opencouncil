@@ -1,4 +1,4 @@
-import { InMemoryTransport, LATEST_PROTOCOL_VERSION, type JSONRPCMessage, type McpServer } from '@modelcontextprotocol/server';
+import { InMemoryTransport, LATEST_PROTOCOL_VERSION, type AuthInfo, type JSONRPCMessage, type McpServer } from '@modelcontextprotocol/server';
 
 export type JsonRpcResponse = { id: number; result?: Record<string, unknown>; error?: { code: number; message: string } };
 export type CallResult = { isError?: boolean; content: { text: string }[] };
@@ -11,9 +11,10 @@ export type ListedTool = {
 /**
  * Connect a client end that sends raw JSON-RPC to a real McpServer, and
  * initialize the session. The server converts the tool schemas and validates
- * the calls exactly as it does behind the route.
+ * the calls exactly as it does behind the route. With `authInfo`, every
+ * message carries it, as a verified bearer token does behind withMcpAuth.
  */
-export async function connectInMemory(server: McpServer) {
+export async function connectInMemory(server: McpServer, { authInfo }: { authInfo?: AuthInfo } = {}) {
     const [client, serverEnd] = InMemoryTransport.createLinkedPair();
     const pending = new Map<number, (response: JsonRpcResponse) => void>();
     client.onmessage = (message: JSONRPCMessage) => {
@@ -27,14 +28,14 @@ export async function connectInMemory(server: McpServer) {
     const request = (method: string, params: Record<string, unknown>) => new Promise<JsonRpcResponse>(resolve => {
         const id = nextId++;
         pending.set(id, resolve);
-        void client.send({ jsonrpc: '2.0', id, method, params });
+        void client.send({ jsonrpc: '2.0', id, method, params }, { authInfo });
     });
     await request('initialize', {
         protocolVersion: LATEST_PROTOCOL_VERSION,
         capabilities: {},
         clientInfo: { name: 'jest', version: '0.0.0' },
     });
-    await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+    await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' }, { authInfo });
 
     const call = async (name: string, args: Record<string, unknown>) =>
         (await request('tools/call', { name, arguments: args })).result as CallResult;
