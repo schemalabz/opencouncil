@@ -4,6 +4,8 @@ import PlausibleAnalytics from '../PlausibleAnalytics';
 // The Plausible script is the only source of the public opencouncil.gr
 // pageview dashboard. A change to its URL or attributes stops the counting
 // silently, with no error anywhere, so this test pins what the browser loads.
+// The site-specific script (pa-<id>.js) identifies the site, so there is no
+// data-domain attribute to check.
 
 let mockPathname = '/el';
 jest.mock('next/navigation', () => ({ usePathname: () => mockPathname }));
@@ -47,14 +49,13 @@ describe('PlausibleAnalytics', () => {
         expect(plausibleScripts()).toHaveLength(0);
     });
 
-    it('loads the Plausible script for opencouncil.gr in production', async () => {
+    it('loads the site-specific Plausible script in production', async () => {
         setNodeEnv('production');
         render(<PlausibleAnalytics><p>page</p></PlausibleAnalytics>);
 
         await waitFor(() => expect(document.querySelector('script[src*="plausible.io"]')).not.toBeNull());
         const script = document.querySelector<HTMLScriptElement>('script[src*="plausible.io"]');
-        expect(script?.getAttribute('src')).toBe('https://plausible.io/js/script.js');
-        expect(script?.getAttribute('data-domain')).toBe('opencouncil.gr');
-        expect(document.getElementById('next-plausible-init')?.textContent).toContain('window.plausible');
+        expect(script?.getAttribute('src')).toBe('https://plausible.io/js/pa-eRZQxVuqJBJlzORcIWnui.js');
+        expect(document.getElementById('next-plausible-init')?.textContent).toContain('plausible.init()');
     });
 });
