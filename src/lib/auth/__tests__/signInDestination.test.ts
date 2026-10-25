@@ -21,6 +21,12 @@ describe('signInDestination', () => {
             expect(signInPath('/en/sign-in')).toBe('/sign-in');
             expect(signInPath('/sign-in?callbackUrl=/profile')).toBe('/sign-in');
         });
+
+        it('avoids adding callbackUrl when destination is homepage so new users do not skip onboarding', () => {
+            expect(signInPath('/')).toBe('/sign-in');
+            expect(signInPath('/en')).toBe('/sign-in');
+            expect(signInPath('/lat')).toBe('/sign-in');
+        });
     });
 
     describe('postSignInFallback', () => {
@@ -77,6 +83,23 @@ describe('signInDestination', () => {
             expect(
                 resolvePostSignInPath({
                     callbackUrl: '/en/sign-in',
+                    onboarded: false,
+                    fallback: '/en/profile',
+                }),
+            ).toBe('/en/profile');
+        });
+
+        it('redirects non-onboarded readers to profile even if callbackUrl was homepage', () => {
+            expect(
+                resolvePostSignInPath({
+                    callbackUrl: '/',
+                    onboarded: false,
+                }),
+            ).toBe('/profile');
+
+            expect(
+                resolvePostSignInPath({
+                    callbackUrl: '/en',
                     onboarded: false,
                     fallback: '/en/profile',
                 }),

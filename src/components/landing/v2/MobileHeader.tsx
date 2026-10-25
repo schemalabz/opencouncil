@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Bell, Phone, Mail, ArrowRight, HelpCircle, Download, Check } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
-import { Link, getPathname } from '@/i18n/routing';
-import { signInPath } from '@/lib/auth/signInDestination';
+import { Link } from '@/i18n/routing';
 import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from '@/components/ui/sheet';
@@ -43,7 +42,6 @@ export function MobileHeader({
     const t = useTranslations('landingV2');
     const tAccount = useTranslations('account');
     const accountLinks = useAccountLinks();
-    const locale = useLocale();
     const { data: session, status } = useSession();
     const tInstall = useTranslations('pwa.install');
     const install = useInstallApp();
@@ -189,7 +187,7 @@ export function MobileHeader({
                         ) : (
                             <SheetClose asChild>
                                 <Link
-                                    href={signInPath(getPathname({ href: '/', locale }))}
+                                    href="/sign-in"
                                     className="flex items-center justify-center gap-2 rounded-xl border-2 border-[hsl(var(--orange))] px-4 py-2.5 text-sm font-semibold text-[hsl(var(--orange))] no-underline transition-colors hover:bg-[hsl(var(--orange))]/10 hover:no-underline"
                                 >
                                     <LogIn className="h-[18px] w-[18px]" /> {t('account.signIn')}

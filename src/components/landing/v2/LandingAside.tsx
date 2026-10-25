@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Plug, Bell } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
-import { signInPath } from '@/lib/auth/signInDestination';
 import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import {
@@ -289,7 +288,7 @@ export function LandingAside({
                     </>
                 ) : (
                     <Link
-                        href={signInPath(getPathname({ href: '/', locale }))}
+                        href="/sign-in"
                         aria-label={t('account.signInAria')}
                         className="flex h-14 w-14 flex-col items-center justify-center gap-1 rounded-xl text-[hsl(var(--orange))] no-underline transition-colors hover:bg-muted hover:no-underline"
                     >
