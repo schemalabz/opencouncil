@@ -1,4 +1,4 @@
-import { logSafePath } from '../logSafePath';
+import { logSafePath } from '../logSafePath.cjs';
 
 describe('logSafePath', () => {
     it('drops the query string, which can hold a token, a search or an address', () => {

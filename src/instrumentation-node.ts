@@ -68,8 +68,9 @@ export async function runNodeInstrumentation() {
       '[instrumentation] Prisma connection failed at boot — exiting so the platform restarts:',
       error
     );
-    // Give stderr a tick to flush before exiting.
-    setTimeout(() => process.exit(1), 100).unref();
+    // Give stderr a tick, and telemetry.cjs up to 2 s to send its last records, before exiting.
+    const telemetry = (globalThis as { __opencouncilTelemetry?: { flush(): Promise<void> } }).__opencouncilTelemetry;
+    void Promise.resolve(telemetry?.flush()).finally(() => setTimeout(() => process.exit(1), 100).unref());
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
   }
