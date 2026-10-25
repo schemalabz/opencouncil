@@ -13,18 +13,24 @@ const MB = 2 ** 20;
 const NO_LIMIT_BYTES = 2 ** 60;
 
 export async function runNodeInstrumentation() {
-  // `production:start` sizes the V8 heap as a share of the memory that Node
-  // sees. A heap limit above the container memory gets the instance killed
-  // without a log line, and a limit that the working set reaches freezes it.
-  // Record what each instance got. If the container hides its limit, Node sizes
-  // the heap from the host memory instead, and this line shows that. It runs
-  // before any await, so a stalled cache handler cannot hide it.
+  // `production:start` sets the V8 heap limit to 75% of `os.totalmem()`. On App
+  // Platform that is the instance memory, while the cgroup reports no limit, so
+  // Node's own `--max-old-space-size-percentage` would allow an unbounded heap.
+  // A heap limit above the memory gets the instance killed without a log line,
+  // and a limit that the working set reaches freezes it. Record what each
+  // instance got, before any await, so a stalled cache handler cannot hide it.
   const heapLimitMb = Math.round(getHeapStatistics().heap_size_limit / MB);
+  const totalMb = Math.round(totalmem() / MB);
   const containerBytes = process.constrainedMemory();
   const container = containerBytes > 0 && containerBytes < NO_LIMIT_BYTES ? `${Math.round(containerBytes / MB)} MB` : 'no limit';
   console.info(
-    `[instrumentation] V8 heap limit ${heapLimitMb} MB, container memory ${container}, host memory ${Math.round(totalmem() / MB)} MB`
+    `[instrumentation] V8 heap limit ${heapLimitMb} MB, container memory ${container}, total memory ${totalMb} MB`
   );
+  if (heapLimitMb >= totalMb) {
+    console.warn(
+      `[instrumentation] V8 heap limit ${heapLimitMb} MB is not below the total memory ${totalMb} MB: the instance will be killed before V8 collects garbage hard`
+    );
+  }
 
   await registerInitialCache(CacheHandler);
 
