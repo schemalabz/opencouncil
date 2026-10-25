@@ -20,7 +20,6 @@
  * before it (in `db:deploy:seed`), never inside it: the fixtures would use the old client.
  */
 import 'dotenv/config';
-import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -31,9 +30,10 @@ import { restoreArchive } from '@opencouncil/seed-pipeline/restore';
 import { setupDatabase } from '@opencouncil/seed-pipeline/setup';
 import { assertLocalTarget } from '@opencouncil/seed-pipeline/target-guard';
 import { formatError } from '@opencouncil/seed-pipeline/errors';
+import { schemaPath } from '@opencouncil/seed-pipeline/tables';
 
 const CACHE_DIR = defaultCacheDir();
-const SCHEMA_PATH = path.join(process.cwd(), 'prisma', 'schema.prisma');
+const SCHEMA_PATH = schemaPath();
 
 function localDatabase(url: string | undefined, trustedHosts: readonly string[] = []): string {
     if (!url) throw new Error('no database: pass --db or set DATABASE_URL');

@@ -42,6 +42,11 @@ export type TablesConfig = z.output<typeof tablesConfigSchema>;
 export function pipelineHome(): string {
     return process.env.SEED_PIPELINE_HOME ?? path.join(__dirname, '..', 'config');
 }
+/** prisma/schema.prisma beside the packaged home when SEED_PIPELINE_HOME is set, else in the checkout of the working directory. */
+export function schemaPath(): string {
+    const home = process.env.SEED_PIPELINE_HOME;
+    return home ? path.join(home, '..', 'prisma', 'schema.prisma') : path.join(process.cwd(), 'prisma', 'schema.prisma');
+}
 export const TABLES_JSON = path.join(pipelineHome(), 'tables.json');
 export const PINNED_FILE = path.join(pipelineHome(), 'pinned-meetings.txt');
 export const EXPECTED_COUNTS_SQL = path.join(pipelineHome(), 'expected-counts.sql');

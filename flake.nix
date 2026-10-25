@@ -1691,8 +1691,60 @@ EOF
             '';
           };
 
+          # The app's seed command (scripts/seed/cli.ts), bundled like seed-pipeline-bundle so it
+          # runs without a checkout: on the preview host it loads the artifact, applies the
+          # migrations, and adds the fixtures. The fixtures need a Prisma client generated
+          # from this schema, so the build generates it and ships it beside the bundle.
+          seed-bundle = pkgs.buildNpmPackage {
+            pname = "seed-bundle";
+            version = "0.1.0";
+            src = ./.;
+            npmDeps = mkNpmDeps pkgs;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+            makeCacheWritable = true;
+            npmFlags = [ "--legacy-peer-deps" ];
+            npmInstallFlags = [ "--ignore-scripts" ];
+            nativeBuildInputs = [ pkgs.esbuild pkgs.prisma ];
+            dontNpmBuild = true;
+            buildPhase = ''
+              runHook preBuild
+              ${mkPrismaEnv pkgs}
+              prisma generate --schema prisma/schema.prisma
+              esbuild scripts/seed/cli.ts --bundle --platform=node --format=cjs --target=node20 \
+                --tsconfig=tsconfig.json --external:pg-native --external:@prisma/client --outfile=dist/seed.cjs
+              runHook postBuild
+            '';
+            installPhase = ''
+              mkdir -p $out/lib/node_modules/@prisma $out/lib/node_modules/.prisma $out/prisma
+              cp dist/seed.cjs $out/lib/
+              cp -r node_modules/@prisma/client $out/lib/node_modules/@prisma/
+              cp -r node_modules/.prisma/client $out/lib/node_modules/.prisma/
+              cp prisma/schema.prisma $out/prisma/
+              cp -r prisma/migrations $out/prisma/migrations
+            '';
+          };
+
+          seed = pkgs.writeShellApplication {
+            name = "seed";
+            # Loading an artifact needs tar and zstd, not the producer's tools (mkSeedTools has
+            # greenmask). PostgreSQL 16 for the client tools: the artifact is a version 16
+            # dump, and the restore refuses other client versions.
+            runtimeInputs = (mkPrismaToolchain pkgs) ++ [
+              pkgs.gnutar
+              pkgs.zstd
+              pkgs.postgresql_16
+              pkgs.coreutils
+            ];
+            text = ''
+              ${mkAppRuntimeEnv pkgs}
+              export SEED_PIPELINE_HOME="${seed-bundle}/lib"
+              export SEED_PG_BIN="${pkgs.postgresql_16}/bin"
+              exec node "${seed-bundle}/lib/seed.cjs" "$@"
+            '';
+          };
+
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod seed-pipeline seed-pipeline-bundle;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod seed-pipeline seed-pipeline-bundle seed seed-bundle;
           # The test-backup skill runs a private throwaway cluster with this build.
           postgres-postgis = postgres;
           # The seed pipeline's scratch cluster: PostGIS 3.3.5, the version the migrations pin.
@@ -1759,6 +1811,7 @@ EOF
           # bundle resolves the ESM build, so only building it shows an import
           # that the ESM build does not export.
           seed-pipeline-bundle = self.packages.${system}.seed-pipeline-bundle;
+          seed-bundle = self.packages.${system}.seed-bundle;
         });
 
       # Preview deployment config for the generic preview module in nix-openclaw.
@@ -2143,6 +2196,10 @@ EOF
         seed-pipeline = {
           type = "app";
           program = "${self.packages.${system}.seed-pipeline}/bin/seed-pipeline";
+        };
+        seed = {
+          type = "app";
+          program = "${self.packages.${system}.seed}/bin/seed";
         };
         build = {
           type = "app";
