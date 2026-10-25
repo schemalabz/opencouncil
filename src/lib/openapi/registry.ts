@@ -7,7 +7,6 @@ import {
 } from 'zod-openapi';
 import type { AccessLevel } from '@/lib/utils/openapi';
 import { errorResponseSchema, lifecycleRuleErrorSchema, validationErrorSchema } from '@/lib/api/errors';
-import { stripSafeIntBounds } from './jsonSchemaBounds';
 
 // Each route file documents a request with the zod schema that its handler
 // parses. The spec shows the input of that schema: a transformed field shows
@@ -45,9 +44,6 @@ export const editAuthResponses = {
     403: errorResponseOf('Not authorized to edit'),
 };
 
-/** The refusal of a route that answers 401 both when nobody is signed in and when the user lacks the right. */
-export const notAuthorizedResponse = errorResponseOf('Not signed in, or not authorized');
-
 // Simple `{ message }` response shared by delete endpoints.
 export const MessageSchema = z.object({
     message: z.string(),
@@ -83,6 +79,15 @@ export function mergePaths(...groups: Paths[]): Paths {
         }
     }
     return merged;
+}
+
+/**
+ * zod gives every `.int()` the safe-integer range. In a JSON Schema the
+ * ±2^53-1 bounds tell a reader nothing, so the spec drops them.
+ */
+function stripSafeIntBounds(node: { minimum?: unknown; maximum?: unknown }): void {
+    if (node.maximum === Number.MAX_SAFE_INTEGER) delete node.maximum;
+    if (node.minimum === Number.MIN_SAFE_INTEGER) delete node.minimum;
 }
 
 // The handlers return Prisma payloads without parsing them, so they do not

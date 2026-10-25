@@ -104,13 +104,6 @@ export default async function TabsLayout(
         return { next: scheduled?.stage === 'upcoming' ? scheduled : null, latest: dated(latest) };
     };
 
-    // Whether the city is eligible for the city creator. Read off the counts the
-    // city query already carries: this used to load every party and every person
-    // — each role dragging a full City row behind it — to compare two lengths
-    // against zero. Neither query filters by anything but cityId, so the counts
-    // answer the same question.
-    const hasNoData = city._count.councilMeetings === 0 && city._count.parties === 0 && city._count.persons === 0;
-
     const isSuperAdmin = !!currentUser?.isSuperAdmin;
     // An inactive message is a draft: only superadmins see it, to preview it.
     const showMessage = !!cityMessage && (cityMessage.isActive || isSuperAdmin);
@@ -144,7 +137,6 @@ export default async function TabsLayout(
                         cityMessage={cityMessage}
                         canEdit={canEdit}
                         isSuperAdmin={isSuperAdmin}
-                        hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
                         phoneChannel={phoneChannel}
                         petitionBucket={petitionBucket}

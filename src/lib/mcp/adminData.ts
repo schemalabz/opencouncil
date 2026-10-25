@@ -4,7 +4,8 @@ import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
 import { createCityDirect } from '@/lib/db/citiesAdmin';
-import { populateCity, type CityPopulationData } from '@/lib/db/cityPopulate';
+import { populateCity } from '@/lib/db/cityPopulate';
+import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
 import { pickRecordInput } from '@/lib/meetingLifecycleRules';
 import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
@@ -242,9 +243,9 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
 }
 
 /**
- * The route writes a role whose party or body name matches nothing with a null
- * link. A person types those names into a form that offers only real ones; an
- * agent writes them by hand, so a wrong name is routine and must fail loudly.
+ * populateCity writes a role whose party or body name matches nothing with a
+ * null link. An agent writes those names by hand, so a wrong name is routine
+ * and must fail loudly.
  */
 function assertRoleReferences(data: CityPopulationData) {
     const parties = new Set(data.parties.map(party => party.name));
@@ -277,7 +278,7 @@ export async function mcpPopulateCity(
     await requireRealmCity(data.cityId);
     assertRoleReferences(data);
 
-    const stats = await populateCity(data.cityId, data);
+    const stats = await populateCity(data);
     revalidateAfterResponse({ tags: [`city:${data.cityId}`] });
 
     return {

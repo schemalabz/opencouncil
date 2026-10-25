@@ -2,7 +2,6 @@ import { generateDocument, mergePaths } from './registry';
 import { adminPaths } from './routes/admin';
 import { administrativeBodiesPaths } from './routes/administrativeBodies';
 import { citiesPaths } from './routes/cities';
-import { cityPopulationPaths } from './routes/cityPopulation';
 import { decisionsPaths } from './routes/decisions';
 import { meetingsPaths } from './routes/meetings';
 import { partiesPaths } from './routes/parties';
@@ -17,7 +16,6 @@ import type { OpenApiSpec } from '@/lib/utils/openapi';
 /** Every documented operation, with the zod schemas of its request and responses. */
 export const paths = mergePaths(
     citiesPaths,
-    cityPopulationPaths,
     meetingsPaths,
     searchPaths,
     partiesPaths,

@@ -18,7 +18,6 @@ jest.mock('../prisma', () => ({
     __esModule: true,
     default: { $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
-jest.mock('../cities', () => ({ canUseCityCreator: jest.fn(), getCity: jest.fn() }));
 
 import { populateCity } from '../cityPopulate';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
@@ -39,7 +38,7 @@ beforeEach(() => {
 
 describe('populateCity', () => {
     it('locks the city row before it decides that the city is empty', async () => {
-        await populateCity('lyon', DATA);
+        await populateCity(DATA);
         expect(mockQueryRaw.mock.calls[0].flat().join(' ')).toMatch(/FOR UPDATE/);
         expect(mockQueryRaw.mock.invocationCallOrder[0]).toBeLessThan(mockCounts.party.mock.invocationCallOrder[0]);
         expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -47,12 +46,12 @@ describe('populateCity', () => {
 
     it('refuses a city that another call has filled by the time the lock is taken', async () => {
         mockCounts.person.mockResolvedValue(3);
-        await expect(populateCity('lyon', DATA)).rejects.toThrow(BadRequestError);
+        await expect(populateCity(DATA)).rejects.toThrow(BadRequestError);
         expect(mockCreate).not.toHaveBeenCalled();
     });
 
     it('refuses a city that does not exist', async () => {
         mockQueryRaw.mockResolvedValue([]);
-        await expect(populateCity('nope', DATA)).rejects.toThrow(NotFoundError);
+        await expect(populateCity({ ...DATA, cityId: 'nope' })).rejects.toThrow(NotFoundError);
     });
 });

@@ -1,19 +1,14 @@
 /** @jest-environment node */
-import { NextRequest } from 'next/server'
 import prisma from '@/lib/db/prisma'
-import { POST } from '@/app/api/cities/[cityId]/populate/route'
+import { populateCity } from '@/lib/db/cityPopulate'
+import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createCity, signInAsSuperAdmin } from '../helpers/factories'
+import { createCity } from '../helpers/factories'
 
 const cityId = 'testcity'
 
-function populate(body: unknown) {
-    const request = new NextRequest(`http://localhost/api/cities/${cityId}/populate`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' },
-    })
-    return POST(request, { params: Promise.resolve({ cityId }) })
+async function populate(body: unknown) {
+    return populateCity(cityPopulationSchema.parse(body))
 }
 
 const person = (name: string, roles: Record<string, unknown>[]) => ({
@@ -24,19 +19,18 @@ const person = (name: string, roles: Record<string, unknown>[]) => ({
     roles,
 })
 
-describe('POST /api/cities/[cityId]/populate', () => {
+describe('populateCity', () => {
     beforeAll(async () => {
         await ensureTestDb()
     })
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
-        await signInAsSuperAdmin()
+        await resetDatabase(prisma)
         await createCity({ id: cityId })
     })
 
     it('saves the dates and the elected order of each role', async () => {
-        const response = await populate({
+        const stats = await populate({
             cityId,
             parties: [{ name: 'Party', name_en: 'Party', name_short: 'PA', name_short_en: 'PA', colorHex: '#123456' }],
             administrativeBodies: [{ name: 'Council', name_en: 'Council', type: 'council' }],
@@ -51,7 +45,9 @@ describe('POST /api/cities/[cityId]/populate', () => {
             ],
         })
 
-        expect(response.status).toBe(200)
+        expect(stats).toEqual({ partiesCount: 1, peopleCount: 2, rolesCount: 3, adminBodiesCount: 1 })
+        // The factory makes a demo city: an import leaves it pending until a superadmin checks it.
+        expect((await prisma.city.findUniqueOrThrow({ where: { id: cityId } })).status).toBe('pending')
 
         const roles = await prisma.role.findMany({
             include: { person: true },
@@ -67,19 +63,5 @@ describe('POST /api/cities/[cityId]/populate', () => {
             'Councillor:body': { startDate: '2024-01-01T00:00:00.000Z', endDate: null, electedOrder: 2 },
             'Councillor:party': { startDate: null, endDate: null, electedOrder: null },
         })
-    })
-
-    it('rejects a role that ends before it starts and writes nothing', async () => {
-        const response = await populate({
-            cityId,
-            parties: [],
-            administrativeBodies: [{ name: 'Council', name_en: 'Council', type: 'council' }],
-            people: [person('Councillor', [
-                { type: 'adminBody', administrativeBodyName: 'Council', startDate: '2026-09-25', endDate: '2026-09-24' },
-            ])],
-        })
-
-        expect(response.status).toBe(400)
-        expect(await prisma.person.count()).toBe(0)
     })
 })

@@ -31,8 +31,8 @@ export const ISO_DATE_OR_DATE_TIME_RULE = 'An ISO 8601 date (2026-04-15), or a d
  * states. `zoneless` also accepts a date-time without a zone, for a reader
  * that reads it in a fixed zone: Elasticsearch reads it as UTC.
  *
- * A union of zod's formats, so the JSON Schema of the API spec, the MCP tools
- * and the City Creator prompt names `date` and `date-time`. A failure is one
+ * A union of zod's formats, so the JSON Schema of the API spec and of the MCP
+ * tools names `date` and `date-time`. A failure is one
  * `invalid_union` issue with the given message.
  */
 export const isoDateOrDateTime = (params?: { error?: string; zoneless?: boolean }) => z.union(

@@ -3,20 +3,20 @@ import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
-import { webUrl } from './primitives';
+import { blankToNull, webUrl } from './primitives';
 
-// The payload of the City Creator: the parties, administrative bodies, people
+// The payload of populate_city: the parties, administrative bodies, people
 // and roles of a city that has no data yet. A role names its party or its
 // body by the `name` of an entry in the same payload, because none of them
 // has an id yet.
 //
-// The populate route validates with this schema, the AI City Creator gives the
-// model its JSON Schema and checks the answer with it, and the editor derives
-// its types from it.
+// populate_city validates with this schema, and populateCity takes its type
+// from it.
 
 const optionalText = z.string().nullable().optional();
-// The app renders these links and images, so only http(s) is accepted.
-const optionalLink = webUrl().or(z.literal('')).nullable().optional();
+// The app renders these links and images, so only http(s) is accepted. An empty
+// value means no link and is saved as null.
+const optionalLink = blankToNull(webUrl().or(z.literal('')));
 
 const cityPopulationRoleSchema = z.object({
     type: z.enum(['party', 'city', 'adminBody'])
@@ -55,10 +55,3 @@ export const cityPopulationSchema = z.object({
 
 export type CityPopulationInput = z.input<typeof cityPopulationSchema>;
 export type CityPopulationData = z.output<typeof cityPopulationSchema>;
-
-// The request of the AI City Creator. The superadmin can paste text about the
-// council (e.g. an election result) for the model to use.
-export const cityPopulationAiRequestSchema = z.object({
-    userProvidedText: z.string().trim().optional()
-        .describe('Text about the council for the model to use, e.g. an election result'),
-});
