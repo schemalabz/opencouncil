@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-export function CopyButton({ value, className }: { value: string; className?: string }) {
+/** `label` names what is copied, for a screen reader, when several copy buttons sit together. */
+export function CopyButton({ value, className, label }: { value: string; className?: string; label?: string }) {
     const t = useTranslations("mcp.url");
     const [copied, setCopied] = useState(false);
 
@@ -19,6 +20,7 @@ export function CopyButton({ value, className }: { value: string; className?: st
         <button
             type="button"
             onClick={copy}
+            aria-label={label}
             className={cn(
                 "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted",
                 className

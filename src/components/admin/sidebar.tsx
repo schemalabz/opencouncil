@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, KeyRound, Building2, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, Building2, BarChart3, Bot } from "lucide-react";
 import Image from "next/image";
 import { Link, usePathname } from "@/i18n/routing";
 import {
@@ -54,7 +54,7 @@ const menuGroups = [
             { title: "Tasks", icon: List, url: "/admin/tasks" },
             { title: "Elasticsearch", icon: Search, url: "/admin/elasticsearch" },
             { title: "Cache", icon: RefreshCw, url: "/admin/cache" },
-            { title: "API Keys", icon: KeyRound, url: "/admin/settings/api-keys" },
+            { title: "Machine accounts", icon: Bot, url: "/admin/machines" },
         ],
     },
 ];

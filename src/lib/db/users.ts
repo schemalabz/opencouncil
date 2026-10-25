@@ -6,29 +6,9 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors"
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { devToolsAllowed } from "@/lib/deployment";
 import { claimedLink } from "@/lib/db/personClaim";
-
-const userWithAdministersInclude = {
-    administers: {
-        include: {
-            city: true,
-            party: {
-                include: {
-                    city: true
-                }
-            },
-            person: {
-                include: {
-                    city: true
-                }
-            },
-            administrativeBody: {
-                include: {
-                    city: true
-                }
-            }
-        }
-    }
-} satisfies Prisma.UserInclude;
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
+import { findMachineAccount } from "@/lib/db/machineAccounts";
+import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
     ...userWithAdministersInclude,
@@ -47,7 +27,6 @@ const userWithRelationsInclude = {
 } satisfies Prisma.UserInclude;
 
 
-export type UserWithAdministers = Prisma.UserGetPayload<{ include: typeof userWithAdministersInclude }>;
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userWithRelationsInclude }>;
 
 export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin' | 'onboarded'>> & {
@@ -59,8 +38,14 @@ function normalizeEmail(email: string): string {
     if (!normalizedEmail) {
         throw new BadRequestError("Email cannot be empty");
     }
+    // The domain is reserved for machine accounts (src/lib/auth/machineAccounts.ts).
+    if (isMachineAccountAddress(normalizedEmail)) {
+        throw new BadRequestError("This address is reserved for machine accounts");
+    }
     return normalizedEmail;
 }
+
+const MACHINE_ACCOUNT_RETIRE_HINT = "A machine account is retired by revoking its tokens, not deleted";
 
 function normalizeName(name: string | null | undefined): string | null {
     if (typeof name !== "string") {
@@ -89,6 +74,7 @@ export async function getUsers(): Promise<UserWithRelations[]> {
     await withUserAuthorizedToEdit({});
     try {
         const users = await prisma.user.findMany({
+            where: peopleOnly,
             include: userWithRelationsInclude,
             orderBy: {
                 createdAt: 'desc'
@@ -153,7 +139,15 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
         throw new BadRequestError("Email cannot be null");
     }
 
-    const { administers, ...userData } = normalizedData;
+    // Explicit fields: a direct call of this Server Action may pass any
+    // column, and isMachine must never change after the create.
+    const { administers, email, name, isSuperAdmin, onboarded } = normalizedData;
+    const userData = { email, name, isSuperAdmin, onboarded };
+
+    // A machine account's address comes from its label and never changes.
+    if (userData.email !== undefined && await findMachineAccount(id)) {
+        throw new BadRequestError("The address of a machine account cannot change");
+    }
 
     try {
         if (administers) {
@@ -206,6 +200,9 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
 
 export async function deleteUser(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
+    // The account is the attribution of the highlights its tokens created
+    // (Highlight.createdBy is SetNull on delete), so it stays.
+    if (await findMachineAccount(id)) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     try {
         await prisma.user.delete({
             where: { id },
@@ -223,6 +220,7 @@ export async function deleteUser(id: string): Promise<void> {
 export async function deleteCurrentUser(): Promise<void> {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not authenticated');
+    if (user.isMachine) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     await prisma.user.delete({ where: { id: user.id } });
 }
 

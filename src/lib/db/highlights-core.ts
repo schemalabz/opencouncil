@@ -3,7 +3,7 @@
 // a Server Action. Only highlights.ts (session wrapper) and the MCP server may
 // import them.
 import "server-only";
-import { AdministrativeBody, City, CouncilMeeting, Highlight, Subject, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
+import { AdministrativeBody, City, CouncilMeeting, Highlight, Subject, User, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
 import prisma from "./prisma";
 import { ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
 import { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT } from "../highlights/constants";
@@ -13,8 +13,8 @@ export { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT };
 // NOT a "use server" module: upsertHighlightCore takes an explicit identity,
 // so exposing it as a server action would let clients act as anyone. Only
 // trusted server-side callers (the session wrapper in highlights.ts and the
-// MCP server) may import it. Same pattern as getAllCitiesAsServiceKey — see
-// the warning in src/app/api/cities/route.ts.
+// MCP server) may import it. Same pattern as createCityDirect in
+// src/lib/db/citiesAdmin.ts.
 
 // Define the include structure for highlights with utterances
 // This includes the highlightedUtterances relation with nested utterance data
@@ -121,15 +121,6 @@ export async function getHighlightStatistics(
 }
 
 /**
- * Who is performing a highlight write. Mirrors the shape returned by
- * withServiceOrUserAuth in src/lib/auth.ts: a user acts under their own
- * per-city permissions, a service key acts as a superadmin.
- */
-export type HighlightActor =
-    | { type: 'user'; userId: string }
-    | { type: 'service'; keyName: string };
-
-/**
  * What a user may edit without a session. `all` is true for a superadmin.
  * `cityIds` are the cities the user administers. `bodies` maps each
  * administrative body the user administers to its city (#828): a body admin
@@ -224,17 +215,16 @@ export async function canUserEditMeeting(
 }
 
 /**
- * Whether an actor may manage (view status of / render) a highlight: service
- * actors always, users when they own it or may edit its meeting. Mirrors
- * canViewHighlight in highlights.ts, without the session.
+ * Whether a user may manage (view status of / render) a highlight: when they
+ * own it or may edit its meeting. Mirrors canViewHighlight in highlights.ts,
+ * without the session.
  */
 export async function canActorManageHighlight(
-    actor: HighlightActor,
+    userId: User["id"],
     highlight: { cityId: City["id"]; meetingId: CouncilMeeting["id"]; createdById: string | null }
 ): Promise<boolean> {
-    if (actor.type === 'service') return true;
-    if (highlight.createdById === actor.userId) return true;
-    return canUserEditMeeting(actor.userId, highlight.cityId, highlight.meetingId);
+    if (highlight.createdById === userId) return true;
+    return canUserEditMeeting(userId, highlight.cityId, highlight.meetingId);
 }
 
 async function getCityHighlightPermission(cityId: City["id"]) {
@@ -251,13 +241,13 @@ async function getCityHighlightPermission(cityId: City["id"]) {
 }
 
 /**
- * Create or update a highlight as the given actor. Service actors bypass
- * per-city permission checks and create unattributed highlights; user actors
- * are constrained by the city's highlightCreationPermission and own only
- * their highlights.
+ * Create or update a highlight as the given user, who is constrained by the
+ * city's highlightCreationPermission and owns only their highlights. The
+ * caller has authenticated the user: the session wrapper in highlights.ts,
+ * or the MCP verifier.
  */
 export async function upsertHighlightCore(
-    actor: HighlightActor,
+    userId: User["id"],
     highlightData: {
         id?: Highlight["id"];
         name?: string;
@@ -271,7 +261,7 @@ export async function upsertHighlightCore(
 
     const [highlightPermission, canEdit, existingHighlight, utterances, subject] = await Promise.all([
         getCityHighlightPermission(cityId),
-        actor.type === 'service' ? Promise.resolve(true) : canUserEditMeeting(actor.userId, cityId, meetingId),
+        canUserEditMeeting(userId, cityId, meetingId),
         id ? prisma.highlight.findUnique({
             where: { id },
             select: {
@@ -312,7 +302,7 @@ export async function upsertHighlightCore(
     } else {
         // EVERYONE: editors can edit anything, regular users can only edit their own
         if (!canEdit) {
-            if (existingHighlight && (actor.type !== 'user' || existingHighlight.createdById !== actor.userId)) {
+            if (existingHighlight && existingHighlight.createdById !== userId) {
                 throw new ForbiddenError('Not authorized to edit this highlight');
             }
             // For new highlights when EVERYONE is allowed, no additional check needed
@@ -357,11 +347,7 @@ export async function upsertHighlightCore(
         ? (subjectId ? { connect: { id: subjectId } } : { disconnect: true })
         : undefined;
 
-    // Service-created highlights have no owning user (createdById stays null);
-    // city editors can see and manage them via canViewHighlight.
-    const createdByConnect = actor.type === 'user'
-        ? { createdBy: { connect: { id: actor.userId } } }
-        : {};
+    const createdByConnect = { createdBy: { connect: { id: userId } } };
 
     const highlight = await prisma.highlight.upsert({
         where: { id: id || 'new' }, // Use 'new' as placeholder for new records

@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 import { syncMeetingToCalendar } from "@/lib/google-calendar";
+import { peopleOnly } from "@/lib/db/types";
 
 export async function GET(
     request: Request,
@@ -58,9 +59,10 @@ export async function PUT(
         return NextResponse.json({ operator: null });
     }
 
-    // Verify target user exists and is a superadmin
-    const targetUser = await prisma.user.findUnique({
-        where: { id: userId },
+    // Verify target user exists and is a superadmin. People only: the
+    // calendar invites the operator by email.
+    const targetUser = await prisma.user.findFirst({
+        where: { id: userId, ...peopleOnly },
         select: { id: true, name: true, email: true, isSuperAdmin: true },
     });
 

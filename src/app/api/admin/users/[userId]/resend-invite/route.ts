@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { NextResponse } from "next/server"
 import { sendInviteEmail } from "@/lib/auth/invite"
+import { peopleOnly } from "@/lib/db/types"
 
 export async function POST(request: Request, props: { params: Promise<{ userId: string }> }) {
     const params = await props.params;
@@ -11,8 +12,10 @@ export async function POST(request: Request, props: { params: Promise<{ userId: 
     }
 
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: params.userId }
+        // People only: an invite link is a sign-in link, and nothing signs a
+        // machine account in.
+        const user = await prisma.user.findFirst({
+            where: { id: params.userId, ...peopleOnly }
         })
 
         if (!user) {

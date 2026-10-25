@@ -22,9 +22,11 @@ const bodyEntitySelect = { id: true, name: true, city: cityRefSelect } satisfies
 type CityEntityRow = Prisma.CityGetPayload<{ select: typeof cityEntitySelect }>;
 type CityScopedEntityRow = Prisma.PartyGetPayload<{ select: typeof partyEntitySelect }>;
 
+export type AdminEntityType = 'city' | 'party' | 'person' | 'body';
+
 export type AdminEntity =
     | (CityEntityRow & { type: 'city'; displayName: string })
-    | (CityScopedEntityRow & { type: 'party' | 'person' | 'body'; displayName: string });
+    | (CityScopedEntityRow & { type: Exclude<AdminEntityType, 'city'>; displayName: string });
 
 export async function getAdminEntities(): Promise<AdminEntity[]> {
     const byName = { name: 'asc' } as const;

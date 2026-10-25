@@ -14,7 +14,7 @@ export const MAX_SUBJECT_LIMIT = MAX_LIST_LIMIT;
  */
 export const includeUnreleasedQuery = queryFlag.default(false).meta({
     description: 'Include unreleased meetings and their subjects, and a city that is not published. '
-        + 'Requires an authorized session for the city, or a service key.',
+        + 'Requires an authorized session for the city.',
     example: 'true',
 });
 

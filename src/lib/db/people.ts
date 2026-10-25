@@ -5,7 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
-import { RoleWithRelations, roleWithRelationsInclude } from "./types";
+import { RoleWithRelations, peopleOnly, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
     roles: RoleWithRelations[];
@@ -216,7 +216,7 @@ export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<P
                     },
                     take: 1 // Only get the most recent voiceprint
                 },
-                _count: { select: { administrators: true } }
+                _count: { select: { administrators: { where: { user: peopleOnly } } } }
             }
         });
         return people;

@@ -38,7 +38,7 @@ import {
     toGenerateOptions,
     type HighlightRenderOptions,
 } from './render';
-import { isSuperIdentity, type McpIdentity } from './auth';
+import type { McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
 import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
@@ -47,7 +47,7 @@ import { publicRecordFields } from '@/lib/meetingPublic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
-    return `Authentication required: create a personal MCP URL at ${currentBaseUrl()}/mcp and reconnect with it to create highlights.`;
+    return `Authentication required: create a personal MCP URL at ${currentBaseUrl()}/mcp, or use the token of a machine account, and reconnect with it to create highlights.`;
 }
 
 /**
@@ -870,13 +870,12 @@ export async function mcpSearch(
 
 /**
  * The municipalities whose non-public content this identity may reach —
- * everything for service keys and superadmins, the administered ones for a
- * personal token, none for anonymous callers. The highlight listing reads it.
+ * everything for a superadmin, the administered ones for everyone else,
+ * none for anonymous callers. The highlight listing reads it.
  * `search` does not: it returns released subjects only, for every identity.
  */
 async function editableCities(identity: McpIdentity): Promise<UserCityRights> {
-    if (isSuperIdentity(identity)) return { all: true, cityIds: new Set(), bodies: new Map() };
-    if (identity?.type !== 'user') return { all: false, cityIds: new Set(), bodies: new Map() };
+    if (!identity) return { all: false, cityIds: new Set(), bodies: new Map() };
     return getUserCityRights(identity.userId);
 }
 
@@ -977,7 +976,7 @@ export async function mcpCreateHighlight(
     }
 
     // Same visibility as the read tools: released, or a draft the identity
-    // may see (city editors, service keys).
+    // may see (city editors).
     const meeting = await requireVisibleMeeting(args.cityId, args.meetingId, identity);
 
     // Agents assemble utterance ids by hand, so a wrong one is routine. Say
@@ -1015,7 +1014,7 @@ export async function mcpCreateHighlight(
     // highlight, which destroys nothing. It does mean a retried call costs a
     // second render, so the render failure path returns the id rather than
     // throwing — see the catch below.
-    const highlight = await upsertHighlightCore(identity, {
+    const highlight = await upsertHighlightCore(identity.userId, {
         name: args.name,
         meetingId: args.meetingId,
         cityId: args.cityId,
@@ -1075,7 +1074,7 @@ export async function mcpListHighlights(
     // the same rule canViewHighlight applies on the site.
     const scope = await editableCities(identity);
     const ownership: Prisma.HighlightWhereInput[] = [
-        ...(identity.type === 'user' ? [{ createdById: identity.userId }] : []),
+        { createdById: identity.userId },
         ...(scope.cityIds.size > 0 ? [{ cityId: { in: [...scope.cityIds] } }] : []),
     ];
 
@@ -1134,7 +1133,7 @@ export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId
     if (!highlight) throw new NotFoundError('Highlight not found');
     await requireRealmCity(highlight.cityId);
 
-    const canEdit = identity.type === 'service' || (await canUserEditCity(identity.userId, highlight.cityId));
+    const canEdit = await canUserEditCity(identity.userId, highlight.cityId);
     if (!canEdit) {
         throw new ForbiddenError('Only city administrators can showcase highlights');
     }
@@ -1168,7 +1167,7 @@ async function requireManagedHighlight(identity: McpIdentity, highlightId: strin
     });
     if (!highlight) throw new NotFoundError('Highlight not found');
 
-    if (!(await canActorManageHighlight(identity, highlight))) {
+    if (!(await canActorManageHighlight(identity.userId, highlight))) {
         throw new NotFoundError('Highlight not found');
     }
 

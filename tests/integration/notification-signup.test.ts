@@ -96,6 +96,20 @@ describe('notification signup channel consent', () => {
         expect(await prisma.notificationPreference.count()).toBe(0)
     })
 
+    test('refuses an address on the machine domain before it creates an account', async () => {
+        // The domain is reserved for machine accounts (#590): a public signup
+        // must not create a person there, or take a label before its account.
+        const city = await createCity({ id: 'ns_machine', supportsNotifications: true })
+        const email = 'paola@machines.opencouncil.invalid'
+
+        const signup = await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [], email, notifyByEmail: true })
+        const petition = await savePetition({ cityId: city.id, isResident: true, isCitizen: false, email })
+
+        expect(signup).toEqual({ success: false, error: 'Invalid input' })
+        expect(petition).toEqual({ success: false, error: 'Invalid input' })
+        expect(await prisma.user.count({ where: { email } })).toBe(0)
+    })
+
     test('an older caller that sends no flags keeps the defaults', async () => {
         const admin = await signInAsSuperAdmin()
         const city = await createCity({ id: 'ns_city3', supportsNotifications: true })

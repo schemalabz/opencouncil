@@ -4,6 +4,7 @@
 import "server-only";
 import { createHash, randomBytes } from 'crypto';
 import prisma from '@/lib/db/prisma';
+import { mcpTokenListOrder, mcpTokenListSelect } from '@/lib/db/types';
 import { GENERATED_MCP_TOKEN_NAME } from '@/lib/mcp/tokenNames';
 
 const MCP_TOKEN_PREFIX = 'mcp_';
@@ -48,23 +49,12 @@ export async function createUserMcpToken(userId: string) {
 
 /**
  * List a user's MCP tokens (without revealing the actual token).
- *
- * The id breaks a tie on createdAt. The token manager numbers the rows by
- * position, so two addresses created in the same instant would otherwise be
- * free to swap labels between page loads — and a user revokes by label.
  */
 export async function listUserMcpTokens(userId: string) {
     return prisma.userMcpToken.findMany({
         where: { userId },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        select: {
-            id: true,
-            name: true,
-            keyPrefix: true,
-            createdAt: true,
-            lastUsedAt: true,
-            revokedAt: true,
-        },
+        orderBy: mcpTokenListOrder,
+        select: mcpTokenListSelect,
     });
 }
 
@@ -81,13 +71,16 @@ export async function revokeUserMcpToken(userId: string, tokenId: string) {
 
 /**
  * Validate a raw MCP token. Returns the owning user's id if valid, null
- * otherwise. Updates lastUsedAt on successful validation.
+ * otherwise. Updates lastUsedAt on successful validation. `machineName` names
+ * the owner when it is a machine account (#590), for analytics; null for a
+ * person.
  */
-export async function validateUserMcpToken(rawToken: string): Promise<{ userId: string; tokenId: string } | null> {
+export async function validateUserMcpToken(rawToken: string): Promise<{ userId: string; tokenId: string; machineName: string | null } | null> {
     const hashedKey = hashToken(rawToken);
 
     const token = await prisma.userMcpToken.findUnique({
         where: { hashedKey },
+        include: { user: { select: { isMachine: true, name: true, email: true } } },
     });
 
     if (!token || token.revokedAt) {
@@ -102,5 +95,6 @@ export async function validateUserMcpToken(rawToken: string): Promise<{ userId: 
         console.error('Failed to update lastUsedAt for MCP token:', err);
     });
 
-    return { userId: token.userId, tokenId: token.id };
+    const machineName = token.user.isMachine ? (token.user.name || token.user.email) : null;
+    return { userId: token.userId, tokenId: token.id, machineName };
 }

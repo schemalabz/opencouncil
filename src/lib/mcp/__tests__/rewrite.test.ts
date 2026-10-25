@@ -30,7 +30,7 @@ describe('mcpRewriteTarget', () => {
     it('always rewrites tokened URLs, for any method and content type', () => {
         expect(mcpRewriteTarget('/mcp/mcp_abc-123', 'POST', null, JSON_CT)).toBe('/api/mcp/mcp_abc-123');
         expect(mcpRewriteTarget('/mcp/mcp_abc', 'GET', 'text/html', null)).toBe('/api/mcp/mcp_abc');
-        expect(mcpRewriteTarget('/mcp/sk_service0', 'POST', null, null)).toBe('/api/mcp/sk_service0');
+        expect(mcpRewriteTarget('/mcp/sk_service0', 'POST', null, null)).toBeNull();
     });
 
     it('handles locale-prefixed URLs copied from the address bar', () => {

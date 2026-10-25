@@ -1009,5 +1009,58 @@
       "choose": "Choose…",
       "draft": "New record, saved when you confirm it"
     }
+  },
+  "machineAccounts": {
+    "title": "Comptes machine",
+    "lead": "Des comptes pour les services qui utilisent uniquement le MCP et agissent avec les droits que vous leur donnez ici.",
+    "create": "Nouveau compte machine",
+    "empty": "Aucun compte machine pour l'instant.",
+    "createdOn": "Créé le {date}",
+    "noActiveToken": "aucun jeton actif",
+    "rights": {
+      "superAdmin": "Super Admin",
+      "none": "Aucun droit"
+    },
+    "grantType": {
+      "city": "Commune",
+      "party": "Groupe",
+      "person": "Personne",
+      "body": "Organe"
+    },
+    "editRights": "Modifier les droits",
+    "newToken": "Nouveau jeton",
+    "creating": "Création…",
+    "never": "jamais",
+    "active": "Actif",
+    "new": "Nouveau",
+    "revokedOn": "Révoqué le {date}",
+    "revoke": "Révoquer",
+    "revokeToken": "Révoquer le jeton {prefix}…",
+    "revokeQuestion": "Révoquer ce jeton ?",
+    "revokeConfirm": "Oui, révoquer",
+    "revoking": "Révocation…",
+    "cancel": "Annuler",
+    "columns": {
+      "token": "Jeton",
+      "created": "Créé",
+      "lastUsed": "Dernière utilisation",
+      "status": "État",
+      "actions": "Actions"
+    },
+    "reveal": {
+      "title": "Nouveau jeton. Copiez-le maintenant : il n'est affiché que cette fois.",
+      "keep": "Il reste ici jusqu'à ce que vous cliquiez sur « Je l'ai copié ».",
+      "headerForm": "Adresse et jeton bearer (de préférence)",
+      "pathForm": "Pour les clients qui ne peuvent pas envoyer d'en-têtes",
+      "pathFormNote": "Les proxys et les journaux d'accès enregistrent cette forme. Préférez l'en-tête quand le client le permet.",
+      "warning": "Quiconque possède ce jeton agit dans le MCP avec les droits de ce compte. Conservez-le comme un mot de passe. Vous pouvez le révoquer à tout moment.",
+      "dismiss": "Je l'ai copié",
+      "copyAddress": "Copier l'adresse",
+      "copyToken": "Copier le jeton",
+      "copyPathForm": "Copier l'adresse avec le jeton"
+    },
+    "errors": {
+      "failed": "L'action a échoué. Rechargez la page et réessayez."
+    }
   }
 }

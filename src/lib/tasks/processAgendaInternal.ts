@@ -15,7 +15,7 @@ import { formatClockTime } from "@/lib/formatters/time";
  *
  * NOT in a "use server" file — this must not be callable as a Server Action.
  * Only called from:
- *   - The meeting creation API route (after withServiceOrUserAuth)
+ *   - The meeting creation API route (after withUserAuthorizedToEdit)
  *   - requestProcessAgenda (after withUserAuthorizedToEdit)
  */
 export async function requestProcessAgendaInternal(agendaUrl: string, councilMeetingId: string, cityId: string, {

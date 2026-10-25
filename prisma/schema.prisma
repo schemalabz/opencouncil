@@ -1110,6 +1110,11 @@ model User {
   /// the notis_fanout_targets view carries it on every row.
   notifyByPhone        Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
+  /// A machine account: a service holds it, it never signs in, and its MCP
+  /// tokens carry its rights like a person's (#590). Its address is on the
+  /// reserved domain of src/lib/auth/machineAccounts.ts. The queries that
+  /// mean "people" (recipients, stats, the operator picker) exclude it.
+  isMachine     Boolean         @default(false)
   accounts      Account[]
   sessions      Session[]
   Authenticator Authenticator[]
@@ -1135,7 +1140,6 @@ model User {
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
-  serviceApiKeys ServiceApiKey[]
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
 
@@ -1266,22 +1270,9 @@ model Administers {
   @@unique([userId, cityId, partyId, personId, administrativeBodyId])
 }
 
-model ServiceApiKey {
-  id          String    @id @default(cuid())
-  name        String    // Display name (e.g. "Sentinel")
-  hashedKey   String    @unique // SHA-256 hash of the API key
-  keyPrefix   String    // First 10 chars for display (e.g. "sk_a1b2c3d")
-  createdAt   DateTime  @default(now())
-  lastUsedAt  DateTime?
-  revokedAt   DateTime?
-
-  createdBy   User      @relation(fields: [createdById], references: [id])
-  createdById String
-}
-
-// Personal access token for the MCP server. Unlike ServiceApiKey (superadmin,
-// service-level), an MCP token acts as the owning user: highlight creation is
-// attributed to them and limited by their per-city permissions.
+// Personal access token for the MCP server. An MCP token acts as the owning
+// user: highlight creation is attributed to them and limited by their
+// per-city permissions.
 model UserMcpToken {
   id         String    @id @default(cuid())
   name       String    @default("MCP token")

@@ -31,7 +31,7 @@ export async function GET(
     }
 
     try {
-        const result = await getUtteranceContext(request, utteranceId, before, after);
+        const result = await getUtteranceContext(utteranceId, before, after);
         if (!result) {
             return NextResponse.json({ error: 'Utterance not found' }, { status: 404 });
         }

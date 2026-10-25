@@ -10,6 +10,7 @@ import { Realm } from '@prisma/client'
 import prisma from '@/lib/db/prisma'
 import { mcpGetMeeting, mcpListMeetings } from '@/lib/mcp/data'
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context'
+import type { McpIdentity } from '@/lib/mcp/auth'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createCity,
@@ -17,13 +18,15 @@ import {
     createSpeakerSegment,
     createSpeakerTag,
     createSubject,
+    createUser,
     createUtterance,
 } from '../helpers/factories'
 
 const ANON = null
-const SERVICE = { type: 'service', keyName: 'test' } as const
+// The token of a superadmin account, which sees every draft.
+let SUPERADMIN: { userId: string }
 
-const asRequest = <T>(fn: () => Promise<T>, identity: typeof ANON | typeof SERVICE = ANON) =>
+const asRequest = <T>(fn: () => Promise<T>, identity: McpIdentity = ANON) =>
     mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', identity), fn)
 
 /** A meeting that has been transcribed: one segment carrying one utterance. */
@@ -40,6 +43,7 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
 
     beforeEach(async () => {
         await resetDatabase(prisma)
+        SUPERADMIN = { userId: (await createUser('bot@example.com', { isSuperAdmin: true })).id }
         await createCity({ id: 'athens', realm: Realm.greece })
 
         // Transcribed, no subjects yet — the case that misled agents.
@@ -115,7 +119,7 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
             data: { type: 'transcribe', status: 'failed', requestBody: '{}', failureReason: 'worker down', councilMeetingId: 'transcribed', cityId: 'athens' },
         })
 
-        const seen = await asRequest(() => mcpGetMeeting('athens', 'transcribed', SERVICE), SERVICE)
+        const seen = await asRequest(() => mcpGetMeeting('athens', 'transcribed', SUPERADMIN), SUPERADMIN)
         expect(seen.tasks).toEqual([expect.objectContaining({ type: 'transcribe', status: 'failed', error: 'worker down' })])
 
         const hidden = await asRequest(() => mcpGetMeeting('athens', 'transcribed', ANON))

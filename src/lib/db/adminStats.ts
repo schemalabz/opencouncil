@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
+import { peopleOnly } from "@/lib/db/types";
 import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
@@ -75,10 +76,10 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         searchesThisWeek,
         searchesPrevWeek,
     ] = await Promise.all([
-        prisma.user.count(),
-        prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-        prisma.user.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
-        prisma.user.count({ where: { notificationPreferences: { some: {} } } }),
+        prisma.user.count({ where: peopleOnly }),
+        prisma.user.count({ where: { ...peopleOnly, createdAt: { gte: sevenDaysAgo } } }),
+        prisma.user.count({ where: { ...peopleOnly, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+        prisma.user.count({ where: { ...peopleOnly, notificationPreferences: { some: {} } } }),
         prisma.notificationPreference.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.notificationDelivery.count({ where: { status: 'sent', sentAt: { gte: sevenDaysAgo } } }),
         prisma.petition.count(),

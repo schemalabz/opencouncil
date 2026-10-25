@@ -4,6 +4,8 @@ import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "@/lib/auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendInviteEmail } from "@/lib/auth/invite";
+import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
+import { peopleOnly } from "@/lib/db/types";
 
 /**
  * The admins of one administrative body (#828): the accounts that hold an
@@ -46,7 +48,7 @@ async function requireBody(cityId: string, bodyId: string): Promise<void> {
 export async function listBodyAdmins(cityId: string, bodyId: string): Promise<BodyAdmin[]> {
     await requireBody(cityId, bodyId);
     const rows = await prisma.administers.findMany({
-        where: { administrativeBodyId: bodyId },
+        where: { administrativeBodyId: bodyId, user: peopleOnly },
         select: bodyAdminSelect,
         orderBy: { createdAt: 'asc' },
     });
@@ -67,6 +69,10 @@ export async function addBodyAdmin(
     await requireBody(cityId, bodyId);
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) throw new BadRequestError("Email cannot be empty");
+    // Only a superadmin gives a machine account rights.
+    if (isMachineAccountAddress(normalizedEmail)) {
+        throw new BadRequestError("This address is reserved for machine accounts");
+    }
 
     // One transaction per invite, holding the body row: the count, the
     // account and the admin row are read and written under the same lock, so
@@ -80,7 +86,7 @@ export async function addBodyAdmin(
         });
         if (held) return { row: held, created: false };
 
-        if (await tx.administers.count({ where: { administrativeBodyId: bodyId } }) >= MAX_ADMINS_PER_BODY) {
+        if (await tx.administers.count({ where: { administrativeBodyId: bodyId, user: peopleOnly } }) >= MAX_ADMINS_PER_BODY) {
             throw new BadRequestError(`A body has at most ${MAX_ADMINS_PER_BODY} admins`);
         }
         const user = existing ?? await tx.user.create({
@@ -124,8 +130,10 @@ export async function removeBodyAdmin(cityId: string, bodyId: string, userId: st
         // Lock the body row: two admins who remove each other at once must not
         // both read two admins and leave none.
         await tx.$queryRaw`SELECT id FROM "AdministrativeBody" WHERE id = ${bodyId} FOR UPDATE`;
+        // People only: a machine account's grant is a superadmin's to change,
+        // on the machine accounts page.
         const rows = await tx.administers.findMany({
-            where: { administrativeBodyId: bodyId },
+            where: { administrativeBodyId: bodyId, user: peopleOnly },
             select: { id: true, userId: true },
         });
         const target = rows.find(row => row.userId === userId);

@@ -54,7 +54,6 @@ const EXPECTED_OPERATIONS = [
     'POST /api/cities/{cityId}/roles/elected-order',
     'POST /api/profile',
     'POST /api/revalidate',
-    'POST /api/admin/api-keys',
     'POST /api/admin/product-updates/send',
     'POST /api/admin/topics',
     'PUT /api/admin/topics/{topicId}',
@@ -95,7 +94,7 @@ describe('OpenAPI coverage', () => {
         expect(publicOps).not.toContain('POST /api/profile');
         expect(userOps).toContain('POST /api/profile');
         expect(adminOps).toContain('POST /api/cities/{cityId}/administrative-bodies');
-        expect(adminOps).not.toContain('POST /api/admin/api-keys');
+        expect(adminOps).not.toContain('POST /api/admin/users');
         expect(adminOps).not.toContain('POST /api/revalidate');
         expect(actualOperations(filterSpecByAccessLevel(spec, 'superadmin'))).toEqual(EXPECTED_OPERATIONS);
 
@@ -111,7 +110,7 @@ describe('OpenAPI coverage', () => {
 
         // The request schemas of a hidden operation are hidden too.
         const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
-        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'AdministrativeBodyUpdateRequest', 'RevalidateRequest'].includes(name)))
+        expect(publicSchemas.filter(name => ['UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'AdministrativeBodyUpdateRequest', 'RevalidateRequest'].includes(name)))
             .toEqual([]);
     });
 

@@ -1009,5 +1009,58 @@
       "choose": "Choose…",
       "draft": "New record, saved when you confirm it"
     }
+  },
+  "machineAccounts": {
+    "title": "Machine accounts",
+    "lead": "Accounts for services that use only the MCP and act with the rights you give them here.",
+    "create": "New machine account",
+    "empty": "No machine account yet.",
+    "createdOn": "Created {date}",
+    "noActiveToken": "no active token",
+    "rights": {
+      "superAdmin": "Super Admin",
+      "none": "No rights"
+    },
+    "grantType": {
+      "city": "City",
+      "party": "Party",
+      "person": "Person",
+      "body": "Body"
+    },
+    "editRights": "Edit rights",
+    "newToken": "New token",
+    "creating": "Creating…",
+    "never": "never",
+    "active": "Active",
+    "new": "New",
+    "revokedOn": "Revoked {date}",
+    "revoke": "Revoke",
+    "revokeToken": "Revoke the token {prefix}…",
+    "revokeQuestion": "Revoke this token?",
+    "revokeConfirm": "Yes, revoke",
+    "revoking": "Revoking…",
+    "cancel": "Cancel",
+    "columns": {
+      "token": "Token",
+      "created": "Created",
+      "lastUsed": "Last used",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "reveal": {
+      "title": "New token. Copy it now: it is shown only this once.",
+      "keep": "It stays here until you click \"I have copied it\".",
+      "headerForm": "Address and bearer token (preferred)",
+      "pathForm": "For clients that cannot send headers",
+      "pathFormNote": "Proxies and access logs record this form. Prefer the header where the client supports it.",
+      "warning": "Anyone who has this token acts with the rights of this account in the MCP. Store it like a password. You can revoke it at any time.",
+      "dismiss": "I have copied it",
+      "copyAddress": "Copy the address",
+      "copyToken": "Copy the token",
+      "copyPathForm": "Copy the address with the token"
+    },
+    "errors": {
+      "failed": "The action failed. Reload the page and try again."
+    }
   }
 }

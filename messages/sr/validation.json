@@ -43,5 +43,6 @@
     "cityMessageLink": "Мора бити http(s) URL или путања која почиње једном косом цртом /",
     "imageMaxSize": "Слика може имати највише 5 MB",
     "logoType": "Логотип мора бити једног од типова: image/png, image/jpeg",
-    "logoMaxSize": "Логотип може имати највише 5 MB"
+    "logoMaxSize": "Логотип може имати највише 5 MB",
+    "machineAccountLabelInvalid": "Ознака има од 1 до 100 знакова, са бар једним латиничним словом или цифром."
 }

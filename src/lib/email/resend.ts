@@ -2,6 +2,7 @@
 import { Resend } from 'resend';
 import { env } from '@/env.mjs';
 import { emailFrom, type EmailSender } from '@/lib/email/senders';
+import { isMachineAccountAddress } from '@/lib/auth/machineAccounts';
 
 interface Attachment {
     filename: string;
@@ -76,6 +77,13 @@ function applyDevOverride(item: BatchEmailItem, override: string): BatchEmailIte
 export async function sendEmail(params: EmailParams) {
     const resend = new Resend(env.RESEND_API_KEY);
     let { from, to, cc, replyTo, subject, html, text, attachments, tags } = params;
+
+    // Every app email passes here, and a machine account has no mailbox.
+    if (isMachineAccountAddress(to)) {
+        console.log('📧 Skipped an email to a machine account');
+        return { success: true, message: 'Skipped: machine account' };
+    }
+    if (cc) cc = (Array.isArray(cc) ? cc : [cc]).filter(address => !isMachineAccountAddress(address));
 
     // Development/preview email override: redirect all emails to a single address
     const isDev = process.env.NODE_ENV !== 'production';
@@ -153,9 +161,11 @@ export async function sendEmail(params: EmailParams) {
  * rejected up-front rather than silently truncated.
  */
 export async function sendEmailBatch(
-    items: BatchEmailItem[],
+    allItems: BatchEmailItem[],
     opts: { idempotencyKey: string },
 ): Promise<BatchEmailResult> {
+    // As in sendEmail: a machine account has no mailbox.
+    const items = allItems.filter((item) => !isMachineAccountAddress(item.to));
     if (items.length === 0) return { success: true, failedTos: [] };
     if (items.length > RESEND_BATCH_LIMIT) {
         return {

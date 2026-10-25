@@ -467,7 +467,7 @@ export function registerOpenCouncilServer(server: McpServer) {
 
 /**
  * The highlight suite: creation, rendering, listing, showcasing. Every one
- * of these requires an identity (mcp_ or sk_ token), so they are only
+ * of these requires an identity (an mcp_ token), so they are only
  * registered — and therefore only advertised — on authenticated connections.
  */
 function registerHighlightTools(server: McpServer) {

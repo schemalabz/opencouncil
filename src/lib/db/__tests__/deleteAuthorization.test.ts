@@ -13,7 +13,6 @@ const mockPrisma = {
     administrativeBody: { findUnique: jest.fn(), delete: jest.fn() },
 };
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: mockPrisma }));
-jest.mock('@/lib/db/apiKeys', () => ({ validateServiceApiKey: jest.fn() }));
 
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { deletePerson } from '@/lib/db/people';

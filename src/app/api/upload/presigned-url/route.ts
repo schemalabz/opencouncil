@@ -3,7 +3,7 @@ import { s3Client, fileExists, constructPublicUrl } from '@/lib/s3'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { env } from '@/env.mjs'
-import { withServiceOrUserAuth } from '@/lib/auth'
+import { withUserAuthorizedToEdit } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
 import { UploadConfig, uploadAuthorizationScope, uploadBaseFilename } from '@/types/upload'
 import { mintUploadAclToken } from '@/lib/uploadAclToken'
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check authorization via service API key or user session
+        // Check authorization via the user session
         try {
-            await withServiceOrUserAuth(request, uploadAuthorizationScope(config))
+            await withUserAuthorizedToEdit(uploadAuthorizationScope(config))
         } catch (error) {
             if (error instanceof ApiError) {
                 return NextResponse.json({ error: error.message }, { status: error.statusCode })

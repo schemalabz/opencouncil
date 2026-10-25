@@ -18,8 +18,7 @@ jest.mock('../../db/prisma', () => ({
 import { requirePublicTranscript, requireVisibleMeeting } from '../gate';
 import { ForbiddenError, NotFoundError } from '../../api/errors';
 
-const USER = { type: 'user', userId: 'u1' } as const;
-const SERVICE = { type: 'service', keyName: 'bot' } as const;
+const USER = { userId: 'u1' } as const;
 
 /** The row that the gate selects, and the payload that it returns for it. */
 function row(released: boolean) {
@@ -58,7 +57,6 @@ describe('requireVisibleMeeting', () => {
         mockMeetingFindFirst.mockResolvedValue(row(true));
         await expect(requireVisibleMeeting('athens', 'm1', null)).resolves.toEqual(payload(true, null));
         await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(true, null));
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(payload(true, null));
     });
 
     it('hides unreleased meetings from anonymous and unrelated users', async () => {
@@ -67,10 +65,8 @@ describe('requireVisibleMeeting', () => {
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
 
-    it('shows unreleased meetings to service identities and city editors', async () => {
+    it('shows unreleased meetings to city editors and superadmins', async () => {
         mockMeetingFindFirst.mockResolvedValue(row(false));
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(payload(false, true));
-
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
         await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(false, true));
 
@@ -117,7 +113,7 @@ describe('requireVisibleMeeting', () => {
 
     it('404s missing meetings for everyone', async () => {
         mockMeetingFindFirst.mockResolvedValue(null);
-        await expect(requireVisibleMeeting('athens', 'nope', SERVICE)).rejects.toThrow(NotFoundError);
+        await expect(requireVisibleMeeting('athens', 'nope', USER)).rejects.toThrow(NotFoundError);
         await expect(requireVisibleMeeting('athens', 'nope', null)).rejects.toThrow(NotFoundError);
     });
 });

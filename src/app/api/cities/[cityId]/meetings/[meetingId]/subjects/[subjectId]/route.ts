@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { getCurrentUser, withServiceOrUserAuth } from '@/lib/auth';
+import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
 import { getApiSubject } from '@/lib/db/subjectsApi';
@@ -15,7 +15,7 @@ export async function GET(
     try {
         const { includeUnreleased } = subjectQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams.entries()));
         if (includeUnreleased) {
-            await withServiceOrUserAuth(req, { cityId: params.cityId });
+            await withUserAuthorizedToEdit({ cityId: params.cityId });
         }
 
         const subject = await getApiSubject(
