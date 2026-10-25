@@ -107,9 +107,8 @@ export function SignIn({
                     <div className="space-y-4">
                         {googleAvailable && (
                             <>
-                                {/* The callback lands on callbackUrl, or on the profile, the same default as the magic link. */}
                                 <GoogleSignInButton
-                                    redirectTo={callbackUrl ?? "/profile"}
+                                    redirectTo={callbackUrl ?? "/sign-in"}
                                     label={tCommon("continueWithGoogle")}
                                     disabled={isLoading}
                                     onStart={handleGoogleStart}
