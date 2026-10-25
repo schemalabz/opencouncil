@@ -133,4 +133,16 @@ describe('search views: party at the date of the meeting', () => {
         expect(await partiesOf(subject)).toEqual({ introducer: first, speaker: first })
     })
 
+    it('carries the name of a speaker with no person record', async () => {
+        const meeting = await createMeeting(cityId, { dateTime: day('2025-01-01') })
+        const subject = await createSubject(meeting.id, cityId)
+        await prisma.speakerContribution.create({
+            data: { subjectId: subject.id, speakerName: 'Γεώργιος Δοκιμαστής', text: 'Τοποθέτηση' },
+        })
+
+        const rows = await prisma.$queryRaw<{ speaker_name: string | null; speaker_party_id: string | null }[]>`
+            SELECT speaker_name, speaker_party_id FROM "SpeakerContributionSearchView" WHERE "subjectId" = ${subject.id}`
+
+        expect(rows).toEqual([{ speaker_name: 'Γεώργιος Δοκιμαστής', speaker_party_id: null }])
+    })
 })

@@ -86,6 +86,8 @@ WHERE s."personId" IS NOT NULL;
 --   - Resolves the speaker's party at the date of the subject's meeting, with the
 --     same rule as IntroducedByPartyView
 --   - Provides denormalized speaker/party info for Elasticsearch indexing
+--   - Carries speaker_name, the display name of a speaker with no Person record,
+--     so that such a speaker is searchable by name
 --
 -- NOTE: REF links ([text](REF:TYPE:ID)) in contribution text are indexed as-is.
 -- The views do not strip text. See the README FAQ on REF links for the
@@ -114,7 +116,8 @@ SELECT
   sp.name_en AS speaker_person_name_en,
   r_party.party_id AS speaker_party_id,
   r_party.party_name AS speaker_party_name,
-  r_party.party_name_en AS speaker_party_name_en
+  r_party.party_name_en AS speaker_party_name_en,
+  sc."speakerName" AS speaker_name
 FROM "SpeakerContribution" sc
 INNER JOIN "Subject" s ON s.id = sc."subjectId"
 INNER JOIN "CouncilMeeting" m ON m.id = s."councilMeetingId" AND m."cityId" = s."cityId"

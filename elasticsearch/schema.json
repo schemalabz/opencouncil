@@ -102,6 +102,11 @@
             "analyzer": "standard",
             "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
           },
+          "speaker_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
           "speaker_party_id": { "type": "keyword" },
           "speaker_party_name": {
             "type": "text",
@@ -332,7 +337,8 @@
             "speaker_person_name_en",
             "speaker_party_id",
             "speaker_party_name",
-            "speaker_party_name_en"
+            "speaker_party_name_en",
+            "speaker_name"
           ],
           "transform": {
             "rename": {

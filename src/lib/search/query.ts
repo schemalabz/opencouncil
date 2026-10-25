@@ -103,8 +103,8 @@ const COVERAGE_GATE_FIELDS = [
 
 /**
  * The gate's threshold for the one entity field that cannot join the union
- * above: speaker_person_name is nested, so it stands as its own alternative and
- * decides eligibility ALONE (see buildCoverageGate).
+ * above: the speaker's name (SPEAKER_NAME_FIELDS) is nested, so it stands as
+ * its own alternative and decides eligibility ALONE (see buildCoverageGate).
  *
  * That is the per-field threshold this whole split was built to remove, so it
  * cannot take LEXICAL_MINIMUM_SHOULD_MATCH: at 2-of-3, the two-word name
@@ -122,6 +122,29 @@ const COVERAGE_GATE_FIELDS = [
  * a legitimate contribution to the document's coverage.
  */
 const SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH = '100%';
+
+/**
+ * The names a contribution's speaker is known by: the Person's name for a
+ * linked speaker, and speaker_name, the display name the contribution carries
+ * for a speaker with no Person record. Matched with best_fields, so each field
+ * takes the threshold on its own and the better one scores, which keeps a
+ * linked speaker's match what it was with the name field alone.
+ */
+const SPEAKER_NAME_FIELDS = [
+    'speaker_contributions.speaker_person_name',
+    'speaker_contributions.speaker_name'
+] as const;
+
+function buildSpeakerNameMatch(text: string, minimumShouldMatch: string | number): QueryContainer {
+    return {
+        multi_match: {
+            query: text,
+            fields: [...SPEAKER_NAME_FIELDS],
+            type: 'best_fields',
+            minimum_should_match: minimumShouldMatch
+        }
+    };
+}
 
 /**
  * Share of a field's tier awarded for covering only part of the query.
@@ -852,14 +875,7 @@ function buildCoverageGate(queryText: string): QueryContainer {
                             bool: {
                                 should: [
                                     buildTranscriptMatch('speaker_contributions.text', text),
-                                    {
-                                        match: {
-                                            'speaker_contributions.speaker_person_name': {
-                                                query: text,
-                                                minimum_should_match: SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH
-                                            }
-                                        }
-                                    }
+                                    buildSpeakerNameMatch(text, SPEAKER_NAME_GATE_MINIMUM_SHOULD_MATCH)
                                 ],
                                 minimum_should_match: 1
                             }
@@ -991,14 +1007,7 @@ function buildLexicalShouldClauses(
             minimumShouldMatch => perSpelling(text => ({
                 nested: {
                     path: 'speaker_contributions',
-                    query: {
-                        match: {
-                            'speaker_contributions.speaker_person_name': {
-                                query: text,
-                                minimum_should_match: minimumShouldMatch
-                            }
-                        }
-                    }
+                    query: buildSpeakerNameMatch(text, minimumShouldMatch)
                 }
             })),
             FIELD_TIER.speakerName
