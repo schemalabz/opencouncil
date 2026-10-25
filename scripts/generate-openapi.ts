@@ -11,7 +11,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import { dump } from 'js-yaml';
 
 import { generateSpec } from '../src/lib/openapi';
 
@@ -24,7 +24,7 @@ const outPath = path.resolve(process.cwd(), outFile);
 if (useJson) {
     fs.writeFileSync(outPath, JSON.stringify(spec, null, 2) + '\n');
 } else {
-    fs.writeFileSync(outPath, yaml.dump(spec, { lineWidth: 120, noRefs: true }));
+    fs.writeFileSync(outPath, dump(spec, { lineWidth: 120, noRefs: true }));
 }
 
 console.log(`OpenAPI spec written to ${outFile}`);

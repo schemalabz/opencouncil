@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 import { buildGreenmaskConfig, greenmaskConfigYaml, meetingSetSql, subsetTransformation } from './greenmask-config';
 
 const conn = { host: '127.0.0.1', port: 54390, user: 'seed', database: 'scratch' };
@@ -65,7 +65,7 @@ describe('buildGreenmaskConfig', () => {
     });
     test('renders as YAML that Greenmask can read', () => {
         const text = greenmaskConfigYaml({ conn, storageDir: '/tmp/s', tmpDir: '/tmp/t', privateTables: [], ignoreTables: [], explicitQuery: ['DecisionCandidate'], subset: spec });
-        const parsed = yaml.load(text) as { storage: { type: string }; dump: { transformation: unknown[] } };
+        const parsed = load(text) as { storage: { type: string }; dump: { transformation: unknown[] } };
         expect(parsed.storage.type).toBe('directory');
         expect(parsed.dump.transformation).toHaveLength(4);
     });

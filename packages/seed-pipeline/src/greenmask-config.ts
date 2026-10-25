@@ -1,4 +1,4 @@
-import yaml from 'js-yaml';
+import { dump } from 'js-yaml';
 import { Pin } from './tables';
 import { quoteIdent } from './normalize';
 
@@ -128,5 +128,5 @@ export function buildGreenmaskConfig(o: ConfigOptions): GreenmaskConfig {
 }
 
 export function greenmaskConfigYaml(o: ConfigOptions): string {
-    return yaml.dump(buildGreenmaskConfig(o), { lineWidth: -1, noRefs: true });
+    return dump(buildGreenmaskConfig(o), { lineWidth: -1, noRefs: true });
 }
