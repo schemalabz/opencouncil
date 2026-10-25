@@ -57,7 +57,7 @@
     "@elastic/elasticsearch": "^9.5.1",
     "@fortedigital/nextjs-cache-handler": "^3.4.0",
     "@googleapis/calendar": "^20.1.0",
-    "@hookform/resolvers": "^5.9.1",
+    "@hookform/resolvers": "^6.0.0",
     "@mapbox/mapbox-gl-draw": "^1.5.2",
     "@modelcontextprotocol/server": "^2.3.1",
     "@mux/mux-video": "^0.31.5",
