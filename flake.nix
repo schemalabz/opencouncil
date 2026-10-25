@@ -1682,7 +1682,7 @@ EOF
           seed-tools = pkgs.buildEnv { name = "seed-tools"; paths = (mkSeedTools pkgs) ++ [ pkgs.postgresql_16 ]; };
         });
 
-      checks = forAllSystems (_system: pkgs: _pkgs-unstable:
+      checks = forAllSystems (system: pkgs: _pkgs-unstable:
         let
           npmBuildInputs = mkNpmBuildInputs pkgs;
           npmNativeBuildInputs = mkNpmNativeBuildInputs pkgs;
@@ -1735,6 +1735,10 @@ EOF
             # Limit workers to avoid exhausting memory in the nix sandbox.
             checkScript = "npm test -- --testPathIgnorePatterns='tests/integration' --maxWorkers=2";
           };
+          # Jest and tsx load the CommonJS build of each dependency. The esbuild
+          # bundle resolves the ESM build, so only building it shows an import
+          # that the ESM build does not export.
+          seed-pipeline-bundle = self.packages.${system}.seed-pipeline-bundle;
         });
 
       # Preview deployment config for the generic preview module in nix-openclaw.
