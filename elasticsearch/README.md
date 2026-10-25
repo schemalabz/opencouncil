@@ -11,6 +11,7 @@ This document describes how OpenCouncil uses Elasticsearch to provide powerful s
 4. [Configure PostgreSQL Views](#configure-postgresql-views)
 5. [Configure the Ingest Pipeline](#configure-the-ingest-pipeline)
 6. [Set up PGSync](#set-up-pgsync)
+   - [What syncs live](#what-syncs-live)
    - [Deploying a Schema Change](#deploying-a-schema-change)
 7. [Sync Data](#sync-data)
 8. [Search Examples](#search-examples)
@@ -209,20 +210,10 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 ### Required Views
 
 1. **LocationSearchView** - Converts PostGIS geometry to GeoJSON format
-2. **IntroducedByPartyView** - Resolves party affiliation through the `Role` table
-3. **SpeakerContributionSearchView** - Denormalizes speaker contributions
+2. **IntroducedByPartyView** - Resolves the introducer's party through the `Role` table, at the meeting's date
+3. **SpeakerContributionSearchView** - Denormalizes speaker contributions, with each speaker's party at the meeting's date
 4. **SubjectMetricsView** - Precomputes the per-subject discussion metrics
 5. **MeetingAdministrativeBodyView** - Flattens the Subject → CouncilMeeting → AdministrativeBody join and casts the type enum to text. Exposes only the id and the type, because search results hydrate the full body from PostgreSQL
-6. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
-
-### Realm, Not Country
-
-The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
-
-PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
-`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
-that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
-country resolves it from `city_realm` in application code.
 6. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
 
 ### Realm, Not Country
@@ -263,7 +254,7 @@ because `calculateMeetingDurationMs()` uses it for a wall-clock span.
 > it is tempting to declare `base_tables: ["Subject"]`. That is what `SubjectSearchView` did, and it
 > made PGSync route `Subject` DELETE events as child re-syncs, so deleted subjects stayed in the
 > index. Declare only the tables the view actually reads.
-4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
+4. **SpeakerContributionSearchView** - Denormalizes speaker contributions, with each speaker's party resolved through the `Role` table at the meeting's date
 
 ### Create the Views
 
@@ -379,6 +370,44 @@ The `elasticsearch/schema.json` file defines:
 - [PGSync Schema Documentation](https://pgsync.com/schema/) - Official guide to schema configuration
 - [PGSync Examples](https://github.com/toluaina/pgsync/tree/main/examples) - Example schemas for various use cases
 
+### What syncs live
+
+PGSync writes a document again when it sees a change that it can resolve to the subject. Some changes it cannot resolve. Those reach the index the next time the subject is synced: a write to the `Subject` row, a re-summarize, or a rebuild. After that sync, no field stays wrong.
+
+The tables below are measured on the image that production runs. To measure them again after a change to `schema.json` or `views.sql`, run `scripts/pgsync-matrix.sh` in [opencouncil-tasks](https://github.com/schemalabz/opencouncil-tasks). It changes every source of every field in a local database and reports how each field followed.
+
+**Live, within seconds:**
+
+| Change | Fields that follow |
+|--------|--------------------|
+| Any write to the `Subject` row, including a delete and a change of its topic, introducer or location | The whole document |
+| `CouncilMeeting`: release, name, date, administrative body | `meeting_released`, `meeting_name`, `meeting_date`, `administrative_body_id`, `administrative_body_type` |
+| `City`: `name`, `name_en` | `city_name`, `city_name_en` |
+| `Topic`: `name`, `name_en` | `topic_name`, `topic_name_en` |
+| `Person`: `name`, `name_en` of the introducer | `introduced_by_person_name`, `introduced_by_person_name_en` |
+| `SpeakerContribution`: insert or delete | `speaker_contributions`, `contributor_count` |
+
+**At the next sync of the subject:**
+
+| Change | Why |
+|--------|-----|
+| A role or a party of the introducer or of a speaker, a party rename | The party fields come from views keyed by subject and by contribution. A Role or Party event names no row of them. A change of party from a date onwards needs no sync: the subjects before that date keep the party they had at their meeting. |
+| The name of a speaker | `speaker_person_name` comes from `SpeakerContributionSearchView` |
+| The text of a contribution, edited in place | `SpeakerContribution` is only a base table, so PGSync watches its key columns only. The app replaces a subject's contributions with the subject; it never edits one in place. |
+| The text or coordinates of a `Location` row, the realm of a `City` | Same as above: base tables of `LocationSearchView` and `CitySearchView` |
+| The type of an `AdministrativeBody` | No node reads the table |
+| Discussion tags on utterances | See [When do the discussion metrics refresh?](#faq) |
+
+#### Rules for `schema.json` and `views.sql`
+
+These rules follow from how PGSync handles live events. `src/lib/search/__tests__/schema-invariants.test.ts` checks rules 1 to 3.
+
+1. **Key and join every view on base table columns with their own names.** A WAL event carries the base table's column names, and PGSync looks up a view's `primary_key` and `foreign_key.child` by name. An aliased column is never found: a view keyed on aliased columns exits the daemon on every write to its base tables, and an aliased join column resolves nothing. Rename a field for the index with `transform.rename`.
+2. **A table's events go to the last node that lists it in `base_tables`**, also when the table has a node of its own. List a table there only in a view that resolves its events: a view built on that table and joined like it, or a view that cannot use the events at all.
+3. **Never list the root table `Subject` in `base_tables`.** PGSync then routes a `Subject` delete as a child re-sync, and the deleted document stays in the index.
+4. **PGSync watches a column for updates only if a node of that table reads it.** For a table that only appears in `base_tables`, that is its key columns: an insert or a delete reaches the index, an update of another column does not. Upstream PGSync also keeps the columns of only the last node of a table. The image in opencouncil-tasks carries a fix for that, see `docker/pgsync/` there.
+5. **Resolve a value that depends on time at the meeting's date, not at `NOW()`.** A view that reads the clock changes its output with no write, and no event follows.
+
 ### Deploying a Schema Change
 
 PGSync sends the `mapping` block from `schema.json` **only when it creates the index**
@@ -459,7 +488,7 @@ When making changes to `elasticsearch/schema.json` or `elasticsearch/views.sql`,
 │                                                             │
 │  elasticsearch/schema.json  ─┐                              │
 │  elasticsearch/views.sql    ─┼── Defines ES index structure │
-│  prisma/seed_data.json      ─┘   and data transformations   │
+│  seed artifact              ─┘   and data transformations   │
 │                                                             │
 │  ELASTICSEARCH_INDEX=subjects_test nix run .#dev            │
 │    ├── Local PostgreSQL (wal_level=logical)                 │
@@ -543,37 +572,7 @@ Always test both:
 1. **Bootstrap test**: Initial indexing when PGSync starts (uses view data directly)
 2. **Live sync test**: Insert/update records after PGSync is running (uses WAL events)
 
-**Testing live sync for nested/child relationships:**
-
-When adding new nested fields (like `speaker_contributions`), the bootstrap may succeed even with an empty table. You must also test live sync by inserting data while PGSync is running.
-
-Key behaviors to understand:
-
-- **Child table changes may not auto-trigger parent re-sync**: When you insert into a child table (e.g., `SpeakerContribution`), PGSync detects the change but may not automatically re-index the parent document (`Subject`). You may need to update the parent record to trigger the full document re-sync.
-
-- **WAL events use base table column names**: If your view aliases `id` to `contribution_id`, the WAL event still sends `id`. The schema's `primary_key` must match what WAL sends, then use `transform.rename` to map to the desired Elasticsearch field name.
-
-**Example live sync test:**
-
-```bash
-# 1. Find a subject without contributions
-psql "$PSQL_URL" -c "SELECT s.id, s.name, p.id as person_id, p.name 
-  FROM \"Subject\" s 
-  JOIN \"Person\" p ON p.\"cityId\" = s.\"cityId\" 
-  WHERE NOT EXISTS (SELECT 1 FROM \"SpeakerContribution\" sc WHERE sc.\"subjectId\" = s.id) 
-  LIMIT 3;"
-
-# 2. Insert a contribution (replace IDs with actual values)
-psql "$PSQL_URL" -c "INSERT INTO \"SpeakerContribution\" (id, text, \"subjectId\", \"speakerId\", \"createdAt\", \"updatedAt\") 
-  VALUES ('test-contrib-1', 'Test contribution text.', '<SUBJECT_ID>', '<PERSON_ID>', NOW(), NOW());"
-
-# 3. Watch PGSync logs - if stuck at Db: [N] but Elasticsearch: [0], trigger parent update:
-psql "$PSQL_URL" -c "UPDATE \"Subject\" SET \"updatedAt\" = NOW() WHERE id = '<SUBJECT_ID>';"
-
-# 4. Verify in Elasticsearch
-curl -s "$ELASTICSEARCH_URL/subjects_test/_doc/<SUBJECT_ID>" \
-  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY" | jq '._source.speaker_contributions'
-```
+A bootstrap can succeed while live sync of the same field does nothing, for example with an empty child table. `scripts/pgsync-matrix.sh` in opencouncil-tasks runs the live sync test for every field: it changes each source in a local database and checks the document. Compare its report with [What syncs live](#what-syncs-live) after every change to `schema.json` or `views.sql`. The daemon's status line tells the two failure modes apart: `Db` counts the events PGSync received, `Elasticsearch` the documents it wrote. `Db` that does not move means the trigger skipped the change (rule 4); `Db` that moves while `Elasticsearch` does not means PGSync could not resolve the event to a subject (rules 1 and 2).
 
 #### Testing WAL Monitoring
 
@@ -983,22 +982,12 @@ A: PGSync's live sync receives WAL events with the base table's original column 
 This ensures bootstrap (reads from view) and live sync (reads from WAL) both work correctly.
 
 **Q: When do the discussion metrics refresh?**  
-A: PGSync rebuilds the whole document when it re-syncs a `Subject`, and it re-syncs a `Subject` only when
-the `Subject` row itself changes. A change to a child table does not trigger it, whatever `base_tables`
-declares (see [Testing Live Sync](#testing-live-sync-important)) — the aggregate source rows carry their
-own primary keys, which cannot match a subject id.
+A: PGSync rebuilds the whole document when it re-syncs a `Subject`: after a write to the `Subject` row, or after an event that it can resolve to the subject (see [What syncs live](#what-syncs-live)). The source rows of `discussion_speaking_seconds` (`Utterance`, `SpeakerSegment`, `Summary`) resolve to no subject, because `SubjectMetricsView` is keyed by subject id and their events carry their own ids.
 
-Both metrics therefore depend on their data committing together with a `Subject` write:
+- `contributor_count` — current. A contribution insert or delete re-syncs the subject, and `saveSubjectsForMeeting` writes the subjects and their contributions in one transaction.
+- `discussion_speaking_seconds` — current only because the summarize task applies the utterance discussion tags inside the subject transaction. Written afterwards, they would not reach the index until the next sync of the subject, and every newly summarized subject would report 0.
 
-- `contributor_count` — `saveSubjectsForMeeting` writes the subjects and their contributions in one
-  transaction, so the count is always current.
-- `discussion_speaking_seconds` — the summarize task's utterance discussion tags are applied inside that
-  same transaction for this reason. Written afterwards, they would never reach the index and every newly
-  summarized subject would report 0.
-
-So a writer that changes an utterance's discussion tag must do it alongside the subject write. Test both
-bootstrap and live sync after you change the aggregates in `SubjectMetricsView`. Touch the parent `Subject`
-row if the numbers look stale.
+So a writer that changes an utterance's discussion tag must do it alongside the subject write.
 
 **Q: Why does an edit to an administrative body not appear in search?**  
 A: `MeetingAdministrativeBodyView` has the primary key `(id, cityId)` of `CouncilMeeting`, so only
