@@ -73,8 +73,6 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
                         name_short: person.name_short,
                         name_short_en: person.name_short_en,
                         image: person.image,
-                        activeFrom: person.activeFrom ? new Date(person.activeFrom) : null,
-                        activeTo: person.activeTo ? new Date(person.activeTo) : null,
                         profileUrl: person.profileUrl,
                         cityId: cityId
                     },

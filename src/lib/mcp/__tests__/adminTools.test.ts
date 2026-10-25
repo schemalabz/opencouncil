@@ -31,7 +31,6 @@ const COUNCIL = {
     administrativeBodies: [{ name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council' }],
     people: [{
         name: 'Άννα Αλεξίου', name_en: 'Anna Alexiou', name_short: 'Α. Αλεξίου', name_short_en: 'A. Alexiou',
-        partyName: 'Κόμμα',
         roles: [{
             type: 'adminBody', administrativeBodyName: 'Δημοτικό Συμβούλιο',
             startDate: '2024-01-01', endDate: '2028-12-31', electedOrder: 2,
@@ -52,12 +51,11 @@ beforeEach(async () => {
 afterEach(() => mcp.close());
 
 describe('populate_city through the SDK', () => {
-    it('hands the role dates, the elected order and the party of a person to the handler', async () => {
+    it('hands the role dates and the elected order to the handler', async () => {
         const result = await mcp.call('populate_city', COUNCIL);
         expect(result.isError).toBeFalsy();
 
         const data = (mcpPopulateCity as jest.Mock).mock.calls[0][1];
-        expect(data.people[0].partyName).toBe('Κόμμα');
         expect(data.people[0].roles[0]).toMatchObject({
             startDate: new Date('2024-01-01'),
             endDate: new Date('2028-12-31'),

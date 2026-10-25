@@ -45,10 +45,7 @@ export const cityPopulationSchema = z.object({
     people: z.array(z.object({
         ...basePersonFields,
         image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),
-        activeFrom: optionalText.describe('ISO 8601 date-time'),
-        activeTo: optionalText.describe('ISO 8601 date-time'),
         profileUrl: optionalLink.describe("Absolute http(s) URL of the person's profile page, or null"),
-        partyName: optionalText.describe('Reference to party name (null for independents)'),
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),
 }).superRefine((data, ctx) => {
