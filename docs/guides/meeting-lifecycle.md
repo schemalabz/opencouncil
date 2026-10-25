@@ -118,6 +118,17 @@ Only a Greek city is checked and filled (`recordsGreekCodeFacts`): the record fo
 
 The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the archive backfill shares.
 
+### The pipeline of a body with no operator
+
+A secondary body, such as a youth council, runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/bodyTier.ts` names the rule, and four places read it:
+
+* A recording starts the transcription. The meeting write starts it after the response when the meeting has started. A link saved before the meeting waits for the cron: `transcribeUnattendedMeetings` in `src/lib/tasks/unattendedTranscription.ts` runs on the livestream tick and starts the transcription three hours after the start of the meeting, with retries up to a cap.
+* The livestream matcher takes the meetings of such a body as candidates without the agenda task.
+* The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
+* The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleasedWithEffects`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
+
+The notifications and the Discord alerts follow their own rules: a secondary body starts with its notifications off, and a failed trigger still alerts the operators.
+
 ### The agenda as pasted text
 
 A body with no PDF of its agenda pastes the text into the meeting form (#829). The pasted text takes the place of the link on the server (`agendaLinkOf` in `src/lib/meetingWrites.ts`): a write with `agendaText` stores no `agendaUrl`, and a request with both answers 400. After the response, `src/lib/agendaText.ts` asks the model for the items and saves them as the subjects of the meeting, with the same pruning rule as the processAgenda task. The extraction is lighter than the task: it names the items, their topic and who brings them, and pins no location. An item without a name drops alone. A failure sends a Discord alert (`reportFailure`), and the admin pastes the text again.

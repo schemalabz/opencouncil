@@ -230,7 +230,11 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
     return (await setMeetingReleaseDirect(cityId, id, released)).meeting;
 }
 
-/** Caller-gated release workflow shared by the browser action and token-authorized MCP tools. */
+/**
+ * Caller-gated release workflow shared by the browser action and token-authorized MCP tools.
+ * The summarize callback also calls it, with no session, to release the meeting of a body
+ * whose pipeline runs unattended (#829).
+ */
 export async function setMeetingReleaseDirect(cityId: string, id: string, released: boolean) {
     try {
         // The module also releases or hides the other meetings of a postponement.

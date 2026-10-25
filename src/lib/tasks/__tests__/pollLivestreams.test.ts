@@ -140,13 +140,43 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockMeetingFindMany).not.toHaveBeenCalled();
     });
 
-    it('takes candidates only in supported cities', async () => {
+    it('takes candidates in supported cities, and the meetings of a secondary body in any city (#829)', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();
-        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({ city: { status: 'supported' } });
+        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({
+            AND: [{ OR: [{ city: { status: 'supported' } }, { administrativeBody: { type: { in: ['youthCouncil'] } } }] }],
+        });
     });
 
-    it('never takes a postponed, cancelled or by-circulation meeting as a candidate', async () => {
+    it('takes a meeting of a body whose pipeline runs unattended without the agenda task (#829)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil', youtubeChannelUrl: CHANNEL },
+            subjects: [],
+        })]);
+        taskRows([]);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.9, reasoning: 'aligned' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(1);
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledWith('https://www.youtube.com/watch?v=v1', 'm1', 'athens');
+    });
+
+    it('leaves a meeting of an unattended body with a saved recording to the unattended pass (#829)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil', youtubeChannelUrl: CHANNEL },
+            youtubeUrl: 'https://www.youtube.com/watch?v=saved',
+            subjects: [],
+        })]);
+        taskRows([]);
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(0);
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+    });
+
+    it('never takes a postponed, cancelled, by-circulation or unrecorded meeting as a candidate', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();
         // A postponed meeting in the window would take the stream of its new meeting.
