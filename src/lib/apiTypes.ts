@@ -440,7 +440,9 @@ export interface SummarizeResult {
 
     subjects: Subject[];
 
-    utteranceDiscussionStatuses: {
+    // Optional because stored responses from before February 2026 lack it, and a
+    // replay hands them to the handler unvalidated.
+    utteranceDiscussionStatuses?: {
         utteranceId: string;
         status: DiscussionStatus;
         subjectId: string | null;  // only for SUBJECT_DISCUSSION and VOTE

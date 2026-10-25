@@ -1,5 +1,5 @@
 "use server";
-import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
@@ -64,34 +64,6 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const { councilMeeting } = task;
 
-    // Clean up stale data before saving new results.
-    // This runs on every successful callback (not just force), ensuring the DB
-    // is consistent even if a previous run left partial data.
-    // Summaries use upsert (keyed on speakerSegmentId) so they're overwritten naturally.
-    // TopicLabels and utterance discussion statuses need explicit cleanup because:
-    // - TopicLabels: upsert only creates/updates matching pairs; old labels for topics
-    //   no longer assigned to a segment remain as stale data.
-    // - Utterance statuses: only utterances present in the new response get updated;
-    //   utterances that had statuses from the previous run but aren't in the new
-    //   response keep their old (now stale) values.
-    console.log(`Cleaning up stale summarize data for meeting ${councilMeeting.id}`);
-
-    await prisma.topicLabel.deleteMany({
-        where: {
-            speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId }
-        }
-    });
-
-    await prisma.utterance.updateMany({
-        where: {
-            speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId }
-        },
-        data: {
-            discussionStatus: null,
-            discussionSubjectId: null
-        }
-    });
-
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
     // Pre-fetch all topics to avoid repeated queries
@@ -107,8 +79,14 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
     const topicByName = new Map(topics.map(t => [t.name, t]));
 
-    // Prepare all operations for batch execution
-    const operations: any[] = [];
+    // The upserts below keep a label for a topic that is no longer assigned to its
+    // segment, so the old labels are deleted first. The delete is in the same
+    // transaction, so that a failure keeps the old labels.
+    const operations: Prisma.PrismaPromise<unknown>[] = [
+        prisma.topicLabel.deleteMany({
+            where: { speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId } }
+        }),
+    ];
 
     for (const segmentSummary of response.speakerSegmentSummaries) {
         if (!availableSpeakerSegmentIds.includes(segmentSummary.speakerSegmentId)) {
@@ -165,14 +143,15 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     await prisma.$transaction(operations);
 
     // Save subjects: matches by the id the task hands back, then name, then agenda
-    // position, so existing IDs survive (avoids ES orphans)
-    // The discussion tags go in with the subjects: they must commit together, or the search
-    // index keeps the pre-tagging discussion metrics (elasticsearch/README.md).
+    // position, so existing IDs survive (avoids ES orphans). The discussion tags go in
+    // with the subjects: they must commit together, or the search index keeps the
+    // pre-tagging discussion metrics (elasticsearch/README.md). A response without
+    // tags passes an empty list, so that the tags of the previous run are still removed.
     await saveSubjectsForMeeting(
         response.subjects,
         councilMeeting.cityId,
         councilMeeting.id,
-        response.utteranceDiscussionStatuses
+        response.utteranceDiscussionStatuses ?? []
     );
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);

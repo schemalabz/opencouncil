@@ -31,11 +31,13 @@ import {
     createSpeakerSegment,
     createSpeakerTag,
     createTaskStatus,
+    createTopic,
     createUser,
     createUtterance,
 } from '../helpers/factories'
 import { makeSubject, makeProcessAgendaResult, makeSummarizeResult, makePollDecisionsMatch, makePollDecisionsResult, makeExtractedDecision } from '../helpers/builders'
 import { loadAgendaFixture } from '../helpers/agendaFixtures'
+import { DiscussionStatus } from '@/lib/apiTypes'
 
 describe('handleProcessAgendaResult', () => {
     let cityId: string
@@ -527,6 +529,92 @@ describe('handleSummarizeResult', () => {
         // Auto-generated highlight should be deleted (replaced by createHighlightInTx if contributions have utterance refs)
         const autoSurviving = highlights.find(h => h.id === autoHighlight.id)
         expect(autoSurviving).toBeUndefined()
+    })
+
+    describe('re-summarize replaces the topic labels and discussion statuses', () => {
+        beforeEach(async () => {
+            await createTopic('t1', { name: 'Transport' })
+            const task = await createTaskStatus(meetingId, cityId, { type: 'summarize' })
+            await handleSummarizeResult(task.id, makeSummarizeResult({
+                speakerSegmentSummaries: [
+                    { speakerSegmentId: segmentId1, topicLabels: ['Transport'], summary: 'v1', type: 'SUBSTANTIAL' },
+                ],
+                subjects: [makeSubject({ name: 'Budget', agendaItemIndex: 1 })],
+                utteranceDiscussionStatuses: [
+                    { utteranceId: utteranceId1, status: DiscussionStatus.SUBJECT_DISCUSSION, subjectId: 'Budget' },
+                ],
+            }))
+        })
+
+        afterEach(async () => {
+            await prisma.$executeRawUnsafe('DROP FUNCTION IF EXISTS fail_write() CASCADE')
+        })
+
+        // The failure comes from Postgres, so the transaction aborts the way a real one would.
+        const failWritesTo = async (table: string) => {
+            await prisma.$executeRawUnsafe(
+                "CREATE FUNCTION fail_write() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'forced failure'; END $$ LANGUAGE plpgsql")
+            await prisma.$executeRawUnsafe(
+                `CREATE TRIGGER fail_write BEFORE INSERT OR UPDATE ON "${table}" FOR EACH ROW EXECUTE FUNCTION fail_write()`)
+        }
+
+        // The new response drops both the label and the status.
+        const resummarize = async () => {
+            const task = await createTaskStatus(meetingId, cityId, { type: 'summarize' })
+            await handleSummarizeResult(task.id, makeSummarizeResult({
+                speakerSegmentSummaries: [
+                    { speakerSegmentId: segmentId1, topicLabels: [], summary: 'v2', type: 'SUBSTANTIAL' },
+                ],
+                subjects: [makeSubject({ name: 'Budget', agendaItemIndex: 1 })],
+                utteranceDiscussionStatuses: [],
+            }))
+        }
+
+        // The status and the subject link are checked together: a reset that cleared
+        // only one of them would still pass a check of the other.
+        const snapshot = async () => {
+            const utterance = await prisma.utterance.findUniqueOrThrow({
+                where: { id: utteranceId1 },
+                select: { discussionStatus: true, discussionSubject: { select: { name: true } } },
+            })
+            return {
+                topicLabels: await prisma.topicLabel.count({ where: { speakerSegmentId: segmentId1 } }),
+                discussionStatus: utterance.discussionStatus,
+                discussionSubject: utterance.discussionSubject?.name ?? null,
+            }
+        }
+
+        test('clears what the new response no longer carries', async () => {
+            expect(await snapshot()).toEqual({ topicLabels: 1, discussionStatus: 'SUBJECT_DISCUSSION', discussionSubject: 'Budget' })
+
+            await resummarize()
+
+            expect(await snapshot()).toEqual({ topicLabels: 0, discussionStatus: null, discussionSubject: null })
+        })
+
+        test('a failed summaries transaction keeps the old labels and statuses', async () => {
+            await failWritesTo('Summary')
+            await expect(resummarize()).rejects.toThrow('forced failure')
+
+            expect(await snapshot()).toEqual({ topicLabels: 1, discussionStatus: 'SUBJECT_DISCUSSION', discussionSubject: 'Budget' })
+        })
+
+        test('a failed subjects transaction keeps the old statuses', async () => {
+            await failWritesTo('Subject')
+            await expect(resummarize()).rejects.toThrow('forced failure')
+
+            // The summaries transaction committed first, so the labels are already the new ones.
+            expect(await snapshot()).toEqual({ topicLabels: 0, discussionStatus: 'SUBJECT_DISCUSSION', discussionSubject: 'Budget' })
+        })
+
+        test('an agenda run leaves the discussion statuses alone', async () => {
+            const task = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+            await handleProcessAgendaResult(task.id, makeProcessAgendaResult([
+                makeSubject({ name: 'Budget', agendaItemIndex: 1 }),
+            ]))
+
+            expect(await snapshot()).toMatchObject({ discussionStatus: 'SUBJECT_DISCUSSION', discussionSubject: 'Budget' })
+        })
     })
 })
 
