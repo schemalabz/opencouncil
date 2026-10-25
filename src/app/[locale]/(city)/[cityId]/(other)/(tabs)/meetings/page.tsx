@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE, findMeetingIdsMatching } from "@/lib/db/meetingsList";
+import { isSecondaryBody, readTier } from "@/lib/utils/bodyTier";
 import CityMeetings from "@/components/cities/CityMeetings";
 import {
     getCityCached,
@@ -76,7 +77,8 @@ export async function generateMetadata(
     });
 }
 
-type BodyFilter = NonNullable<ReturnType<typeof meetingBodyFilter>>;
+/** The body filter of the list: the ids of a selection, or every tier when the reader widened the tab (#829). */
+type BodyFilter = NonNullable<ReturnType<typeof meetingBodyFilter>> | { tier: 'all' };
 
 /**
  * One page of the list and its total. The count comes first, so only a page
@@ -123,23 +125,39 @@ export default async function MeetingsPage(
         getTranslations({ locale, namespace: 'Common' }),
     ]);
     const canEdit = unreleased.all || unreleased.bodyIds.length > 0;
-    // The picker offers the bodies with a released meeting. A body admin's own
-    // bodies join it, or the drafts of a body with no released meeting yet
-    // would hide behind the default chip with no chip to reach them.
-    const administrativeBodies = unreleased.all || unreleased.bodyIds.length === 0
-        ? publicBodies
-        : [
-            ...publicBodies,
-            ...allBodies.filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id)),
-        ];
+    // The picker offers the bodies with a released meeting. The bodies the
+    // editor administers join it, every body for a city admin and their own
+    // for a body admin: the drafts of a body with no released meeting yet
+    // would otherwise hide behind the default chip with no chip to reach them.
+    const editorBodies = !canEdit
+        ? []
+        : allBodies.filter(body => unreleased.all || unreleased.bodyIds.includes(body.id));
+    const everyBody = [...publicBodies, ...editorBodies.filter(body => !publicBodies.some(known => known.id === body.id))];
 
     if (!city) {
         notFound();
     }
 
+    // The secondary tier (#829) loads on request, or for the admin of a body
+    // of it: their drafts must be reachable without a click they cannot know
+    // to make. A city admin keeps the primary tier and the checkbox. A city
+    // with no meeting of the primary tier shows the secondary tier at once:
+    // an empty tab would be its only page.
+    const secondaryAvailable = everyBody.some(isSecondaryBody);
+    const tier = readTier(searchParams.tier);
+    const administersSecondary = !unreleased.all && editorBodies.some(isSecondaryBody);
+    const primaryEmpty = secondaryAvailable && tier === null && !administersSecondary
+        ? (await countCouncilMeetingsCached(cityId, {})) === 0
+        : false;
+    const showSecondary = secondaryAvailable
+        && (tier === 'all' || (tier === null && (administersSecondary || primaryEmpty)));
+    const administrativeBodies = showSecondary ? everyBody : everyBody.filter(body => !isSecondaryBody(body));
+
     const pageSize = DEFAULT_MEETING_PAGE_SIZE;
-    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon));
-    const filter = meetingBodyFilter(view, allBodies);
+    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon, { widened: showSecondary }));
+    // With the tier widened, «all» spans both tiers; the list's own default is the primary tier.
+    const bodyFilter = meetingBodyFilter(view, allBodies);
+    const filter = bodyFilter && showSecondary && !bodyFilter.administrativeBodyIds ? { tier: 'all' as const } : bodyFilter;
     const matchingIds = filter && view.query.trim()
         ? await findMeetingIdsMatching(cityId, view.query, { ...filter, unreleased }, locale, city.timezone)
         : null;
@@ -162,6 +180,7 @@ export default async function MeetingsPage(
             canEdit={canEdit}
             editableBodyIds={unreleased.all ? undefined : unreleased.bodyIds}
             administrativeBodies={administrativeBodies}
+            secondaryTier={{ available: secondaryAvailable, shown: showSecondary }}
             now={new Date()}
         />
     );

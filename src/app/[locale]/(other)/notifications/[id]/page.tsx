@@ -14,7 +14,7 @@ import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import NotificationOpenTracker from '@/components/analytics/NotificationOpenTracker';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { noRecordingReason } from '@/lib/meetingLifecycleRules';
 
 // Personalized notification view — keep it out of search indexes.
 export const metadata: Metadata = {
@@ -230,8 +230,10 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                         <Card className="bg-muted/30">
                             <CardContent className="pt-4 pb-4">
                                 <p className="text-center text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                    {!hasPublicRecording(meeting) ? (
+                                    {noRecordingReason(meeting) === 'byCirculation' ? (
                                         <>Αυτή η συνεδρίαση θα γίνει δια περιφοράς, με γραπτή ψηφοφορία, στις {formatDate(meetingDate)}. Οι αποφάσεις θα εμφανιστούν στο OpenCouncil μόλις δημοσιευτούν στη Διαύγεια.</>
+                                    ) : noRecordingReason(meeting) === 'notRecorded' ? (
+                                        <>Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {formatDate(meetingDate)}, χωρίς καταγραφή. Η ημερήσια διάταξη είναι διαθέσιμη στο OpenCouncil· δεν θα υπάρξει βίντεο ούτε απομαγνητοφώνηση.</>
                                     ) : (
                                         <>
                                             Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {formatDate(meetingDate)}.

@@ -13,7 +13,7 @@ export class AudioExportError extends Error {
     }
 }
 
-export type MeetingDataForExport = Omit<MeetingData, 'meeting' | 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus' | 'transcriptHiddenForReview'> & {
+export type MeetingDataForExport = Omit<MeetingData, 'meeting' | 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus' | 'transcriptHiddenForReview' | 'notificationsDisabled'> & {
     meeting: CouncilMeetingWithAdminBody;
 };
 

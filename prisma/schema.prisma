@@ -114,6 +114,9 @@ enum AdministrativeBodyType {
   council      // Συμβούλιο (π.χ. Δημοτικό Συμβούλιο)
   committee    // Επιτροπή (π.χ. Δημοτική Επιτροπή)
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
+  /// Δημοτικό Συμβούλιο Νέων. The one secondary-tier type: its content stays out
+  /// of every default scope (see bodyTier in src/lib/utils/administrativeBodies.ts).
+  youthCouncil
 }
 
 /// Whether the announced meeting is still expected. Whether it was held stays
@@ -271,6 +274,11 @@ model CouncilMeeting {
   // invitation yet.
   format               MeetingFormat?
   closedToPublic       Boolean @default(false)
+  // The body states that no recording of the meeting exists: the page
+  // promises no video and no transcript. A body that records only some of
+  // its meetings sets it (#829). It differs from closedToPublic: the public
+  // was there, nobody filmed.
+  noRecording          Boolean @default(false)
   place                String? // overrides administrativeBody.place
 
   // "A was postponed to B", "B was postponed from A". One new meeting for each

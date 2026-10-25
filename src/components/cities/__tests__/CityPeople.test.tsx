@@ -93,6 +93,7 @@ const draw = (query: string) => {
             cityId="chania"
             canEdit={false}
             isSuperAdmin
+            showSecondary={false}
         />
     );
 };

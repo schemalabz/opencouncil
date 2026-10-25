@@ -1,4 +1,6 @@
 import {
+    hasPublicRecording,
+    noRecordingReason,
     pickRecordInput,
     transcriptionRefusal,
     validateMeetingRecord,
@@ -184,7 +186,7 @@ describe('validateMeetingRecord', () => {
 });
 
 describe('transcriptionRefusal', () => {
-    const held = { scheduleStatus: 'scheduled' as const, format: 'inPerson' as const };
+    const held = { scheduleStatus: 'scheduled' as const, noRecording: false, format: 'inPerson' as const };
 
     it('accepts a scheduled meeting with a public recording', () => {
         expect(transcriptionRefusal(held)).toBeNull();
@@ -195,6 +197,7 @@ describe('transcriptionRefusal', () => {
     it.each([
         [{ ...held, scheduleStatus: 'postponed' as const }, 'Meeting is postponed'],
         [{ ...held, scheduleStatus: 'cancelled' as const }, 'Meeting is cancelled'],
+        [{ ...held, noRecording: true }, 'not recorded'],
         [{ ...held, format: 'byCirculation' as const }, 'byCirculation'],
     ])('refuses %o', (meeting, reason) => {
         expect(transcriptionRefusal(meeting)).toContain(reason);
@@ -210,5 +213,27 @@ describe('pickRecordInput', () => {
     it('leaves out the facts that the request left out, and keeps null', () => {
         expect(pickRecordInput({ kind: 'ordinary', place: null })).toEqual({ kind: 'ordinary', place: null });
         expect(pickRecordInput({})).toEqual({});
+    });
+});
+
+describe('noRecordingReason', () => {
+    it('names the written vote for a meeting by circulation, and the missing camera for an unrecorded one (#829)', () => {
+        expect(noRecordingReason({ format: 'byCirculation', noRecording: false })).toBe('byCirculation');
+        expect(noRecordingReason({ format: 'inPerson', noRecording: true })).toBe('notRecorded');
+        expect(noRecordingReason({ format: null, noRecording: true })).toBe('notRecorded');
+        // A meeting by circulation has a written vote whatever else the body marked.
+        expect(noRecordingReason({ format: 'byCirculation', noRecording: true })).toBe('byCirculation');
+    });
+
+    it('is null exactly where hasPublicRecording is true', () => {
+        for (const fields of [
+            { format: null, noRecording: false },
+            { format: 'inPerson', noRecording: false },
+            { format: 'remote', noRecording: false },
+            { format: 'hybrid', noRecording: true },
+            { format: 'byCirculation', noRecording: false },
+        ] as const) {
+            expect(noRecordingReason(fields) === null).toBe(hasPublicRecording(fields));
+        }
     });
 });
