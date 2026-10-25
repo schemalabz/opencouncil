@@ -169,6 +169,12 @@ export default defineConfig([{
         "no-restricted-syntax": ["error", ...dateFormattingSelectors, ...zodNamespaceImportSelectors, useClientEnvSelector, ...consolePersonalDataSelectors],
     },
 }, {
+    // Plain CommonJS shared with the telemetry preload: the same check on console calls.
+    files: ["src/**/*.cjs", "telemetry.cjs"],
+    rules: {
+        "no-restricted-syntax": ["error", ...consolePersonalDataSelectors],
+    },
+}, {
     files: ["src/lib/formatters/**"],
     rules: {
         "no-restricted-syntax": ["error", ...zodNamespaceImportSelectors, useClientEnvSelector, ...consolePersonalDataSelectors],

@@ -140,7 +140,7 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 ### Deployment
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `DEPLOYMENT_ENV` | Deployment target: `development`, `preview`, `staging`, or `production`. Set by the preview service (`preview`) and the staging app (`staging`); everywhere else it defaults from `NODE_ENV`. Gates dev tooling, orphaned-search-hit alerting, and the deletion of voiceprint clips (`src/lib/db/voiceprintsDelete.ts`). Production leaves it unset, so a production build without it counts as production. For example, `npm run start` on a laptop with the production storage keys deletes voiceprint clips in the production bucket. | No | from `NODE_ENV` |
+| `DEPLOYMENT_ENV` | Deployment target: `development`, `preview`, `staging`, or `production`. Set by the preview service (`preview`) and the staging app (`staging`); everywhere else it defaults from `NODE_ENV`. Gates dev tooling, orphaned-search-hit alerting, and the deletion of voiceprint clips (`src/lib/db/voiceprintsDelete.ts`). The server logs carry it as `deployment.environment.name`. Production leaves it unset, so a production build without it counts as production. For example, `npm run start` on a laptop with the production storage keys deletes voiceprint clips in the production bucket. | No | from `NODE_ENV` |
 
 ### Storage (e.g., Digital Ocean Spaces)
 | Variable | Description | Required | Default |
@@ -182,6 +182,8 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 |----------|-------------|----------|---------|
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Public contact email. | No | - |
 | `NEXT_PUBLIC_CONTACT_ADDRESS` | Public contact address. | No | - |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | The PostHog project token, public by design. The browser's analytics, the MCP analytics and the server logs (`telemetry.cjs`) use it. `telemetry.cjs` runs outside the Next bundle and reads it at run time, so an App Platform app needs a scope that includes run time. Empty disables all three. See `docs/infrastructure.md`, "Logs". | No | - |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | Sends the server logs to another OTLP/HTTP endpoint instead of PostHog, for example a local receiver in a test. | No | PostHog EU |
 | `NEXT_PUBLIC_BUILD_COMMIT_SHA` | The commit the build carries. The `/api/health` route of the app and the one of Notis publish it, and a Discord alert names it. Previews set it from the head commit of the pull request. An App Platform app sets it in its spec from `${opencouncil.COMMIT_HASH}`, with a scope that includes build time, so that the value matches the code that was built. A deployment that does not set it reports a null commit. | No | - |
 
 ### Development Configuration

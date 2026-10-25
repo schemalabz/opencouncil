@@ -3,6 +3,7 @@ import type { UserIdentity } from '@posthog/mcp';
 import { PostHog } from 'posthog-node';
 import { isInitializeRequest, type McpServer, type AuthInfo } from '@modelcontextprotocol/server';
 import { env } from '@/env.mjs';
+import { POSTHOG_EU_INGEST } from '@/lib/utils/posthogHosts.cjs';
 import { identityFromAuthInfo, type McpIdentity } from './auth';
 import { currentBaseUrl, currentRealm } from './realm-context';
 
@@ -19,7 +20,6 @@ import { currentBaseUrl, currentRealm } from './realm-context';
  * ingestion host rather than through the site's /ingest proxy.
  */
 
-const POSTHOG_EU_INGEST = 'https://eu.i.posthog.com';
 
 const globalForPostHog = globalThis as unknown as {
     mcpPostHog: PostHog | undefined;
