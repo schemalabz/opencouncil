@@ -65,6 +65,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
             unreleased,
             limit,
             ...resolveDateRange({ from, to }, timezone),
+            // The editor list spans both tiers (#829): the picker of a postponed
+            // meeting narrows it to the body of the new meeting itself, and the
+            // secretary of a youth council must find the meeting they replace.
+            ...(includeUnreleased && { tier: 'all' as const }),
         });
 
         // An editor gets the rows as they are, links included, for the admin

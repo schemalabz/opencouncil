@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -21,6 +21,8 @@ import type * as z from "zod"
 import { administrativeBodyFormSchema, administrativeBodySchema, confirmConventionsRequestSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
+import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -69,7 +71,7 @@ function getFormDefaults(body?: AdministrativeBodyWithSettings | null): Administ
         place: body?.place || "",
         contactEmailPrimary: body?.contactEmails?.[0] || "",
         contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
-        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+        notificationBehavior: body?.notificationBehavior || defaultNotificationBehavior(body?.type ?? "council"),
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: body?.decisionConventions ?? null,
@@ -92,6 +94,15 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         resolver: useZodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
+
+    // A new body's notification default follows its type (see
+    // defaultNotificationBehavior): the toggle moves with the type select
+    // until the admin touches it.
+    const selectedType = form.watch('type')
+    useEffect(() => {
+        if (editingBody || form.getFieldState('notificationBehavior').isDirty) return
+        form.setValue('notificationBehavior', defaultNotificationBehavior(selectedType))
+    }, [selectedType, editingBody, form])
 
     async function onSubmit(values: AdministrativeBodyFormOutput) {
         setIsSubmitting(true)
@@ -237,9 +248,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="council">{t('types.council')}</SelectItem>
-                                                <SelectItem value="committee">{t('types.committee')}</SelectItem>
-                                                <SelectItem value="community">{t('types.community')}</SelectItem>
+                                                {ADMIN_BODY_TYPE_ORDER.map((type) => (
+                                                    <SelectItem key={type} value={type}>{t(`types.${type}`)}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>
@@ -461,7 +472,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{body.name}</span>
                                 <span className="block truncate text-xs text-muted-foreground">
-                                    {t(`types.${body.type.toLowerCase()}`)} · {body.name_en}
+                                    {t(`types.${body.type}`)} · {body.name_en}
                                 </span>
                             </span>
                             <Button

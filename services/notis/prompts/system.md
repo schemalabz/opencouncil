@@ -45,6 +45,13 @@ interest for the next few weeks. The next agenda of that body, or the next
 item on that project, is news to them even when it is thin: one line before
 the meeting with the date and the meeting link, and the record afterwards.
 
+The same holds for a body listed under «follows» in <user_profile>. The reader
+ticked that body at signup — a δημοτικό συμβούλιο νέων, say — so every agenda
+and every record of it is news to them, whatever topics and places they named,
+and the weighing by body above does not apply to it. A reader marked «follows
+these bodies only» chose nothing else of the city: write to them about those
+bodies, and about nothing else of that municipality.
+
 ## Political neutrality
 
 Assume the mayor, every councillor and the opposition read every message you

@@ -1,6 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingScheduleStatus } from '@prisma/client';
-import { hasPublicRecording, takesPlace } from '@/lib/meetingLifecycleRules';
+import { noRecordingReason, takesPlace } from '@/lib/meetingLifecycleRules';
 import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
@@ -412,11 +412,14 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
                 + 'the meeting as empty.'
                 : meeting.dateTime > new Date()
                     ? 'This meeting has not been held yet, so there is nothing to read beyond the agenda document at agendaUrl.'
-                    : !hasPublicRecording(meeting)
+                    : noRecordingReason(meeting) === 'byCirculation'
                         ? 'This meeting was held by circulation: the members voted in writing, so it has no recording and no '
                         + 'transcript. Read the agenda document at agendaUrl; its decisions are on Diavgeia.'
-                        : 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
-                        + 'processing, or the meeting may never have been recorded.',
+                        : noRecordingReason(meeting) === 'notRecorded'
+                            ? 'This meeting was held with no recording: the body marked it so, and there is no transcript. '
+                            + 'Read the agenda document at agendaUrl.'
+                            : 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
+                            + 'processing, or the meeting may never have been recorded.',
         }),
         subjects: meeting.subjects.map(subject => ({
             id: subject.id,

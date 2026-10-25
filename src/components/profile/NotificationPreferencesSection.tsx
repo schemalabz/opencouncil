@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Bell, MapPin, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink, Plus } from 'lucide-react';
+import { Bell, MapPin, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink, Plus, Landmark } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -13,6 +13,7 @@ import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { CityComboboxItem } from '@/components/cities/CityComboboxItem';
 import { Link } from '@/i18n/routing';
 import { formatNumericDate, formatNumericDateTime } from '@/lib/formatters/time';
+import { getLocalizedName } from '@/lib/formatters/name';
 import { cn } from '@/lib/utils';
 import { NotisSwitch } from '@/components/profile/NotisSwitch';
 import { ErrorLine } from '@/components/ui/error-line';
@@ -108,6 +109,12 @@ interface NotificationPreference {
         id: string;
         name: string;
         colorHex: string;
+    }>;
+    /** The secondary bodies of the municipality the reader follows (#829). */
+    bodies: Array<{
+        id: string;
+        name: string;
+        name_en: string;
     }>;
 }
 
@@ -383,8 +390,14 @@ export function NotificationPreferencesSection() {
                         <li key={pref.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
                             <div className="min-w-0 flex-1">
                                 <p className="text-[15px] font-medium leading-snug">{pref.city.name_municipality}</p>
-                                {(pref.interests.length > 0 || pref.locations.length > 0) && (
+                                {(pref.interests.length > 0 || pref.locations.length > 0 || pref.bodies.length > 0) && (
                                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] leading-snug text-muted-foreground">
+                                        {pref.bodies.map(body => (
+                                            <span key={body.id} className="inline-flex items-center gap-1">
+                                                <Landmark className="h-3 w-3 shrink-0" aria-hidden />
+                                                {getLocalizedName(body, locale)}
+                                            </span>
+                                        ))}
                                         {pref.interests.map(topic => (
                                             <span key={topic.id} className="inline-flex items-center gap-1.5">
                                                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: topic.colorHex }} aria-hidden />

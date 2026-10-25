@@ -8,6 +8,7 @@ import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed,
 import { buildSearchQuery } from './query';
 import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
 import { withIndexProfile, type IndexProfile } from './profile';
+import { bodyTier } from '@/lib/utils/bodyTier';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
@@ -586,7 +587,8 @@ function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): str
  * written against the old index, where the alias name would have kept them.
  */
 function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm, profile: IndexProfile): string[] {
-    return ['subject', seed.id, 'related', scope, realm, String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
+    // The seed's tier decides which bodies the query spans (see relatedTierFilters).
+    return ['subject', seed.id, 'related', scope, realm, bodyTier(seed.administrativeBodyType), String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
 }
 
 /**

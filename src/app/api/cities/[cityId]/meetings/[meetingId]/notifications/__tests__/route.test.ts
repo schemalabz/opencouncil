@@ -9,7 +9,8 @@ jest.mock('@/lib/db/notifications', () => ({
 jest.mock('@/lib/notifications/deliver', () => ({ releaseNotifications: jest.fn() }));
 jest.mock('@/lib/notifications/matching', () => ({ calculateNotificationImpact: jest.fn().mockResolvedValue({ users: 0 }) }));
 jest.mock('@/lib/discord', () => ({ sendNotificationsCreatedAdminAlert: jest.fn(), sendNotificationsSentAdminAlert: jest.fn() }));
-jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { councilMeeting: { findUnique: jest.fn().mockResolvedValue(null) } } }));
+// The route first reads the body's notification setting of the meeting; a meeting with no body sends.
+jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { councilMeeting: { findUnique: jest.fn().mockResolvedValue({ administrativeBody: null }) } } }));
 
 import { POST } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/route';
 import { POST as PREVIEW } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/preview/route';

@@ -8,9 +8,10 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
+import { bodyOffersUpdates, preferenceCoversBody } from '@/lib/utils/bodyTier';
 import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { presentationExplainHref, type PresentationKey, type PublicMeetingPresentation } from '@/lib/meetingPresentation';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { hasPublicRecording, noRecordingReason } from '@/lib/meetingLifecycleRules';
 import { cn } from '@/lib/utils';
 import { StageRing } from './StageRing';
 
@@ -46,7 +47,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const t = useTranslations('meetingStage');
     const tMeeting = useTranslations('CouncilMeeting');
     const locale = useLocale();
-    const { meeting, city, subjects, transcriptHiddenForReview } = useCouncilMeetingData();
+    const { meeting, city, subjects, transcriptHiddenForReview, notificationsDisabled } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const preference = useNotificationPreference();
     if (stage === 'complete') return null;
@@ -94,9 +95,14 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const agendaPill = meeting.agendaUrl
         ? pill('agenda', tMeeting('agendaDocument'), 'agenda_pdf', meeting.agendaUrl, FileText, { external: true })
         : null;
-    const notifyPill = !city.supportsNotifications
+    // A body with its notifications off sends none, so the strip must not
+    // promise a subscriber an update, nor invite a reader to wait for one. A
+    // secondary body sends to its followers alone (#829): a subscriber of the
+    // city who does not follow it is offered the signup, where the tick is.
+    // Its followers sign up also in a municipality with no notifications.
+    const notifyPill = !bodyOffersUpdates(city, meeting.administrativeBody && { type: meeting.administrativeBody.type, sendsUpdates: !notificationsDisabled })
         ? null
-        : preference
+        : preference && preferenceCoversBody(preference, meeting.administrativeBody)
             ? <span key="notified" className="text-xs text-muted-foreground">{tMeeting('notificationComing')}</span>
             : pill('notifications', t('actions.notifications'), 'notifications', `/${city.id}/notifications`, Bell);
     const liveUrl = video ?? channel;
@@ -107,7 +113,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
         case 'upcoming':
             text = t.rich(
                 subjects.length === 0 ? 'strip.upcomingNoAgenda'
-                    : hasPublicRecording(meeting) ? 'strip.upcoming' : 'strip.upcomingByCirculation',
+                    : noRecordingReason(meeting) === null ? 'strip.upcoming'
+                        : noRecordingReason(meeting) === 'byCirculation' ? 'strip.upcomingByCirculation'
+                            : 'strip.upcomingNotRecorded',
                 {
                     when: formatWeekdayDateTime(date, timezone, locale),
                     b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
@@ -163,7 +171,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             break;
         }
         case 'noRecording':
-            text = t('strip.byCirculation');
+            text = t(`strip.${presentation.type === 'noRecording' ? presentation.reason : 'byCirculation'}`);
             actions = [agendaPill];
             break;
     }

@@ -94,6 +94,16 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
         expect(meeting.note).not.toMatch(/still be processing/)
     })
 
+    test('get_meeting says that an unrecorded meeting had no camera, not a written vote (#829)', async () => {
+        await createMeeting('athens', {
+            id: 'unrecorded', dateTime: new Date('2026-08-04T07:30:00Z'), released: true, format: 'inPerson', noRecording: true,
+        })
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'unrecorded', ANON))
+
+        expect(meeting.note).toMatch(/no recording/)
+        expect(meeting.note).not.toMatch(/circulation|still be processing/)
+    })
+
     test('get_meeting adds no note once the meeting has an agenda', async () => {
         const meeting = await asRequest(() => mcpGetMeeting('athens', 'summarized', ANON))
 

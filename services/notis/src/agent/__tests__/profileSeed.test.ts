@@ -21,6 +21,14 @@ describe("seedProfileFromPreferences", () => {
     );
   });
 
+  test("a followed body is named, and a bodies-only follow says the city is not theirs (#829)", () => {
+    const profile = seedProfileFromPreferences([
+      { cityId: "chania", cityName: "Χανιά", topics: [], locations: [], bodies: ["Δημοτικό Συμβούλιο Νέων"], bodiesOnly: true },
+    ]);
+    expect(profile).toContain("Παρακολουθεί ονομαστικά: Δημοτικό Συμβούλιο Νέων.");
+    expect(profile).toContain("Έχει επιλέξει μόνο αυτά τα όργανα, όχι τον δήμο συνολικά.");
+  });
+
   test("city without topics or locations says so explicitly", () => {
     const profile = seedProfileFromPreferences([
       { cityId: "patras", cityName: "Πάτρα", topics: [], locations: [] },

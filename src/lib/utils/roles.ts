@@ -1,6 +1,7 @@
 import { AdministrativeBodyType, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
 import { localizeText } from "@/lib/serbian";
+import { bodyTier } from "./bodyTier";
 
 /**
  * Validation error type for role validation
@@ -328,10 +329,18 @@ export function getRoleKind(role: RoleKindFields): RoleKind | null {
  * (e.g. a council member role should rank above a party role when viewing a council meeting).
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
-export function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+export function getRoleTypePriority(role: {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+  administrativeBody?: { type: AdministrativeBodyType } | null;
+}): number {
   const kind = getRoleKind(role);
   if (kind === 'city') return role.isHead ? 0 : 1; // mayor, deputy mayor
-  if (kind === 'body' && role.isHead) return 2;   // council president, committee chair
+  // The chair of a secondary body ranks as a member: that title must not stand
+  // above the council president's on a person who holds both.
+  if (kind === 'body' && role.isHead && bodyTier(role.administrativeBody?.type) === 'primary') return 2; // council president, committee chair
   if (kind === 'party') return role.isHead ? 3 : 4; // party leader, party member
   if (kind === 'body') return 5;                   // regular admin body member
   return 6;
@@ -650,4 +659,27 @@ export function getRoleLabelAt(
 ): string | null {
   const primary = getPrimaryRole(filterActiveRoles(roles ?? [], at));
   return primary ? getRoleText(primary, titles) : null;
+}
+
+/**
+ * Where the last membership of a body ended (#829): the latest end date of a
+ * role on the body that has passed, or null when none has. The member form
+ * starts a new membership there, as the roster import does
+ * (lastMembershipEnd in db/bodyMembers.ts): a membership with an open start
+ * would count at every past meeting of the body.
+ */
+export function lastMembershipEndOf(
+    people: { roles: { administrativeBodyId: string | null; endDate: Date | null }[] }[],
+    bodyId: string,
+    now: Date = new Date(),
+): Date | null {
+    let last: Date | null = null;
+    for (const person of people) {
+        for (const role of person.roles) {
+            if (role.administrativeBodyId !== bodyId || !role.endDate) continue;
+            const end = new Date(role.endDate);
+            if (end.getTime() <= now.getTime() && (!last || end.getTime() > last.getTime())) last = end;
+        }
+    }
+    return last;
 }
