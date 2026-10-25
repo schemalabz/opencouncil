@@ -6,8 +6,13 @@ import { signInFailurePath } from "@/lib/auth/signInResult"
 
 export async function signInWithEmail(formData: FormData): Promise<void> {
     const email = formData.get("email")
-    const redirectTo = safeRedirectPath(formData.get("callbackUrl"))
+    if (typeof email !== "string" || !email.trim()) {
+        throw new Error("Email is required")
+    }
+
+    const redirectTo = safeRedirectPath(formData.get("callbackUrl"), "/sign-in")
     console.log(`Sign-in requested (redirectTo: ${redirectTo})`)
+
     // redirect: false — with the default, Auth.js finishes by throwing Next's
     // NEXT_REDIRECT through the caller's await, and the sign-in form reported
     // every successful request as an error. The caller shows its own
