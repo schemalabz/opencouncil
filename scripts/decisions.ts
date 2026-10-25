@@ -12,8 +12,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import prisma from '@/lib/db/prisma';
 import { readingStatesFacts } from '@/lib/derivation';
-import { DECISION_ELIGIBLE_SUBJECT_WHERE } from '@/lib/db/decisions';
-import { getPollableMeetingDateRange, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
+import { decisionPollCandidateWhere } from '@/lib/db/decisionEligibility';
 import { summarizeReread, type RereadMeeting } from './lib/rereadCount';
 
 function write(file: string, text: string) {
@@ -39,7 +38,7 @@ async function hasExtractionColumn(): Promise<boolean> {
 /**
  * Read-only: the pages the first cron poll after deploy reads again — linked
  * pages without a usable reading, in meetings the poll still dispatches to.
- * Mirrors pollDecisionsForRecentMeetings's selection; the poll itself decides
+ * Uses the cron's own filter (decisionPollCandidateWhere); the poll itself decides
  * per meeting whether backoff defers it further, so this is an upper bound on
  * what the very next run reads.
  *
@@ -50,12 +49,7 @@ async function hasExtractionColumn(): Promise<boolean> {
  */
 async function rereadCount(report?: string) {
     const columnsPresent = await hasExtractionColumn();
-    const where = {
-        dateTime: getPollableMeetingDateRange(),
-        city: { diavgeiaUid: { not: null } },
-        ...TAKES_DECISIONS_WHERE,
-        subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
-    };
+    const where = decisionPollCandidateWhere();
     let meetings: RereadMeeting[];
     if (columnsPresent) {
         const rows = await prisma.councilMeeting.findMany({

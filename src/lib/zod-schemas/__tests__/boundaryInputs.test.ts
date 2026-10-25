@@ -40,15 +40,20 @@ describe('user-supplied links accept http(s) only', () => {
         ['person route profileUrl', link => personFormDataSchema.safeParse({ ...personFormData, profileUrl: link })],
         ['meeting youtubeUrl', link => meetingSchema.safeParse({ ...meeting, youtubeUrl: link })],
         ['meeting agendaUrl', link => meetingSchema.safeParse({ ...meeting, agendaUrl: link })],
-        ['City Creator party logo', link => cityPopulationSchema.safeParse(population({ logo: link }))],
-        ['City Creator person image', link => cityPopulationSchema.safeParse(population({ image: link }))],
-        ['City Creator profileUrl', link => cityPopulationSchema.safeParse(population({ profileUrl: link }))],
+        ['city population party logo', link => cityPopulationSchema.safeParse(population({ logo: link }))],
+        ['city population person image', link => cityPopulationSchema.safeParse(population({ image: link }))],
+        ['city population profileUrl', link => cityPopulationSchema.safeParse(population({ profileUrl: link }))],
     ];
 
     describe.each(fields)('%s', (_, parse) => {
         it.each(UNSAFE_LINKS)('refuses %s', link => expect(parse(link).success).toBe(false));
         it.each(SAFE_LINKS)('takes %s', link => expect(parse(link).success).toBe(true));
         it('takes an empty value, which means no link', () => expect(parse('').success).toBe(true));
+    });
+
+    it('saves an empty city population link as null', () => {
+        const data = cityPopulationSchema.parse(population({ logo: '', image: '', profileUrl: '' }));
+        expect([data.parties[0].logo, data.people[0].image, data.people[0].profileUrl]).toEqual([null, null, null]);
     });
 
     describe('administrative body youtubeChannelUrl', () => {

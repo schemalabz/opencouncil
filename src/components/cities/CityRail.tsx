@@ -12,7 +12,6 @@ interface CityRailProps {
     cityMessage: CityMessageType | null;
     canEdit: boolean;
     isSuperAdmin: boolean;
-    hasNoData: boolean;
     notificationPreference: CityNotificationPreference | null;
     /** The reader's WhatsApp channel as Notis has it, still being asked; resolves false when nobody is signed in. */
     phoneChannel: Promise<boolean | null>;
@@ -39,7 +38,6 @@ export function CityRail({
     cityMessage,
     canEdit,
     isSuperAdmin,
-    hasNoData,
     notificationPreference,
     phoneChannel,
     petitionBucket,
@@ -72,7 +70,6 @@ export function CityRail({
                     cityMessage={canEdit ? cityMessage : null}
                     canEdit={canEdit}
                     isSuperAdmin={isSuperAdmin}
-                    hasNoData={hasNoData}
                 />
                 <CityMeetingsModule
                     all={allMeetings}

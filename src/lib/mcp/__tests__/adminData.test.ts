@@ -28,7 +28,6 @@ jest.mock('../../db/prisma', () => ({
 // Collaborators that do the writes. Each one reaches far into the app (the
 // session, Discord, the calendar), and none of that is under test here.
 jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
-jest.mock('../../db/cities', () => ({ canUseCityCreator: jest.fn(), getCity: jest.fn() }));
 jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn() }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
 jest.mock('../realmGuards', () => ({
@@ -279,14 +278,6 @@ describe('populate_city', () => {
         people: [person(roles)],
     });
 
-    it('rejects a role that names a party which is not in the call', async () => {
-        asSuperadmin();
-        const populate = jest.spyOn(cityPopulate, 'populateCity');
-        const data = parsed([{ type: 'party', partyName: 'Αλλο Κόμμα' }]);
-        await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).rejects.toThrow(/unknown party "Αλλο Κόμμα"/);
-        expect(populate).not.toHaveBeenCalled();
-    });
-
     it('saves a call whose roles all resolve', async () => {
         asSuperadmin();
         const populate = jest.spyOn(cityPopulate, 'populateCity')
@@ -296,7 +287,7 @@ describe('populate_city', () => {
             { type: 'adminBody', administrativeBodyName: 'Δημοτικό Συμβούλιο' },
         ]);
         await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).resolves.toMatchObject({ cityId: 'lyon', rolesCount: 2 });
-        expect(populate).toHaveBeenCalledWith('lyon', data);
+        expect(populate).toHaveBeenCalledWith(data);
     });
 });
 

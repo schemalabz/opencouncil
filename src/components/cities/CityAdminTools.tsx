@@ -5,9 +5,7 @@ import { useState } from 'react';
 import { Code, Database } from 'lucide-react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import CityCreator from '@/components/cities/CityCreator';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Link } from '@/i18n/routing';
 import { IS_DEV } from '@/lib/utils';
 import { isOutOfNetwork } from '@/lib/cityStatus';
@@ -21,11 +19,10 @@ type CityAdminToolsProps = {
     /** Resolved on the server, so the controls are right on first paint. */
     canEdit: boolean;
     isSuperAdmin: boolean;
-    hasNoData: boolean;
 };
 
 /**
- * The city page's back-of-house strip: edit, widget, data import, reset.
+ * The city page's back-of-house strip: edit, widget, reset.
  *
  * Parked in the band's top corner and marked with hazard stripes, because these
  * controls sit on a page most of whose visitors are citizens. The striping is
@@ -36,16 +33,14 @@ type CityAdminToolsProps = {
  * Faded on purpose: it has to be legible as a boundary without competing with
  * the city name beside it.
  */
-export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNoData }: CityAdminToolsProps) {
+export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin }: CityAdminToolsProps) {
     const t = useTranslations('City');
     const locale = useLocale();
     const { toast } = useToast();
-    const [isCityCreatorOpen, setIsCityCreatorOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
-    const canImport = isSuperAdmin && (isOutOfNetwork(city.status) || hasNoData);
     const canReset = IS_DEV && isSuperAdmin && !isOutOfNetwork(city.status);
-    if (!canEdit && !canImport && !canReset) return null;
+    if (!canEdit && !canReset) return null;
 
     const handleResetCity = async () => {
         if (!confirm('Are you sure you want to reset this city? This will delete ALL data (meetings, people, parties, roles, etc.) and set the city back to pending status. This action cannot be undone.')) {
@@ -103,32 +98,6 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, hasNo
                         </Link>
                     </AdminToolButton>
                 </>
-            )}
-            {canImport && (
-                <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
-                    <SheetTrigger asChild>
-                        <AdminToolButton>
-                            <Database className="w-3.5 h-3.5 mr-1.5" />
-                            Import Data
-                        </AdminToolButton>
-                    </SheetTrigger>
-                    <SheetContent className="max-w-4xl w-full sm:max-w-4xl overflow-y-auto">
-                        <SheetHeader>
-                            <SheetTitle>City Creator</SheetTitle>
-                            <SheetDescription>
-                                Populate {city.name} with municipal data including parties, people, and roles.
-                            </SheetDescription>
-                        </SheetHeader>
-                        <div className="mt-6">
-                            <CityCreator
-                                cityId={city.id}
-                                cityName={city.name}
-                                onSuccess={() => window.location.reload()}
-                                onCancel={() => setIsCityCreatorOpen(false)}
-                            />
-                        </div>
-                    </SheetContent>
-                </Sheet>
             )}
             {canReset && (
                 <AdminToolButton

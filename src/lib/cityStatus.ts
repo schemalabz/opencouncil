@@ -23,7 +23,8 @@ export function isPublic(status: CityStatus): boolean {
 
 /**
  * A customer municipality. Gates the official-support badge, the customer-facing
- * counts on the marketing pages, and the internal ops lists (reviews, uploads).
+ * counts on the marketing pages, the internal ops lists (reviews, uploads), and
+ * the paid work that the crons start on their own (`CUSTOMER_CITY_WHERE`).
  */
 export function isCustomer(status: CityStatus): boolean {
     return status === 'supported';
@@ -65,6 +66,11 @@ export function publicMeetingWhere(realm: Realm | null) {
     } satisfies Prisma.CouncilMeetingWhereInput;
 }
 
+/**
+ * Spread into a City where-clause, or into a nested `city: { … }` filter. The crons
+ * that start paid tasks on their own (decision polling, livestream matching) take only
+ * these cities: an admin can still start the same work by hand for any city.
+ */
 export const CUSTOMER_CITY_WHERE = {
     status: 'supported',
 } satisfies Prisma.CityWhereInput;

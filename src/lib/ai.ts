@@ -17,8 +17,6 @@ export interface AIConfig {
     model?: string;
     logPrompts?: boolean;
     promptsDir?: string;
-    enableWebSearch?: boolean;
-    webSearchMaxUses?: number;
     maxContinuationAttempts?: number;
 }
 
@@ -29,8 +27,6 @@ const DEFAULT_CONFIG: AIConfig = {
     model: "claude-sonnet-4-5-20250929",
     logPrompts: IS_DEV,
     promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
-    enableWebSearch: false,
-    webSearchMaxUses: 10,
     maxContinuationAttempts: 3
 };
 
@@ -229,17 +225,6 @@ export async function aiChat<T>(
                 temperature: mergedConfig.temperature,
             };
 
-            // Add web search tool if enabled
-            if (mergedConfig.enableWebSearch) {
-                requestConfig.tools = [
-                    {
-                        type: "web_search_20250305",
-                        name: "web_search",
-                        max_uses: mergedConfig.webSearchMaxUses!
-                    }
-                ];
-            }
-
             response = await anthropic.messages.create(requestConfig);
         } catch (e) {
             console.error(`Error in aiChat: ${e}`);
@@ -253,7 +238,6 @@ export async function aiChat<T>(
         logResponseToFile(response, mergedConfig, {
             systemPrompt: systemPrompt.substring(0, 100) + '...',
             userPrompt: userPrompt.substring(0, 100) + '...',
-            enableWebSearch: mergedConfig.enableWebSearch
         });
 
         if (!response.content || response.content.length === 0) {
@@ -272,7 +256,7 @@ export async function aiChat<T>(
             console.log(`[AI Debug] Usage:`, response.usage);
         }
 
-        // Find the final text response (may be multiple blocks with web search)
+        // Find the final text response
         const textBlocks = response.content.filter(block => block.type === "text");
         if (textBlocks.length === 0) {
             throw new Error("No text response found in Claude's response. Content types: " +

@@ -10,6 +10,7 @@ import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLi
 import type { MeetingKind } from "@prisma/client";
 import { meetingLabelInCity } from "@/lib/meetingName";
 import { PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
+import { CUSTOMER_CITY_WHERE } from "@/lib/cityStatus";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -161,8 +162,8 @@ async function distinctFailureErrors(cityId: string, councilMeetingId: string): 
  * Finds meetings whose livestream should now exist, matches each to a YouTube video
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
- * Candidate = processAgenda succeeded, scheduled within ±12h of now, the administrative body
- * has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
+ * Candidate = processAgenda succeeded, scheduled within ±12h of now, in a supported city
+ * (a transcribe is a paid task), the administrative body has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
  * is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
@@ -193,6 +194,7 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
+            city: CUSTOMER_CITY_WHERE,
             // A postponed meeting in the window would take the stream of its
             // new meeting. A meeting by circulation has no stream.
             ...TAKES_PLACE_WHERE,

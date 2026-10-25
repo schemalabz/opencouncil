@@ -7,8 +7,6 @@ import { handleApiError, validationIssues } from '@/lib/api/errors';
 import { partyFormSchema } from '@/lib/zod-schemas/party';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { updateProfileSchema } from '@/lib/zod-schemas/user';
-import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
-import { jsonSchemaOf } from '@/lib/cityCreatorJsonSchema';
 
 const rhfOptions = { fields: {}, shouldUseNativeValidation: false } as const;
 
@@ -34,13 +32,6 @@ describe('zod surface used by this repo', () => {
     it('meetingSchema: processAgenda defaults to false', () => {
         const parsed = meetingSchema.parse({ date: '2026-01-01' });
         expect(parsed.processAgenda).toBe(false);
-    });
-
-    it('City Creator prompt: jsonSchemaOf describes the city population payload', () => {
-        const schema = jsonSchemaOf(cityPopulationSchema);
-        expect(Object.keys((schema as { properties?: object }).properties ?? {})).toEqual(
-            expect.arrayContaining(['parties', 'people', 'administrativeBodies']),
-        );
     });
 
     it('profile phone: a rejected number surfaces the translation code as the message', () => {

@@ -30,7 +30,7 @@ describe('GET /api', () => {
     it('adds the superadmin operations for a superadmin', async () => {
         const spec = await specFor({ isSuperAdmin: true, administers: [] } as unknown as Awaited<ReturnType<typeof getCurrentUser>>);
 
-        expect(spec.paths['/api/cities/{cityId}/populate']?.post).toBeDefined();
+        expect(spec.paths['/api/cities']?.post).toBeDefined();
         expect(accessLevels(spec)).toContain('superadmin');
     });
 });

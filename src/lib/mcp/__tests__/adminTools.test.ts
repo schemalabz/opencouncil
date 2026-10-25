@@ -31,7 +31,6 @@ const COUNCIL = {
     administrativeBodies: [{ name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council' }],
     people: [{
         name: 'Άννα Αλεξίου', name_en: 'Anna Alexiou', name_short: 'Α. Αλεξίου', name_short_en: 'A. Alexiou',
-        partyName: 'Κόμμα',
         roles: [{
             type: 'adminBody', administrativeBodyName: 'Δημοτικό Συμβούλιο',
             startDate: '2024-01-01', endDate: '2028-12-31', electedOrder: 2,
@@ -52,12 +51,11 @@ beforeEach(async () => {
 afterEach(() => mcp.close());
 
 describe('populate_city through the SDK', () => {
-    it('hands the role dates, the elected order and the party of a person to the handler', async () => {
+    it('hands the role dates and the elected order to the handler', async () => {
         const result = await mcp.call('populate_city', COUNCIL);
         expect(result.isError).toBeFalsy();
 
         const data = (mcpPopulateCity as jest.Mock).mock.calls[0][1];
-        expect(data.people[0].partyName).toBe('Κόμμα');
         expect(data.people[0].roles[0]).toMatchObject({
             startDate: new Date('2024-01-01'),
             endDate: new Date('2028-12-31'),
@@ -65,7 +63,15 @@ describe('populate_city through the SDK', () => {
         });
     });
 
-    it('refuses a role that ends before it starts, as the City Creator does', async () => {
+    it('refuses a role that names a party which is not in the call, before the handler runs', async () => {
+        const people = [{ ...COUNCIL.people[0], roles: [{ type: 'party', partyName: 'Άλλο Κόμμα' }] }];
+        const result = await mcp.call('populate_city', { ...COUNCIL, people });
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain('unknown party \\"Άλλο Κόμμα\\"');
+        expect(mcpPopulateCity).not.toHaveBeenCalled();
+    });
+
+    it('refuses a role that ends before it starts', async () => {
         const people = [{ ...COUNCIL.people[0], roles: [{ ...COUNCIL.people[0].roles[0], startDate: '2028-01-01', endDate: '2024-01-01' }] }];
         const result = await mcp.call('populate_city', { ...COUNCIL, people });
         expect(result.isError).toBe(true);
@@ -83,7 +89,7 @@ describe('populate_city through the SDK', () => {
         const tool = (await mcp.listTools()).find(t => t.name === 'populate_city');
         const text = JSON.stringify(tool?.inputSchema);
         expect(tool?.inputSchema.type).toBe('object');
-        for (const field of ['startDate', 'endDate', 'electedOrder', 'administrativeBodyName']) {
+        for (const field of ['startDate', 'endDate', 'electedOrder', 'administrativeBodyName', 'diavgeiaUnitIds', 'youtubeChannelUrl']) {
             expect(text).toContain(`"${field}"`);
         }
         expect(text).not.toContain('$ref');

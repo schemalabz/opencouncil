@@ -1,8 +1,8 @@
 import "server-only";
 import prisma from '../db/prisma';
 import { getConflictingCandidates } from '../db/decisionCandidates';
-import { getPollableMeetingDateRange, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from './pollDecisionsBackoff';
-import { DECISION_ELIGIBLE_SUBJECT_WHERE } from '@/lib/db/decisionEligibility';
+import { getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from './pollDecisionsBackoff';
+import { DECISION_ELIGIBLE_SUBJECT_WHERE, decisionPollCandidateWhere } from '@/lib/db/decisionEligibility';
 
 /**
  * Polling-effectiveness statistics for the cron stats endpoint. Not an action
@@ -123,16 +123,10 @@ export async function getPollingStats() {
 
     const avg = (arr: number[]) => arr.length === 0 ? null : Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
 
-    // Meetings still being actively polled (have unlinked subjects)
-    const pollableDateRange = getPollableMeetingDateRange();
+    // Meetings the cron can still poll: the cron's own filter.
+    const candidateWhere = decisionPollCandidateWhere();
     const stillPollingMeetings = await prisma.councilMeeting.findMany({
-        where: {
-            dateTime: pollableDateRange,
-            city: { diavgeiaUid: { not: null } },
-            subjects: {
-                some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null },
-            },
-        },
+        where: candidateWhere,
         select: {
             id: true,
             cityId: true,
@@ -205,7 +199,7 @@ export async function getPollingStats() {
         };
     });
 
-    // Distinct cities for filter dropdown: union of cities with poll tasks + cities with unlinked subjects
+    // Distinct cities for filter dropdown: union of cities with poll tasks + cities the cron can still poll
     const [pollCityRows, stillPollingCityRows] = await Promise.all([
         prisma.taskStatus.findMany({
             where: { type: 'pollDecisions' },
@@ -213,11 +207,7 @@ export async function getPollingStats() {
             select: { cityId: true },
         }),
         prisma.councilMeeting.findMany({
-            where: {
-                dateTime: pollableDateRange,
-                city: { diavgeiaUid: { not: null } },
-                subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
-            },
+            where: candidateWhere,
             distinct: ['cityId'],
             select: { cityId: true },
         }),

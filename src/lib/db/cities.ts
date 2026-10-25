@@ -590,41 +590,6 @@ export async function getCityIdContainingPoint([lng, lat]: [number, number]): Pr
 }
 
 /**
- * Check if a city can use the city creator tool.
- * Returns true if the city exists and has no existing data, false otherwise.
- */
-export async function canUseCityCreator(cityId: string): Promise<boolean> {
-    // Check if city exists
-    const city = await getCity(cityId);
-    if (!city) {
-        return false;
-    }
-
-    // Check if city has any existing data
-    const existingData = await prisma.city.findUnique({
-        where: { id: cityId },
-        include: {
-            parties: true,
-            persons: true,
-            councilMeetings: true,
-            roles: true,
-        },
-    });
-
-    if (existingData && (
-        existingData.parties.length > 0 ||
-        existingData.persons.length > 0 ||
-        existingData.councilMeetings.length > 0 ||
-        existingData.roles.length > 0
-    )) {
-        return false;
-    }
-
-    // City is eligible for city creator
-    return true;
-}
-
-/**
  * Fetches cities with logos for display purposes (e.g., infinite scroller).
  * Returns only listed cities that have logos.
  */

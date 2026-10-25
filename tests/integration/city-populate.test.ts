@@ -1,19 +1,14 @@
 /** @jest-environment node */
-import { NextRequest } from 'next/server'
 import prisma from '@/lib/db/prisma'
-import { POST } from '@/app/api/cities/[cityId]/populate/route'
+import { populateCity } from '@/lib/db/cityPopulate'
+import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createCity, signInAsSuperAdmin } from '../helpers/factories'
+import { createCity } from '../helpers/factories'
 
 const cityId = 'testcity'
 
-function populate(body: unknown) {
-    const request = new NextRequest(`http://localhost/api/cities/${cityId}/populate`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' },
-    })
-    return POST(request, { params: Promise.resolve({ cityId }) })
+async function populate(body: unknown) {
+    return populateCity(cityPopulationSchema.parse(body))
 }
 
 const person = (name: string, roles: Record<string, unknown>[]) => ({
@@ -24,19 +19,18 @@ const person = (name: string, roles: Record<string, unknown>[]) => ({
     roles,
 })
 
-describe('POST /api/cities/[cityId]/populate', () => {
+describe('populateCity', () => {
     beforeAll(async () => {
         await ensureTestDb()
     })
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
-        await signInAsSuperAdmin()
+        await resetDatabase(prisma)
         await createCity({ id: cityId })
     })
 
     it('saves the dates and the elected order of each role', async () => {
-        const response = await populate({
+        const stats = await populate({
             cityId,
             parties: [{ name: 'Party', name_en: 'Party', name_short: 'PA', name_short_en: 'PA', colorHex: '#123456' }],
             administrativeBodies: [{ name: 'Council', name_en: 'Council', type: 'council' }],
@@ -51,7 +45,9 @@ describe('POST /api/cities/[cityId]/populate', () => {
             ],
         })
 
-        expect(response.status).toBe(200)
+        expect(stats).toEqual({ partiesCount: 1, peopleCount: 2, rolesCount: 3, adminBodiesCount: 1 })
+        // The factory makes a demo city: an import leaves it pending until a superadmin checks it.
+        expect((await prisma.city.findUniqueOrThrow({ where: { id: cityId } })).status).toBe('pending')
 
         const roles = await prisma.role.findMany({
             include: { person: true },
@@ -69,17 +65,28 @@ describe('POST /api/cities/[cityId]/populate', () => {
         })
     })
 
-    it('rejects a role that ends before it starts and writes nothing', async () => {
-        const response = await populate({
+    it('saves the Diavgeia units and the YouTube channel of a body, and none when the payload has none', async () => {
+        await populate({
             cityId,
             parties: [],
-            administrativeBodies: [{ name: 'Council', name_en: 'Council', type: 'council' }],
-            people: [person('Councillor', [
-                { type: 'adminBody', administrativeBodyName: 'Council', startDate: '2026-09-25', endDate: '2026-09-24' },
-            ])],
+            administrativeBodies: [
+                {
+                    name: 'Council', name_en: 'Council', type: 'council',
+                    diavgeiaUnitIds: ['83734', '84655:100010590'], youtubeChannelUrl: 'https://www.youtube.com/@city',
+                },
+                { name: 'Committee', name_en: 'Committee', type: 'committee' },
+            ],
+            people: [],
         })
 
-        expect(response.status).toBe(400)
-        expect(await prisma.person.count()).toBe(0)
+        const bodies = await prisma.administrativeBody.findMany({
+            where: { cityId },
+            select: { name: true, diavgeiaUnitIds: true, youtubeChannelUrl: true },
+            orderBy: { name: 'asc' },
+        })
+        expect(bodies).toEqual([
+            { name: 'Committee', diavgeiaUnitIds: [], youtubeChannelUrl: null },
+            { name: 'Council', diavgeiaUnitIds: ['83734', '84655:100010590'], youtubeChannelUrl: 'https://www.youtube.com/@city' },
+        ])
     })
 })

@@ -15,6 +15,8 @@ import { TAKES_PLACE_WHERE, takesPlace } from "@/lib/meetingLifecycleRules";
 
 import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 
+import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
+import { isCustomer } from "@/lib/cityStatus";
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
 export { getDecisionForSubject };
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
@@ -24,7 +26,7 @@ import { localCalendarDate } from "@/lib/formatters/time";
 import { dayBounds } from "@/lib/dates/dayBounds";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "@/lib/db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, type BackoffTier } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, type BackoffTier } from "./pollDecisionsBackoff";
 import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
@@ -270,31 +272,10 @@ export async function pollDecisionsForMeeting(
     return startTask('pollDecisions', body, councilMeetingId, cityId, { silent: options?.silent });
 }
 
-// A meeting still waiting on decisions: a decision-eligible subject without
-// one, and not a meeting that takes no decisions (see takesNoDecisions). What the cron and
-// follow-up polls both require before polling a meeting. A postponed or
-// cancelled meeting took no decisions on its date.
-const AWAITING_DECISIONS_MEETING_WHERE = {
-    ...TAKES_DECISIONS_WHERE,
-    ...TAKES_PLACE_WHERE,
-    subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
-} satisfies Prisma.CouncilMeetingWhereInput;
-
-/**
- * The candidates of the decision-polling cron: meetings in the pollable date
- * window, in cities with a diavgeiaUid, with at least one decision-eligible
- * subject that has no decision yet.
- */
+/** The candidates of the decision-polling cron: see decisionPollCandidateWhere. */
 export async function findDecisionPollCandidates() {
-    // Meetings that take no decisions are excluded — see takesNoDecisions().
     return prisma.councilMeeting.findMany({
-        where: {
-            ...AWAITING_DECISIONS_MEETING_WHERE,
-            dateTime: getPollableMeetingDateRange(),
-            city: {
-                diavgeiaUid: { not: null },
-            },
-        },
+        where: decisionPollCandidateWhere(),
         select: {
             id: true,
             cityId: true,
@@ -306,7 +287,7 @@ export async function findDecisionPollCandidates() {
 }
 
 /**
- * Polls decisions for recent meetings across all cities with Diavgeia configured.
+ * Polls decisions for recent meetings across the supported cities with Diavgeia configured.
  * Called by the cron endpoint. Finds meetings in the pollable date window
  * (see getPollableMeetingDateRange) that still have subjects without linked
  * decisions, and dispatches pollDecisions tasks for them.
@@ -493,7 +474,9 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
 
 /**
  * Returns polling history and current backoff state for a specific meeting.
- * Used by the meeting decisions page to show polling status.
+ * Used by the meeting decisions page to show polling status. A city that is not
+ * supported has no backoff state: the cron does not poll it (CUSTOMER_CITY_WHERE),
+ * so its meetings show their manual polls and no next automatic poll.
  */
 export async function getPollingHistoryForMeeting(
     cityId: string,
@@ -537,6 +520,19 @@ export async function getPollingHistoryForMeeting(
             lastPollAt: null,
             currentTier: null,
             currentTierLabel: null,
+            nextPollEligible: null,
+            pendingTaskId,
+        };
+    }
+
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { status: true } });
+    if (!city || !isCustomer(city.status)) {
+        return {
+            totalPolls,
+            firstPollAt: firstPollAt.toISOString(),
+            lastPollAt: lastPollAt.toISOString(),
+            currentTier: null,
+            currentTierLabel: 'No automatic polls: the city is not supported',
             nextPollEligible: null,
             pendingTaskId,
         };

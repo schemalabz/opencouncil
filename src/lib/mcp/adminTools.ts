@@ -149,7 +149,7 @@ function registerCityAdminTools(server: McpServer) {
                 + 'one time for each city: collect the complete council before you call. A role names its '
                 + 'party or its administrative body by the exact `name` of an entry in this same call. '
                 + 'Show the complete list to the user and get a confirmation before you call.',
-            // The schema of the City Creator, so both paths save the same data.
+            // The schema that populateCity takes its type from, so the tool saves what it validates.
             inputSchema: cityPopulationSchema,
         },
         (args, ctx: ServerContext) => run(() => mcpPopulateCity(identityFromContext(ctx), args))

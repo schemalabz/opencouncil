@@ -1,4 +1,7 @@
 import { Prisma } from '@prisma/client';
+import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
+import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
+import { getPollableMeetingDateRange, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
 
 /**
  * Which subjects can carry a decision — the single definition, shared by every
@@ -24,3 +27,28 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
         { nonAgendaReason: 'outOfAgenda' as const },
     ],
 } satisfies Prisma.SubjectWhereInput;
+
+// A meeting still waiting on decisions: a decision-eligible subject without
+// one, and not a meeting that takes no decisions (see takesNoDecisions). What the cron and
+// follow-up polls both require before polling a meeting. A postponed or
+// cancelled meeting took no decisions on its date.
+export const AWAITING_DECISIONS_MEETING_WHERE = {
+    ...TAKES_DECISIONS_WHERE,
+    ...TAKES_PLACE_WHERE,
+    subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
+} satisfies Prisma.CouncilMeetingWhereInput;
+
+/**
+ * The meetings that the decision-polling cron polls on its own: in the pollable
+ * date window, waiting on decisions, in a supported city with a Diavgeia org uid.
+ * Each poll is a paid task, so a pending or demo city is polled only when an
+ * admin asks for it. The cron and the polling stats both read this one filter,
+ * so the stats list exactly the meetings that the cron can still poll.
+ */
+export function decisionPollCandidateWhere(now: Date = new Date()) {
+    return {
+        ...AWAITING_DECISIONS_MEETING_WHERE,
+        dateTime: getPollableMeetingDateRange(now),
+        city: { diavgeiaUid: { not: null }, ...CUSTOMER_CITY_WHERE },
+    } satisfies Prisma.CouncilMeetingWhereInput;
+}
