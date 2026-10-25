@@ -171,7 +171,6 @@
     "@testing-library/user-event": "^14.6.8",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jest": "^30.0.0",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "@types/proj4": "^2.19.0",
