@@ -125,28 +125,28 @@
     "awardsTitle": "Признања и помињања",
     "items": {
       "ministryAward": {
-        "title": "Награда Министарства дигиталног управљања Грчке",
-        "subtitle": "Најбоља примењена идеја, локална самоуправа"
+        "title": "Награда за дигитално управљање",
+        "subtitle": "Најбоља примењена идеја у локалној самоуправи, од Министарства дигиталног управљања Грчке."
       },
       "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Сертификат добре праксе"
+        "title": "Сертификат добре праксе",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Финалиста"
+        "title": "Финалиста",
+        "subtitle": "Innovation in Politics Awards 2026"
+      },
+      "guangzhou": {
+        "title": "Финалиста",
+        "subtitle": "7. Guangzhou International Award for Urban Innovation"
       },
       "oecd": {
-        "title": "OECD",
-        "subtitle": "Поменуто у извештају о вештачкој интелигенцији"
-      },
-      "kede": {
-        "title": "KEDE",
-        "subtitle": "Чланак о OpenCouncil-у у Хањи"
+        "title": "OpenCouncil у OECD.AI Policy Navigator-у",
+        "subtitle": "OECD каталогу вештачке интелигенције у јавном сектору"
       },
       "wired": {
-        "title": "WIRED Greece",
-        "subtitle": "Чланак"
+        "title": "„Вештачка интелигенција и општински савети, на ивици Грчке”",
+        "subtitle": "репортажа WIRED Greece из Орестијаде"
       }
     }
   },

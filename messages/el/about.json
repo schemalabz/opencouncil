@@ -125,28 +125,28 @@
     "awardsTitle": "Διακρίσεις και αναφορές",
     "items": {
       "ministryAward": {
-        "title": "Βραβείο Υπουργείου Ψηφιακής Διακυβέρνησης",
-        "subtitle": "Καλύτερη Εφαρμοσμένη Ιδέα, Τοπική Αυτοδιοίκηση"
+        "title": "Βραβείο Ψηφιακής Διακυβέρνησης",
+        "subtitle": "Καλύτερη Εφαρμοσμένη Ιδέα στην Τοπική Αυτοδιοίκηση, από το Υπουργείο Ψηφιακής Διακυβέρνησης."
       },
       "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Πιστοποιητικό Καλής Πρακτικής"
+        "title": "Πιστοποιητικό Καλής Πρακτικής",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Φιναλίστ"
+        "title": "Φιναλίστ",
+        "subtitle": "Innovation in Politics Awards 2026"
+      },
+      "guangzhou": {
+        "title": "Φιναλίστ",
+        "subtitle": "7ο Guangzhou International Award for Urban Innovation"
       },
       "oecd": {
-        "title": "OECD",
-        "subtitle": "Αναφορά σε έκθεση για την τεχνητή νοημοσύνη"
-      },
-      "kede": {
-        "title": "ΚΕΔΕ",
-        "subtitle": "Άρθρο για το OpenCouncil στα Χανιά"
+        "title": "Το OpenCouncil στο OECD.AI Policy Navigator",
+        "subtitle": "τον κατάλογο του ΟΟΣΑ για την τεχνητή νοημοσύνη στον δημόσιο τομέα"
       },
       "wired": {
-        "title": "WIRED Greece",
-        "subtitle": "Άρθρο"
+        "title": "«ΑΙ και δημοτικά συμβούλια, στην άκρη της Ελλάδας»",
+        "subtitle": "ρεπορτάζ του WIRED Greece από την Ορεστιάδα"
       }
     }
   },

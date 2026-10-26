@@ -125,28 +125,28 @@
     "awardsTitle": "Awards and mentions",
     "items": {
       "ministryAward": {
-        "title": "Ministry of Digital Governance Award",
-        "subtitle": "Best Applied Idea, Local Government"
+        "title": "Digital Governance Award",
+        "subtitle": "Best Applied Idea in Local Government, from the Greek Ministry of Digital Governance."
       },
       "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Best Practice Certificate"
+        "title": "Good Practice Certificate",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Finalist"
+        "title": "Finalist",
+        "subtitle": "Innovation in Politics Awards 2026"
+      },
+      "guangzhou": {
+        "title": "Finalist",
+        "subtitle": "7th Guangzhou International Award for Urban Innovation"
       },
       "oecd": {
-        "title": "OECD",
-        "subtitle": "Cited in a report on AI in government"
-      },
-      "kede": {
-        "title": "KEDE",
-        "subtitle": "Article on OpenCouncil in Chania"
+        "title": "OpenCouncil in the OECD.AI Policy Navigator",
+        "subtitle": "the OECD catalogue of AI in the public sector"
       },
       "wired": {
-        "title": "WIRED Greece",
-        "subtitle": "Article"
+        "title": "“AI and municipal councils, at the edge of Greece”",
+        "subtitle": "a WIRED Greece report from Orestiada"
       }
     }
   },

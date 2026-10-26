@@ -125,28 +125,28 @@
     "awardsTitle": "Distinctions et mentions",
     "items": {
       "ministryAward": {
-        "title": "Prix du ministère grec de la Gouvernance numérique",
-        "subtitle": "Meilleure idée appliquée, collectivités locales"
+        "title": "Prix de la gouvernance numérique",
+        "subtitle": "Meilleure idée appliquée pour les collectivités locales, décerné par le ministère grec de la Gouvernance numérique."
       },
       "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Certificat de bonne pratique"
+        "title": "Certificat de bonne pratique",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Finaliste"
+        "title": "Finaliste",
+        "subtitle": "Innovation in Politics Awards 2026"
+      },
+      "guangzhou": {
+        "title": "Finaliste",
+        "subtitle": "7e Guangzhou International Award for Urban Innovation"
       },
       "oecd": {
-        "title": "OCDE",
-        "subtitle": "Cité dans un rapport sur l’IA"
-      },
-      "kede": {
-        "title": "KEDE",
-        "subtitle": "Article sur OpenCouncil à La Canée"
+        "title": "OpenCouncil dans l’OECD.AI Policy Navigator",
+        "subtitle": "le catalogue de l’OCDE sur l’IA dans le secteur public"
       },
       "wired": {
-        "title": "WIRED Grèce",
-        "subtitle": "Article"
+        "title": "« L’IA et les conseils municipaux, aux confins de la Grèce »",
+        "subtitle": "un reportage de WIRED Grèce à Orestiada"
       }
     }
   },
