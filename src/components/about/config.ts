@@ -22,11 +22,7 @@ export function demoUrlForRealm(feature: Feature, realm: Realm): string | undefi
 
 export interface RecognitionItem {
     id: string
-    logoUrl?: string
     linkUrl: string
-    /** Per-logo optical sizing within the fixed logo lockup (logos have very different
-     *  aspect ratios, so each is tuned by eye to sit at a balanced visual weight). */
-    logoClassName?: string
 }
 
 /**
@@ -241,39 +237,20 @@ export const OPENNESS_FEATURES: Feature[] = [
 // ─── Proof and people ────────────────────────────────────────────────────────
 
 export const RECOGNITION_ITEMS: RecognitionItem[] = [
-    {
-        id: 'ministryAward',
-        linkUrl: '',
-    },
-    {
-        id: 'epsa',
-        linkUrl: 'https://www.eipa.eu/epsa-2025-26/',
-        logoUrl: '/about/eipa.png',
-        logoClassName: 'max-h-7 max-w-[128px]',
-    },
+    { id: 'ministryAward', linkUrl: 'https://digitalawards.gov.gr/winners/2024' },
+    { id: 'epsa', linkUrl: 'https://www.eipa.eu/epsa-2025-26/' },
     {
         id: 'innovationInPolitics',
         linkUrl: 'https://event.innovationinpolitics.eu/InnovationinPoliticsAwards2026#/Finalists?lang=en',
-        logoUrl: '/about/innovation-politics-figure.png',
-        logoClassName: 'max-h-10 max-w-[56px]',
     },
     {
         id: 'oecd',
-        linkUrl: 'https://oecd.ai/en/gov/issues/civic-engagement-open-government',
-        logoUrl: '/about/oecd.png',
-        logoClassName: 'max-h-6 max-w-[104px]',
+        linkUrl: 'https://oecd.ai/en/dashboards/policy-initiatives/opencouncil-subnational-municipality-of-chania',
     },
+    { id: 'wired', linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/' },
     {
         id: 'kede',
         linkUrl: 'https://kede.gr/opencouncil-chania-gr-i-protoporiaki-platforma-ai-pou-allazei-ta-dedomena-sto-dimotiko-symvoulio-chanion/',
-        logoUrl: '/about/kede.png',
-        logoClassName: 'max-h-10 max-w-[56px]',
-    },
-    {
-        id: 'wired',
-        linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/',
-        logoUrl: '/about/wired.svg',
-        logoClassName: 'max-h-5 max-w-[104px]',
     },
 ]
 

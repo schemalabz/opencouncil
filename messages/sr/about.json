@@ -125,28 +125,34 @@
     "awardsTitle": "Признања и помињања",
     "items": {
       "ministryAward": {
-        "title": "Награда Министарства дигиталног управљања Грчке",
-        "subtitle": "Најбоља примењена идеја, локална самоуправа"
+        "label": "Награда",
+        "title": "Министарство дигиталног управљања Грчке",
+        "subtitle": "Најбоља примењена идеја, локална самоуправа · Награде за дигитално управљање 2024"
       },
       "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Сертификат добре праксе"
+        "label": "Сертификат",
+        "title": "European Public Sector Award 2025–26",
+        "subtitle": "Сертификат добре праксе · EIPA"
       },
       "innovationInPolitics": {
+        "label": "Финалиста",
         "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Финалиста"
+        "subtitle": "Innovation in Politics Institute"
       },
       "oecd": {
-        "title": "OECD",
-        "subtitle": "Поменуто у извештају о вештачкој интелигенцији"
-      },
-      "kede": {
-        "title": "KEDE",
-        "subtitle": "Чланак о OpenCouncil-у у Хањи"
+        "label": "Уврштено",
+        "title": "OECD.AI Policy Navigator",
+        "subtitle": "OpenCouncil у OECD каталогу иницијатива за вештачку интелигенцију"
       },
       "wired": {
+        "label": "Чланак",
         "title": "WIRED Greece",
-        "subtitle": "Чланак"
+        "subtitle": "„Вештачка интелигенција и општински савети, на ивици Грчке”"
+      },
+      "kede": {
+        "label": "Чланак",
+        "title": "KEDE",
+        "subtitle": "„Пионирска AI платформа која мења Градски савет Хање”"
       }
     }
   },
