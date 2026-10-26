@@ -41,6 +41,9 @@ export interface WakeOutcome {
   truncated?: true;
   /** The wake ended without the REQUIRED finish_wake call. */
   finishWakeMissing?: true;
+  /** Only the declared holding line reached the reader: research followed it
+   *  and nothing went out after. */
+  holdingOnly?: true;
   /** Present iff the model called update_taste_profile (last call wins). */
   profileRewrite?: string;
   scheduledWakes: Array<{ at: string; reason: string }>;
@@ -101,6 +104,8 @@ export interface WakeTrace {
   usageTotal: Usage;
   costUsd: number;
   durationMs: number;
+  /** The effort the wake ran at — reactive and proactive wakes differ. */
+  effort: Effort;
 }
 
 /* ------------------------------------------------------------------ */
@@ -124,6 +129,19 @@ export function isTextBlock(b: unknown): b is TextBlock {
 
 export function isToolUseBlock(b: unknown): b is ToolUseBlock {
   return typeof b === "object" && b !== null && (b as { type?: string }).type === "tool_use";
+}
+
+/**
+ * A server-side research block inside an assistant turn: an MCP or web tool
+ * call, or its result. Client tool_result blocks never appear in assistant
+ * content, so every `*_tool_result` here is the server's.
+ */
+export function isResearchBlock(b: unknown): boolean {
+  const type = (b as { type?: unknown } | null)?.type;
+  return (
+    typeof type === "string" &&
+    (type === "mcp_tool_use" || type === "server_tool_use" || type.endsWith("_tool_result"))
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,6 +202,9 @@ export interface DepsConfig {
   mcpUrl: string;
   /** Sonnet 5 punches well above its weight at low effort — the cost lever for wakes. */
   effort: Effort;
+  /** A reader is waiting on a reactive wake, and the shallow research of low
+   *  effort lost answers there; the proactive volume stays at `effort`. */
+  reactiveEffort: Effort;
 }
 
 export interface Deps {
@@ -234,6 +255,7 @@ export const DEFAULT_CONFIG: DepsConfig = {
   maxTurns: 8,
   mcpUrl: "https://opencouncil.gr/mcp",
   effort: "low",
+  reactiveEffort: "medium",
 };
 
 /** The most recent decision entries the prompt renders. */
