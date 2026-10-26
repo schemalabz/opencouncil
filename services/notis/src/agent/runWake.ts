@@ -680,13 +680,14 @@ export async function runWake(
         // An answer is owed when the model's own finish_wake says «send» and
         // nothing went out — a proactive wake that decided to write and never
         // called send_message was recorded as silence in 14+ production wakes
-        // — and when the reader wrote, unless the model declared «silence» and
-        // left no prose behind (a «thanks» correctly earns no reply).
+        // — and whenever the reader wrote. A declared «silence» on a reader
+        // message used to skip this check so that a «thanks» earns no reply;
+        // in production that exemption also dropped direct questions whose
+        // searches found nothing. The nudge now fires once there too, and
+        // the model confirms silence only for a bare acknowledgment.
         const draft = strandedProse !== undefined && proseLooksLikeAMessage(strandedProse, sent);
-        const answerOwed =
-          sent.length === 0 &&
-          (declaredDecision === "send" ||
-            (hasUserMessage && (declaredDecision !== "silence" || draft)));
+        const answerOwed = sent.length === 0 && (declaredDecision === "send" || hasUserMessage);
+        const silentOnReader = hasUserMessage && declaredDecision === "silence" && !draft;
         // A held link comes first: the model believes it sent, and without
         // the nudge the wake ends here with the message unsent. The tool
         // result already says what was wrong; the nudge says it is not done.
@@ -714,8 +715,22 @@ export async function runWake(
               "delivered to the reader.";
           nudge = {
             kind: "delivery",
-            tag: strandedProse ? "stranded-prose/finish" : "zero-send/finish",
-            text: strandedProse
+            tag: silentOnReader
+              ? "declared-silence/finish"
+              : strandedProse
+                ? "stranded-prose/finish"
+                : "zero-send/finish",
+            text: silentOnReader
+              ? "(system check) The person wrote to you and you chose silence, so NOTHING " +
+                "has been delivered to them. Silence answers a reader's message only when " +
+                "it asks nothing — a bare «ευχαριστώ», an «οκ», an emoji. Anything else " +
+                "gets a reply, even when the record has nothing: say in one line what you " +
+                "looked at and ask what they mean. Never guess, and never leave them " +
+                "waiting. If their message asks something, call send_message with the " +
+                "reply now, then finish_wake again with the wake's own rationale — about " +
+                "the reader and this wake's decision, never about this check. Only if it " +
+                "truly asks nothing, call finish_wake again with decision «silence» to confirm."
+              : strandedProse
               ? `(system check) ${waiting} The text you wrote next to your tool calls ` +
                 "was NOT delivered; nothing reaches the person except send_message " +
                 "content. The undelivered text was:\n«" +

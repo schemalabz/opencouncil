@@ -4,6 +4,7 @@ import { applyOutcome, runWake } from "../runWake";
 import {
   FIXED_NOW,
   FakeAnthropic,
+  ScriptedTurn,
   makeBrief,
   makeDeps,
   makeState,
@@ -1290,13 +1291,53 @@ describe("runWake — production repairs (2026-10)", () => {
     expect(outcome.rationale).toBe("Την αφορά άμεσα.");
   });
 
-  it("a reply wake that declares «silence» with no prose gets no nudge (a «thanks» earns none)", async () => {
+  it("a reply wake that declares «silence» is asked once, and a «thanks» confirms it", async () => {
+    const silence = {
+      decision: "silence",
+      rationale: "Απλώς ευχαρίστησε.",
+      learnedSomethingLasting: false,
+      promisedFollowUp: false,
+    };
+    const fake = new FakeAnthropic([
+      { content: [toolUse("t1", "finish_wake", silence)], stop_reason: "tool_use" },
+      { content: [toolUse("t2", "finish_wake", silence)], stop_reason: "tool_use" },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ ...userEvent, text: "Ευχαριστώ!" }],
+      makeDeps(fake),
+    );
+    expect(outcome.repairs).toEqual(["declared-silence/finish"]);
+    expect(outcome.decision).toBe("silence");
+    expect(outcome.rationale).toBe("Απλώς ευχαρίστησε.");
+    expect(trace.turns).toHaveLength(3);
+    expect(trace.turns[1].role).toBe("injected");
+    expect(JSON.stringify(fake.requests[1].messages)).toContain("you chose silence");
+  });
+
+  it("a declared «silence» on a question the record cannot answer still gets the reply", async () => {
+    // Observed in production: the searches found nothing, the model
+    // declared silence so as not to guess, and the reader never heard back.
     const fake = new FakeAnthropic([
       {
         content: [
           toolUse("t1", "finish_wake", {
             decision: "silence",
-            rationale: "Απλώς ευχαρίστησε.",
+            rationale: "Δύο αναζητήσεις δεν βρήκαν τον ΟΣΕ· δεν θέλω να μαντέψω.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", {
+            text: "Έψαξα για τον ΟΣΕ στην Κυψέλη και δεν βρήκα κάτι. Εννοείς τις γραμμές ή κάτι άλλο;",
+          }),
+          toolUse("t3", "finish_wake", {
+            decision: "send",
+            rationale: "Ρώτησε για τον ΟΣΕ· το αρχείο δεν έχει κάτι, της ζήτησα διευκρίνιση.",
             learnedSomethingLasting: false,
             promisedFollowUp: false,
           }),
@@ -1306,12 +1347,16 @@ describe("runWake — production repairs (2026-10)", () => {
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
-      [{ ...userEvent, text: "Ευχαριστώ!" }],
+      [{ ...userEvent, text: "Τι γίνεται με τον ΟΣΕ;" }],
       makeDeps(fake),
     );
-    expect(outcome.repairs).toBeUndefined();
-    expect(outcome.decision).toBe("silence");
-    expect(trace.turns).toHaveLength(1);
+    expect(outcome.repairs).toEqual(["declared-silence/finish"]);
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual([
+      "Έψαξα για τον ΟΣΕ στην Κυψέλη και δεν βρήκα κάτι. Εννοείς τις γραμμές ή κάτι άλλο;",
+    ]);
+    expect(outcome.rationale).toBe("Ρώτησε για τον ΟΣΕ· το αρχείο δεν έχει κάτι, της ζήτησα διευκρίνιση.");
+    expect(trace.turns).toHaveLength(3);
   });
 
   it("English reasoning written as text next to finish_wake earns no nudge", async () => {
@@ -1504,7 +1549,7 @@ describe("runWake helpers", () => {
     );
   });
 
-  it("English reasoning next to a declared silence on a reply wake earns no nudge", async () => {
+  it("English reasoning next to a declared silence on a reply wake is not quoted as a draft", async () => {
     const fake = new FakeAnthropic([
       {
         content: [
@@ -1516,14 +1561,24 @@ describe("runWake helpers", () => {
         ],
         stop_reason: "tool_use",
       },
+      {
+        content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Ευχαρίστησε." })],
+        stop_reason: "tool_use",
+      },
     ]);
     const { outcome, trace } = await runWake(
       makeState(),
       [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "Ευχαριστώ!" }],
       makeDeps(fake),
     );
-    expect(outcome.repairs).toBeUndefined();
-    expect(trace.turns).toHaveLength(1);
+    // The reader wrote, so the one delivery nudge still fires — but as the
+    // silence check, not as a stranded-prose quote of the reasoning.
+    expect(outcome.repairs).toEqual(["declared-silence/finish"]);
+    expect(outcome.decision).toBe("silence");
+    expect(trace.turns).toHaveLength(3);
+    const secondReq = JSON.stringify(fake.requests[1].messages);
+    expect(secondReq).toContain("you chose silence");
+    expect(secondReq).not.toContain("The undelivered text was");
   });
 });
 
@@ -1627,6 +1682,7 @@ describe("runWake — links nothing vouches for (2026-10)", () => {
         stop_reason: "tool_use",
       },
       { content: [toolUse("t3", "finish_wake", { decision: "silence", rationale: "Δεν βρήκα σελίδα." })], stop_reason: "tool_use" },
+      { content: [toolUse("t4", "finish_wake", { decision: "silence", rationale: "Δεν βρήκα σελίδα." })], stop_reason: "tool_use" },
     ]);
     const state = makeState({
       profile: "Ρωτάει για τον δήμαρχο: https://opencouncil.gr/athens/people/dukas",
@@ -1638,7 +1694,8 @@ describe("runWake — links nothing vouches for (2026-10)", () => {
     const { outcome } = await runWake(state, [userEvent], makeDeps(fake));
 
     expect(outcome.messages).toEqual([]);
-    expect(outcome.repairs).toEqual(["ungrounded-link/held"]);
+    // The link hold, then the silence check every reader message gets.
+    expect(outcome.repairs).toEqual(["ungrounded-link/held", "declared-silence/finish"]);
   });
 
   it("the shipped prompts vouch only for the links they carry, not for the example slug in their prose", async () => {
@@ -1699,6 +1756,11 @@ describe("support requests", () => {
     kind: "dissatisfaction",
     summary: "Δεν βρίσκει χρήσιμα τα μηνύματα και είναι ενοχλημένος.",
   };
+  /** The reader wrote, so a declared silence is asked once; this turn confirms it. */
+  const confirmSilence = (id: string): ScriptedTurn => ({
+    content: [toolUse(id, "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
+    stop_reason: "tool_use",
+  });
 
   /** The tool_result the loop sent back for one tool_use id. requests[]
    *  aliases the live messages array, so search by id, not by position. */
@@ -1762,6 +1824,7 @@ describe("support requests", () => {
         content: [toolUse("t3", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
         stop_reason: "tool_use",
       },
+      confirmSilence("t4"),
     ]);
     const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
 
@@ -1780,6 +1843,7 @@ describe("support requests", () => {
         content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Ενημέρωση." })],
         stop_reason: "tool_use",
       },
+      confirmSilence("t3"),
     ]);
     const state = makeState({
       supportRequest: {
@@ -1811,6 +1875,7 @@ describe("support requests", () => {
         content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Νέο αίτημα." })],
         stop_reason: "tool_use",
       },
+      confirmSilence("t3"),
     ]);
     const filed = await runWake(closed, [userEvent], makeDeps(filing));
     expect(filed.outcome.supportRequest).toEqual({ open: openRequest });
@@ -1825,6 +1890,7 @@ describe("support requests", () => {
         content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
         stop_reason: "tool_use",
       },
+      confirmSilence("t3"),
     ]);
     const withdrawn = await runWake(closed, [userEvent], makeDeps(withdrawing));
     expect(withdrawn.outcome.supportRequest).toBeUndefined();
@@ -1841,6 +1907,7 @@ describe("support requests", () => {
         content: [toolUse("t2", "finish_wake", { decision: "silence", rationale: "Τίποτα." })],
         stop_reason: "tool_use",
       },
+      confirmSilence("t3"),
     ]);
     const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
 
@@ -1885,6 +1952,7 @@ describe("support requests", () => {
         ],
         stop_reason: "tool_use",
       },
+      confirmSilence("t4"),
     ]);
     const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
 

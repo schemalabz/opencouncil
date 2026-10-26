@@ -55,6 +55,16 @@ describe("system prompt rules from the 2026-10 conversation review", () => {
     expect(boundaries).toContain("Δεν παρακολουθεί δήμο που δεν είναι στις εγγραφές του χρήστη");
   });
 
+  it("a reader's message always gets a reply, except a bare acknowledgment", () => {
+    expect(system).toContain("Silence is for proactive wakes. When the reader writes, they get a reply.");
+    expect(system).toContain("A question you cannot answer is still a question");
+    expect(system).toContain("say in one line what you looked at and ask what they mean");
+    const finishWake = CLIENT_TOOLS.find((t) => t.name === "finish_wake");
+    expect(JSON.stringify(finishWake?.input_schema)).toContain(
+      "«silence» fits only a bare acknowledgment that asks nothing",
+    );
+  });
+
   it("names the four signals that always update the profile", () => {
     expect(system).toContain("Four things are lasting whatever words carry them");
     expect(system).toContain("«όχι μόνο τα δικά μου θέματα»");
