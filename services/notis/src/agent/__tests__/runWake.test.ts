@@ -2267,9 +2267,14 @@ describe("runWake — holding line only", () => {
   });
 
   it("runs a reader's wake at the reactive effort and a proactive one at the base effort", async () => {
-    const reactive = new FakeAnthropic([{ content: [finish("t1", "Τίποτα.", "silence")], stop_reason: "tool_use" }]);
+    // A declared silence on a reader message draws the one delivery nudge,
+    // so the reader's wake takes a second turn to confirm it.
+    const reactive = new FakeAnthropic([
+      { content: [finish("t1", "Τίποτα.", "silence")], stop_reason: "tool_use" },
+      { content: [finish("t2", "Τίποτα.", "silence")], stop_reason: "tool_use" },
+    ]);
     const { trace: reactiveTrace } = await runWake(makeState(), [userEvent], makeDeps(reactive));
-    expect(reactive.requests[0].output_config).toEqual({ effort: "medium" });
+    expect(reactive.requests.map((r) => r.output_config)).toEqual([{ effort: "medium" }, { effort: "medium" }]);
     expect(reactiveTrace.effort).toBe("medium");
 
     const proactive = new FakeAnthropic([{ content: [finish("t1", "Τίποτα.", "silence")], stop_reason: "tool_use" }]);
