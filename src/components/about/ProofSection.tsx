@@ -66,7 +66,7 @@ export default function ProofSection() {
                             </motion.a>
                         )}
 
-                        <div className="grid grid-cols-1 gap-6 border-t border-border pt-6 sm:grid-cols-2 sm:gap-8">
+                        <div className="grid grid-cols-1 gap-6 border-t border-border pt-6 sm:grid-cols-3 sm:gap-6">
                             {awards.map((item, index) => (
                                 <motion.a
                                     key={item.id}

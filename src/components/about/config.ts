@@ -264,6 +264,13 @@ export const RECOGNITION_ITEMS: RecognitionItem[] = [
         logoClassName: 'h-10 w-auto',
     },
     {
+        id: 'guangzhou',
+        kind: 'award',
+        linkUrl: 'https://www.eguangzhou.gov.cn/gzlatest/content/post_43709.html',
+        logoUrl: '/about/guangzhou-award.png',
+        logoClassName: 'h-10 w-auto',
+    },
+    {
         id: 'oecd',
         kind: 'mention',
         linkUrl: 'https://oecd.ai/en/dashboards/policy-initiatives/opencouncil-subnational-municipality-of-chania',
