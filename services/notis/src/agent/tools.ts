@@ -29,7 +29,8 @@ export const CLIENT_TOOLS = [
           enum: ["send", "silence"],
           description:
             "What you did this wake: «send» if you called send_message, «silence» if " +
-            "you sent nothing. The shell checks this against your actual sends.",
+            "you sent nothing. The shell checks this against your actual sends. On a " +
+            "reply wake «silence» fits only a bare acknowledgment that asks nothing.",
         },
         rationale: {
           type: "string",
