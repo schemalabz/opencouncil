@@ -1,20 +1,29 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { ArrowUpRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { RECOGNITION_ITEMS } from './config'
+import { cn } from '@/lib/utils'
+import { RECOGNITION_ITEMS, type RecognitionItem } from './config'
 import { Container, Kicker, recordFont, reveal, revealDelayed } from './primitives'
+
+const headline = RECOGNITION_ITEMS.find((item) => item.kind === 'headline')
+const awards = RECOGNITION_ITEMS.filter((item) => item.kind === 'award')
+const mentions = RECOGNITION_ITEMS.filter((item) => item.kind === 'mention')
 
 /** A municipality's own words, and the rooms that recognised the work. */
 export default function ProofSection() {
     const t = useTranslations('about.proof')
 
+    const logo = (item: RecognitionItem, width: number, height: number) => (
+        <Image src={item.logoUrl} alt="" width={width} height={height} className={cn('object-contain', item.logoClassName)} />
+    )
+
     return (
         <section id="proof" className="scroll-mt-20 md:scroll-mt-36 border-t border-border bg-[#fafaf9] py-14 md:py-[88px]">
             <Container>
-                <div className="grid grid-cols-1 gap-10 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start md:gap-[72px]">
-                    <motion.figure {...reveal} className="m-0 flex flex-col gap-5 md:sticky md:top-36">
+                <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start md:gap-[72px]">
+                    <motion.figure {...reveal} className="m-0 flex flex-col gap-5">
                         <Kicker>{t('kicker')}</Kicker>
                         <blockquote className="relative m-0 pl-1 pt-[30px]">
                             <span
@@ -34,38 +43,68 @@ export default function ProofSection() {
                         </figcaption>
                     </motion.figure>
 
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-5">
                         <Kicker tone="muted">{t('awardsTitle')}</Kicker>
-                        {/* A ledger, not a logo wall: each row names who recognised the work and for what. */}
-                        <ol className="m-0 list-none border-t border-border p-0">
-                            {RECOGNITION_ITEMS.map((item, index) => (
-                                <motion.li key={item.id} {...revealDelayed(index * 0.05)} className="border-b border-border">
-                                    <a
-                                        href={item.linkUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="group grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 py-4 no-underline hover:no-underline md:grid-cols-[104px_minmax(0,1fr)_auto] md:py-[18px]"
-                                    >
-                                        <span className="col-span-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground md:col-span-1 md:pt-[3px]">
-                                            {t(`items.${item.id}.label`)}
-                                        </span>
-                                        <span className="flex min-w-0 flex-col gap-1">
-                                            <span className="text-[15px] font-semibold leading-snug text-foreground transition-colors group-hover:text-[hsl(var(--orange-deep))]">
-                                                {t(`items.${item.id}.title`)}
-                                            </span>
-                                            <span className="text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-                                                {t(`items.${item.id}.subtitle`)}
-                                            </span>
-                                        </span>
-                                        <ArrowUpRight
-                                            aria-hidden
-                                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60 transition-[color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[hsl(var(--orange-deep))]"
-                                            strokeWidth={2}
-                                        />
-                                    </a>
-                                </motion.li>
+
+                        {headline && (
+                            <motion.a
+                                {...reveal}
+                                href={headline.linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-start gap-5 no-underline hover:no-underline"
+                            >
+                                <div className="shrink-0 pt-0.5">{logo(headline, 212, 240)}</div>
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="text-[19px] font-semibold leading-tight tracking-[-0.01em] text-foreground group-hover:underline md:text-[22px]">
+                                        {t(`items.${headline.id}.title`)}
+                                    </div>
+                                    <div className="max-w-[46ch] text-[14.5px] leading-relaxed text-muted-foreground text-pretty">
+                                        {t(`items.${headline.id}.subtitle`)}
+                                    </div>
+                                </div>
+                            </motion.a>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-6 border-t border-border pt-6 sm:grid-cols-2 sm:gap-8">
+                            {awards.map((item, index) => (
+                                <motion.a
+                                    key={item.id}
+                                    {...revealDelayed(0.08 + index * 0.06)}
+                                    href={item.linkUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group flex flex-col gap-4 no-underline hover:no-underline"
+                                >
+                                    <div className="flex h-10 items-end">{logo(item, 160, 48)}</div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="text-[15px] font-semibold leading-snug text-foreground group-hover:underline">
+                                            {t(`items.${item.id}.title`)}
+                                        </div>
+                                        <div className="text-[13.5px] leading-relaxed text-muted-foreground">{t(`items.${item.id}.subtitle`)}</div>
+                                    </div>
+                                </motion.a>
                             ))}
-                        </ol>
+                        </div>
+
+                        <div className="flex flex-col gap-3.5 border-t border-border pt-6">
+                            {mentions.map((item, index) => (
+                                <motion.p
+                                    key={item.id}
+                                    {...revealDelayed(0.2 + index * 0.06)}
+                                    className="m-0 grid grid-cols-[72px_minmax(0,1fr)] items-start gap-x-4 text-[14.5px] leading-relaxed text-muted-foreground sm:grid-cols-[88px_minmax(0,1fr)]"
+                                >
+                                    <span className="flex h-[22px] items-center">{logo(item, 160, 48)}</span>
+                                    <span>
+                                        <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground">
+                                            {t(`items.${item.id}.title`)}
+                                        </a>
+                                        {', '}
+                                        {t(`items.${item.id}.subtitle`)}.
+                                    </span>
+                                </motion.p>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </Container>

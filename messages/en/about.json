@@ -125,34 +125,24 @@
     "awardsTitle": "Awards and mentions",
     "items": {
       "ministryAward": {
-        "label": "Award",
-        "title": "Ministry of Digital Governance",
-        "subtitle": "Best Applied Idea, Local Government · Digital Governance Awards 2024"
+        "title": "Digital Governance Award",
+        "subtitle": "Best Applied Idea in Local Government, from the Greek Ministry of Digital Governance."
       },
       "epsa": {
-        "label": "Certificate",
-        "title": "European Public Sector Award 2025–26",
-        "subtitle": "Good Practice Certificate · EIPA"
+        "title": "Good Practice Certificate",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "label": "Finalist",
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Innovation in Politics Institute"
+        "title": "Finalist",
+        "subtitle": "Innovation in Politics Awards 2026"
       },
       "oecd": {
-        "label": "Listed",
-        "title": "OECD.AI Policy Navigator",
-        "subtitle": "OpenCouncil in the OECD catalogue of AI policy initiatives"
+        "title": "OpenCouncil in the OECD.AI Policy Navigator",
+        "subtitle": "the OECD catalogue of AI in the public sector"
       },
       "wired": {
-        "label": "Article",
-        "title": "WIRED Greece",
-        "subtitle": "“AI and municipal councils, at the edge of Greece”"
-      },
-      "kede": {
-        "label": "Article",
-        "title": "KEDE",
-        "subtitle": "“The pioneering AI platform that changes the Chania Municipal Council”"
+        "title": "“AI and municipal councils, at the edge of Greece”",
+        "subtitle": "a WIRED Greece report from Orestiada"
       }
     }
   },

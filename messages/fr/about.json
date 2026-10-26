@@ -125,34 +125,24 @@
     "awardsTitle": "Distinctions et mentions",
     "items": {
       "ministryAward": {
-        "label": "Prix",
-        "title": "Ministère grec de la Gouvernance numérique",
-        "subtitle": "Meilleure idée appliquée, collectivités locales · Prix de la gouvernance numérique 2024"
+        "title": "Prix de la gouvernance numérique",
+        "subtitle": "Meilleure idée appliquée pour les collectivités locales, décerné par le ministère grec de la Gouvernance numérique."
       },
       "epsa": {
-        "label": "Certificat",
-        "title": "European Public Sector Award 2025–26",
-        "subtitle": "Certificat de bonne pratique · EIPA"
+        "title": "Certificat de bonne pratique",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "label": "Finaliste",
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Innovation in Politics Institute"
+        "title": "Finaliste",
+        "subtitle": "Innovation in Politics Awards 2026"
       },
       "oecd": {
-        "label": "Référencé",
-        "title": "OECD.AI Policy Navigator",
-        "subtitle": "OpenCouncil dans le catalogue des initiatives IA de l’OCDE"
+        "title": "OpenCouncil dans l’OECD.AI Policy Navigator",
+        "subtitle": "le catalogue de l’OCDE sur l’IA dans le secteur public"
       },
       "wired": {
-        "label": "Article",
-        "title": "WIRED Grèce",
-        "subtitle": "« L’IA et les conseils municipaux, aux confins de la Grèce »"
-      },
-      "kede": {
-        "label": "Article",
-        "title": "KEDE",
-        "subtitle": "« La plateforme IA pionnière qui transforme le conseil municipal de La Canée »"
+        "title": "« L’IA et les conseils municipaux, aux confins de la Grèce »",
+        "subtitle": "un reportage de WIRED Grèce à Orestiada"
       }
     }
   },

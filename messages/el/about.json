@@ -125,34 +125,24 @@
     "awardsTitle": "Διακρίσεις και αναφορές",
     "items": {
       "ministryAward": {
-        "label": "Βραβείο",
-        "title": "Υπουργείο Ψηφιακής Διακυβέρνησης",
-        "subtitle": "Καλύτερη Εφαρμοσμένη Ιδέα, Τοπική Αυτοδιοίκηση · Βραβεία Ψηφιακής Διακυβέρνησης 2024"
+        "title": "Βραβείο Ψηφιακής Διακυβέρνησης",
+        "subtitle": "Καλύτερη Εφαρμοσμένη Ιδέα στην Τοπική Αυτοδιοίκηση, από το Υπουργείο Ψηφιακής Διακυβέρνησης."
       },
       "epsa": {
-        "label": "Πιστοποίηση",
-        "title": "European Public Sector Award 2025–26",
-        "subtitle": "Πιστοποιητικό Καλής Πρακτικής · EIPA"
+        "title": "Πιστοποιητικό Καλής Πρακτικής",
+        "subtitle": "European Public Sector Award 2025–26, EIPA"
       },
       "innovationInPolitics": {
-        "label": "Φιναλίστ",
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Innovation in Politics Institute"
+        "title": "Φιναλίστ",
+        "subtitle": "Innovation in Politics Awards 2026"
       },
       "oecd": {
-        "label": "Αναφορά",
-        "title": "OECD.AI Policy Navigator",
-        "subtitle": "Το OpenCouncil στον κατάλογο πρωτοβουλιών ΤΝ του ΟΟΣΑ"
+        "title": "Το OpenCouncil στο OECD.AI Policy Navigator",
+        "subtitle": "τον κατάλογο του ΟΟΣΑ για την τεχνητή νοημοσύνη στον δημόσιο τομέα"
       },
       "wired": {
-        "label": "Άρθρο",
-        "title": "WIRED Greece",
-        "subtitle": "«ΑΙ και δημοτικά συμβούλια, στην άκρη της Ελλάδας»"
-      },
-      "kede": {
-        "label": "Άρθρο",
-        "title": "ΚΕΔΕ",
-        "subtitle": "«Η πρωτοποριακή πλατφόρμα ΑΙ που αλλάζει τα δεδομένα στο Δημοτικό Συμβούλιο Χανίων»"
+        "title": "«ΑΙ και δημοτικά συμβούλια, στην άκρη της Ελλάδας»",
+        "subtitle": "ρεπορτάζ του WIRED Greece από την Ορεστιάδα"
       }
     }
   },

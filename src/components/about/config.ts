@@ -22,7 +22,12 @@ export function demoUrlForRealm(feature: Feature, realm: Realm): string | undefi
 
 export interface RecognitionItem {
     id: string
+    /** The headline award leads the block alone; the other awards share a row; mentions are one line each. */
+    kind: 'headline' | 'award' | 'mention'
     linkUrl: string
+    logoUrl: string
+    /** Logos differ a lot in aspect ratio, so each is sized by eye. */
+    logoClassName: string
 }
 
 /**
@@ -237,20 +242,40 @@ export const OPENNESS_FEATURES: Feature[] = [
 // ─── Proof and people ────────────────────────────────────────────────────────
 
 export const RECOGNITION_ITEMS: RecognitionItem[] = [
-    { id: 'ministryAward', linkUrl: 'https://digitalawards.gov.gr/winners/2024' },
-    { id: 'epsa', linkUrl: 'https://www.eipa.eu/epsa-2025-26/' },
+    {
+        id: 'ministryAward',
+        kind: 'headline',
+        linkUrl: 'https://digitalawards.gov.gr/winners/2024',
+        logoUrl: '/about/digital-gov-awards.png',
+        logoClassName: 'h-14 w-auto',
+    },
+    {
+        id: 'epsa',
+        kind: 'award',
+        linkUrl: 'https://www.eipa.eu/epsa-2025-26/',
+        logoUrl: '/about/eipa.png',
+        logoClassName: 'h-8 w-auto',
+    },
     {
         id: 'innovationInPolitics',
+        kind: 'award',
         linkUrl: 'https://event.innovationinpolitics.eu/InnovationinPoliticsAwards2026#/Finalists?lang=en',
+        logoUrl: '/about/innovation-politics-figure.png',
+        logoClassName: 'h-10 w-auto',
     },
     {
         id: 'oecd',
+        kind: 'mention',
         linkUrl: 'https://oecd.ai/en/dashboards/policy-initiatives/opencouncil-subnational-municipality-of-chania',
+        logoUrl: '/about/oecd.png',
+        logoClassName: 'h-5 w-auto',
     },
-    { id: 'wired', linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/' },
     {
-        id: 'kede',
-        linkUrl: 'https://kede.gr/opencouncil-chania-gr-i-protoporiaki-platforma-ai-pou-allazei-ta-dedomena-sto-dimotiko-symvoulio-chanion/',
+        id: 'wired',
+        kind: 'mention',
+        linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/',
+        logoUrl: '/about/wired.svg',
+        logoClassName: 'h-[18px] w-auto',
     },
 ]
 
