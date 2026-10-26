@@ -32,34 +32,62 @@ FROM "Location" l;
 \echo '✓ LocationSearchView created'
 \echo ''
 
--- View 2: Party details for person who introduced subject (via Role)
+-- View 2: Party of the person who introduced a subject, at the meeting's date
 -- Why this view? Person and Party are connected through the Role table, not directly.
--- This view:
---   - Filters for active roles (no end date or future end date)
---   - Prefers head roles (isHead = true)
---   - Takes the most recent role if multiple match
+-- This view gives one row per subject that has an introducer:
+--   - The party is the one the person belonged to when the meeting took place, the
+--     rule the subject page applies (getPartyFromRoles with the meeting date). A
+--     role is active at a date when it started on or before it and ends after it,
+--     the same bounds as isRoleActiveAt in src/lib/utils/roles.ts.
+--   - Prefers head roles (isHead = true), then the most recent start
 --   - Uses Party's cityId since Role may not have cityId when it's a party role
+--
+-- IMPORTANT: The primary key is `id`, the subject id, unaliased, as in
+-- SubjectMetricsView. A Role or Party WAL event carries only that table's own
+-- columns, so a key built from aliased columns (person_id, city_id) made every
+-- Role or Party write fail with "Primary keys [...] not subset of payload data"
+-- and exit the daemon. Those events now name no row of this view, so they change
+-- nothing: a role change reaches a subject when the subject is next synced. A
+-- change of party from a date onwards needs no resync, because the subjects
+-- before that date keep the party they had.
+--
+-- The column set changed from (person_id, city_id, ...), which CREATE OR REPLACE
+-- cannot do, so the view is dropped and created.
 \echo 'Creating IntroducedByPartyView...'
-CREATE OR REPLACE VIEW "IntroducedByPartyView" AS
-SELECT DISTINCT ON (r."personId", pa."cityId")
-  r."personId" AS person_id,
-  pa."cityId" AS city_id,
-  p.id AS party_id,
-  p.name AS party_name,
-  p.name_en AS party_name_en
-FROM "Role" r
-INNER JOIN "Party" pa ON r."partyId" = pa.id
-LEFT JOIN "Party" p ON r."partyId" = p.id
-WHERE r."partyId" IS NOT NULL
-  AND (r."endDate" IS NULL OR r."endDate" > NOW())
-ORDER BY r."personId", pa."cityId", r."isHead" DESC, r."startDate" DESC NULLS LAST;
+DROP VIEW IF EXISTS "IntroducedByPartyView";
+CREATE VIEW "IntroducedByPartyView" AS
+SELECT
+  s.id,
+  party.party_id,
+  party.party_name,
+  party.party_name_en
+FROM "Subject" s
+INNER JOIN "CouncilMeeting" m ON m.id = s."councilMeetingId" AND m."cityId" = s."cityId"
+INNER JOIN LATERAL (
+  SELECT
+    pa.id AS party_id,
+    pa.name AS party_name,
+    pa.name_en AS party_name_en
+  FROM "Role" r
+  INNER JOIN "Party" pa ON r."partyId" = pa.id
+  WHERE r."personId" = s."personId"
+    AND pa."cityId" = s."cityId"
+    AND (r."startDate" IS NULL OR r."startDate" <= m."dateTime")
+    AND (r."endDate" IS NULL OR r."endDate" > m."dateTime")
+  ORDER BY r."isHead" DESC, r."startDate" DESC NULLS LAST
+  LIMIT 1
+) party ON true
+WHERE s."personId" IS NOT NULL;
 \echo '✓ IntroducedByPartyView created'
 \echo ''
 
 -- View 4: Speaker contributions with party details via Role
 -- Why this view? This view:
---   - Resolves speaker party through active roles (same logic as other views)
+--   - Resolves the speaker's party at the date of the subject's meeting, with the
+--     same rule as IntroducedByPartyView
 --   - Provides denormalized speaker/party info for Elasticsearch indexing
+--   - Carries speaker_name, the display name of a speaker with no Person record,
+--     so that such a speaker is searchable by name
 --
 -- NOTE: REF links ([text](REF:TYPE:ID)) in contribution text are indexed as-is.
 -- The views do not strip text. See the README FAQ on REF links for the
@@ -70,22 +98,32 @@ ORDER BY r."personId", pa."cityId", r."isHead" DESC, r."startDate" DESC NULLS LA
 -- `id` to `contribution_id` here, WAL still sends `id`, causing PGSync to fail with:
 --   "Primary keys ['contribution_id'] not subset of payload data dict_keys(['id', ...])"
 -- The rename to `contribution_id` happens in schema.json via transform.rename.
+--
+-- The same holds for the foreign key: PGSync resolves a SpeakerContribution event
+-- to its subject by reading the key by name from the WAL row. Aliased as
+-- subject_id, it was never found, so a new or edited contribution never reached
+-- the index. `subjectId` keeps its base table name. The column was renamed, which
+-- CREATE OR REPLACE cannot do, so the view is dropped and created.
 \echo 'Creating SpeakerContributionSearchView...'
-CREATE OR REPLACE VIEW "SpeakerContributionSearchView" AS
+DROP VIEW IF EXISTS "SpeakerContributionSearchView";
+CREATE VIEW "SpeakerContributionSearchView" AS
 SELECT
   sc.id,  -- Keep as `id` for WAL compatibility; renamed to contribution_id in schema.json
-  sc."subjectId" AS subject_id,
+  sc."subjectId",  -- Keep the base table name: PGSync routes events by it
   sc.text,
   sp.id AS speaker_person_id,
   sp.name AS speaker_person_name,
   sp.name_en AS speaker_person_name_en,
   r_party.party_id AS speaker_party_id,
   r_party.party_name AS speaker_party_name,
-  r_party.party_name_en AS speaker_party_name_en
+  r_party.party_name_en AS speaker_party_name_en,
+  sc."speakerName" AS speaker_name
 FROM "SpeakerContribution" sc
+INNER JOIN "Subject" s ON s.id = sc."subjectId"
+INNER JOIN "CouncilMeeting" m ON m.id = s."councilMeetingId" AND m."cityId" = s."cityId"
 LEFT JOIN "Person" sp ON sc."speakerId" = sp.id
 LEFT JOIN LATERAL (
-  SELECT 
+  SELECT
     pa.id AS party_id,
     pa.name AS party_name,
     pa.name_en AS party_name_en
@@ -93,7 +131,8 @@ LEFT JOIN LATERAL (
   INNER JOIN "Party" pa ON r."partyId" = pa.id
   WHERE r."personId" = sp.id
     AND pa."cityId" = sp."cityId"
-    AND (r."endDate" IS NULL OR r."endDate" > NOW())
+    AND (r."startDate" IS NULL OR r."startDate" <= m."dateTime")
+    AND (r."endDate" IS NULL OR r."endDate" > m."dateTime")
   ORDER BY r."isHead" DESC, r."startDate" DESC NULLS LAST
   LIMIT 1
 ) r_party ON true;
@@ -238,15 +277,13 @@ LIMIT 3;
 -- Check 3: IntroducedByPartyView - verify party data exists
 \echo '3. Checking IntroducedByPartyView data...'
 SELECT 
-  COUNT(*) AS total_person_party_mappings,
-  COUNT(DISTINCT person_id) AS unique_persons,
-  COUNT(DISTINCT party_id) AS unique_parties,
-  COUNT(DISTINCT city_id) AS unique_cities
+  COUNT(*) AS subjects_with_introducer_party,
+  COUNT(DISTINCT party_id) AS unique_parties
 FROM "IntroducedByPartyView";
 \echo ''
 
 \echo '   Sample data from IntroducedByPartyView:'
-SELECT person_id, city_id, party_name
+SELECT id, party_name
 FROM "IntroducedByPartyView"
 LIMIT 3;
 \echo ''
@@ -258,7 +295,7 @@ SELECT
   COUNT(ibp.party_id) AS subjects_with_party,
   COUNT(*) - COUNT(ibp.party_id) AS subjects_missing_party
 FROM "Subject" s
-LEFT JOIN "IntroducedByPartyView" ibp ON ibp.person_id = s."personId" AND ibp.city_id = s."cityId"
+LEFT JOIN "IntroducedByPartyView" ibp ON ibp.id = s.id
 WHERE s."personId" IS NOT NULL;
 \echo ''
 
@@ -275,7 +312,7 @@ FROM "SpeakerContributionSearchView";
 \echo '   Sample data from SpeakerContributionSearchView:'
 SELECT
   id,
-  subject_id,
+  "subjectId",
   speaker_person_name,
   speaker_party_name,
   LEFT(text, 80) || '...' AS text_preview

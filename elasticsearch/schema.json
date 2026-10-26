@@ -102,6 +102,11 @@
             "analyzer": "standard",
             "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
           },
+          "speaker_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
           "speaker_party_id": { "type": "keyword" },
           "speaker_party_name": {
             "type": "text",
@@ -252,39 +257,39 @@
           "table": "IntroducedByPartyView",
           "schema": "public",
           "base_tables": ["Role", "Party"],
-          "primary_key": ["person_id", "city_id"],
+          "primary_key": ["id"],
           "columns": ["party_id"],
           "label": "introduced_by_party_id",
           "relationship": {
             "variant": "scalar",
             "type": "one_to_one",
-            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
           }
         },
         {
           "table": "IntroducedByPartyView",
           "schema": "public",
           "base_tables": ["Role", "Party"],
-          "primary_key": ["person_id", "city_id"],
+          "primary_key": ["id"],
           "columns": ["party_name"],
           "label": "introduced_by_party_name",
           "relationship": {
             "variant": "scalar",
             "type": "one_to_one",
-            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
           }
         },
         {
           "table": "IntroducedByPartyView",
           "schema": "public",
           "base_tables": ["Role", "Party"],
-          "primary_key": ["person_id", "city_id"],
+          "primary_key": ["id"],
           "columns": ["party_name_en"],
           "label": "introduced_by_party_name_en",
           "relationship": {
             "variant": "scalar",
             "type": "one_to_one",
-            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
           }
         },
         {
@@ -316,13 +321,13 @@
         {
           "table": "SpeakerContributionSearchView",
           "schema": "public",
-          "base_tables": ["SpeakerContribution", "Person", "Party", "Role"],
+          "base_tables": ["SpeakerContribution", "Party", "Role"],
           "primary_key": ["id"],
           "label": "speaker_contributions",
           "relationship": {
             "variant": "object",
             "type": "one_to_many",
-            "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
+            "foreign_key": { "parent": ["id"], "child": ["subjectId"] }
           },
           "columns": [
             "id",
@@ -332,7 +337,8 @@
             "speaker_person_name_en",
             "speaker_party_id",
             "speaker_party_name",
-            "speaker_party_name_en"
+            "speaker_party_name_en",
+            "speaker_name"
           ],
           "transform": {
             "rename": {
@@ -380,7 +386,7 @@
         {
           "table": "SubjectMetricsView",
           "schema": "public",
-          "base_tables": ["SpeakerContribution", "Utterance", "SpeakerSegment", "Summary"],
+          "base_tables": ["Utterance", "SpeakerSegment", "Summary"],
           "primary_key": ["id"],
           "columns": ["contributor_count"],
           "label": "contributor_count",
@@ -393,7 +399,7 @@
         {
           "table": "SubjectMetricsView",
           "schema": "public",
-          "base_tables": ["SpeakerContribution", "Utterance", "SpeakerSegment", "Summary"],
+          "base_tables": ["Utterance", "SpeakerSegment", "Summary"],
           "primary_key": ["id"],
           "columns": ["discussion_speaking_seconds"],
           "label": "discussion_speaking_seconds",

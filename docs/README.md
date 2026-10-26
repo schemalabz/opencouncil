@@ -23,6 +23,7 @@ How to get the app running on your machine.
 Deep dives into specific features — architecture, data flow, and implementation details.
 
 - **[guides/meeting-lifecycle.md](./guides/meeting-lifecycle.md)** — The complete meeting pipeline from agenda PDF to searchable, summarized page. Processing stages, status tracking, and the task orchestration behind it.
+- **[../elasticsearch/README.md](../elasticsearch/README.md)** — Search: the hybrid query, and how PGSync copies PostgreSQL rows to Elasticsearch. It lists the changes that sync live, the rules for `schema.json` and `views.sql`, and the deployment of a schema change.
 - **[guides/editing-interface.md](./guides/editing-interface.md)** — Transcript editing mode: lifecycle, keyboard shortcuts, speaker management, timestamp adjustment
 - **[guides/consultations.md](./guides/consultations.md)** — Public consultation feature: regulation viewer, comments, geo-editor, JSON schema
 - **[guides/meeting-highlights.md](./guides/meeting-highlights.md)** — Video highlight generation: multi-page flow, video formats (16:9, 9:16), rendering

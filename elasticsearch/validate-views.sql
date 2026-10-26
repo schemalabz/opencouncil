@@ -61,10 +61,8 @@ LIMIT 3;
 -- ============================================================================
 \echo '3. Validating IntroducedByPartyView...'
 SELECT
-  COUNT(*) AS total_mappings,
-  COUNT(DISTINCT person_id) AS unique_persons,
-  COUNT(DISTINCT party_id) AS unique_parties,
-  COUNT(DISTINCT city_id) AS unique_cities
+  COUNT(*) AS subjects_with_introducer_party,
+  COUNT(DISTINCT party_id) AS unique_parties
 FROM "IntroducedByPartyView";
 
 \echo ''

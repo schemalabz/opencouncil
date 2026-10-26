@@ -39,15 +39,16 @@ nix run .#dev-db-nix        # runs postgres in the FOREGROUND — background it 
 
 - It `exec`s postgres directly, so stopping the background task stops postgres cleanly (single process — the "never kill the background task" rule for `nix run .#dev` does not apply here).
 - `OC_DB_PORT=<port>` overrides the port if 5432 is taken (then also override `PG_URL` for the harness).
-- `nix run .#dev-db-nix-locked` runs the production-matching PostGIS 3.3.5 build.
+- `nix run .#oc-dev-db-nix-locked` runs the production-matching PostGIS 3.3.5 build. It is a package, not an app, so `.#dev-db-nix-locked` does not exist. `prisma migrate deploy` needs it: migration `20241221130119_` pins PostGIS 3.3.5, and the default build fails it.
 
-**pgsync image parity with production.** The harness uses `toluaina1/pgsync:latest`, but `docker run` never re-pulls a tag that exists locally — a cached image can be months behind what production runs, and pgsync behavior differs across versions (see the README FAQ on deletes that do not propagate). Test with the version production runs:
+**pgsync image parity with production.** Production runs the image that `opencouncil-tasks/docker/pgsync/` builds: an exact PyPI release plus one upstream fix (see that directory's Dockerfile). The harness uses the same image by default (`PGSYNC_IMAGE`, built on first use). Set `PGSYNC_IMAGE` to compare another one. Do not test with `toluaina1/pgsync:latest`: upstream publishes only that moving tag, and it can carry unreleased code. Check what production runs:
 ```bash
-docker run --rm --entrypoint sh toluaina1/pgsync:latest -c 'pip show pgsync | head -2'
 ssh root@134.122.74.255 'docker exec opencouncil-tasks-pgsync-1 pip show pgsync | head -2'
-# if they differ, copy the exact prod image (upstream :latest may lack an amd64 manifest, so pull can fail):
-ssh root@134.122.74.255 'docker save toluaina1/pgsync:latest | gzip' > /tmp/pgsync.tar.gz && docker load < /tmp/pgsync.tar.gz
 ```
+
+**A bootstrap keeps the old columns of `_view`.** `_view` is the trigger table that decides which columns notify. A bootstrap builds it again from the columns that it already holds plus the columns of the current schema and image. A second image tested on the same database therefore also watches the columns of the first image. Compare images on a fresh database each time. `pgsync-matrix.sh` drops the PGSync objects before it bootstraps.
+
+**Seeding.** The local database comes from the published seed artifact (`docs/database-seeding.md`). `nix run .#dev` restores it into an empty database through `npm run db:deploy:seed`. For a second, disposable database, restore it yourself: `npm run seed -- restore --db <local URL>` into an empty database, or `npm run seed -- reset` to replace one that has data. Every `seed` command refuses a database that is not on this machine. The artifact carries the view definitions of production and no PGSync objects, so apply the branch's `views.sql` before a bootstrap; `pgsync-test.sh` and `pgsync-matrix.sh` do this. Do not use `prisma db seed` or `prisma/seed_data.json` here: local setups no longer use them.
 
 **Test data model — two layers.** The full seed dump is the *substrate*: real production-derived data whose shape variety (NULL relations, geometries, unidentified speakers) is what makes bootstrap a meaningful coverage test — a bootstrap that "passes" on a few hand-made rows proves almost nothing. On top of it, each behavioral recipe (section 3) inserts its own *probe rows* with self-chosen `test-` prefixed IDs and controlled content. Assert only on probe rows, never on dump rows — the dump is regenerated from production and its contents drift.
 
@@ -58,10 +59,9 @@ When the change under test introduces **new data shapes** (a new column, a new t
 psql "postgresql://opencouncil:opencouncil@localhost:5432/opencouncil" -At \
   -c 'SELECT count(*) FROM "Subject";' -c $'SELECT count(*) FROM "Subject" WHERE description ~ \'\\(REF:\';'
 ```
-The full seed (`prisma/seed_data.json`) has ~239 subjects with thousands of REF links — plenty for every recipe, no fixture injection needed. If you see only 2 subjects (the Serbian review fixture), the full seed never ran: run `nix run .#dev` once (it migrates and seeds the local DB automatically), or seed manually — but pin `DATABASE_URL` to localhost first, because `.env` usually points at a remote DB:
+The subset artifact holds the latest 2 released meetings of each body: the release of 2026-10-22 has 949 subjects and 1,354 speaker contributions. That is plenty for every recipe, with no fixture injection. If you see only 2 subjects (the Serbian review fixture), the restore never ran: run `nix run .#dev` once, or restore by hand:
 ```bash
-DATABASE_URL="postgresql://opencouncil:opencouncil@localhost:5432/opencouncil" \
-  nix develop --command npx prisma db seed
+npm run seed -- restore --db "postgresql://opencouncil:opencouncil@localhost:5432/opencouncil"
 ```
 
 **If the schema references an ingest pipeline** (`"pipeline"` key), the pipeline must exist on the cluster before the run, or every bulk write fails. Create/update it from the repo file — command in the README, section "Create or Update the Pipeline".
@@ -90,6 +90,7 @@ Notes:
   4. Read the daemon status line while it runs: `Db` counts accepted NOTIFY events, `Elasticsearch` counts operations sent, `Xlog` counts WAL-slot events (mostly startup catch-up). `Db` moved but `Elasticsearch` did not → the event was accepted and **misrouted** (the root-table `base_tables` bug — CI guards the invariant, the probe is the runtime proof). `Db` did not move → the notification was **dropped before the daemon** — check the trigger function version (README FAQ on deletes that do not propagate).
 - **Pipeline stripping** — after bootstrap, `GET /subjects_test/_doc/<id>`: `description` and nested `speaker_contributions[].text` must contain no `[text](REF:...)`. Then the live path: `UPDATE` a description with fresh REF links, confirm the synced document is stripped. Definition-only check without pgsync: the `_simulate` example in the README.
 - **New fields / metrics** — verify against a probe row whose expected values you computed yourself, and re-check after a live `UPDATE` of the parent `Subject` row (child-table writes alone do not re-sync — README FAQ "When do the discussion metrics refresh?").
+- **Live sync of every field** — `scripts/pgsync-matrix.sh` (opencouncil-tasks) changes every source of every indexed field in the local database and reports `live`, `not live` or `invalid` per field. Run it after any change to `schema.json` or `views.sql`, and compare the report with the README section "What syncs live": a row that changed is a finding, and the README table changes with the code. `invalid` means the probe's expectation already held before its change, which proves nothing: fix the probe. The script writes probe rows and changes names, so run it only against a disposable seeded database; it refuses any other host.
 
 ## 4. Cleanup checklist
 
