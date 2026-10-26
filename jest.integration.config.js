@@ -10,8 +10,8 @@ module.exports = {
     // about 30% less CPU than 8.
     maxWorkers: '25%',
     // Prevent Jest from scanning large build directories
-    modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
-    testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
+    modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/.claude/worktrees/'],
+    testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/.claude/worktrees/'],
     moduleNameMapper: {
         // Next.js bundler marker modules with no runtime content — same
         // mapping as jest.config.js.

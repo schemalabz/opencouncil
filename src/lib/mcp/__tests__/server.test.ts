@@ -394,4 +394,19 @@ describe('paging arguments', () => {
             'athens', 'm1', expect.objectContaining({ page: 3, pageSize: 7 }), USER
         );
     });
+
+    it('forwards the word filter of get_transcript, and refuses a one-letter word', async () => {
+        const { meta, handlers } = advertised(USER);
+        const schema = meta.get_transcript.inputSchema!;
+        expect(schema.parse({ cityId: 'athens', meetingId: 'm1', query: ' Λιμενικό ' })).toMatchObject({ query: 'Λιμενικό' });
+        expect(() => schema.parse({ cityId: 'athens', meetingId: 'm1', query: 'α' })).toThrow();
+
+        await handlers.get_transcript(
+            { cityId: 'athens', meetingId: 'm1', page: 1, pageSize: 40, includeUtteranceIds: false, query: 'Λιμενικό' } as never,
+            ctxFor(USER)
+        );
+        expect(data.mcpGetTranscript).toHaveBeenCalledWith(
+            'athens', 'm1', expect.objectContaining({ query: 'Λιμενικό' }), USER
+        );
+    });
 });

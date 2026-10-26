@@ -242,9 +242,10 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'scheduled meeting sorts ahead of every held one — pass timeFilter to separate ' +
                 'them. administrativeBodyIds answers "when did this body last meet": pair it ' +
                 'with timeFilter "past" for the last held session, "upcoming" for the next one. ' +
-                'Each row carries subjectCount and hasTranscript: `subjectCount: 0` with ' +
-                '`hasTranscript: true` is a meeting that is transcribed but not yet summarized, ' +
-                'and get_transcript still holds everything that was said in it. '
+                'Each row carries subjectCount, hasTranscript and summarized: `hasTranscript: true` ' +
+                'with `summarized: false` is a meeting that is transcribed but not yet summarized — ' +
+                'with no subjects, or with the agenda document\'s items only — and get_transcript ' +
+                'still holds everything that was said in it. '
                 + 'Read scheduleStatus before you call a row the last meeting of a body: a '
                 + '"postponed" or "cancelled" meeting did not take place on its date. '
                 + 'postponedFromDate is set on the new meeting of a postponement.',
@@ -291,9 +292,13 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'agenda order does not reflect weight. Subjects are returned in agenda order. ' +
                 'An empty `subjects` list does not mean an empty meeting: subjects come from a ' +
                 'summarization step that runs after transcription, so a meeting can hold the full ' +
-                'verbatim record and no agenda yet. Read `hasTranscript` — when it is true, work ' +
-                'from get_transcript instead (summarize it yourself, quote it, or clip a highlight ' +
-                'from it) rather than reporting that there is nothing to show. '
+                'verbatim record and no agenda yet. Read `hasTranscript` and `summarized` — while ' +
+                '`summarized` is false, the subjects are at most the agenda document\'s items, with no ' +
+                'discussion, no contributions and nothing raised before the agenda; work from ' +
+                'get_transcript instead (summarize it yourself, quote it, or clip a highlight ' +
+                'from it) rather than reporting that there is nothing to show or that an item was ' +
+                'not raised. Each subject carries nonAgendaReason: "beforeAgenda" for an item raised ' +
+                'before the agenda (προ ημερησίας), "outOfAgenda" for an urgent item added to it. '
                 + 'scheduleStatus "postponed" or "cancelled" means that the meeting did not take place on its date.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
@@ -354,10 +359,13 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'resolved as of the meeting date. Long — prefer ' +
                 'get_subject_transcript when you care about one subject. Pass personId for ' +
                 'everything one councillor said in the meeting (the way to gather their own ' +
-                'moments). Set includeUtteranceIds to get utterance ids for highlight creation. ' +
+                'moments). Pass query for the segments that say a word, a name or a body: search ' +
+                'ranks subjects by their summaries, so a verbatim mention is reachable only here — ' +
+                'one call per meeting. Set includeUtteranceIds to get utterance ids for highlight creation. ' +
                 'This is also the whole record of a meeting that get_meeting reports with ' +
-                '`hasTranscript: true` and no subjects — one that is transcribed but not yet ' +
-                'summarized. For such a meeting this is the only record — summarize it, quote it, ' +
+                '`hasTranscript: true` and `summarized: false` — one that is transcribed but not yet ' +
+                'summarized, with no subjects or with the agenda document\'s items only. For such a ' +
+                'meeting this is the only record — summarize it, quote it, ' +
                 'and pick highlight utterances from it. It carries no agenda, decision or vote ' +
                 'tally, so never report those from a transcript alone.',
             // Strict: a client that still sends the old segmentsPerPage gets an
@@ -367,6 +375,10 @@ export function registerOpenCouncilServer(server: McpServer) {
                 meetingId: z.string().min(1),
                 personId: z.string().optional()
                     .describe('Only this person\'s segments (see list_people)'),
+                query: z.string().trim().min(2).max(100).optional()
+                    .describe('Only segments whose words contain every term, accent- and case-insensitive. ' +
+                        'For «was X mentioned» and «what was said about X». Combine with personId for one ' +
+                        'person\'s words on X. Matched segments carry snippets around the hits.'),
                 pageSize: jsonPageFields.pageSize.max(100).default(40)
                     .describe('Speaker segments per page'),
                 includeUtteranceIds: z.boolean().default(false),
@@ -383,6 +395,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                         pageSize: args.pageSize,
                         includeUtteranceIds: args.includeUtteranceIds,
                         personId: args.personId,
+                        query: args.query,
                     },
                     identityFromContext(ctx)
                 )
