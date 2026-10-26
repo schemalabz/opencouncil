@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { CLIENT_TOOLS } from "../tools";
 
 /**
  * The rules below each answer a defect seen in a production conversation
@@ -9,6 +10,7 @@ import path from "node:path";
 const PROMPTS = path.join(__dirname, "../../../prompts");
 // Line wraps are not wording: a reflow of a paragraph must not read as a dropped rule.
 const system = fs.readFileSync(path.join(PROMPTS, "system.md"), "utf8").replace(/\s+/g, " ");
+const boundaries = fs.readFileSync(path.join(PROMPTS, "context-pack/95-notis-boundaries.md"), "utf8");
 const communities = fs.readFileSync(
   path.join(PROMPTS, "context-pack/06-dimotikes-koinotites.md"),
   "utf8",
@@ -41,6 +43,18 @@ describe("system prompt rules from the 2026-10 conversation review", () => {
     expect(system).toContain("never «ασχολήθηκε με»");
   });
 
+  it("never promises to watch a city outside the reader's subscription", () => {
+    expect(system).toContain("you are woken only for meetings of the cities in <user_profile>");
+    expect(system).toContain("never record_commitment about its meetings");
+    expect(system).toContain("never schedule_wakeup to check on it yourself");
+    expect(system).toContain("once they add it, you write about it too");
+    expect(system).toContain("the door is the question, never the offer");
+    const tool = (name: string) => CLIENT_TOOLS.find((t) => t.name === name)?.description ?? "";
+    expect(tool("record_commitment")).toContain("Never for the meetings of a city outside their profile");
+    expect(tool("schedule_wakeup")).toContain("Never to follow a city outside the reader's profile");
+    expect(boundaries).toContain("Δεν παρακολουθεί δήμο που δεν είναι στις εγγραφές του χρήστη");
+  });
+
   it("names the four signals that always update the profile", () => {
     expect(system).toContain("Four things are lasting whatever words carry them");
     expect(system).toContain("«όχι μόνο τα δικά μου θέματα»");
@@ -57,11 +71,6 @@ describe("context pack — neighbourhood to κοινότητα", () => {
 });
 
 describe("support requests", () => {
-  const boundaries = fs.readFileSync(
-    path.join(PROMPTS, "context-pack/95-notis-boundaries.md"),
-    "utf8",
-  );
-
   it("files first for each of the four kinds, and never argues", () => {
     expect(system).toContain("File a support request with open_support_request, without asking first");
     for (const kind of ["«dissatisfaction»", "«contact»", "«help»", "«data_error»"]) {
