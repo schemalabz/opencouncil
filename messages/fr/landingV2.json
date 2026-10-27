@@ -149,6 +149,13 @@
     "12m": "12 derniers mois",
     "all": "Toute la période"
   },
+  "datesPill": {
+    "from": "à partir du {date}",
+    "to": "jusqu'au {date}",
+    "between": "{from} – {to}",
+    "setInFilters": "Dates définies dans les filtres",
+    "clear": "Effacer les dates"
+  },
   "bodyType": {
     "council": "Conseil",
     "committee": "Commission",

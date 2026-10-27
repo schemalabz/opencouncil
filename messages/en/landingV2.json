@@ -149,6 +149,13 @@
     "12m": "Last 12 months",
     "all": "All time"
   },
+  "datesPill": {
+    "from": "from {date}",
+    "to": "until {date}",
+    "between": "{from} – {to}",
+    "setInFilters": "Dates set in the filters",
+    "clear": "Clear dates"
+  },
   "bodyType": {
     "council": "Council",
     "committee": "Committee",
