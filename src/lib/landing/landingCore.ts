@@ -68,6 +68,24 @@ export function rangeToSubjectFilters(range: DateRangeKey): { monthsBack?: numbe
     return { monthsBack: Number(value) };
 }
 
+/**
+ * The date window of a map request, as the query parameters the map endpoints read: the explicit
+ * from/to dates when the reader set either, else the quick-range pill. Shared by the subjects
+ * fetch and the search, so a search runs under the same window as the listing it replaces.
+ */
+export function setDateWindowParams(
+    params: URLSearchParams,
+    range: DateRangeKey,
+    filters: Pick<MapFilters, 'dateFrom' | 'dateTo'>,
+): void {
+    if (filters.dateFrom || filters.dateTo) {
+        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters.dateTo) params.set('dateTo', filters.dateTo);
+        return;
+    }
+    for (const [key, value] of Object.entries(rangeToSubjectFilters(range))) params.set(key, String(value));
+}
+
 /** Widen the quick date range by two steps (14d → 3m, 30d → 6m, …), clamped at the widest. */
 export function widenRange(current: DateRangeKey): DateRangeKey {
     const i = DATE_RANGES.findIndex((r) => r.key === current);

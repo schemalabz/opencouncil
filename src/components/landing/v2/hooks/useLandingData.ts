@@ -8,7 +8,7 @@ import {
     type LandingHotSubject,
     type UpcomingMeeting,
 } from '@/lib/landing/landingData';
-import { DATE_RANGES, type DateRangeKey, type MapFilters } from '@/lib/landing/landingCore';
+import { setDateWindowParams, type DateRangeKey, type MapFilters } from '@/lib/landing/landingCore';
 
 /** The server-loaded initial data (page.tsx → LandingV2), seeded into state / passed through. */
 export type LandingInitialData = {
@@ -58,15 +58,7 @@ export type LandingData = {
  *  the seed guard so the server-loaded first page isn't re-fetched on mount. */
 function buildSubjectParams(range: DateRangeKey, filters: MapFilters): string {
     const params = new URLSearchParams();
-    if (filters.dateFrom || filters.dateTo) {
-        // Explicit date range from the filter pane overrides the quick-range pill.
-        if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-        if (filters.dateTo) params.set('dateTo', filters.dateTo);
-    } else {
-        const { query } = DATE_RANGES.find((r) => r.key === range) ?? DATE_RANGES[0];
-        const [key, value] = query.split('=');
-        params.set(key, value);
-    }
+    setDateWindowParams(params, range, filters);
     if (filters.cityIds.length) params.set('cityIds', filters.cityIds.join(','));
     if (filters.bodyTypes.length) params.set('bodyType', filters.bodyTypes.join(','));
     return params.toString();

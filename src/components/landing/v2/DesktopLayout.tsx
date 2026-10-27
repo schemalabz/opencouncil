@@ -250,7 +250,12 @@ export function DesktopLayout({
                                 onCommitSearch={onCommitSearch}
                             />
                         </div>
-                        <DateRangePill value={range} onChange={setRange} />
+                        <DateRangePill
+                            value={range}
+                            onChange={setRange}
+                            filters={filters}
+                            onClearDates={() => setFilters({ ...filters, dateFrom: null, dateTo: null })}
+                        />
                     </div>
                     <div className="pointer-events-auto relative z-10">
                         <CategoryFilterBar

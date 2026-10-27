@@ -8,7 +8,7 @@ import {
     type ReactNode,
 } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
     Search,
     CalendarDays,
@@ -35,8 +35,11 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { formatCalendarDate } from '@/lib/formatters/time';
 import { FilterBar } from './conceptShared';
 import {
     canWidenRange,
@@ -51,37 +54,84 @@ import {
 } from '@/lib/landing/landingCore';
 import type { LandingListCity } from '@/lib/landing/landingData';
 
-/* date-range dropdown — badge-style pill, same look as the topic filter pills */
-export function DateRangePill({ value, onChange }: { value: DateRangeKey; onChange: (v: DateRangeKey) => void }) {
+/* date-range dropdown — badge-style pill, same look as the topic filter pills.
+   Explicit dates from the filter pane replace the quick range in every request
+   (setDateWindowParams), so while either is set the pill shows those dates
+   instead of a range it is not applying, and offers to clear them. */
+export function DateRangePill({
+    value,
+    onChange,
+    filters,
+    onClearDates,
+}: {
+    value: DateRangeKey;
+    onChange: (v: DateRangeKey) => void;
+    filters: Pick<MapFilters, 'dateFrom' | 'dateTo'>;
+    onClearDates: () => void;
+}) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     const current = DATE_RANGES.find((r) => r.key === value) ?? DATE_RANGES[0];
     const [open, setOpen] = useState(false);
+    const overridden = Boolean(filters.dateFrom || filters.dateTo);
+    const label = overridden ? explicitDatesLabel(filters, t, locale) : t(`dateRange.${current.key}`);
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-black/40 bg-card px-3 text-[13px] font-medium text-muted-foreground shadow-sm transition-colors hover:border-black/60"
+                    className={cn(
+                        'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border bg-card px-3 text-[13px] font-medium shadow-sm transition-colors',
+                        overridden
+                            ? 'border-[hsl(var(--orange))] text-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/10'
+                            : 'border-black/40 text-muted-foreground hover:border-black/60',
+                    )}
                 >
                     <CalendarDays className="h-3.5 w-3.5" />
-                    {t(`dateRange.${current.key}`)}
+                    {label}
                     {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" collisionPadding={12} className="rounded-2xl p-1.5">
+                {overridden && (
+                    <>
+                        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                            {t('datesPill.setInFilters')}
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={onClearDates} className="gap-2 rounded-lg py-2 font-semibold">
+                            <X className="h-4 w-4" />
+                            {t('datesPill.clear')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                    </>
+                )}
                 {DATE_RANGES.map((r) => (
                     <DropdownMenuItem
                         key={r.key}
+                        disabled={overridden}
                         onSelect={() => onChange(r.key)}
-                        className={cn('gap-2 rounded-lg py-2', r.key === value && 'font-semibold')}
+                        className={cn('gap-2 rounded-lg py-2', !overridden && r.key === value && 'font-semibold')}
                     >
-                        <Check className={cn('h-4 w-4', r.key === value ? 'opacity-100' : 'opacity-0')} />
+                        <Check className={cn('h-4 w-4', !overridden && r.key === value ? 'opacity-100' : 'opacity-0')} />
                         {t(`dateRangeMenu.${r.key}`)}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>
         </DropdownMenu>
     );
+}
+
+/** The explicit dates as the pill names them: one bound alone, or both. */
+function explicitDatesLabel(
+    { dateFrom, dateTo }: Pick<MapFilters, 'dateFrom' | 'dateTo'>,
+    t: ReturnType<typeof useTranslations<'landingV2'>>,
+    locale: string,
+): string {
+    const from = dateFrom ? formatCalendarDate(dateFrom, locale) : null;
+    const to = dateTo ? formatCalendarDate(dateTo, locale) : null;
+    if (from && to) return t('datesPill.between', { from, to });
+    if (from) return t('datesPill.from', { date: from });
+    return t('datesPill.to', { date: to ?? '' });
 }
 
 /* filters toggle — icon button with an active dot; opens the search dropdown/overlay */

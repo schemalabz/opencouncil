@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getRealm } from '@/lib/realm.server'
-import { getGeneralSubjects, getMapSubjects, parseMapSubjectFilters } from '@/lib/db/subject'
+import { getGeneralSubjects, getMapSubjects, parseMapSubjectFilters, quickRangeStart } from '@/lib/db/subject'
 import { searchSubjectsInRealm } from '@/lib/search/core'
 import { openDateRange } from '@/lib/search/dateRange'
 import { queryFlag } from '@/lib/zod-schemas/primitives'
@@ -44,17 +44,24 @@ export async function GET(request: Request) {
         // The map's own parser, so the search reads the filters exactly as the
         // map endpoints it is searching over do.
         const filters = parseMapSubjectFilters(searchParams);
+        const now = new Date();
+        // Either bound alone is a real filter — the map's own endpoints
+        // honour one, so a search over them must too, or committing would
+        // widen the window the reader just set. A missing end is now, as
+        // in those endpoints.
+        const dateRange = openDateRange(filters.dateFrom, filters.dateTo, now.toISOString());
+        // The quick-range pill (daysBack / monthsBack), as the map endpoints
+        // read it: explicit dates replace it. Without it a search under
+        // "14 days" returned subjects of any year.
+        const windowStart = dateRange ? undefined : quickRangeStart(filters, now);
 
         const { hits, total, dropped, derivedFilters } = await searchSubjectsInRealm({
             query,
             cityIds: filters.cityIds,
             topicIds: filters.topicIds,
             administrativeBodyTypes: filters.bodyTypes,
-            // Either bound alone is a real filter — the map's own endpoints
-            // honour one, so a search over them must too, or committing would
-            // widen the window the reader just set. A missing end is now, as
-            // in those endpoints.
-            dateRange: openDateRange(filters.dateFrom, filters.dateTo, new Date().toISOString()),
+            dateRange,
+            fallbackDateRange: windowStart && { start: windowStart.toISOString(), end: now.toISOString() },
             config: {
                 enableSemanticSearch: true,
                 size: MAX_RESULTS,

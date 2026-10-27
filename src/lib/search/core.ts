@@ -246,6 +246,7 @@ export async function searchSubjectsInRealm(
                 administrativeBodyTypes: request.administrativeBodyTypes,
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
+                fallbackDateRange: request.fallbackDateRange,
                 location: request.location
             }
         });
@@ -297,8 +298,10 @@ export async function searchSubjectsInRealm(
 
         // Merge with explicit filters. A calendar day of the range is a day
         // in the city's zone, not the UTC day that Elasticsearch would read.
+        // The fallback window comes last: it is the caller's default, not a
+        // period the reader set, so a period in the text still applies.
         const mergedCityIds = extractedCityIds.length > 0 ? extractedCityIds : cityIds;
-        const mergedDateRange = request.dateRange ?? processedFilters.dateRange;
+        const mergedDateRange = request.dateRange ?? processedFilters.dateRange ?? request.fallbackDateRange;
         const mergedRequest: SearchRequest = {
             ...request,
             cityIds: mergedCityIds,

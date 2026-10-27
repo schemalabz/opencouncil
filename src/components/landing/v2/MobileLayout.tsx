@@ -168,7 +168,12 @@ export function MobileLayout({
                         {(hasActiveFilters(filters) || cats.length > 0) && (
                             <FilterIconButton compact active onClick={() => setSearchMode('filters')} />
                         )}
-                        <DateRangePill value={range} onChange={setRange} />
+                        <DateRangePill
+                            value={range}
+                            onChange={setRange}
+                            filters={filters}
+                            onClearDates={() => setFilters({ ...filters, dateFrom: null, dateTo: null })}
+                        />
                     </div>
 
                     {/* map controls — "?" and the basemap toggle, inline with the bottom tabs, with
