@@ -2,6 +2,9 @@
 
 Checked 2026-10-12 on Rouen (55 seats) and the Rennes demo (61 seats). Term: 2026–2032; elected 15/22 March 2026, councils installed in the following week. Roster: a `bodies` roster for `scripts/payload.ts` (its header shows the shape).
 
+## Language
+`fr` for every commune: French is the language of the Republic (Constitution, art. 2), and councils deliberate in French. Regional languages (Breton, Corsican, Alsatian, Basque, Catalan, Occitan) are not a council language. (Not re-checked in the 2026-10 research.) See `../content-language.md`.
+
 ## Bodies
 - **Conseil municipal** (`council`): the only body that decides. The mayor is a councillor and presides it; there is no separate presidium. The «secrétaire de séance» is chosen for each sitting — not a role.
 - «Commissions municipales» only prepare business: not imported. «Conseils de quartier»: not imported.

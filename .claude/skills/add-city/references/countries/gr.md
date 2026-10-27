@@ -2,6 +2,9 @@
 
 Term: 2024–2028 (elected October 2023). The second half-term started around 2026-07-01..07 (presidium and committee re-elected); prefer decisions from then on. Roster: a `factions` roster for `scripts/payload.ts`, which owns the Greek conventions (presidium, committee, factions); example `references/roster.example.json`.
 
+## Language
+`el` for every municipality (`../content-language.md`).
+
 ## The city
 Every Greek δήμος already exists in OpenCouncil as a `pending` city with its boundary. `list_cities` does not show pending cities: find the existing id on the site (`/admin/cities`) before `get_city`. Never `create_city` a Greek municipality.
 

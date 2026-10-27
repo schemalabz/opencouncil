@@ -20,7 +20,7 @@ Decisions are out of scope: a body's decision conventions are set on its admin p
 ## Steps
 
 ### 1. The city
-`get_city(cityId)`: it must have no people, parties or meetings — `populate_city` runs once per city. A pre-loaded city can carry leftovers (Trikala: one party and no people) or wrong fields (a doubled «Δήμος» in the municipality name, an accented `name_en`). No MCP tool deletes them or edits a city: list them for an admin at the checkpoint, and wait until they are fixed before `populate_city`. If it does not exist (the country file says whether cities are pre-loaded), propose `create_city` (id = URL slug, names in the local language and in English, the official name, IANA time zone, language) at the checkpoint; the realm comes from the MCP host.
+`get_city(cityId)`: it must have no people, parties or meetings — `populate_city` runs once per city. A pre-loaded city can carry leftovers (Trikala: one party and no people) or wrong fields (a doubled «Δήμος» in the municipality name, an accented `name_en`). No MCP tool deletes them or edits a city: list them for an admin at the checkpoint, and wait until they are fixed before `populate_city`. If it does not exist (the country file says whether cities are pre-loaded), propose `create_city` (id = URL slug, names in the local language and in English, the official name, IANA time zone, and the language from step 2b) at the checkpoint; the realm comes from the MCP host.
 
 ### 2. Do they publish meeting video?
 A city without video can still be imported (roles only); say so early.
@@ -31,6 +31,11 @@ A city without video can still be imported (roles only); say so early.
 5. Facebook: yt-dlp cannot list a page; open `facebook.com/<page>/videos` in the built-in browser, then read each video URL with yt-dlp.
 6. **Record the channel**: the channel that streams a body's sittings goes on that body in the roster as `youtubeChannelUrl` (`https://www.youtube.com/channel/UC…` or `https://www.youtube.com/@handle`; never a video, playlist or `/c/` URL). Livestream polling uses it to attach the video of each later meeting. A local outlet's channel qualifies only when it streams every sitting of the body; Facebook pages have no field.
 7. **Take the newest sitting**, even when its video is only a live on Facebook (uploads elsewhere can come weeks later). Some channels have no lives and upload in batches weeks later (Thermi: five sittings in one day, three weeks late); the newest sitting with a video is then older than the newest invitation — say so. For a demo, prefer a substantive sitting (an hour or more, several debated items) among the newest few: the user replaced Thermi's newest 26-minute sitting with a 2½-hour one.
+
+### 2b. Which language does the council speak?
+The city's `language` is the language its council speaks in meetings: it selects the speech recognition and the language of every summary. Never assume the country's language. Follow `references/content-language.md`: find the municipality's region in its table and in the official list it names (the country file names the country's default and its regions), and read the municipality's minutes and agendas where the table says "check". An agent cannot listen to a meeting, so do not judge the language from its audio. Write the value and what decided it in `sources.md`.
+- A language that is not a `CityLanguage` value (Basque, Frisian, Ladin, Sorbian, …), a mixed council, or evidence that disagrees with the table ⇒ stop and ask the user at the checkpoint, with what you found. Do not pick the nearest supported language.
+- A pre-loaded city already has a language (the Language column of the admin cities table; `get_city` does not show it): check it against the same evidence, and list a wrong one for an admin at the checkpoint, like the other wrong fields of step 1.
 
 ### 3. Sources of the roster
 Follow the country file's sources, in its order of trust. Record every finding with its source (document id, URL, date) in `sources.md`.
@@ -63,7 +68,7 @@ Do the discovery half of step 7 now — for each body: the newest sitting, its v
 
 ### 6. CHECKPOINT — approval
 Present, in this order, and wait for a yes before `create_city`/`populate_city`:
-1. Target environment, realm and city (and the `create_city` arguments when the city is new), and the leftovers or wrong city fields that an admin must fix first (step 1).
+1. Target environment, realm and city (and the `create_city` arguments when the city is new), the council's language and what decided it (step 2b), and the leftovers or wrong city fields that an admin must fix first (step 1).
 2. The `--summary` output (each body with its channel and decision units; council order with parties and officers; committees; city roles; party leaders).
 3. Sources: one line per role group with its source.
 4. Defaults: placeholder colours/English names, independents, missing leaders, replacements found, role-date choices, spelling choices.
@@ -94,5 +99,6 @@ Then what an admin does to take the city live, with the values the run found: se
 ## Never
 - Never write to production unless the user asked for it in this session.
 - Never call `create_city`/`populate_city` before the checkpoint.
+- Never set a city's language without the evidence of step 2b, and never start transcription for a council whose language is not supported or not decided.
 - Never invent a role or a replacement you cannot cite; leave it out and say so.
 - Never keep personal data the import does not use (birth dates, occupations from official registers).
