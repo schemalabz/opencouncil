@@ -70,6 +70,16 @@ enum CityLanguage {
   el
   fr
   sr
+  de
+  nl
+  it
+  pl
+  pt
+  es
+  fi
+  ca
+  sv
+  gl
 }
 
 // Tenant/grouping a city belongs to (e.g. the Greek vs. French deployment).
