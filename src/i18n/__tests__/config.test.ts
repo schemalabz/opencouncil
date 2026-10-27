@@ -1,5 +1,4 @@
-import { CityLanguage } from '@prisma/client';
-import { LOCALES, stripLocalePrefix, localePathPrefix } from '../config';
+import { stripLocalePrefix, localePathPrefix, catalogLocaleForCityLanguage, getLanguageDisplayName } from '../config';
 
 describe('stripLocalePrefix', () => {
     test('removes the custom prefix of sr-Latn', () => {
@@ -38,11 +37,17 @@ describe('stripLocalePrefix', () => {
 });
 
 describe('city languages', () => {
-    // Documents, task requests and QR strips translate with the city's language
-    // as the locale. A locale next-intl does not know falls back to Greek silently.
-    test('every city language is a locale', () => {
-        for (const language of Object.values(CityLanguage)) {
-            expect(LOCALES).toContain(language);
-        }
+    // Documents, task requests and QR strips translate with the city's language.
+    // A locale next-intl does not know falls back to Greek silently.
+    test('a language with its own catalog keeps it, any other gets English', () => {
+        expect(catalogLocaleForCityLanguage('fr')).toBe('fr');
+        expect(catalogLocaleForCityLanguage('sr')).toBe('sr');
+        expect(catalogLocaleForCityLanguage('pl')).toBe('en');
+    });
+
+    test('names a language in the reader\'s locale', () => {
+        expect(getLanguageDisplayName('de', 'en')).toBe('German');
+        expect(getLanguageDisplayName('sr', 'el')).toBe('Σερβικά');
+        expect(getLanguageDisplayName('el', 'fr')).toBe('Grec');
     });
 });

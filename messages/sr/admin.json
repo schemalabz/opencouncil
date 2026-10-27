@@ -24,8 +24,6 @@
         "columnMeetings": "Седнице",
         "columnPeople": "Особе",
         "columnParties": "Одборничке групе",
-        "languageGreek": "Грчки",
-        "languageFrench": "Француски",
         "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}"
     },
     "taskStatus": {

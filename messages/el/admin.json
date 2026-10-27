@@ -24,8 +24,6 @@
     "columnMeetings": "Συνεδριάσεις",
     "columnPeople": "Πρόσωπα",
     "columnParties": "Παρατάξεις",
-    "languageGreek": "Ελληνικά",
-    "languageFrench": "Γαλλικά",
     "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}"
   },
   "taskStatus": {

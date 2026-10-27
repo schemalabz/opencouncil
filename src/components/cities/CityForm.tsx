@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { cityFormSchema, cityMessageLinkSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
+import { cityFormSchema, cityLanguageSchema, cityMessageLinkSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
+import { getLanguageDisplayName } from "@/i18n/config"
 import { toFormData } from "@/lib/utils/formData"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
@@ -554,9 +555,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="el">{t('languageGreek')}</SelectItem>
-                                            <SelectItem value="fr">{t('languageFrench')}</SelectItem>
-                                            <SelectItem value="sr">{t('languageSerbian')}</SelectItem>
+                                            {cityLanguageSchema.options.map((language) => (
+                                                <SelectItem key={language} value={language}>{getLanguageDisplayName(language, locale)}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
