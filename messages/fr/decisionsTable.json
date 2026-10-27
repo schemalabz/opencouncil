@@ -1,0 +1,33 @@
+{
+  "title": "Tableau des décisions",
+  "colIndex": "N°",
+  "colSubject": "Sujet",
+  "colNumber": "N° de décision",
+  "colSummary": "Résumé",
+  "colResult": "Résultat",
+  "sectionAgenda": "À l'ordre du jour",
+  "sectionOutOfAgenda": "Hors de l'ordre du jour",
+  "beforeAgenda": "Avant l'ordre du jour · {n, plural, one {# sujet} other {# sujets}}",
+  "pending": "En attente",
+  "linked": "Liée",
+  "result": {
+    "unanimous": "À l'unanimité",
+    "majority": "À la majorité",
+    "rejected": "Rejetée",
+    "none": "—",
+    "noVote": "—"
+  },
+  "noVoteHint": "Le document ne mentionne aucun vote",
+  "fromDiscussion": "D'après la discussion",
+  "openDocument": "Ouvrir la décision (PDF)",
+  "export": "Télécharger le DOCX",
+  "exportSuccess": "Le tableau des décisions a été téléchargé",
+  "exportError": "Le téléchargement a échoué",
+  "empty": "Aucun sujet pour le tableau.",
+  "voteFor": "pour",
+  "voteAgainst": "contre",
+  "voteAbstain": "abstention",
+  "votePresent": "présent",
+  "voteDidNotVote": "non votant",
+  "exportHint": "Le tableau que la municipalité publie après la séance : les sujets, le numéro de chaque décision, son résumé et le résultat du vote."
+}

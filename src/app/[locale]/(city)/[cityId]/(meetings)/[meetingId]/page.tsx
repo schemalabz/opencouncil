@@ -6,7 +6,9 @@ import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
-import { CalendarIcon, ExternalLink, FileIcon, FileText, History, Lock, MapPin, Video } from "lucide-react";
+import { CalendarIcon, ExternalLink, FileIcon, FileText, History, Lock, MapPin, Table2, Video } from "lucide-react";
+import { DecisionsTablePanel } from "@/components/meetings/decisions-table/DecisionsTablePanel";
+import { decisionsTableAvailable } from "@/lib/decisionsTable/availability";
 import { formatDate } from "@/lib/formatters/time";
 import { presentationPendingKind, type PresentationKey } from "@/lib/meetingPresentation";
 import { effectivePlace } from "@/lib/meetingPublic";
@@ -163,8 +165,12 @@ export default function MeetingPage() {
 function MeetingInfo({ stage, now }: { stage: PresentationKey; now: Date }) {
     const tMeeting = useTranslations("CouncilMeeting");
     const tStage = useTranslations("meetingStage");
+    const tTable = useTranslations("decisionsTable");
     const { meeting, subjects, city } = useCouncilMeetingData();
     const locale = useLocale();
+    const [tableOpen, setTableOpen] = useState(false);
+    // The Πίνακας αποφάσεων exists once the meeting has been held and decides things.
+    const showTable = decisionsTableAvailable(stage, meeting, subjects);
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
@@ -230,12 +236,29 @@ function MeetingInfo({ stage, now }: { stage: PresentationKey; now: Date }) {
                         </div>
                     )}
 
+                    {showTable && (
+                        <div className="flex items-center">
+                            <Table2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    captureEvent('meeting_page_action', { action: 'decisions_table', city_id: meeting.cityId, meeting_id: meeting.id });
+                                    setTableOpen(true);
+                                }}
+                                className="hover:text-primary transition-colors"
+                            >
+                                {tTable('title')}
+                            </button>
+                        </div>
+                    )}
+
                     <div className="flex items-center">
                         <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {tMeeting('subjectsCount', { count: subjects.length })}
                     </div>
                 </div>
             </div>
+            {showTable && <DecisionsTablePanel open={tableOpen} onOpenChange={setTableOpen} />}
         </div>
     )
 }

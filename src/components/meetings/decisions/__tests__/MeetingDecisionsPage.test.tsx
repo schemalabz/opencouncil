@@ -5,6 +5,7 @@ import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
 import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { readAdaLookup } from '@/lib/actions/adaLookups';
 import admin from '../../../../../messages/el/admin.json';
+import decisionsTable from '../../../../../messages/el/decisionsTable.json';
 import el from '../../../../../messages/el.json';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import type { DerivationOutput, Issue } from '@/lib/derivation/types';
@@ -198,7 +199,7 @@ afterAll(() => { global.fetch = originalFetch; });
 
 const renderPage = async () => {
     render(
-        <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+        <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
             <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} />
         </NextIntlClientProvider>,
     );
@@ -639,7 +640,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
 
     const renderAsSuperAdmin = async () => {
         render(
-            <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+            <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
                 <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
             </NextIntlClientProvider>,
         );
@@ -672,7 +673,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
 describe('MeetingDecisionsPage — from the issues card to the subject', () => {
     const renderAsSuperAdmin = async () => {
         render(
-            <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+            <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
                 <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
             </NextIntlClientProvider>,
         );

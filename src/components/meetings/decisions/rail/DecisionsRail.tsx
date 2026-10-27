@@ -8,6 +8,7 @@ import { PresenceCard } from '@/components/meetings/decisions/rail/PresenceCard'
 import { AttendanceChangesCard } from '@/components/meetings/decisions/rail/AttendanceChangesCard';
 import { DiscussionOrderCard } from '@/components/meetings/decisions/rail/DiscussionOrderCard';
 import { MinutesCard } from '@/components/meetings/decisions/rail/MinutesCard';
+import { DecisionsTableCard } from '@/components/meetings/decisions/rail/DecisionsTableCard';
 import { minutesReadiness, type Timeline } from '@/components/meetings/decisions/timeline';
 import type { MinutesData } from '@/lib/minutes/types';
 import { IssuesCard } from '@/components/meetings/decisions/rail/IssuesCard';
@@ -44,6 +45,7 @@ export function DecisionsRail({
     conventions,
     onPreviewMinutes,
     onExportDocx,
+    onExportDecisionsTable,
     previewDisabled,
     isPolling,
     onPollSkippingCache,
@@ -73,6 +75,8 @@ export function DecisionsRail({
     conventions: ConventionsPanel | null;
     onPreviewMinutes: () => void;
     onExportDocx: () => void;
+    /** Downloads the Πίνακας αποφάσεων the municipality posts, as a DOCX. */
+    onExportDecisionsTable: () => void;
     previewDisabled: boolean;
     isPolling: boolean;
     /** Polls Diavgeia and re-extracts every document, cache or no cache.
@@ -115,6 +119,7 @@ export function DecisionsRail({
                 isRederiving={isRederiving}
                 showRederive={isSuperAdmin && auditMode}
             />
+            <DecisionsTableCard onExport={onExportDecisionsTable} />
             {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} />}
             {minutes && (
                 <AttendanceChangesCard changes={changes} subjects={minutes.subjects} attendanceChanges={minutes.attendanceChanges} />

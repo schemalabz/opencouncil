@@ -1,0 +1,33 @@
+{
+  "title": "Decisions Table",
+  "colIndex": "No.",
+  "colSubject": "Subject",
+  "colNumber": "Decision no.",
+  "colSummary": "Summary",
+  "colResult": "Result",
+  "sectionAgenda": "On the agenda",
+  "sectionOutOfAgenda": "Outside the agenda",
+  "beforeAgenda": "Before the agenda · {n, plural, one {# subject} other {# subjects}}",
+  "pending": "Pending",
+  "linked": "Linked",
+  "result": {
+    "unanimous": "Unanimous",
+    "majority": "By majority",
+    "rejected": "Rejected",
+    "none": "—",
+    "noVote": "—"
+  },
+  "noVoteHint": "The document does not record a vote",
+  "fromDiscussion": "From the discussion",
+  "openDocument": "Open the decision (PDF)",
+  "export": "Download DOCX",
+  "exportSuccess": "The decisions table was downloaded",
+  "exportError": "The download failed",
+  "empty": "No subjects for the table.",
+  "voteFor": "for",
+  "voteAgainst": "against",
+  "voteAbstain": "abstain",
+  "votePresent": "present",
+  "voteDidNotVote": "did not vote",
+  "exportHint": "The table the municipality posts after the meeting: the subjects, the number of each decision, its summary, and the vote result."
+}
