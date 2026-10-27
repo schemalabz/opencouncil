@@ -162,6 +162,37 @@ describe('searchInRealm — extraction is advisory', () => {
         expect(requestSentToElasticsearch().dateRange).toEqual(derived);
     });
 
+    // The map's quick-range pill is a default window, not a period the reader
+    // typed: it applies when nothing else names one, and a period in the text
+    // still wins over it (and is reported back, so the pill moves to match).
+    it('searches the fallback window when neither the caller nor the text names a period', async () => {
+        const fallback = { start: '2026-09-21T14:03:12.000Z', end: '2026-10-05T14:03:12.000Z' };
+
+        await searchInRealm({ query: 'παιδικοί σταθμοί', fallbackDateRange: fallback }, 'greece');
+
+        expect(requestSentToElasticsearch().dateRange).toEqual(fallback);
+    });
+
+    it('lets a period read from the text replace the fallback window', async () => {
+        const fallback = { start: '2026-09-21T14:03:12.000Z', end: '2026-10-05T14:03:12.000Z' };
+        const derived = { start: '2026-02-01T00:00:00.000Z', end: '2026-02-28T23:59:59.999Z' };
+        processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: derived, locations: undefined });
+
+        const response = await searchInRealm({ query: 'παιδικοί σταθμοί τον Φεβρουάριο', fallbackDateRange: fallback }, 'greece');
+
+        expect(requestSentToElasticsearch().dateRange).toEqual(derived);
+        expect(response.derivedFilters).toEqual({ dateRange: derived });
+    });
+
+    it('lets a date range the caller set replace the fallback window', async () => {
+        const fallback = { start: '2026-09-21T14:03:12.000Z', end: '2026-10-05T14:03:12.000Z' };
+        const callerRange = { start: '2026-01-01T00:00:00.000Z', end: '2026-01-31T23:59:59.999Z' };
+
+        await searchInRealm({ query: 'παιδικοί σταθμοί', dateRange: callerRange, fallbackDateRange: fallback, config: { extractFilters: false } }, 'greece');
+
+        expect(requestSentToElasticsearch().dateRange).toEqual(callerRange);
+    });
+
     // An empty city list means "no city filter" to buildFilters, so an empty
     // extraction result must fall back to the realm rather than widen the
     // search past it.

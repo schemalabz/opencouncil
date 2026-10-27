@@ -9,6 +9,7 @@ import {
     parseInitialUrlState,
     pointInWindow,
     selectPinGroups,
+    setDateWindowParams,
 } from './landingCore';
 import type { LandingSubject } from './landingData';
 
@@ -74,6 +75,26 @@ describe('parseInitialUrlState — a committed search', () => {
 
     it('reads no search from a link that carries none', () => {
         expect(parseInitialUrlState('?cat=t1').search).toBe('');
+    });
+});
+
+describe('setDateWindowParams', () => {
+    const build = (range: Parameters<typeof setDateWindowParams>[1], filters: Parameters<typeof setDateWindowParams>[2]) => {
+        const params = new URLSearchParams();
+        setDateWindowParams(params, range, filters);
+        return params.toString();
+    };
+
+    it('sends the quick-range pill when no explicit date is set', () => {
+        expect(build('14d', { dateFrom: null, dateTo: null })).toBe('daysBack=14');
+        expect(build('3m', { dateFrom: null, dateTo: null })).toBe('monthsBack=3');
+        expect(build('all', { dateFrom: null, dateTo: null })).toBe('allTime=true');
+    });
+
+    // Either explicit date alone replaces the pill, as the subjects endpoint reads them.
+    it('sends the explicit dates instead of the pill when either is set', () => {
+        expect(build('14d', { dateFrom: '2026-01-01', dateTo: null })).toBe('dateFrom=2026-01-01');
+        expect(build('14d', { dateFrom: null, dateTo: '2026-02-01' })).toBe('dateTo=2026-02-01');
     });
 });
 

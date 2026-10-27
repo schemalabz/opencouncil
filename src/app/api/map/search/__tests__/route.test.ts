@@ -55,6 +55,43 @@ describe('GET /api/map/search filters', () => {
     });
 });
 
+// The quick-range pill. Without it a search under "14 days" returned subjects
+// from every year the index holds.
+describe('GET /api/map/search quick range', () => {
+    it('searches the last days the pill names as the fallback window', async () => {
+        await get('daysBack=14');
+
+        expect(sent().dateRange).toBeUndefined();
+        expect(sent().fallbackDateRange).toEqual({ start: '2026-09-21T14:03:12.000Z', end: NOW });
+    });
+
+    it('searches the last months the pill names as the fallback window', async () => {
+        await get('monthsBack=3');
+
+        expect(sent().fallbackDateRange).toEqual({ start: '2026-07-05T14:03:12.000Z', end: NOW });
+    });
+
+    it('sets no window for allTime', async () => {
+        await get('allTime=true');
+
+        expect(sent().fallbackDateRange).toBeUndefined();
+    });
+
+    it('sets no window when the request names none', async () => {
+        await get('');
+
+        expect(sent().fallbackDateRange).toBeUndefined();
+    });
+
+    // As the map's list endpoints read them: an explicit date replaces the pill.
+    it('drops the pill when an explicit date is set', async () => {
+        await get('dateFrom=2026-01-01&daysBack=14');
+
+        expect(sent().dateRange).toEqual({ start: '2026-01-01', end: NOW });
+        expect(sent().fallbackDateRange).toBeUndefined();
+    });
+});
+
 describe('GET /api/map/search extract flag', () => {
     it.each([
         ['', true],

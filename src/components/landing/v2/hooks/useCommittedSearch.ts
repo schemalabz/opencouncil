@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MapFilters } from '@/lib/landing/landingCore';
+import { setDateWindowParams, type DateRangeKey, type MapFilters } from '@/lib/landing/landingCore';
 import type { GeneralCityRow, MapSubject } from '@/lib/landing/landingData';
 import type { DerivedFilters } from '@/lib/search/types';
 import { captureLanding } from '@/lib/landing/analytics';
@@ -46,6 +46,9 @@ export function applyDerivedFilters(filters: MapFilters, derived: DerivedSearchF
 
 type Args = {
     cats: string[];
+    /** The quick-range pill. A search runs under it like the listing does, unless the
+     *  explicit dates in `filters` override it. */
+    range: DateRangeKey;
     filters: MapFilters;
     /**
      * What the query text supplied that the reader had not. Called once per
@@ -55,13 +58,12 @@ type Args = {
     onDerivedFilters: (derived: DerivedSearchFilters) => void;
 };
 
-function buildParams(query: string, cats: string[], filters: MapFilters, extract: boolean): string {
+function buildParams(query: string, cats: string[], range: DateRangeKey, filters: MapFilters, extract: boolean): string {
     const params = new URLSearchParams({ q: query });
     if (cats.length) params.set('topicIds', cats.join(','));
     if (filters.cityIds.length) params.set('cityIds', filters.cityIds.join(','));
     if (filters.bodyTypes.length) params.set('bodyType', filters.bodyTypes.join(','));
-    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
-    if (filters.dateTo) params.set('dateTo', filters.dateTo);
+    setDateWindowParams(params, range, filters);
     if (!extract) params.set('extract', 'false');
     return params.toString();
 }
@@ -69,13 +71,13 @@ function buildParams(query: string, cats: string[], filters: MapFilters, extract
 /**
  * A committed search, held as the map's subject set.
  *
- * Committing swaps the map's three-month window for the search's own results,
- * so the pins, the list and the counts all describe the search. Changing a
- * filter afterwards re-runs it rather than narrowing what came back: the top
- * results for a category are not the results that happened to survive from the
- * top results for everything.
+ * Committing swaps the map's listing for the search's own results, under the
+ * same date window, so the pins, the list and the counts all describe the
+ * search. Changing a filter or the range afterwards re-runs it rather than
+ * narrowing what came back: the top results for a category are not the results
+ * that happened to survive from the top results for everything.
  */
-export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
+export function useCommittedSearch({ cats, range, filters, onDerivedFilters }: Args) {
     const [committed, setCommitted] = useState<CommittedSearch | null>(null);
     const [pending, setPending] = useState(false);
     // The last request did not answer. Held apart from `committed`, which keeps
@@ -97,16 +99,17 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         query: string,
         extract: boolean,
         runCats: string[],
+        runRange: DateRangeKey,
         runFilters: MapFilters,
     ) => {
         const id = ++requestRef.current;
         const startedAt = performance.now();
-        lastRunRef.current = buildParams(query, runCats, runFilters, true);
+        lastRunRef.current = buildParams(query, runCats, runRange, runFilters, true);
         lastQueryRef.current = query;
         setPending(true);
         setFailed(false);
         try {
-            const response = await fetch(`/api/map/search?${buildParams(query, runCats, runFilters, extract)}`);
+            const response = await fetch(`/api/map/search?${buildParams(query, runCats, runRange, runFilters, extract)}`);
             if (!response.ok) throw new Error(`Search failed: ${response.status}`);
             const data = await response.json();
             if (id !== requestRef.current) return;
@@ -148,7 +151,7 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
                 // can actually see, rather than leaving pins on the map from a
                 // municipality nothing on screen names.
                 if ((data.derivedFilters.cityIds?.length ?? 0) <= 1) {
-                    lastRunRef.current = buildParams(query, runCats, applyDerivedFilters(runFilters, data.derivedFilters), true);
+                    lastRunRef.current = buildParams(query, runCats, runRange, applyDerivedFilters(runFilters, data.derivedFilters), true);
                 }
             }
         } catch (error) {
@@ -181,10 +184,10 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
      * React does — restoring a shared link sets the filters and commits the
      * search in the same pass, and the state it just set is not readable yet.
      */
-    const commit = useCallback((query: string, at?: { cats: string[]; filters: MapFilters }) => {
+    const commit = useCallback((query: string, at?: { cats: string[]; range: DateRangeKey; filters: MapFilters }) => {
         const trimmed = query.trim();
-        if (trimmed) void run(trimmed, true, at?.cats ?? cats, at?.filters ?? filters);
-    }, [run, cats, filters]);
+        if (trimmed) void run(trimmed, true, at?.cats ?? cats, at?.range ?? range, at?.filters ?? filters);
+    }, [run, cats, range, filters]);
 
     const clear = useCallback(() => {
         requestRef.current++;
@@ -206,22 +209,22 @@ export function useCommittedSearch({ cats, filters, onDerivedFilters }: Args) {
         const query = lastQueryRef.current;
         // Read the text again only if the last attempt never got an answer out
         // of it; a re-run failing means it was already read and applied.
-        if (query) void run(query, !committed, cats, filters);
-    }, [run, committed, cats, filters]);
+        if (query) void run(query, !committed, cats, range, filters);
+    }, [run, committed, cats, range, filters]);
 
-    // Re-run when a filter changes under an active search. The query text has
+    // Re-run when a filter or the range changes under an active search. The query text has
     // already been read once, and what it gave is applied — reading it again
     // would buy a model call to derive what is already on screen.
     const activeQuery = committed?.query ?? null;
     useEffect(() => {
         if (!activeQuery) return;
         // The commit that produced these results already asked for exactly this.
-        if (buildParams(activeQuery, cats, filters, true) === lastRunRef.current) return;
-        void run(activeQuery, false, cats, filters);
+        if (buildParams(activeQuery, cats, range, filters, true) === lastRunRef.current) return;
+        void run(activeQuery, false, cats, range, filters);
         // `run` closes over the filters this is watching; depending on it here
         // would re-run on its identity rather than on a filter actually changing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeQuery, cats, filters]);
+    }, [activeQuery, cats, range, filters]);
 
     return { committed, pending, failed, commit, clear, retry };
 }

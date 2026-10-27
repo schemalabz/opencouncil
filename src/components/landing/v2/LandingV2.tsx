@@ -209,6 +209,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         retry: retrySearch,
     } = useCommittedSearch({
         cats,
+        range,
         filters,
         onDerivedFilters: useCallback(
             (derived) => setFilters((prev) => applyDerivedFilters(prev, derived)),
@@ -242,7 +243,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         // A shared link carries the search, not its results — re-run it so the
         // map shows what the sender saw. Under the filters the link carried:
         // the state set two lines up is not readable until the next render.
-        if (init.search) commitSearch(init.search, { cats: init.cats, filters: init.filters });
+        if (init.search) commitSearch(init.search, { cats: init.cats, range: init.range, filters: init.filters });
         setLandingContext({ view: init.view });
         captureLanding('viewed', {
             view: init.view,

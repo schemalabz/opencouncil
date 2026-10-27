@@ -356,6 +356,23 @@ const mapSubjectInclude = {
 
 type MapSubjectPayload = Prisma.SubjectGetPayload<{ include: typeof mapSubjectInclude }>;
 
+/** The window the map lists when a caller names no positive quick range and no explicit dates. */
+const DEFAULT_MONTHS_BACK = 6;
+
+/**
+ * The start of the quick-range window (daysBack / monthsBack), counted back from `now`.
+ * Undefined for allTime, and when neither count is set: the caller decides what that means.
+ * Shared with the map's search so a search and a listing read the pill the same way.
+ */
+export function quickRangeStart(f: Pick<MapSubjectFilters, 'allTime' | 'daysBack' | 'monthsBack'>, now: Date): Date | undefined {
+    if (f.allTime) return undefined;
+    const start = new Date(now);
+    if (f.daysBack && f.daysBack > 0) start.setDate(start.getDate() - f.daysBack);
+    else if (f.monthsBack && f.monthsBack > 0) start.setMonth(start.getMonth() - f.monthsBack);
+    else return undefined;
+    return start;
+}
+
 /**
  * Shared where-clause for the map subject queries (realm required). `located` picks map-pins
  * (locationId set) vs the general/city list (locationId null). Future-dated meetings are always
@@ -375,10 +392,7 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             if (to < now) dateTime.lte = to;
         }
     } else if (!f.allTime) {
-        const threshold = new Date();
-        if (f.daysBack && f.daysBack > 0) threshold.setDate(threshold.getDate() - f.daysBack);
-        else threshold.setMonth(threshold.getMonth() - (f.monthsBack ?? 6));
-        dateTime.gte = threshold;
+        dateTime.gte = quickRangeStart(f, now) ?? quickRangeStart({ monthsBack: DEFAULT_MONTHS_BACK }, now);
     }
     return {
         // undefined → no constraint (both located and non-located subjects)
