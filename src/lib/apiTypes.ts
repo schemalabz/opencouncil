@@ -24,7 +24,7 @@ export type CityLanguage = 'el' | 'fr' | 'sr';
 // backend restricts geocoding of subject locations to it; without it everything
 // is geocoded as if it were in Greece. Comes from the city's realm, not its
 // language — see `getRealmCountry`.
-export type Country = 'GR' | 'FR' | 'CY' | 'RS';
+export type Country = 'GR' | 'FR' | 'CY' | 'RS' | 'AT' | 'BE' | 'FI' | 'DE' | 'IT' | 'NL' | 'PL' | 'PT' | 'ES';
 
 /*
  * System endpoints

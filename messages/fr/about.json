@@ -18,7 +18,16 @@
     "pilot": {
       "france": "Nous cherchons notre première commune pilote en France",
       "serbia": "Nous cherchons notre première commune pilote en Serbie",
-      "cyprus": "Nous cherchons notre première commune pilote à Chypre"
+      "cyprus": "Nous cherchons notre première commune pilote à Chypre",
+      "austria": "Nous cherchons notre première commune pilote en Autriche",
+      "belgium": "Nous cherchons notre première commune pilote en Belgique",
+      "finland": "Nous cherchons notre première commune pilote en Finlande",
+      "germany": "Nous cherchons notre première commune pilote en Allemagne",
+      "italy": "Nous cherchons notre première commune pilote en Italie",
+      "netherlands": "Nous cherchons notre première commune pilote aux Pays-Bas",
+      "poland": "Nous cherchons notre première commune pilote en Pologne",
+      "portugal": "Nous cherchons notre première commune pilote au Portugal",
+      "spain": "Nous cherchons notre première commune pilote en Espagne"
     },
     "title": "Conseils municipaux et commissions,",
     "titleHighlight": "ouverts à tous",
@@ -226,7 +235,16 @@
     "title": {
       "france": "Devenez la première commune pilote en France.",
       "serbia": "Devenez la première commune pilote en Serbie.",
-      "cyprus": "Devenez la première commune pilote à Chypre."
+      "cyprus": "Devenez la première commune pilote à Chypre.",
+      "austria": "Devenez la première commune pilote en Autriche.",
+      "belgium": "Devenez la première commune pilote en Belgique.",
+      "finland": "Devenez la première commune pilote en Finlande.",
+      "germany": "Devenez la première commune pilote en Allemagne.",
+      "italy": "Devenez la première commune pilote en Italie.",
+      "netherlands": "Devenez la première commune pilote aux Pays-Bas.",
+      "poland": "Devenez la première commune pilote en Pologne.",
+      "portugal": "Devenez la première commune pilote au Portugal.",
+      "spain": "Devenez la première commune pilote en Espagne."
     },
     "subtitle": "Nous cherchons une commune pour lancer OpenCouncil dans votre pays. Le pilote est gratuit, aussi longtemps qu’il le faut.",
     "points": {

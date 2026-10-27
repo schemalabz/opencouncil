@@ -129,6 +129,6 @@ export const createCityToolInput = z.object({
     timezone: baseCityFields.timezone.meta({ description: 'IANA time zone, e.g. "Europe/Athens"' }),
     authorityType: baseCityFields.authorityType.default(AuthorityType.municipality),
     language: baseCityFields.language.optional()
-        .meta({ description: 'Content language. Omit for the default language of this domain' }),
+        .meta({ description: 'Content language. Omit for the default language of this domain; required on a domain whose UI is English' }),
 });
 export type CreateCityToolArgs = z.output<typeof createCityToolInput>;

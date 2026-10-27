@@ -10,8 +10,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-// Country names shown in their own language (endonyms): the display name of
-// each realm's country in that realm's own default locale.
+// The display name of each realm's country in that realm's own default locale:
+// an endonym where the realm has a catalog of its own (Ελλάδα, Србија), the
+// English name where the realm serves the English UI (Germany).
 const countryLabel = (realm: Realm) => getRealmDisplayName(realm, REALMS[realm].defaultLocale)
 
 /**
@@ -35,7 +36,7 @@ export default function CountrySwitcher({ realm }: { realm: Realm }) {
                 <span>{countryLabel(realm)}</span>
                 <ChevronDown className="w-3 h-3" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="min-w-[8rem]">
+            <DropdownMenuContent align="center" className="min-w-[8rem] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
                 {ALL_REALMS.map((r) => (
                     <DropdownMenuItem
                         key={r}

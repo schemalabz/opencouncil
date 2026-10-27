@@ -251,6 +251,17 @@ describe('create_city', () => {
         }));
     });
 
+    it('asks for the language on a realm that serves the English UI', async () => {
+        await expect(inRealm(Realm.germany, () => mcpCreateCity(SUPERADMIN_TOKEN, CITY))).rejects.toThrow(BadRequestError);
+        expect(createCityDirect).not.toHaveBeenCalled();
+    });
+
+    it('creates the city on such a realm in the language it is given', async () => {
+        (createCityDirect as jest.Mock).mockImplementation(async data => data);
+        await inRealm(Realm.belgium, () => mcpCreateCity(SUPERADMIN_TOKEN, { ...CITY, language: 'fr' }));
+        expect(createCityDirect).toHaveBeenCalledWith(expect.objectContaining({ realm: 'belgium', language: 'fr' }));
+    });
+
     it('reports a taken id as a conflict, from the unique index', async () => {
         asSuperadmin();
         (createCityDirect as jest.Mock).mockRejectedValue(

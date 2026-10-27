@@ -60,6 +60,13 @@ describe('foreignLocalesForRealm', () => {
 });
 
 describe('computeForeignLocales', () => {
+    it('never treats en as foreign, although a realm makes it its default', () => {
+        expect(computeForeignLocales({
+            a: { defaultLocale: 'el' },
+            b: { defaultLocale: 'en' },
+        })).toEqual({ a: [], b: ['el'] });
+    });
+
     it('never treats a realm\'s own default locale as foreign when another realm shares it', () => {
         const SHARED = {
             a: { defaultLocale: 'el' },

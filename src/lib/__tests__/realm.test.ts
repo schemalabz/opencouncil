@@ -62,6 +62,21 @@ describe('realmForHost', () => {
         expect(realmForHost('opencouncil.rs')).toBe('serbia');
     });
 
+    it.each([
+        ['opencouncil.at', 'austria'],
+        ['opencouncil.be', 'belgium'],
+        ['opencouncil.fi', 'finland'],
+        ['opencouncil.de', 'germany'],
+        ['opencouncil.it', 'italy'],
+        ['opencouncil.nl', 'netherlands'],
+        ['opencouncil.pl', 'poland'],
+        ['opencouncil.pt', 'portugal'],
+        ['opencouncil.es', 'spain'],
+    ])('resolves %s and its www subdomain to %s', (host, realm) => {
+        expect(realmForHost(host)).toBe(realm);
+        expect(realmForHost(`www.${host}`)).toBe(realm);
+    });
+
     it('resolves subdomains of a realm domain to that realm', () => {
         expect(realmForHost('www.opencouncil.gr')).toBe('greece');
         expect(realmForHost('www.opencouncil.fr')).toBe('france');
@@ -202,6 +217,10 @@ describe('foreignLocalesForRealm', () => {
     it('marks only el and fr foreign on serbia (en is shared, never foreign)', () => {
         expect(foreignLocalesForRealm('serbia').sort()).toEqual(['el', 'fr']);
     });
+
+    it('marks every locale but en foreign on a realm whose default is en', () => {
+        expect(foreignLocalesForRealm('poland').sort()).toEqual(['el', 'fr', 'sr', 'sr-Latn']);
+    });
 });
 
 describe('getRealmCountry', () => {
@@ -210,6 +229,15 @@ describe('getRealmCountry', () => {
         expect(getRealmCountry('france')).toBe('FR');
         expect(getRealmCountry('cyprus')).toBe('CY');
         expect(getRealmCountry('serbia')).toBe('RS');
+        expect(getRealmCountry('austria')).toBe('AT');
+        expect(getRealmCountry('belgium')).toBe('BE');
+        expect(getRealmCountry('finland')).toBe('FI');
+        expect(getRealmCountry('germany')).toBe('DE');
+        expect(getRealmCountry('italy')).toBe('IT');
+        expect(getRealmCountry('netherlands')).toBe('NL');
+        expect(getRealmCountry('poland')).toBe('PL');
+        expect(getRealmCountry('portugal')).toBe('PT');
+        expect(getRealmCountry('spain')).toBe('ES');
     });
 
     it('covers every realm, so a new one cannot silently geocode as Greece', () => {
@@ -239,6 +267,15 @@ describe('getRealmContactPhone', () => {
             france: '+30 211 198 0212',
             cyprus: '+30 211 198 0212',
             serbia: '0800 301167',
+            austria: '+30 211 198 0212',
+            belgium: '+30 211 198 0212',
+            finland: '+30 211 198 0212',
+            germany: '+30 211 198 0212',
+            italy: '+30 211 198 0212',
+            netherlands: '+30 211 198 0212',
+            poland: '+30 211 198 0212',
+            portugal: '+30 211 198 0212',
+            spain: '+30 211 198 0212',
         });
     });
 });
@@ -252,6 +289,15 @@ describe('getRealmStage', () => {
             france: 'pending',
             cyprus: 'pending',
             serbia: 'pending',
+            austria: 'pending',
+            belgium: 'pending',
+            finland: 'pending',
+            germany: 'pending',
+            italy: 'pending',
+            netherlands: 'pending',
+            poland: 'pending',
+            portugal: 'pending',
+            spain: 'pending',
         });
     });
 });

@@ -18,7 +18,7 @@ describe('consultationResponseCopy', () => {
     });
 
     it('falls back to Greek for a locale without copy', () => {
-        expect(consultationResponseCopy('en').heading).toBe(consultationResponseCopy('el').heading);
+        expect(consultationResponseCopy('xx').heading).toBe(consultationResponseCopy('el').heading);
         expect(consultationResponseCopy('fr').heading).not.toBe(consultationResponseCopy('el').heading);
     });
 });

@@ -38,6 +38,19 @@ const COPY: Record<EmailLocale, ConsultationResponseCopy> = {
         cta: 'Δείτε το σχόλιο στη διαβούλευση',
         footer: 'Το email στάλθηκε αυτόματα από την πλατφόρμα διαβουλεύσεων του OpenCouncil, εκ μέρους του Δήμου. Για ερωτήσεις και τεχνική υποστήριξη: hello@opencouncil.gr.',
     },
+    en: {
+        subject: (title) => `The municipality's response to your comment — "${title}"`,
+        heading: 'The municipality responded to your comment',
+        greeting: (name) => (name ? `Hello ${name},` : 'Hello,'),
+        intro: (municipality, title, entity) =>
+            `${municipality} responded to the comment you left on the consultation "${title}"${entity ? `, about "${entity}"` : ''}.`,
+        yourComment: 'Your comment',
+        theResponse: "The municipality's response",
+        continueOutside: 'The conversation cannot continue on the consultation platform. You can still continue it between you, by replying to all on this email.',
+        recipientsNote: 'This email goes to you and to the municipality. With "Reply all", your reply reaches everyone.',
+        cta: 'See the comment in the consultation',
+        footer: 'This email was sent automatically by the OpenCouncil consultation platform, on behalf of the municipality. Questions and technical support: hello@opencouncil.gr.',
+    },
     fr: {
         subject: (title) => `Réponse de la commune à votre commentaire — « ${title} »`,
         heading: 'La commune a répondu à votre commentaire',

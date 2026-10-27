@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma, type City } from '@prisma/client';
+import { CityLanguage, Prisma, type City } from '@prisma/client';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
@@ -11,7 +11,7 @@ import { pickRecordInput } from '@/lib/meetingLifecycleRules';
 import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
 import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
-import { CITY_DEFAULTS } from '@/lib/zod-schemas/city';
+import { CITY_DEFAULTS, cityLanguageSchema } from '@/lib/zod-schemas/city';
 import { REALMS } from '@/lib/realm';
 import type { McpIdentity } from './auth';
 import type {
@@ -209,6 +209,15 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
     // fields a tool does not offer take the defaults of the site's form, and
     // `pending` keeps the city off every public page.
     const realm = currentRealm();
+    // A realm that serves the English UI has no default content language:
+    // its councils do not meet in English.
+    const realmLanguage = cityLanguageSchema.safeParse(REALMS[realm].defaultLocale);
+    const language = args.language ?? (realmLanguage.success ? realmLanguage.data : undefined);
+    if (!language) {
+        throw new BadRequestError(
+            `This domain has no default content language. Pass "language", the language the council meets in: one of ${Object.values(CityLanguage).join(', ')}. A council that meets in another language cannot be added yet.`,
+        );
+    }
     const city = await createCityOrConflict({
         ...CITY_DEFAULTS,
         id: args.id,
@@ -218,7 +227,7 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
         name_municipality_en: args.name_municipality_en,
         timezone: args.timezone,
         authorityType: args.authorityType,
-        language: args.language ?? REALMS[realm].defaultLocale,
+        language,
         realm,
         logoImage: null,
         wikipediaId: null,

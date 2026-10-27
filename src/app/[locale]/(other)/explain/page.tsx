@@ -117,7 +117,7 @@ export async function generateMetadata(props: {
 export default async function ExplainPage() {
     const realm = await getRealm();
     // Greece-only article (see hasExplainPage) — 404 elsewhere rather than serving
-    // Greek municipal law on opencouncil.rs, .fr or .cy.
+    // Greek municipal law on any other realm.
     if (!hasExplainPage(realm)) {
         notFound();
     }
