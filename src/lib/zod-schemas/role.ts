@@ -34,6 +34,20 @@ export function roleDatesInOrder(role: { startDate: Date | null; endDate: Date |
 
 export const roleDatesInOrderIssue = { error: vmsg('roleEndBeforeStart'), path: ['endDate'] };
 
+type RolePeriod = { startDate: Date | null; endDate: Date | null };
+
+/**
+ * Whether two roles hold at the same moment. A role holds from its start up to,
+ * not including, its end, as `isRoleActiveAt` reads it: a role that ends on the
+ * day the next one starts does not overlap it. No start means since always, and
+ * no end means still current.
+ */
+export function rolePeriodsOverlap(a: RolePeriod, b: RolePeriod): boolean {
+    const start = (role: RolePeriod) => role.startDate?.getTime() ?? -Infinity;
+    const end = (role: RolePeriod) => role.endDate?.getTime() ?? Infinity;
+    return start(a) < end(b) && start(b) < end(a);
+}
+
 /** JSON body of POST /roles/elected-order: the elected order of the members of one body. */
 export const electedOrderRequestSchema = z.object({
     administrativeBodyId: z.string().min(1),

@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields, youtubeChannelUrlValue } from './administrativeBody';
-import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
+import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue, rolePeriodsOverlap } from './role';
 import { blankToNull, webUrl } from './primitives';
 
 // The payload of populate_city: the parties, administrative bodies, people
@@ -60,6 +60,37 @@ export const cityPopulationSchema = z.object({
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),
 }).superRefine((data, ctx) => {
+    // A role links to the first party or body with its name, so a second entry
+    // with the same name would get no role and no warning.
+    const refuseDuplicateNames = (entries: { name: string }[], key: 'parties' | 'administrativeBodies', noun: string) => {
+        const firstIndex = new Map<string, number>();
+        entries.forEach((entry, index) => {
+            const first = firstIndex.get(entry.name);
+            if (first === undefined) {
+                firstIndex.set(entry.name, index);
+                return;
+            }
+            ctx.addIssue({ code: 'custom', path: [key, index, 'name'],
+                message: `The ${noun} name "${entry.name}" is also the name of ${key}[${first}]. Roles name a ${noun} by its \`name\`, so each ${noun} needs a different one.` });
+        });
+    };
+    refuseDuplicateNames(data.parties, 'parties', 'party');
+    refuseDuplicateNames(data.administrativeBodies, 'administrativeBodies', 'body');
+
+    // The app reads every head city role as the mayor, so two of them cannot hold
+    // at the same time. A mayor who follows an earlier one is valid.
+    const headCityRoles = data.people.flatMap((person, personIndex) => (person.roles ?? []).flatMap((role, roleIndex) =>
+        role.type === 'city' && role.isHead ? [{ person, personIndex, role, roleIndex }] : []));
+    const period = (role: { startDate: Date | null; endDate: Date | null }) =>
+        `${role.startDate?.toISOString() ?? 'no start date'} to ${role.endDate?.toISOString() ?? 'no end date'}`;
+    headCityRoles.forEach((later, laterIndex) => {
+        headCityRoles.slice(0, laterIndex).forEach(earlier => {
+            if (!rolePeriodsOverlap(earlier.role, later.role)) return;
+            ctx.addIssue({ code: 'custom', path: ['people', later.personIndex, 'roles', later.roleIndex, 'isHead'],
+                message: `${later.person.name}: this head city role (${period(later.role)}) holds at the same time as the head city role at people[${earlier.personIndex}].roles[${earlier.roleIndex}] of ${earlier.person.name} (${period(earlier.role)}). The app reads every head city role as the mayor. End one role on or before the startDate of the other, or remove isHead from one of them.` });
+        });
+    });
+
     // populateCity links a role by the name of a party or body in the same payload,
     // and saves a role whose name matches nothing with no link. An agent writes these
     // names by hand, so a wrong one is routine and must fail loudly.
