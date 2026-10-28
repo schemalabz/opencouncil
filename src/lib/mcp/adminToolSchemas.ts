@@ -7,6 +7,8 @@ import { baseCityFields, cityIdSchema } from '@/lib/zod-schemas/city';
 import { baseMeetingFields } from '@/lib/zod-schemas/meeting';
 import { isoZonedDateTime } from '@/lib/zod-schemas/dates';
 import { webUrl } from '@/lib/zod-schemas/primitives';
+import { UPLOAD_FORMAT_NAMES, type UploadKind } from '@/types/upload';
+import { completeUploadRequestSchema, uploadSizeBytes } from '@/lib/zod-schemas/upload';
 
 /**
  * The input schemas of the admin tools. adminTools.ts registers them, and
@@ -84,15 +86,37 @@ export const updateMeetingToolInput = z.object({
 });
 export type UpdateMeetingToolArgs = z.output<typeof updateMeetingToolInput>;
 
-export const agendaUploadUrlToolInput = z.object({
+/**
+ * The kinds of meeting file an assistant can upload: the ones that an MCP
+ * tool then takes as a URL. A decision has no MCP tool that reads it yet.
+ */
+export const MCP_UPLOAD_KINDS = ['agenda', 'recording'] as const satisfies readonly UploadKind[];
+
+export const createUploadUrlToolInput = z.object({
     cityId: z.string().min(1),
+    kind: z.enum(MCP_UPLOAD_KINDS)
+        .meta({ description: 'What the file is: the agenda of a meeting, or the recording (the video) of a meeting' }),
     identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
         .meta({ description: 'Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
             + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only' }),
-    format: z.enum(['pdf', 'docx']).default('pdf')
-        .meta({ description: 'The format of the file that you will upload. The answer carries the matching Content-Type' }),
+    format: z.enum(UPLOAD_FORMAT_NAMES)
+        .meta({ description: 'The format of the file: pdf or docx for an agenda, mp4 or mov for a recording. '
+            + 'The answer carries the matching Content-Type' }),
+    sizeBytes: uploadSizeBytes
+        .meta({ description: 'The exact size of the file in bytes, e.g. from `wc -c < <file>`. It decides '
+            + 'whether the file goes up in one PUT or in parts' }),
 });
-export type AgendaUploadUrlToolArgs = z.output<typeof agendaUploadUrlToolInput>;
+export type CreateUploadUrlToolArgs = z.output<typeof createUploadUrlToolInput>;
+
+const completion = completeUploadRequestSchema.shape;
+export const completeUploadToolInput = z.object({
+    cityId: z.string().min(1),
+    key: completion.key.meta({ description: 'The `key` from create_upload_url' }),
+    uploadId: completion.uploadId.meta({ description: '`completion.uploadId` from create_upload_url' }),
+    token: completion.token.meta({ description: '`completion.token` from create_upload_url' }),
+    sizeBytes: completion.sizeBytes.meta({ description: 'The same size as in create_upload_url' }),
+});
+export type CompleteUploadToolArgs = z.output<typeof completeUploadToolInput>;
 
 export const startTaskToolInput = z.object({
     cityId: z.string().min(1),

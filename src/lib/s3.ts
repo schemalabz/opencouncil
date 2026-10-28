@@ -203,20 +203,3 @@ export async function completeMultipartUpload(key: string, uploadId: string, par
         MultipartUpload: { Parts: parts.map(part => ({ PartNumber: part.partNumber, ETag: part.etag })) },
     }))
 }
-
-// Presigned URL generation (for direct uploads)
-export async function generatePresignedUrl(
-    key: string,
-    contentType: string,
-    expiresIn: number = 300
-): Promise<string> {
-    const command = new PutObjectCommand({
-        Bucket: env.DO_SPACES_BUCKET,
-        Key: key,
-        ContentType: contentType,
-        ACL: 'public-read',
-    })
-
-    const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner')
-    return await getSignedUrl(s3Client as any, command as any, { expiresIn })
-}

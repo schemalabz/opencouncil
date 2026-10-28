@@ -3,7 +3,8 @@
 // The handlers are stubs: this file tests what the SDK hands to them, after
 // it validates a call with the input schema of the tool.
 jest.mock('../adminData', () => ({
-    mcpCreateAgendaUploadUrl: jest.fn().mockResolvedValue({}),
+    mcpCompleteUpload: jest.fn().mockResolvedValue({}),
+    mcpCreateUploadUrl: jest.fn().mockResolvedValue({}),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
@@ -15,7 +16,9 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
-import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting } from '@/lib/mcp/adminData';
+import {
+    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
+} from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
 
 /** A real McpServer with the tools of a superadmin. Only the handlers are stubs. */
@@ -117,28 +120,48 @@ describe('create_city through the SDK', () => {
     });
 });
 
-describe('create_agenda_upload_url through the SDK', () => {
+describe('create_upload_url through the SDK', () => {
+    const AGENDA = { cityId: 'chania', kind: 'agenda', identifier: '2026-10-15', format: 'pdf', sizeBytes: 300000 };
+
     it('refuses an identifier that is not a file name slug', async () => {
-        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '15/10/2026' });
+        const result = await mcp.call('create_upload_url', { ...AGENDA, identifier: '15/10/2026' });
         expect(result.isError).toBe(true);
-        expect(mcpCreateAgendaUploadUrl).not.toHaveBeenCalled();
+        expect(mcpCreateUploadUrl).not.toHaveBeenCalled();
     });
 
-    it('refuses a format other than pdf and docx', async () => {
-        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'doc' });
-        expect(result.isError).toBe(true);
-        expect(mcpCreateAgendaUploadUrl).not.toHaveBeenCalled();
+    it('refuses a kind that no MCP tool reads, and a format that no kind takes', async () => {
+        expect((await mcp.call('create_upload_url', { ...AGENDA, kind: 'decision' })).isError).toBe(true);
+        expect((await mcp.call('create_upload_url', { ...AGENDA, format: 'doc' })).isError).toBe(true);
+        expect(mcpCreateUploadUrl).not.toHaveBeenCalled();
     });
 
-    it('fills in the pdf format and hands the city and the identifier to the handler', async () => {
-        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15' });
+    it('refuses a size that is not a whole positive number of bytes', async () => {
+        expect((await mcp.call('create_upload_url', { ...AGENDA, sizeBytes: 0 })).isError).toBe(true);
+        expect((await mcp.call('create_upload_url', { ...AGENDA, sizeBytes: 1.5 })).isError).toBe(true);
+        const { sizeBytes: _omitted, ...withoutSize } = AGENDA;
+        expect((await mcp.call('create_upload_url', withoutSize)).isError).toBe(true);
+        expect(mcpCreateUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it('hands a valid call to the handler', async () => {
+        const result = await mcp.call('create_upload_url', { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
         expect(result.isError).toBeFalsy();
-        expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, { cityId: 'chania', identifier: '2026-10-15', format: 'pdf' });
+        expect(mcpCreateUploadUrl).toHaveBeenCalledWith(null, { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
+    });
+});
+
+describe('complete_upload through the SDK', () => {
+    const ARGS = { cityId: 'chania', key: 'uploads/chania_2026-10-15_recording_0a1b2c3d.mp4', uploadId: 'u1', token: 't', sizeBytes: 2000000000 };
+
+    it('refuses a call without the completion fields', async () => {
+        const { token: _omitted, ...withoutToken } = ARGS;
+        expect((await mcp.call('complete_upload', withoutToken)).isError).toBe(true);
+        expect(mcpCompleteUpload).not.toHaveBeenCalled();
     });
 
-    it('forwards a docx format', async () => {
-        await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'docx' });
-        expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, expect.objectContaining({ format: 'docx' }));
+    it('hands a valid call to the handler', async () => {
+        expect((await mcp.call('complete_upload', ARGS)).isError).toBeFalsy();
+        expect(mcpCompleteUpload).toHaveBeenCalledWith(null, ARGS);
     });
 });
 

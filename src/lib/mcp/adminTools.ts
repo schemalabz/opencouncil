@@ -3,18 +3,20 @@ import * as z from 'zod';
 import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
 import {
-    mcpCreateAgendaUploadUrl,
+    mcpCompleteUpload,
     mcpCreateCity,
     mcpCreateMeeting,
+    mcpCreateUploadUrl,
     mcpListRealms,
     mcpPopulateCity,
     mcpStartTask,
     mcpUpdateMeeting,
 } from './adminData';
 import {
-    agendaUploadUrlToolInput,
+    completeUploadToolInput,
     createCityToolInput,
     createMeetingToolInput,
+    createUploadUrlToolInput,
     startTaskToolInput,
     updateMeetingToolInput,
 } from './adminToolSchemas';
@@ -77,21 +79,39 @@ function registerMeetingAdminTools(server: McpServer) {
     );
 
     server.registerTool(
-        'create_agenda_upload_url',
+        'create_upload_url',
         {
-            title: 'Create agenda upload URL',
+            title: 'Create upload URLs for a meeting file',
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Get a short-lived URL to upload the agenda of a meeting to the file storage of OpenCouncil, '
-                + 'in a municipality that you administer. Use it when the file has no stable public URL: an email '
-                + 'attachment, a chat attachment, a download link that expires. Send the file with a PUT to '
-                + '`uploadUrl`, with the returned `headers`, within `expiresIn` seconds. The file is then public '
-                + 'at `publicUrl`: pass it as agendaUrl to create_meeting or update_meeting. A PDF or a .docx '
-                + 'file: the agenda processing reads these two formats only.',
-            inputSchema: agendaUploadUrlToolInput,
+                'Get short-lived URLs to upload the agenda or the recording (the video) of a meeting to the file '
+                + 'storage of OpenCouncil, in a municipality that you administer. Use it when the file has no public '
+                + 'URL that the task server can read: an email attachment, a download link that expires, a video '
+                + 'joined from parts or downloaded from a player. An agenda is a PDF or a .docx, at most 20 MiB; '
+                + 'a recording is an mp4 or a .mov, at most 40 GiB. A file of up '
+                + 'to partSize bytes goes up in one PUT, and `completion` is null. A bigger file goes up in parts, '
+                + 'one PUT per part, and complete_upload then joins them. The answer\'s `next` gives the steps. The '
+                + 'file is then public at `publicUrl`.',
+            inputSchema: createUploadUrlToolInput,
         },
-        (args, ctx: ServerContext) => run(() => mcpCreateAgendaUploadUrl(identityFromContext(ctx), args))
+        (args, ctx: ServerContext) => run(() => mcpCreateUploadUrl(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'complete_upload',
+        {
+            title: 'Complete an upload in parts',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Join the parts of an upload from create_upload_url into the file, after every part is sent. It '
+                + 'checks that the parts make up exactly sizeBytes, and names the parts that are missing or have the '
+                + 'wrong size: send those again, then call it again. A second call after a completed upload answers '
+                + 'as the first one did.',
+            inputSchema: completeUploadToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpCompleteUpload(identityFromContext(ctx), args))
     );
 }
 
