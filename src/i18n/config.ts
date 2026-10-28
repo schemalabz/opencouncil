@@ -86,3 +86,22 @@ export function getOgLocale(locale: string): string {
     const tag = new Intl.Locale(LOCALE_TAGS[locale as AppLocale] ?? LOCALE_TAGS[DEFAULT_LOCALE]);
     return tag.region ? `${tag.language}_${tag.region}` : tag.language;
 }
+
+/**
+ * The UI catalog that renders text for a city in its own language: role
+ * titles, documents and QR strips. A city's language is the language its
+ * council meets in; most of those languages have no catalog of their own, and
+ * they get the English one rather than next-intl's default (Greek).
+ */
+export function catalogLocaleForCityLanguage(language: string): AppLocale {
+    return (LOCALES as readonly string[]).includes(language) ? (language as AppLocale) : 'en';
+}
+
+/**
+ * The name of a content language in the reader's locale ("German" in en,
+ * «Γερμανικά» in el), from `Intl.DisplayNames`: no catalog key per language.
+ */
+export function getLanguageDisplayName(language: string, locale: string): string {
+    const name = new Intl.DisplayNames([locale], { type: 'language' }).of(language) ?? language;
+    return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+}

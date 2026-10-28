@@ -43,9 +43,11 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
  *   for development — unless `realmOverride` is set (the `?realm=` escape
  *   hatch, see `realmOverride` in `realm.ts`), in which case the host is
  *   treated as that realm's host so the emulation is faithful everywhere.
- * - The realm's own default prefix (`/el` on `.gr`) is next-intl's job — its
- *   middleware already redirects it away. `/en` intentionally keeps serving
- *   200 (it canonicalizes to the default-locale URL instead).
+ * - The realm's own locale prefixes are left alone. next-intl redirects `/el`
+ *   away on `.gr`; on a realm whose default is another locale (`/fr` on `.fr`,
+ *   `/en` on `.pl`) the prefixed URL serves 200 and canonicalizes to the
+ *   unprefixed one. `/en` on the other realms also keeps serving 200 (it
+ *   canonicalizes to the default-locale URL instead).
  */
 export function foreignLocaleRedirectPath(
     host: string | null | undefined,

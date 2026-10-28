@@ -10,9 +10,9 @@ import { getRealm } from '@/lib/realm.server';
  * from the Host header), as both `<link rel="canonical">` and `og:url`.
  *
  * Every locale variant of a page canonicalizes to the realm's default-locale
- * (unprefixed) URL: `/en` pages are intentionally deindexed — Google was
- * serving them to Greek searchers — so no hreflang cluster is emitted, only
- * `canonical`.
+ * (unprefixed) URL: a non-default locale's pages (`/en` on opencouncil.gr) are
+ * intentionally deindexed — Google was serving them to Greek searchers — so no
+ * hreflang cluster is emitted, only `canonical`.
  *
  * - greece → `https://opencouncil.gr{path}`
  * - france → `https://opencouncil.fr{path}`

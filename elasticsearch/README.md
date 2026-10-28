@@ -218,7 +218,7 @@ PGSync requires helper views to denormalize complex relationships and handle Pos
 
 ### Realm, Not Country
 
-The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
+The index stores `city_realm` (a `Realm` enum value such as `greece` or `france`), not an ISO country code.
 
 PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
 `getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place

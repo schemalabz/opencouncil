@@ -2,6 +2,9 @@
 
 Fill this before the first city of a new country, from research, with a link and the date checked for every source. Stop for review before importing. Then keep it current: each city that teaches something new updates this file, not the city notes.
 
+## Language
+The country's default content language and the regions where councils speak another language or several (`references/content-language.md` has the nine countries researched in 2026-10; copy this country's row and its sources here, and add what a city teaches). Name the official list of such municipalities when one exists.
+
 ## Bodies
 Which bodies decide (council, executive committee, district councils) and which only prepare. Who presides each. Which other authorities (metropolis, county) to leave out.
 

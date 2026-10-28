@@ -576,9 +576,11 @@ export function getActiveRoleCondition(date: Date = new Date()) {
 export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member' | 'independentCouncilMember') => string;
 
 /**
- * What every role title needs: the `Person` catalog and the locale it is in.
- * Server code gets one with getRoleTitles (src/i18n/roleTitles.ts), in the
- * city's language for documents and task requests; components with useRoleTitles.
+ * What every role title needs: a `Person` catalog, and the language the titles
+ * are for. Server code gets one with getRoleTitles (src/i18n/roleTitles.ts), in
+ * the city's language for documents and task requests; components with
+ * useRoleTitles. `locale` is that language even when it has no catalog of its
+ * own and `t` is the English one.
  */
 export interface RoleTitles {
   t: RoleTextTranslator;
@@ -596,10 +598,10 @@ const HEAD_TITLE_KEY = { city: 'mayor', body: 'president', party: 'partyLeader' 
  * a stored name overrides it. `name_en` is not read: it holds machine
  * translations of uneven quality.
  *
- * The stored name is written in the realm's language. Every locale but `en`
- * belongs to a realm (see computeForeignLocales in src/lib/realm.ts), so `en`
- * is the one locale where the stored name is foreign: there the translated head
- * title wins, and a role that is not a head keeps its stored name.
+ * The stored name is written in the city's language, a `CityLanguage`, which is
+ * never `en`. So `en` is the one locale where the stored name is foreign: there
+ * the translated head title wins, and a role that is not a head keeps its
+ * stored name.
  */
 export function getRoleTitle(role: TitleFields, { t, locale }: RoleTitles): string | null {
   const kind = getRoleKind(role);

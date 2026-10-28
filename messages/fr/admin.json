@@ -24,8 +24,6 @@
     "columnMeetings": "Séances",
     "columnPeople": "Personnes",
     "columnParties": "Groupes",
-    "languageGreek": "Grec",
-    "languageFrench": "Français",
     "cityCount": "{count, plural, one {# commune} other {# communes}}"
   },
   "taskStatus": {

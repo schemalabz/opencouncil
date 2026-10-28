@@ -15,11 +15,11 @@ import { hostFromRequest, readCookie } from './requestHeaders';
  * email production would; the Serbian script cookie picks the reader's chosen
  * script, which is the one thing the realm alone cannot tell us.
  *
- * Realm-derived by design, which means it returns only a realm's default locale —
- * never `en`. Someone signing in from `opencouncil.gr/en` gets the Greek email.
- * The magic link's `callbackUrl` carries the locale-prefixed path they came from
- * if we ever want that signal; until then the `en` rows in the email copy tables
- * are unreachable by this path (`BaseTemplate` can still be handed `en` directly).
+ * Realm-derived by design, which means it returns the realm's default locale.
+ * Someone signing in from `opencouncil.gr/en` gets the Greek email; someone on a
+ * realm whose default is `en` gets the English one. The magic link's
+ * `callbackUrl` carries the locale-prefixed path they came from if we ever want
+ * that signal.
  */
 export function localeForRequest(request: Request): AppLocale {
     const realm = effectiveRealm(

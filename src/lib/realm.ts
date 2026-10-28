@@ -8,6 +8,12 @@ import type { Country } from '@/lib/apiTypes';
 const OFFICE_PHONE = '+30 211 198 0212';
 
 /**
+ * The locale that is never foreign on any realm's host. Every realm serves it,
+ * and the realms without a catalog of their own make it their default.
+ */
+const SHARED_LOCALE = 'en';
+
+/**
  * Realm (tenant) configuration. A single deployment serves all domains off one
  * database; the realm a request belongs to is resolved from its Host header (see
  * `realmForHost`). This is the single source of truth mapping each realm to its
@@ -46,11 +52,22 @@ export const REALMS = {
         contactPhone: '0800 301167',
         stage: 'pending',
     },
+    // These realms have no UI catalog in their own language yet, so they
+    // serve the English one.
+    austria: { domain: 'opencouncil.at', defaultLocale: 'en', country: 'AT', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    belgium: { domain: 'opencouncil.be', defaultLocale: 'en', country: 'BE', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    finland: { domain: 'opencouncil.fi', defaultLocale: 'en', country: 'FI', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    germany: { domain: 'opencouncil.de', defaultLocale: 'en', country: 'DE', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    italy: { domain: 'opencouncil.it', defaultLocale: 'en', country: 'IT', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    netherlands: { domain: 'opencouncil.nl', defaultLocale: 'en', country: 'NL', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    poland: { domain: 'opencouncil.pl', defaultLocale: 'en', country: 'PL', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    portugal: { domain: 'opencouncil.pt', defaultLocale: 'en', country: 'PT', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    spain: { domain: 'opencouncil.es', defaultLocale: 'en', country: 'ES', contactPhone: OFFICE_PHONE, stage: 'pending' },
 } as const satisfies Record<
     Realm,
     {
         domain: string;
-        defaultLocale: 'el' | 'fr' | 'sr';
+        defaultLocale: 'el' | 'fr' | 'sr' | typeof SHARED_LOCALE;
         country: Country;
         extraLocales?: readonly string[];
         contactPhone: string;
@@ -85,6 +102,15 @@ const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: nu
     france: { center: [2.4, 46.6], zoom: 5 },        // metropolitan France
     cyprus: { center: [33.2, 35.0], zoom: 8 },       // island of Cyprus
     serbia: { center: [20.457, 44.817], zoom: 6 },   // Belgrade
+    austria: { center: [13.33, 47.6], zoom: 6 },
+    belgium: { center: [4.47, 50.5], zoom: 7 },
+    finland: { center: [26.0, 64.0], zoom: 4 },
+    germany: { center: [10.45, 51.16], zoom: 5 },
+    italy: { center: [12.5, 42.5], zoom: 5 },
+    netherlands: { center: [5.3, 52.2], zoom: 7 },
+    poland: { center: [19.4, 52.1], zoom: 5 },
+    portugal: { center: [-8.2, 39.6], zoom: 6 },     // mainland Portugal
+    spain: { center: [-3.7, 40.4], zoom: 5 },        // mainland Spain
 };
 
 const hostMatchesDomain = (host: string, domain: string): boolean =>
@@ -218,8 +244,8 @@ export function effectiveRealm(host: string | null | undefined, overrideCookie: 
  * Derives each realm's foreign locales: locales belonging to other realms
  * (their default plus any `extraLocales`, e.g. `sr-Latn` on serbia) that the
  * realm doesn't own itself (e.g. `fr` on opencouncil.gr). The proxy 301s their
- * URL prefixes to the unprefixed URL; `en` is shared by all realms, belongs to
- * none, and is never foreign.
+ * URL prefixes to the unprefixed URL; `SHARED_LOCALE` (`en`) is never foreign,
+ * even where a realm makes it its default.
  *
  * Filtered by locale rather than by realm: realms may share a default locale,
  * and a realm's own locales are never foreign on its host no matter which
@@ -238,7 +264,7 @@ export function computeForeignLocales<R extends string>(
         .flatMap(ownLocales);
     const entries = (Object.keys(realms) as R[]).map((realm) => {
         const own = new Set(ownLocales(realms[realm]));
-        return [realm, [...new Set(allLocales.filter((locale) => !own.has(locale)))]];
+        return [realm, [...new Set(allLocales.filter((locale) => !own.has(locale) && locale !== SHARED_LOCALE))]];
     });
     return Object.fromEntries(entries) as Record<R, string[]>;
 }

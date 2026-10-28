@@ -200,6 +200,18 @@ export const DEMO_SCENARIO_BY_REALM: Record<Realm, DemoScenario> = {
     cyprus: 'greece',
     france: 'france',
     serbia: 'serbia',
+    // The Record needs an entry for every realm. These realms have no scenario
+    // of their own, and /explain, the page that renders the demos, is
+    // greece-only.
+    austria: 'france',
+    belgium: 'france',
+    finland: 'france',
+    germany: 'france',
+    italy: 'france',
+    netherlands: 'france',
+    poland: 'france',
+    portugal: 'france',
+    spain: 'france',
 }
 
 /** Center and zoom of the static map tile behind the map mockup, per scenario. */

@@ -16,6 +16,7 @@ jest.mock('../../db/prisma', () => ({
 }));
 
 import { requirePublicTranscript, requireVisibleMeeting } from '../gate';
+import { mcpRealmStore, requestContext } from '../realm-context';
 import { ForbiddenError, NotFoundError } from '../../api/errors';
 
 const USER = { userId: 'u1' } as const;
@@ -32,7 +33,7 @@ function row(released: boolean) {
         videoUrl: null,
         administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', showUnreviewedTranscript: true },
         taskStatuses: [],
-        city: { timezone: 'Europe/Athens' },
+        city: { timezone: 'Europe/Athens', realm: 'greece' },
     };
 }
 function payload(released: boolean, editor: boolean | null) {
@@ -134,6 +135,26 @@ describe('realm scoping', () => {
         expect(where).toMatchObject({ cityId: 'athens', id: 'm1', city: { realm: 'greece' } });
     });
 });
+describe('realm scoping for a superadmin', () => {
+    const access = (superadmin: boolean) => ({ superadmin, cityIds: new Set<string>(), bodyIds: new Set<string>() });
+    const whereFor = async (superadmin: boolean) => {
+        mockMeetingFindFirst.mockResolvedValue(row(true));
+        await mcpRealmStore.run(requestContext('greece', null, USER, { adminAccess: access(superadmin) }), () =>
+            requireVisibleMeeting('krakow', 'm1', USER));
+        return mockMeetingFindFirst.mock.calls[0][0].where;
+    };
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('reaches a meeting of another realm', async () => {
+        expect(await whereFor(true)).toEqual({ cityId: 'krakow', id: 'm1' });
+    });
+
+    it('keeps an administrator who is not a superadmin in the realm of the request', async () => {
+        expect(await whereFor(false)).toMatchObject({ city: { realm: 'greece' } });
+    });
+});
+
 
 describe('the transcript of a visible meeting', () => {
     beforeEach(() => {

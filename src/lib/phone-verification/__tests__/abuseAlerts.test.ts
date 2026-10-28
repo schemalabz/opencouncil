@@ -35,10 +35,10 @@ describe('reportUnusualCodeRequest', () => {
     });
 
     it('alerts on a number outside the realm countries, with the number masked', async () => {
-        await reportUnusualCodeRequest({ userId: 'u1', phone: '+491511234567', phoneSendCount: 1 });
+        await reportUnusualCodeRequest({ userId: 'u1', phone: '+12025550143', phoneSendCount: 1 });
         expect(mockAlert).toHaveBeenCalledTimes(1);
         const alert = JSON.stringify(mockAlert.mock.calls[0][0]);
-        expect(alert).toContain('(DE)');
-        expect(alert).not.toContain('1511234567');
+        expect(alert).toContain('(US)');
+        expect(alert).not.toContain('2025550143');
     });
 });

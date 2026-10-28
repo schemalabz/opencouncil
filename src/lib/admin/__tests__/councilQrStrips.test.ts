@@ -108,6 +108,26 @@ describe('getCouncilQrStrips', () => {
         expect(strips!.people[0].role).toBe('Maire');
     });
 
+    it('uses the English catalog for a city language that has none, not Greek, and keeps a stored role name', async () => {
+        mockGetCity.mockResolvedValue({ id: 'krakow', name: 'Kraków', realm: 'greece', language: 'pl', timezone: 'Europe/Warsaw' });
+        const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
+        mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
+            o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Aleksander Miszalski', [role({ cityId: 'krakow', isHead: true })]),
+            person('chair', 'Rafał Komarewicz', [role({ cityId: 'krakow', isHead: true, name: 'Przewodniczący Rady Miasta' })]),
+        ]);
+        mockGetClaimedPersonIds.mockResolvedValue(new Set());
+
+        const strips = await getCouncilQrStrips('krakow');
+
+        expect(mockGetTranslations).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en', namespace: 'admin.cities.qrStrip' }));
+        expect(Object.fromEntries(strips!.people.map((p) => [p.name, p.role]))).toEqual({
+            'Aleksander Miszalski': 'Mayor',
+            'Rafał Komarewicz': 'Przewodniczący Rady Miasta',
+        });
+    });
+
     it('mints new codes on every call', async () => {
         mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
         mockGetPeopleForCity.mockResolvedValue([

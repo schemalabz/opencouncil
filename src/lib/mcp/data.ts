@@ -1,5 +1,5 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingFormat, type MeetingScheduleStatus } from '@prisma/client';
+import { Prisma, DiscussionStatus, type Realm, type AdministrativeBodyType, type CouncilMeeting, type MeetingFormat, type MeetingScheduleStatus } from '@prisma/client';
 import { hasPublicRecording, takesPlace } from '@/lib/meetingLifecycleRules';
 import { stageSignalsFromPreview } from '@/lib/meetingStage';
 import { searchInRealm } from '@/lib/search/core';
@@ -16,7 +16,9 @@ import {
     getAdministrativeBodiesWithPublicMeetings,
 } from '@/lib/db/administrativeBodies';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
-import { currentBaseUrl, currentRealm } from './realm-context';
+import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
+import { requireSuperadmin } from './adminAccess';
+import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
 import { getTranscript } from '@/lib/db/transcript';
 import { getMeetingTaskStatus } from '@/lib/db/tasks';
 import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
@@ -54,20 +56,22 @@ function authHint(): string {
 }
 
 /**
- * Absolute URLs on the origin this request arrived on — a connector added from
- * opencouncil.fr must cite .fr links, never .gr ones.
+ * Absolute URLs for the city's content: on the origin this request arrived on
+ * — a connector added from opencouncil.fr must cite .fr links, never .gr ones
+ * — or, for a city of another realm that a superadmin reached, on that realm's
+ * domain (cityBaseUrl).
  */
 const urls = {
-    city: (cityId: string) => `${currentBaseUrl()}/${cityId}`,
-    meeting: (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`,
+    city: (cityId: string) => `${cityBaseUrl(cityId)}/${cityId}`,
+    meeting: (cityId: string, meetingId: string) => `${cityBaseUrl(cityId)}/${cityId}/${meetingId}`,
     subject: (cityId: string, meetingId: string, subjectId: string) =>
-        `${currentBaseUrl()}/${cityId}/${meetingId}/subjects/${subjectId}`,
-    person: (cityId: string, personId: string) => `${currentBaseUrl()}/${cityId}/people/${personId}`,
-    party: (cityId: string, partyId: string) => `${currentBaseUrl()}/${cityId}/parties/${partyId}`,
-    highlights: (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}/highlights`,
+        `${cityBaseUrl(cityId)}/${cityId}/${meetingId}/subjects/${subjectId}`,
+    person: (cityId: string, personId: string) => `${cityBaseUrl(cityId)}/${cityId}/people/${personId}`,
+    party: (cityId: string, partyId: string) => `${cityBaseUrl(cityId)}/${cityId}/parties/${partyId}`,
+    highlights: (cityId: string, meetingId: string) => `${cityBaseUrl(cityId)}/${cityId}/${meetingId}/highlights`,
     /** Deep-link to the moment something was said — the site's player seeks to ?t=. */
     moment: (cityId: string, meetingId: string, seconds: number) =>
-        `${currentBaseUrl()}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
+        `${cityBaseUrl(cityId)}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
 };
 
 
@@ -147,9 +151,19 @@ function mapRoles(person: PersonWithRelations) {
 
 // --- Cities ---------------------------------------------------------------
 
-export async function mcpListCities() {
-    const cities = await getCities({}, currentRealm());
+/**
+ * The public cities of the connection's realm. A superadmin may name another
+ * realm and include the cities that are not public yet: adding a city starts
+ * by checking that it does not exist already.
+ */
+export async function mcpListCities(identity: McpIdentity, args: { realm?: Realm; includePending?: boolean } = {}) {
+    const widened = args.realm !== undefined || args.includePending === true;
+    if (widened) await requireSuperadmin(identity);
+    const realm = args.realm ?? currentRealm();
+    const cities = args.includePending ? await listCitiesWithCounts({ realm }) : await getCities({}, realm);
+    cities.forEach((city) => rememberCityRealm(city.id, realm));
     return {
+        ...(widened && { realm }),
         cities: cities.map(city => ({
             id: city.id,
             name: city.name,
@@ -157,6 +171,7 @@ export async function mcpListCities() {
             municipality: city.name_municipality,
             authorityType: city.authorityType,
             officialSupport: isCustomer(city.status),
+            ...(args.includePending && { status: city.status, language: city.language }),
             counts: {
                 meetings: city._count.councilMeetings,
                 people: city._count.persons,
@@ -1195,9 +1210,9 @@ export async function mcpListHighlights(
         ...(scope.cityIds.size > 0 ? [{ cityId: { in: [...scope.cityIds] } }] : []),
     ];
 
+    // A named city passed the realm guard; without one the list is the realm's.
     const where: Prisma.HighlightWhereInput = {
-        meeting: { city: { realm: currentRealm() } },
-        ...(args.cityId && { cityId: args.cityId }),
+        ...(args.cityId ? { cityId: args.cityId } : { meeting: { city: { realm: currentRealm() } } }),
         ...(args.meetingId && { meetingId: args.meetingId }),
         ...(scope.all ? {} : { OR: ownership }),
     };
@@ -1287,6 +1302,11 @@ async function requireManagedHighlight(identity: McpIdentity, highlightId: strin
     if (!(await canActorManageHighlight(identity.userId, highlight))) {
         throw new NotFoundError('Highlight not found');
     }
+    // Realm-scoped like every by-id tool; it also records the city's realm for
+    // the highlight's links.
+    await requireRealmCity(highlight.cityId).catch(() => {
+        throw new NotFoundError('Highlight not found');
+    });
 
     return highlight;
 }

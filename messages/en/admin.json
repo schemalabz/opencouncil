@@ -24,8 +24,6 @@
     "columnMeetings": "Meetings",
     "columnPeople": "People",
     "columnParties": "Parties",
-    "languageGreek": "Greek",
-    "languageFrench": "French",
     "cityCount": "{count, plural, one {# city} other {# cities}}"
   },
   "taskStatus": {

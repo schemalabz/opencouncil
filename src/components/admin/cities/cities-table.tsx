@@ -5,6 +5,7 @@ import { City, CityStatus, Realm } from "@prisma/client";
 import { useLocale, useTranslations } from "next-intl";
 import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
+import { getLanguageDisplayName } from "@/i18n/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Table,
@@ -56,8 +57,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
     }, [filteredCities]);
 
     const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
-    const languageLabel = (language: City["language"]) =>
-        language === "fr" ? t("languageFrench") : t("languageGreek");
+    const languageLabel = (language: City["language"]) => getLanguageDisplayName(language, locale);
 
     return (
         <div className="space-y-6">
