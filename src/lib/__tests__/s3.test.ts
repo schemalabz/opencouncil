@@ -7,7 +7,7 @@ jest.mock('@/env.mjs', () => ({
     },
 }));
 
-import { extractFileExtension, objectKey } from '../s3';
+import { extractFileExtension, objectKey, presignPart, presignPut } from '../s3';
 
 const UUID_V4 = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
@@ -33,5 +33,24 @@ describe('objectKey', () => {
 describe('extractFileExtension', () => {
     it('falls back to bin when the name ends with a dot', () => {
         expect(extractFileExtension('file.')).toBe('bin');
+    });
+});
+
+describe('signed URLs', () => {
+    it('signs a whole-file PUT with the public ACL and the length of the file', async () => {
+        const url = new URL(await presignPut('uploads/a.pdf', 'application/pdf', 1000, 300));
+        expect(url.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;host');
+        expect(url.host).toBe('bucket.fra1.digitaloceanspaces.com');
+        expect(url.pathname).toBe('/uploads/a.pdf');
+        expect(url.searchParams.get('x-amz-acl')).toBe('public-read');
+        expect(url.searchParams.get('X-Amz-Expires')).toBe('300');
+    });
+
+    it('signs one part of a multipart upload, with the length of the part', async () => {
+        const url = new URL(await presignPart('uploads/a.mp4', 'upload-1', 3, 1024, 43200));
+        expect(url.searchParams.get('X-Amz-SignedHeaders')).toBe('content-length;host');
+        expect(url.searchParams.get('uploadId')).toBe('upload-1');
+        expect(url.searchParams.get('partNumber')).toBe('3');
+        expect(url.searchParams.get('X-Amz-Expires')).toBe('43200');
     });
 });

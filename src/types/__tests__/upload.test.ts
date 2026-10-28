@@ -1,40 +1,55 @@
-import { uploadAuthorizationScope, uploadBaseFilename } from '../upload';
+import { uploadAccept, uploadAuthorizationScope, uploadFormatOfFile, uploadNameParts } from '../upload';
 
 describe('uploadAuthorizationScope', () => {
-    it('asks a superadmin when there is no city', () => {
-        expect(uploadAuthorizationScope(undefined)).toEqual({});
-        expect(uploadAuthorizationScope({ identifier: 'x' })).toEqual({});
-    });
-
     it('asks for the meeting when the file is for an existing meeting', () => {
-        expect(uploadAuthorizationScope({ cityId: 'chania', administrativeBodyId: 'youth', councilMeetingId: 'nov5_2026' }))
+        expect(uploadAuthorizationScope({ cityId: 'chania', kind: 'recording', administrativeBodyId: 'youth', councilMeetingId: 'nov5_2026' }))
             .toEqual({ cityId: 'chania', councilMeetingId: 'nov5_2026' });
     });
 
     it('asks for the body when the meeting does not exist yet', () => {
-        expect(uploadAuthorizationScope({ cityId: 'chania', administrativeBodyId: 'youth' }))
+        expect(uploadAuthorizationScope({ cityId: 'chania', kind: 'agenda', administrativeBodyId: 'youth' }))
             .toEqual({ cityId: 'chania', administrativeBodyId: 'youth' });
     });
 
     it('asks for the city otherwise', () => {
-        expect(uploadAuthorizationScope({ cityId: 'chania', identifier: 'logo' })).toEqual({ cityId: 'chania' });
+        expect(uploadAuthorizationScope({ cityId: 'chania', kind: 'agenda', identifier: '2026-10-15' })).toEqual({ cityId: 'chania' });
     });
 });
 
-describe('uploadBaseFilename', () => {
+describe('uploadNameParts', () => {
     it('names a file for an existing meeting after that meeting, whatever identifier the caller sent', () => {
-        expect(uploadBaseFilename({ cityId: 'chania', identifier: 'other_meeting', councilMeetingId: 'nov5_2026', administrativeBodyId: 'youth', suffix: 'recording' }, 'mp4'))
-            .toBe('chania_nov5_2026_recording.mp4');
+        expect(uploadNameParts({ cityId: 'chania', kind: 'recording', identifier: 'other_meeting', councilMeetingId: 'nov5_2026', administrativeBodyId: 'youth' }))
+            .toEqual(['chania', 'nov5_2026', 'recording']);
     });
 
     it('puts the body in the name of a file for a meeting that does not exist yet', () => {
-        expect(uploadBaseFilename({ cityId: 'chania', identifier: 'nov5_2026', administrativeBodyId: 'youth', suffix: 'agenda' }, 'pdf'))
-            .toBe('chania_youth_nov5_2026_agenda.pdf');
+        expect(uploadNameParts({ cityId: 'chania', kind: 'agenda', identifier: 'nov5_2026', administrativeBodyId: 'youth' }))
+            .toEqual(['chania', 'youth', 'nov5_2026', 'agenda']);
     });
 
-    it('keeps the plain name for a city-scoped file, and gives none without a config', () => {
-        expect(uploadBaseFilename({ cityId: 'chania', identifier: 'democrats', suffix: 'logo' }, 'png')).toBe('chania_democrats_logo.png');
-        expect(uploadBaseFilename(undefined, 'bin')).toBeNull();
-        expect(uploadBaseFilename({}, 'bin')).toBeNull();
+    it('leaves out an identifier that the config does not give', () => {
+        expect(uploadNameParts({ cityId: 'chania', kind: 'decision' })).toEqual(['chania', 'decision']);
+    });
+});
+
+describe('uploadFormatOfFile', () => {
+    it('reads the format from the extension, in any case', () => {
+        expect(uploadFormatOfFile('agenda', 'Ημερήσια Διάταξη.PDF')).toBe('pdf');
+        expect(uploadFormatOfFile('agenda', 'agenda.v2.docx')).toBe('docx');
+        expect(uploadFormatOfFile('recording', 'sitting.MOV')).toBe('mov');
+    });
+
+    it('refuses a format that the kind does not take', () => {
+        expect(uploadFormatOfFile('agenda', 'agenda.doc')).toBeNull();
+        expect(uploadFormatOfFile('decision', 'decision.docx')).toBeNull();
+        expect(uploadFormatOfFile('recording', 'sitting.mkv')).toBeNull();
+        expect(uploadFormatOfFile('recording', 'sitting')).toBeNull();
+    });
+});
+
+describe('uploadAccept', () => {
+    it('lists the extensions and the content types of the kind', () => {
+        expect(uploadAccept('decision')).toBe('.pdf,application/pdf');
+        expect(uploadAccept('recording')).toBe('.mp4,video/mp4,.mov,video/quicktime');
     });
 });

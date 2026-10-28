@@ -1247,7 +1247,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                 renderManualStep={({ onBack, toAda, onClose }) => (
                     <ManualDecisionForm
                         subjectLabel={labelOf(subject)}
-                        uploadConfig={{ cityId: meeting.cityId, identifier: `${meeting.id}_${subjectId}`, suffix: 'decision' }}
+                        uploadConfig={{ cityId: meeting.cityId, identifier: `${meeting.id}_${subjectId}`, kind: 'decision' }}
                         initial={panel.lastManual}
                         onContinue={entry => setPanel(p => p && { ...p, manual: entry, lastManual: entry })}
                         onUseAda={noDecisions ? undefined : ada => { toAda(); void handleAdaSearch(subjectId, ada); }}

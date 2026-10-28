@@ -66,7 +66,7 @@ export function ManualDecisionForm({ subjectLabel, uploadConfig, initial, onCont
                     itself and reports only through onUrlChange. */}
                 <Controller name="pdfUrl" control={control} render={({ field }) => (
                     <LinkOrDrop id="manual-pdf" value={field.value} onChange={e => field.onChange(e.target.value)}
-                        onUrlChange={field.onChange} config={uploadConfig} accept="application/pdf,.pdf" />
+                        onUrlChange={field.onChange} config={uploadConfig} />
                 )} />
                 {errors.pdfUrl && <p className="text-xs text-destructive">{t('panel.manualPdfRequired')}</p>}
                 {pastedAda && onUseAda && (

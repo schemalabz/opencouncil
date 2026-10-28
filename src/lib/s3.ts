@@ -1,5 +1,9 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3'
+import {
+    S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL,
+    CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand, CompleteMultipartUploadCommand,
+} from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { env } from '@/env.mjs'
 import { isS3NotFound } from '@opencouncil/subject-images/store'
 
@@ -27,7 +31,6 @@ export interface UploadResult {
     key: string
     filename: string
 }
-
 // Utility functions
 export function extractFileExtension(filename: string): string {
     return filename.split('.').pop() || 'bin'
@@ -93,20 +96,14 @@ export async function uploadFile(
     }
 }
 
-// Check if file exists
-export async function fileExists(bucket: string, key: string): Promise<boolean> {
+/** The size of a stored file, or null when the bucket has no file under the key. */
+export async function objectSize(key: string): Promise<number | null> {
     try {
-        await s3Client.send(new HeadObjectCommand({
-            Bucket: bucket,
-            Key: key,
-        }))
-        return true
+        const head = await s3Client.send(new HeadObjectCommand({ Bucket: env.DO_SPACES_BUCKET, Key: key }))
+        return head.ContentLength ?? 0
     } catch (error) {
-        if (isS3NotFound(error)) {
-            return false
-        }
-        console.error('Error checking file existence:', error)
-        return false
+        if (isS3NotFound(error)) return null
+        throw error
     }
 }
 
@@ -115,6 +112,95 @@ export async function deleteFile(bucket: string, key: string): Promise<void> {
     await s3Client.send(new DeleteObjectCommand({
         Bucket: bucket,
         Key: key,
+    }))
+}
+
+// --- Direct uploads -------------------------------------------------------
+//
+// A client with no keys of ours sends a file straight to the bucket, with
+// URLs that we sign. One PUT carries at most 5 GB; a bigger file goes up in
+// parts (a multipart upload), each part with its own URL.
+
+/**
+ * A signed PUT of a whole file of exactly `sizeBytes`: the length is a signed
+ * header, so the bucket refuses a PUT of any other size. The ACL is signed in,
+ * but Spaces ignores an ACL in the query string: the PUT must send the
+ * `x-amz-acl: public-read` header, or the file stays private.
+ */
+export async function presignPut(key: string, contentType: string, sizeBytes: number, expiresIn: number): Promise<string> {
+    const command = new PutObjectCommand({
+        Bucket: env.DO_SPACES_BUCKET,
+        Key: key,
+        ContentType: contentType,
+        ContentLength: sizeBytes,
+        ACL: 'public-read',
+    })
+    return getSignedUrl(s3Client, command, { expiresIn })
+}
+
+/**
+ * Opens a multipart upload and returns its id. The file is public and
+ * carries the content type from the start, so the parts need no headers.
+ */
+export async function startMultipartUpload(key: string, contentType: string): Promise<string> {
+    const { UploadId } = await s3Client.send(new CreateMultipartUploadCommand({
+        Bucket: env.DO_SPACES_BUCKET,
+        Key: key,
+        ContentType: contentType,
+        ACL: 'public-read',
+    }))
+    if (!UploadId) throw new Error(`The bucket opened no multipart upload for ${key}`)
+    return UploadId
+}
+
+/** A signed PUT of one part of a multipart upload, of exactly `sizeBytes`, as presignPut. */
+export async function presignPart(
+    key: string, uploadId: string, partNumber: number, sizeBytes: number, expiresIn: number,
+): Promise<string> {
+    const command = new UploadPartCommand({
+        Bucket: env.DO_SPACES_BUCKET,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        ContentLength: sizeBytes,
+    })
+    return getSignedUrl(s3Client, command, { expiresIn })
+}
+
+export interface UploadedPart {
+    partNumber: number
+    size: number
+    etag: string
+}
+
+/** The parts that the bucket holds for a multipart upload, by part number. */
+export async function listUploadedParts(key: string, uploadId: string): Promise<UploadedPart[]> {
+    const parts: UploadedPart[] = []
+    let marker: string | undefined
+    do {
+        const page = await s3Client.send(new ListPartsCommand({
+            Bucket: env.DO_SPACES_BUCKET,
+            Key: key,
+            UploadId: uploadId,
+            PartNumberMarker: marker,
+        }))
+        for (const part of page.Parts ?? []) {
+            if (part.PartNumber && part.ETag) {
+                parts.push({ partNumber: part.PartNumber, size: part.Size ?? 0, etag: part.ETag })
+            }
+        }
+        marker = page.IsTruncated ? page.NextPartNumberMarker : undefined
+    } while (marker)
+    return parts.sort((a, b) => a.partNumber - b.partNumber)
+}
+
+/** Joins the parts into one file, under the key of the upload. */
+export async function completeMultipartUpload(key: string, uploadId: string, parts: UploadedPart[]): Promise<void> {
+    await s3Client.send(new CompleteMultipartUploadCommand({
+        Bucket: env.DO_SPACES_BUCKET,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts.map(part => ({ PartNumber: part.partNumber, ETag: part.etag })) },
     }))
 }
 

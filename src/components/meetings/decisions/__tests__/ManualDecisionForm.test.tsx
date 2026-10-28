@@ -10,7 +10,7 @@ jest.mock('@/components/ui/link-or-drop', () => ({
         <input id={id} value={value} onChange={e => onChange({ target: { value: e.target.value } })} />,
 }));
 
-const base = { subjectLabel: 'το θέμα 30', uploadConfig: { cityId: 'c1', identifier: 'm1_s1', suffix: 'decision' },
+const base = { subjectLabel: 'το θέμα 30', uploadConfig: { cityId: 'c1', identifier: 'm1_s1', kind: 'decision' as const },
     initial: null, onContinue: jest.fn(), onUseAda: jest.fn(), onBack: jest.fn(), onClose: jest.fn() };
 const renderForm = (o = {}) => render(
     <NextIntlClientProvider locale="el" messages={{ admin: messages }}><ManualDecisionForm {...base} {...o} /></NextIntlClientProvider>);

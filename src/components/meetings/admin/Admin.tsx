@@ -381,7 +381,7 @@ export default function AdminActions({
                                 value={mediaUrl}
                                 onChange={(e) => setMediaUrl(e.target.value)}
                                 onUrlChange={(url) => setMediaUrl(url)}
-                                config={{ cityId: meeting.cityId, identifier: meeting.id, suffix: 'recording', councilMeetingId: meeting.id }}
+                                config={{ cityId: meeting.cityId, identifier: meeting.id, kind: 'recording', councilMeetingId: meeting.id }}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">
@@ -414,7 +414,7 @@ export default function AdminActions({
                                 value={agendaUrl}
                                 onChange={(e) => setAgendaUrl(e.target.value)}
                                 onUrlChange={(url) => setAgendaUrl(url)}
-                                config={{ cityId: meeting.cityId, identifier: meeting.id, suffix: 'agenda', councilMeetingId: meeting.id }}
+                                config={{ cityId: meeting.cityId, identifier: meeting.id, kind: 'agenda', councilMeetingId: meeting.id }}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">
