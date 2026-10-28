@@ -4,7 +4,7 @@ import { CouncilMeeting, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { buildUnknownSpeakerLabel } from "../utils";
+import { buildUnknownSpeakerLabel } from "@/lib/utils/unknownSpeakerLabel";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
@@ -65,6 +65,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                         select: {
                             name_en: true,
                             timezone: true,
+                            realm: true,
                         }
                     },
                     administrativeBody: { select: { name: true, name_en: true } },
@@ -127,7 +128,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         const speakerTags = new Map<number, string>();
         let identifiedSpeakersCount = 0;
         let unknownCounter = 1;
-        const nextUnknownLabel = () => buildUnknownSpeakerLabel(unknownCounter++);
+        const nextUnknownLabel = () => buildUnknownSpeakerLabel(unknownCounter++, task.councilMeeting.city.realm);
 
         // Process speaker identification results
         if (response.transcript.transcription.speakers && response.transcript.transcription.speakers.length > 0) {

@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertTriangle, Users, Clock, Hash, ChevronRight, ChevronDown, Play, User } from 'lucide-react';
-import { getPartyFromRoles, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
+import { getPartyFromRoles } from "@/lib/utils";
+import { isUnknownSpeakerLabel } from "@/lib/utils/unknownSpeakerLabel";
 import { formatDuration, formatTimestamp } from "@/lib/formatters/time";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +111,7 @@ function SpeakerStatsContent() {
                 <div className="p-6 space-y-4">
                     {speakerStats.map((stat) => {
                         const isExpanded = expandedSpeakerId === stat.id;
-                        const isUnknown = !stat.personId && (!stat.label || stat.label.startsWith(UNKNOWN_SPEAKER_LABEL));
+                        const isUnknown = !stat.personId && (!stat.label || isUnknownSpeakerLabel(stat.label));
 
                         return (
                             <div 

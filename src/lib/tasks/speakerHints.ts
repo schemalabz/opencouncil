@@ -5,11 +5,11 @@
  * callable as a Server Action. It runs on the task-server callback only.
  */
 import "server-only";
-import { Prisma } from '@prisma/client';
+import { Prisma, type Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { SpeakerHint } from '@/lib/apiTypes';
 import { AUTOMATIC_SOURCES, isReviewerAssignment, reconcileSpeakerIdentifications, MethodIdentification } from '@/lib/speakerIdentifications';
-import { buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
+import { buildUnknownSpeakerLabel, lastUnknownSpeakerIndex } from '@/lib/utils/unknownSpeakerLabel';
 
 /**
  * The tags isReviewerAssignment leaves open, as a query, built from the same
@@ -28,11 +28,10 @@ export const automaticAssignmentWhere = {
 /** The label the transcribe import gives a voiceprint-matched speaker. */
 const RAW_SPEAKER_LABEL = /^SPEAKER_\d+$/;
 
-/** Hands out "unknown speaker N" labels that continue the meeting's numbering. */
-function unknownSpeakerLabels(existingLabels: (string | null)[]) {
-    const numbered = new RegExp(`^${UNKNOWN_SPEAKER_LABEL} (\\d+)$`);
-    let last = Math.max(0, ...existingLabels.map(label => Number(label?.match(numbered)?.[1] ?? 0)));
-    return { next: () => buildUnknownSpeakerLabel(++last) };
+/** Hands out "unknown speaker N" labels that continue the meeting's numbering, in the language of the city's realm. */
+function unknownSpeakerLabels(existingLabels: (string | null)[], realm: Realm) {
+    let last = lastUnknownSpeakerIndex(existingLabels);
+    return { next: () => buildUnknownSpeakerLabel(++last, realm) };
 }
 
 const identifiedTagSelect = {
@@ -83,7 +82,7 @@ function transcriptIdentification(hint: SpeakerHint) {
 export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHint[]): Promise<void> {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
-        select: { cityId: true, councilMeetingId: true },
+        select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { city: { select: { realm: true } } } } },
     });
     if (!task) {
         throw new Error('Task not found');
@@ -115,7 +114,7 @@ export async function applySpeakerHints(taskId: string, speakerHints: SpeakerHin
         speakerHints.filter(hint => knownPersonIds.has(hint.personId)).map(hint => [hint.speakerTagId, hint])
     );
 
-    const unknownLabels = unknownSpeakerLabels(tags.map(tag => tag.label));
+    const unknownLabels = unknownSpeakerLabels(tags.map(tag => tag.label), task.councilMeeting.city.realm);
 
     let stored = 0;
     let assigned = 0;

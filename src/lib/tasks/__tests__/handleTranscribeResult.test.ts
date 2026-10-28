@@ -57,7 +57,7 @@ const task = {
     id: MEETING_ID,
     cityId: CITY_ID,
     name_en: 'Test Meeting',
-    city: { name_en: 'Test City' },
+    city: { name_en: 'Test City', realm: 'greece' },
     speakerSegments: [],
   },
 };
@@ -219,7 +219,14 @@ describe('handleTranscribeResult — voiceprint identifications', () => {
     await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: null, confidence: {} }]) as never);
 
     const { data } = mockSpeakerTagCreate.mock.calls[0][0];
-    expect(Object.keys(data)).toEqual(['label']);
+    expect(data).toEqual({ label: 'Άγνωστος Ομιλητής 1' });
+  });
+
+  it('labels an unmatched speaker in the UI language of the realm of the city', async () => {
+    mockTaskFindUnique.mockResolvedValue({ ...task, councilMeeting: { ...task.councilMeeting, city: { name_en: 'Kraków', realm: 'poland' } } });
+    await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: null, confidence: {} }]) as never);
+
+    expect(mockSpeakerTagCreate.mock.calls[0][0].data).toEqual({ label: 'Unknown Speaker 1' });
   });
 
   it('records no identification when the matched person no longer exists', async () => {

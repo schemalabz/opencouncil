@@ -71,6 +71,7 @@ const renderBadge = (props: Partial<React.ComponentProps<typeof PersonBadge>> = 
                 speakerTag={speakerTag}
                 availablePeople={people}
                 onAssign={jest.fn()}
+                nextUnknownLabel="Άγνωστος Ομιλητής 3"
                 {...props}
             />
         </NextIntlClientProvider>,
@@ -133,13 +134,25 @@ describe('PersonBadge editable speaker picker', () => {
         renderBadge();
         // Open with no query: the "unknown speaker" quick action is offered.
         fireEvent.click(screen.getByText('Speaker 1'));
-        expect(screen.getByText('Άγνωστος Ομιλητής')).toBeInTheDocument();
+        expect(screen.getByText('Άγνωστος Ομιλητής 3')).toBeInTheDocument();
 
         // Once searching, it gives way to the matches + the "set label" fallback.
         fireEvent.change(screen.getByPlaceholderText('Search people...'), {
             target: { value: 'Παπ' },
         });
-        expect(screen.queryByText('Άγνωστος Ομιλητής')).not.toBeInTheDocument();
+        expect(screen.queryByText('Άγνωστος Ομιλητής 3')).not.toBeInTheDocument();
+    });
+    it('gives the unknown speaker label that it is passed, and offers none without one', () => {
+        const onAssign = jest.fn();
+        const { unmount } = renderBadge({ onAssign, nextUnknownLabel: 'Unknown Speaker 2' });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        fireEvent.click(screen.getByText('Unknown Speaker 2'));
+        expect(onAssign).toHaveBeenCalledWith({ personId: null, label: 'Unknown Speaker 2' }, 'allSegments');
+        unmount();
+
+        renderBadge({ nextUnknownLabel: undefined });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        expect(screen.queryByText(/Άγνωστος Ομιλητής|Unknown Speaker/)).not.toBeInTheDocument();
     });
 });
 
@@ -221,7 +234,7 @@ describe('PersonBadge speaker suggestions', () => {
         fireEvent.click(screen.getByText('Speaker 1'));
 
         const suggestedHeading = screen.getByText('Suggested');
-        const unknownSpeaker = screen.getByText('Άγνωστος Ομιλητής');
+        const unknownSpeaker = screen.getByText('Άγνωστος Ομιλητής 3');
         const allPeopleHeading = screen.getByText('All people');
         // Document order: suggestions, then the unknown-speaker action, then everyone.
         expect(suggestedHeading.compareDocumentPosition(unknownSpeaker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

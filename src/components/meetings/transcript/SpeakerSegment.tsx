@@ -11,7 +11,8 @@ import { useSpeakerIdentifications } from "../SpeakerIdentificationsContext";
 import { listSpeakerSuggestions, speakerIdentificationsStatus } from '@/lib/speakerIdentifications';
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
-import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
+import { getPartyFromRoles, formatTimestamp } from "@/lib/utils";
+import { buildUnknownSpeakerLabel, lastUnknownSpeakerIndex } from "@/lib/utils/unknownSpeakerLabel";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
@@ -164,7 +165,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
 }) {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting } = useCouncilMeetingMeta();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting, city } = useCouncilMeetingMeta();
     // Resolve party color as of the meeting date so a councilor who later
     // changed affiliation keeps their historical color on older meetings.
     const meetingDate = meeting.dateTime;
@@ -207,26 +208,11 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
         setIsCollapsed(newState);
     };
 
-    // Calculate the next unknown speaker label
-    const nextUnknownLabel = useMemo(() => {
-        if (!speakerTags) return buildUnknownSpeakerLabel(1);
-
-        let maxIndex = 0;
-        speakerTags.forEach(tag => {
-            if (tag.label?.startsWith(UNKNOWN_SPEAKER_LABEL)) {
-                // Extract number from end of string
-                const match = tag.label.match(/(\d+)$/);
-                if (match) {
-                    const index = parseInt(match[1], 10);
-                    if (!isNaN(index)) {
-                        maxIndex = Math.max(maxIndex, index);
-                    }
-                }
-            }
-        });
-
-        return buildUnknownSpeakerLabel(maxIndex + 1);
-    }, [speakerTags]);
+    // In the language of the city's realm, not of the editor's UI: the label is stored for every reader.
+    const nextUnknownLabel = useMemo(
+        () => buildUnknownSpeakerLabel(lastUnknownSpeakerIndex((speakerTags ?? []).map(tag => tag.label)) + 1, city.realm),
+        [speakerTags, city.realm],
+    );
 
     // Not memoized: the getter refs are stable for the provider's lifetime,
     // so a useMemo over them would never recompute when underlying speaker

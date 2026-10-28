@@ -86,8 +86,8 @@ const at = (time: string) => new Date(`2026-09-18T${time}:00Z`);
 type Run = { type: 'transcribe' | 'humanReview'; createdAt: Date };
 const TRANSCRIBED: Run = { type: 'transcribe', createdAt: at('10:00') };
 
-function setup(tags: Tag[], { people = ['anna', 'babis'], reviewed = false, runs }: { people?: string[]; reviewed?: boolean; runs?: Run[] } = {}) {
-  mockTaskFindUnique.mockResolvedValue({ cityId: 'city-1', councilMeetingId: 'meeting-1' });
+function setup(tags: Tag[], { people = ['anna', 'babis'], reviewed = false, runs, realm = 'greece' }: { people?: string[]; reviewed?: boolean; runs?: Run[]; realm?: string } = {}) {
+  mockTaskFindUnique.mockResolvedValue({ cityId: 'city-1', councilMeetingId: 'meeting-1', councilMeeting: { city: { realm } } });
   mockTagFindMany.mockResolvedValue(tags);
   mockPersonFindMany.mockResolvedValue(people.map(id => ({ id })));
   mockTaskFindMany.mockResolvedValue(runs ?? [TRANSCRIBED, ...(reviewed ? [{ type: 'humanReview' as const, createdAt: at('12:00') }] : [])]);
@@ -183,6 +183,16 @@ describe('applySpeakerHints', () => {
       where: { id: 't1', ...AUTOMATIC },
       // The numbering continues after the meeting's highest unknown speaker.
       data: { personId: null, personSetBy: null, label: 'Άγνωστος Ομιλητής 5' },
+    });
+  });
+
+  it('labels the unknown speaker in the language of the realm, and continues the numbering of the Greek labels', async () => {
+    setup([voiceprintTag('t1', 'anna'), tag('t2', { label: 'Άγνωστος Ομιλητής 4' }), tag('t3', { label: 'Unknown Speaker 2' })], { realm: 'poland' });
+    await applySpeakerHints('task-1', [hint('t1', 'babis')]);
+
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: null, label: 'Unknown Speaker 5' },
     });
   });
 

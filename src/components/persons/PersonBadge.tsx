@@ -2,7 +2,7 @@ import { memo, useState, useRef, useEffect, useMemo, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
-import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
+import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore } from "@/lib/utils";
 import {
     Popover,
     PopoverContent,
@@ -178,6 +178,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
     allPeopleHeading?: string;
     /** When set, an editor sees this as an amber label on the badge (already localized, a few words). */
     warning?: string;
+    /** The label that the "unknown speaker" action gives. The action shows only when it is set. */
     nextUnknownLabel?: string;
     variant?: 'default' | 'inline';
     /** When true, the badge does not navigate or behave like a button (useful on the person's own page). */
@@ -429,16 +430,16 @@ const PersonBadge = memo(function PersonBadge({
                                         <CommandSeparator />
                                     </>
                                 )}
-                                {!searchQuery && (
+                                {!searchQuery && nextUnknownLabel && (
                                     <CommandGroup>
                                         <CommandItem
-                                            onSelect={() => handleSetLabel(nextUnknownLabel || UNKNOWN_SPEAKER_LABEL)}
+                                            onSelect={() => handleSetLabel(nextUnknownLabel)}
                                             className="flex items-center gap-2"
                                         >
                                             <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
                                                 <span className="text-xs font-medium">?</span>
                                             </div>
-                                            <span className="font-medium">{nextUnknownLabel || UNKNOWN_SPEAKER_LABEL}</span>
+                                            <span className="font-medium">{nextUnknownLabel}</span>
                                         </CommandItem>
                                     </CommandGroup>
                                 )}

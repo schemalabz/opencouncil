@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EditingGuideDialog } from './EditingGuideDialog';
 import { GuideButton } from './GuideButton';
-import { UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
+import { isUnknownSpeakerLabel } from '@/lib/utils/unknownSpeakerLabel';
 import { SpeakersOverviewSheet } from './transcript/SpeakersOverviewSheet';
 import { CompleteReviewDialog } from '@/components/reviews/CompleteReviewDialog';
 import { useRouter } from 'next/navigation';
@@ -67,7 +67,7 @@ export function EditingModeBar() {
         for (let i = startIndex; i < speakerSegments.length; i++) {
             const segment = speakerSegments[i];
             const speakerTag = getSpeakerTag(segment.speakerTagId);
-            const isUnknownByLabel = speakerTag?.label?.startsWith(UNKNOWN_SPEAKER_LABEL);
+            const isUnknownByLabel = isUnknownSpeakerLabel(speakerTag?.label);
             // Treat segments with explicit unknown label as unknown
             if (isUnknownByLabel) {
                 seekTo(segment.startTimestamp);
