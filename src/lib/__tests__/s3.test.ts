@@ -7,22 +7,26 @@ jest.mock('@/env.mjs', () => ({
     },
 }));
 
-import { extractFileExtension, generateRandomFilename } from '../s3';
+import { extractFileExtension, objectKey } from '../s3';
 
 const UUID_V4 = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
-describe('generateRandomFilename', () => {
-    it('names the file with a v4 UUID and keeps the extension', () => {
-        expect(generateRandomFilename('Logo Final.PNG')).toMatch(new RegExp(`^${UUID_V4}\\.PNG$`));
+describe('objectKey', () => {
+    it('joins the parts and adds a random part', () => {
+        expect(objectKey('uploads', ['chania', 'nov5_2026', 'agenda'], 'pdf')).toMatch(/^uploads\/chania_nov5_2026_agenda_[0-9a-f]{8}\.pdf$/);
     });
 
-    it('uses the last extension of a name with several dots', () => {
-        expect(generateRandomFilename('agenda.v2.pdf')).toMatch(new RegExp(`^${UUID_V4}\\.pdf$`));
+    it('names the file with a v4 UUID when there are no parts, and lowers the extension', () => {
+        expect(objectKey('party-logos', [], 'PNG')).toMatch(new RegExp(`^party-logos/${UUID_V4}\\.png$`));
     });
 
-    it('gives a different name on each call', () => {
-        const names = new Set(Array.from({ length: 50 }, () => generateRandomFilename('a.jpg')));
-        expect(names.size).toBe(50);
+    it('keeps a free-text part from moving the file to another folder', () => {
+        expect(objectKey('uploads', ['chania', '../other/city', 'agenda'], 'pdf')).toMatch(/^uploads\/chania_-other-city_agenda_[0-9a-f]{8}\.pdf$/);
+    });
+
+    it('gives a different key on each call', () => {
+        const keys = new Set(Array.from({ length: 50 }, () => objectKey('uploads', ['chania', 'agenda'], 'pdf')));
+        expect(keys.size).toBe(50);
     });
 });
 

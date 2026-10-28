@@ -33,9 +33,20 @@ export function extractFileExtension(filename: string): string {
     return filename.split('.').pop() || 'bin'
 }
 
-export function generateRandomFilename(originalFilename: string): string {
-    const extension = extractFileExtension(originalFilename)
-    return `${crypto.randomUUID()}.${extension}`
+/** A key part keeps letters, digits, `_` and `-`: a part can be free text, and a `/` would move the file. */
+const keyPart = (part: string) => part.replace(/[^A-Za-z0-9_-]+/g, '-')
+
+/**
+ * The key of every file that we store: `{prefix}/{part}_{part}_{random}.{ext}`,
+ * or `{prefix}/{uuid}.{ext}` without parts. The parts keep the file
+ * recognizable in the bucket. The random part makes each key new, so a file
+ * never replaces another one and needs no lookup first. It also keeps the
+ * task server, which caches a download by its file name, from reading an
+ * older file under the same name.
+ */
+export function objectKey(prefix: string, parts: string[], extension: string): string {
+    const name = parts.length > 0 ? `${parts.map(keyPart).join('_')}_${crypto.randomUUID().slice(0, 8)}` : crypto.randomUUID()
+    return `${prefix}/${name}.${keyPart(extension).toLowerCase() || 'bin'}`
 }
 
 export function constructPublicUrl(bucket: string, key: string, useCdn: boolean = false): string {
@@ -59,8 +70,7 @@ export async function uploadFile(
         useCdn = false
     } = options
 
-    const filename = generateRandomFilename(file.name)
-    const key = `${prefix}/${filename}`
+    const key = objectKey(prefix, [], extractFileExtension(file.name))
 
     const upload = new Upload({
         client: s3Client,
@@ -79,7 +89,7 @@ export async function uploadFile(
     return {
         url,
         key,
-        filename
+        filename: key.slice(key.lastIndexOf('/') + 1)
     }
 }
 
