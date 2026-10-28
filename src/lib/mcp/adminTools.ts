@@ -1,10 +1,12 @@
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
+import * as z from 'zod';
 import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
 import {
     mcpCreateAgendaUploadUrl,
     mcpCreateCity,
     mcpCreateMeeting,
+    mcpListRealms,
     mcpPopulateCity,
     mcpStartTask,
     mcpUpdateMeeting,
@@ -122,13 +124,29 @@ function registerTaskAdminTools(server: McpServer) {
 
 function registerCityAdminTools(server: McpServer) {
     server.registerTool(
+        'list_realms',
+        {
+            title: 'List realms',
+            annotations: { readOnlyHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Superadmin only. List the realms (one per country and domain): the country, the domain, the '
+                + 'language of the site, whether the realm has paying municipalities yet, and how many cities it '
+                + 'has in each status. Call it before you add a city.',
+            inputSchema: z.object({}),
+        },
+        (_args, ctx: ServerContext) => run(() => mcpListRealms(identityFromContext(ctx)))
+    );
+
+    server.registerTool(
         'create_city',
         {
             title: 'Create city',
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Superadmin only. Create a municipality or a region on this domain. The city is saved as '
+                'Superadmin only. Create a municipality or a region in the realm of this domain, or in the realm '
+                + 'you name. The city is saved as '
                 + 'pending, so it is not public, and it has no logo and no boundary: those are added on the '
                 + 'site. Fill it next with populate_city. The id is permanent and is part of every URL of '
                 + 'the city. Confirm the id and the names with the user before you call.',

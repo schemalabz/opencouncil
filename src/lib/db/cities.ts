@@ -2,6 +2,7 @@
 import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
@@ -37,24 +38,6 @@ export type CityWithCounts = City & {
     _count: CityCounts;
 };
 
-// Common configurations for database queries
-const CITY_COUNT_SELECT = {
-    select: {
-        persons: true,
-        parties: true,
-        councilMeetings: {
-            where: {
-                released: true
-            }
-        }
-    }
-};
-
-const CITY_ORDER_BY = [
-    // supported > demo > pending, by CityStatus declaration order
-    { status: 'desc' as const },
-    { name: 'asc' as const }
-];
 
 export async function deleteCity(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});

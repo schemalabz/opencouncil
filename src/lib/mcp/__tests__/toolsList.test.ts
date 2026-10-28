@@ -40,7 +40,7 @@ const PUBLIC_TOOLS = [
 ];
 const HIGHLIGHT_TOOLS = ['create_highlight', 'generate_highlight_video', 'list_highlights', 'set_highlight_showcase', 'get_highlight'];
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
-const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
+const SUPERADMIN_TOOLS = ['list_realms', 'create_city', 'populate_city'];
 
 const USER: McpIdentity = { userId: 'u1' };
 

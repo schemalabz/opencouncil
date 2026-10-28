@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { AuthorityType, MeetingKind } from '@prisma/client';
+import { AuthorityType, MeetingKind, Realm } from '@prisma/client';
 import { meetingKindTitle } from '@opencouncil/ui/lib/meeting-title';
 import type { MEETING_RECORD_INPUT_KEYS } from '@/lib/meetingLifecycleRules';
 import { STARTABLE_MEETING_TASKS } from '@/lib/tasks/startableTasks';
@@ -129,6 +129,8 @@ export const createCityToolInput = z.object({
     timezone: baseCityFields.timezone.meta({ description: 'IANA time zone, e.g. "Europe/Athens"' }),
     authorityType: baseCityFields.authorityType.default(AuthorityType.municipality),
     language: baseCityFields.language.optional()
-        .meta({ description: 'Content language. Omit for the default language of this domain; required on a domain whose UI is English' }),
+        .meta({ description: 'The language the council speaks in its meetings. Omit for the default language of the realm; required in a realm whose UI is English' }),
+    realm: z.enum(Realm).optional()
+        .meta({ description: 'The realm (country) of the city. Omit for the realm of this domain' }),
 });
 export type CreateCityToolArgs = z.output<typeof createCityToolInput>;

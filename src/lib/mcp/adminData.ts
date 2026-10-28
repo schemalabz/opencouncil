@@ -12,7 +12,8 @@ import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
 import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS, cityLanguageSchema } from '@/lib/zod-schemas/city';
-import { REALMS } from '@/lib/realm';
+import { ALL_REALMS, REALMS, getRealmDisplayName } from '@/lib/realm';
+import { countCitiesByRealmAndStatus } from '@/lib/db/citiesAdmin';
 import type { McpIdentity } from './auth';
 import type {
     AgendaUploadUrlToolArgs,
@@ -25,7 +26,7 @@ import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperad
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
-import { currentBaseUrl, currentRealm } from './realm-context';
+import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { isNewsPhase } from '@/lib/notifications/freshness';
@@ -38,7 +39,7 @@ import { isNewsPhase } from '@/lib/notifications/freshness';
  * writes below them check nothing.
  */
 
-const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
+const meetingUrl = (cityId: string, meetingId: string) => `${cityBaseUrl(cityId)}/${cityId}/${meetingId}`;
 
 // --- Meetings -------------------------------------------------------------
 
@@ -205,17 +206,17 @@ async function createCityOrConflict(data: Parameters<typeof createCityDirect>[0]
 export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolArgs) {
     await requireSuperadmin(identity);
 
-    // A connector belongs to one realm, so the city it creates does too. The
-    // fields a tool does not offer take the defaults of the site's form, and
-    // `pending` keeps the city off every public page.
-    const realm = currentRealm();
+    // The city goes to the connector's realm unless the superadmin names
+    // another. The fields a tool does not offer take the defaults of the
+    // site's form, and `pending` keeps the city off every public page.
+    const realm = args.realm ?? currentRealm();
     // A realm that serves the English UI has no default content language:
     // its councils do not meet in English.
     const realmLanguage = cityLanguageSchema.safeParse(REALMS[realm].defaultLocale);
     const language = args.language ?? (realmLanguage.success ? realmLanguage.data : undefined);
     if (!language) {
         throw new BadRequestError(
-            `This domain has no default content language. Pass "language", the language the council meets in: one of ${Object.values(CityLanguage).join(', ')}. A council that meets in another language cannot be added yet.`,
+            `The ${realm} realm has no default content language. Pass "language", the language the council meets in: one of ${Object.values(CityLanguage).join(', ')}. A council that meets in another language cannot be added yet.`,
         );
     }
     const city = await createCityOrConflict({
@@ -239,15 +240,45 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
     // request must not be served from it.
     revalidateAfterResponse({ blockingTags: ['cities:all'] });
 
+    rememberCityRealm(city.id, city.realm);
     return {
         id: city.id,
         name: city.name,
         status: city.status,
         realm: city.realm,
         language: city.language,
-        url: `${currentBaseUrl()}/${city.id}`,
+        url: `${cityBaseUrl(city.id)}/${city.id}`,
         next: 'The city is saved as pending, so it is not public. Fill it with populate_city. '
             + `Add the logo and the boundary on the site: ${currentBaseUrl()}/admin/cities.`,
+    };
+}
+
+/**
+ * Every realm, for a superadmin who adds a city: where each one is served,
+ * which UI language it shows, and how many cities it has in each status.
+ */
+export async function mcpListRealms(identity: McpIdentity) {
+    await requireSuperadmin(identity);
+    const counts = await countCitiesByRealmAndStatus();
+    const cityCount = (realm: string, status: string) =>
+        counts.find((row) => row.realm === realm && row.status === status)?._count._all ?? 0;
+    return {
+        realms: ALL_REALMS.map((realm) => ({
+            realm,
+            country: REALMS[realm].country,
+            countryName: getRealmDisplayName(realm, 'en'),
+            domain: REALMS[realm].domain,
+            uiLanguage: REALMS[realm].defaultLocale,
+            stage: REALMS[realm].stage,
+            thisConnection: realm === currentRealm(),
+            cities: {
+                supported: cityCount(realm, 'supported'),
+                demo: cityCount(realm, 'demo'),
+                pending: cityCount(realm, 'pending'),
+            },
+        })),
+        next: 'Pass a realm to create_city to add a city there, and to list_cities (with includePending) to see its cities. '
+            + 'The UI language is the site\'s; the language a council speaks is set per city.',
     };
 }
 
@@ -264,7 +295,7 @@ export async function mcpPopulateCity(
     return {
         cityId: data.cityId,
         ...stats,
-        url: `${currentBaseUrl()}/${data.cityId}`,
+        url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
         next: 'The city stays pending. A superadmin checks the import and sets the status on the site.',
     };
 }

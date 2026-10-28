@@ -18,3 +18,16 @@ export async function getCityRealm(cityId: string): Promise<Realm | null> {
     });
     return city?.realm ?? null;
 }
+
+/**
+ * The realm of each city that exists among `cityIds`; a missing id has no
+ * entry.
+ */
+export async function getCityRealms(cityIds: string[]): Promise<Map<string, Realm>> {
+    if (cityIds.length === 0) return new Map();
+    const cities = await prisma.city.findMany({
+        where: { id: { in: cityIds } },
+        select: { id: true, realm: true },
+    });
+    return new Map(cities.map((city) => [city.id, city.realm]));
+}

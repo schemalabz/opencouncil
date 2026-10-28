@@ -2,7 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { canUserEditCity, getUserCityRights } from '@/lib/db/highlights-core';
 import type { McpIdentity } from './auth';
-import { currentRealm } from './realm-context';
+import { currentRealm, reachesEveryRealm, rememberCityRealm } from './realm-context';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
@@ -66,8 +66,8 @@ export async function requireVisibleMeeting(
     const meeting = await prisma.councilMeeting.findFirst({
         // Realm-scoped: a connector added on one domain must not reach another
         // realm's councils. Covers meetings, subjects and transcripts, which
-        // all pass through here.
-        where: { cityId, id: meetingId, city: { realm: currentRealm() } },
+        // all pass through here. A superadmin reaches every realm.
+        where: { cityId, id: meetingId, ...(!reachesEveryRealm() && { city: { realm: currentRealm() } }) },
         // name + administrativeBody ride along so subject-scoped tools can
         // state which body met, and when, without a second lookup. videoUrl
         // rides along for the same reason: creating a highlight with a render
@@ -84,11 +84,12 @@ export async function requireVisibleMeeting(
             administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
             administrativeBodyId: true,
             taskStatuses: transcriptGateSelect.taskStatuses,
-            city: { select: { timezone: true } },
+            city: { select: { timezone: true, realm: true } },
         },
     });
 
     if (!meeting) throw new NotFoundError('Meeting not found');
+    rememberCityRealm(cityId, meeting.city.realm);
 
     const editor = meeting.released ? null : await canSeeUnreleasedMeeting(identity, cityId, meeting.administrativeBodyId);
     if (editor === false) throw new NotFoundError('Meeting not found');

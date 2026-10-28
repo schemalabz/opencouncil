@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType, Realm } from '@prisma/client';
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
 import { currentAdminAccess, currentMcpIdentity } from './realm-context';
@@ -171,9 +171,14 @@ export function registerOpenCouncilServer(server: McpServer) {
             annotations: { readOnlyHint: true, openWorldHint: false },
             _meta: category('directory'),
             description: 'List the municipalities available on OpenCouncil, with ids and counts.',
-            inputSchema: z.object({}),
+            inputSchema: z.object({
+                realm: z.enum(Realm).optional()
+                    .meta({ description: 'Superadmins only: list another realm than the one of this domain (list_realms names them).' }),
+                includePending: z.boolean().optional()
+                    .meta({ description: 'Superadmins only: include the cities that are not public yet, with their status and content language.' }),
+            }),
         },
-        () => run(() => mcpListCities())
+        (args, ctx: ServerContext) => run(() => mcpListCities(identityFromContext(ctx), args))
     );
 
     server.registerTool(

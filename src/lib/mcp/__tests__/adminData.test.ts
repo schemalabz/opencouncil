@@ -28,7 +28,7 @@ jest.mock('../../db/prisma', () => ({
 // Collaborators that do the writes. Each one reaches far into the app (the
 // session, Discord, the calendar), and none of that is under test here.
 jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
-jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn() }));
+jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn() }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
 jest.mock('../realmGuards', () => ({
     assertCitiesInRealm: jest.fn(),
@@ -46,13 +46,13 @@ jest.mock('@/env.mjs', () => ({ env: { DO_SPACES_BUCKET: 'bucket' } }));
 
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
+    mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpListRealms, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { cityPopulationSchema, type CityPopulationInput } from '../../zod-schemas/cityPopulation';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../api/errors';
-import { createCityDirect } from '../../db/citiesAdmin';
+import { countCitiesByRealmAndStatus, createCityDirect } from '../../db/citiesAdmin';
 import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
@@ -256,6 +256,19 @@ describe('create_city', () => {
         expect(createCityDirect).not.toHaveBeenCalled();
     });
 
+    it('creates the city in the realm a superadmin names, with a link on that realm\'s domain', async () => {
+        (createCityDirect as jest.Mock).mockImplementation(async data => data);
+        const result = await inRealm(Realm.greece, () =>
+            mcpCreateCity(SUPERADMIN_TOKEN, { ...CITY, id: 'krakow', realm: Realm.poland, language: 'pl' }));
+        expect(createCityDirect).toHaveBeenCalledWith(expect.objectContaining({ id: 'krakow', realm: 'poland', language: 'pl' }));
+        expect(result.url).toBe('https://opencouncil.pl/krakow');
+    });
+
+    it('names the realm when it has no default language', async () => {
+        await expect(inRealm(Realm.greece, () => mcpCreateCity(SUPERADMIN_TOKEN, { ...CITY, realm: Realm.spain })))
+            .rejects.toThrow('The spain realm has no default content language.');
+    });
+
     it('creates the city on such a realm in the language it is given', async () => {
         (createCityDirect as jest.Mock).mockImplementation(async data => data);
         await inRealm(Realm.belgium, () => mcpCreateCity(SUPERADMIN_TOKEN, { ...CITY, language: 'fr' }));
@@ -274,6 +287,28 @@ describe('create_city', () => {
         asSuperadmin();
         (createCityDirect as jest.Mock).mockRejectedValue(new Error('connection lost'));
         await expect(mcpCreateCity(SUPERADMIN_TOKEN, CITY)).rejects.toThrow('connection lost');
+    });
+});
+
+describe('list_realms', () => {
+    it('lists every realm with its domain, site language, stage and cities per status', async () => {
+        (countCitiesByRealmAndStatus as jest.Mock).mockResolvedValue([
+            { realm: 'greece', status: 'supported', _count: { _all: 13 } },
+            { realm: 'poland', status: 'pending', _count: { _all: 1 } },
+        ]);
+        const { realms } = await inRealm(Realm.greece, () => mcpListRealms(SUPERADMIN_TOKEN));
+
+        expect(realms).toHaveLength(13);
+        expect(realms.find((r) => r.realm === 'greece')).toMatchObject({ domain: 'opencouncil.gr', thisConnection: true, cities: { supported: 13, pending: 0 } });
+        expect(realms.find((r) => r.realm === 'poland')).toMatchObject({
+            country: 'PL', countryName: 'Poland', domain: 'opencouncil.pl', uiLanguage: 'en', stage: 'pending',
+            thisConnection: false, cities: { supported: 0, demo: 0, pending: 1 },
+        });
+    });
+
+    it('is refused to a city administrator', async () => {
+        asCityAdmin('athens');
+        await expect(mcpListRealms(ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
     });
 });
 
