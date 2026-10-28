@@ -118,6 +118,21 @@ Two repositories, connected via callbacks:
 
 The app queues a task in the database and sends a request to the tasks server. The tasks server does the work (calling external APIs) and POSTs results back to the app via a callback URL. See [task-architecture.md](./task-architecture.md) for details. For the full meeting processing pipeline, see [guides/meeting-lifecycle.md](./guides/meeting-lifecycle.md).
 
+## File Storage
+
+The app stores the files that people upload in the `townhalls-gr` Spaces bucket: agendas, recordings, decisions that are not on Diavgeia, logos and images. The preview server's environment also names `townhalls-gr`, so a test upload on a preview writes to the production bucket.
+
+A meeting file (an agenda, a recording or a decision) goes from the client straight to the bucket, with URLs that the app signs:
+- `UPLOAD_KINDS` in `src/types/upload.ts` lists the kinds, the formats that the task server reads for each, and their size limits. An agenda is a PDF or a .docx of at most 20 MiB. A decision is a PDF of at most 20 MiB. A recording is an mp4 or a .mov of at most 40 GiB.
+- `startUpload()` in `src/lib/uploads.ts` names the file `uploads/{cityId}_{body}_{meeting}_{kind}_{random}.{ext}` and signs the upload. A file of at most 1 GiB goes up in one PUT. The PUT sends `x-amz-acl: public-read`, which makes the file public. A bigger file goes up in parts of 1 GiB, and `completeUpload()` joins them after the client sends every part. Each signed URL binds the size of its file or part, so the bucket refuses a PUT of another size (403).
+- The browser calls `POST /api/upload/start` and `POST /api/upload/complete` from the link-or-file field. An MCP client calls `create_upload_url` and `complete_upload`.
+
+The browser sends its PUTs to the bucket from the page's origin, so the bucket's CORS rules must allow that origin. On 2026-10-29 the rules of `townhalls-gr` allowed `https://opencouncil.gr`, `https://staging.opencouncil.gr`, `https://opencouncil.rs`, `https://opencouncil.fr` and `http://localhost:3000`. A browser upload from a preview or from the domain of another realm fails until its origin is added. The `opencouncil-previews` bucket has no CORS rules, so a browser cannot upload to it.
+
+A multipart upload that a client starts and never completes keeps its parts in the bucket, and they are billed. A lifecycle rule with `AbortIncompleteMultipartUpload` on the bucket removes them.
+
+`uploadFile()` in `src/lib/s3.ts` stores logos and images that the server receives in a form. It names each file with a random UUID.
+
 ## Backups
 
 DigitalOcean backs up the whole database cluster, with point-in-time recovery. SnapShooter also dumps the `production` and `notis-production` databases to the `opencouncil-db-backups` Spaces bucket. To restore those dumps locally and check that they work, use the [`test-backup`](../.claude/skills/test-backup/SKILL.md) skill.
