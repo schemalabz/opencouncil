@@ -51,7 +51,7 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
     } else {
         await requireCityAdmin(identity, args.cityId);
     }
-    await requireRealmCity(args.cityId);
+    const locale = REALMS[await requireRealmCity(args.cityId)].defaultLocale;
     if (args.administrativeBodyId) {
         await requireCityBodies(args.cityId, [args.administrativeBodyId]);
     }
@@ -71,8 +71,8 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meetingLabel(meeting, 'el', timezone),
-        title: meetingDisplayName(meeting, 'el', timezone),
+        name: meetingLabel(meeting, locale, timezone),
+        title: meetingDisplayName(meeting, locale, timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         released: meeting.released,
@@ -117,8 +117,8 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meetingLabel(meeting, 'el', timezone),
-        title: meetingDisplayName(meeting, 'el', timezone),
+        name: meetingLabel(meeting, current.locale, timezone),
+        title: meetingDisplayName(meeting, current.locale, timezone),
         name_en: meetingLabel(meeting, 'en', timezone),
         dateTime: meeting.dateTime.toISOString(),
         youtubeUrl: meeting.youtubeUrl,

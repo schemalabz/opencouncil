@@ -103,7 +103,8 @@ beforeEach(() => {
     mockMeetingFindUnique.mockImplementation(({ where }: { where: { cityId_id: { id: string } } }) =>
         Promise.resolve(MEETINGS[where.cityId_id.id] ?? null));
     (requireVisibleMeeting as jest.Mock).mockImplementation((_cityId: string, meetingId: string) =>
-        Promise.resolve({ released: false, administrativeBodyId: MEETINGS[meetingId]?.administrativeBodyId ?? null, editor: true }));
+        Promise.resolve({ released: false, administrativeBodyId: MEETINGS[meetingId]?.administrativeBodyId ?? null, editor: true, locale: 'el' }));
+    (requireRealmCity as jest.Mock).mockResolvedValue('greece');
 });
 
 describe('meeting tools authorize before they write', () => {
@@ -144,6 +145,34 @@ describe('meeting tools authorize before they write', () => {
         expect(result.title).toBe('Τακτική Συνεδρίαση');
         // A draft notifies nobody: the agent must not promise the user an email.
         expect(result.next).toMatch(/no subscriber is notified until it is released/);
+    });
+
+    it('names a new meeting in the UI language of the realm of its city', async () => {
+        asCityAdmin('krakow');
+        (requireRealmCity as jest.Mock).mockResolvedValue('poland');
+        mockCityFindUnique.mockResolvedValue({ timezone: 'Europe/Warsaw' });
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: {
+            id: 'oct20_2026', cityId: 'krakow', name: null, name_en: null, kind: null, urgent: false,
+            dateTime: new Date('2026-10-20T15:00:00Z'), released: false,
+            administrativeBody: { name: 'Rada Miasta Krakowa', name_en: 'Kraków City Council' },
+        } });
+        const result = await mcpCreateMeeting(ADMIN_TOKEN, { cityId: 'krakow', dateTime: '2026-10-20T17:00:00+02:00', processAgenda: false });
+        expect(result.name).toBe('Kraków City Council · Meeting 20/10/2026');
+        expect(result.title).toBe('Meeting 20/10/2026');
+    });
+
+    it('names an updated meeting in the locale that the gate gives', async () => {
+        asCityAdmin('krakow');
+        (requireVisibleMeeting as jest.Mock).mockResolvedValue({ released: false, administrativeBodyId: null, editor: true, locale: 'en' });
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'krakow', name: null, name_en: null, kind: 'ordinary', urgent: false,
+            dateTime: new Date('2026-10-20T15:00:00Z'), youtubeUrl: null, agendaUrl: null, released: false,
+            administrativeBody: { name: 'Rada Miasta Krakowa', name_en: 'Kraków City Council' },
+        });
+        mockCityFindUnique.mockResolvedValue({ timezone: 'Europe/Warsaw' });
+        const result = await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'krakow', meetingId: 'm1', sessionNumber: 3 });
+        expect(result.name).toBe(result.name_en);
+        expect(result.name).toMatch(/^Kraków City Council · /);
     });
 
     it('returns the derived names after an update', async () => {

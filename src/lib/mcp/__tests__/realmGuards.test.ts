@@ -108,12 +108,19 @@ describe('requireRealmCity (one city by id)', () => {
         expect(getCityRealms).not.toHaveBeenCalled();
     });
 
+    it('returns the request realm for a city of that realm', async () => {
+        (filterCityIdsByRealm as jest.Mock).mockResolvedValue(['athens']);
+
+        await expect(requireRealmCity('athens')).resolves.toBe('greece');
+        expect(getCityRealms).not.toHaveBeenCalled();
+    });
+
     // A superadmin adds and runs the cities of every realm from one connection.
     it('lets a superadmin reach a city of any realm, and records its realm for links', async () => {
         mockReachesEveryRealm.mockReturnValue(true);
         (getCityRealms as jest.Mock).mockResolvedValue(new Map([['krakow', 'poland']]));
 
-        await expect(requireRealmCity('krakow')).resolves.toBeUndefined();
+        await expect(requireRealmCity('krakow')).resolves.toBe('poland');
         expect(mockRememberCityRealm).toHaveBeenCalledWith('krakow', 'poland');
         expect(filterCityIdsByRealm).not.toHaveBeenCalled();
     });

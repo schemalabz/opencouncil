@@ -17,6 +17,7 @@ import {
 } from '@/lib/db/administrativeBodies';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
+import { REALMS } from '@/lib/realm';
 import { requireSuperadmin } from './adminAccess';
 import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
 import { getTranscript } from '@/lib/db/transcript';
@@ -73,17 +74,6 @@ const urls = {
     moment: (cityId: string, meetingId: string, seconds: number) =>
         `${cityBaseUrl(cityId)}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
 };
-
-
-const ROLE_LOCALE = 'el';
-
-/**
- * Speaker role labels ride along with quoted speech so consumers copy titles
- * instead of guessing them. The label is the site's own (getRoleLabelAt),
- * resolved as of the meeting date; MCP serves the Greek public record, so it
- * is always rendered from the Greek messages.
- */
-const getRoleTranslations = () => getRoleTitles(ROLE_LOCALE);
 
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
 function stripRefLinks(text: string): string {
@@ -315,7 +305,7 @@ export async function mcpListMeetings(
     },
     identity: McpIdentity
 ) {
-    await requireRealmCity(cityId);
+    const locale = REALMS[await requireRealmCity(cityId)].defaultLocale;
     if (options.administrativeBodyIds?.length) {
         await requireCityBodies(cityId, options.administrativeBodyIds);
     }
@@ -352,8 +342,8 @@ export async function mcpListMeetings(
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
-            name: meetingLabel(meeting, 'el', timezone),
-            title: meetingDisplayName(meeting, 'el', timezone),
+            name: meetingLabel(meeting, locale, timezone),
+            title: meetingDisplayName(meeting, locale, timezone),
             dateTime: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBody?.name ?? null,
             ...publicRecordFields(meeting, postponedFromDates.get(meeting.id) ?? null),
@@ -459,8 +449,8 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     return {
         id: meeting.id,
         cityId,
-        name: meetingLabelInCity(meeting, 'el'),
-        title: meetingDisplayName(meeting, 'el', meeting.city.timezone),
+        name: meetingLabelInCity(meeting, visible.locale),
+        title: meetingDisplayName(meeting, visible.locale, meeting.city.timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         ...publicRecordFields(meeting, await originalScheduledDate(cityId, meetingId)),
@@ -506,7 +496,10 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
         identity
     );
     const meetingDate = meeting.dateTime;
-    const t = await getRoleTranslations();
+    // Speaker role labels ride along with quoted speech so consumers copy titles
+    // instead of guessing them. The label is the site's own (getRoleLabelAt), as
+    // of the meeting date, in the UI language of the city's realm.
+    const t = await getRoleTitles(meeting.locale);
 
     return {
         id: subject.id,
@@ -566,7 +559,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
     );
     await requirePublicTranscript(visibleMeeting, subject.cityId, identity);
     const meetingDate = visibleMeeting.dateTime;
-    const t = await getRoleTranslations();
+    const t = await getRoleTitles(visibleMeeting.locale);
 
     const where: Prisma.UtteranceWhereInput = {
         discussionSubjectId: subjectId,
@@ -698,7 +691,7 @@ export async function mcpGetTranscript(
     const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
     await requirePublicTranscript(visibleMeeting, cityId, identity);
     const meetingDate = visibleMeeting.dateTime;
-    const t = await getRoleTranslations();
+    const t = await getRoleTitles(visibleMeeting.locale);
 
     const allSegments = await getTranscript(meetingId, cityId);
 
@@ -909,7 +902,8 @@ export async function mcpListNearbySubjects(args: {
                 cityName: city.name,
                 meetingId: meeting.id,
                 meetingDate: meeting.dateTime,
-                meetingName: meetingLabel(meeting, 'el', timezone),
+                // getListedCityAtPoint finds cities of the request's realm only.
+                meetingName: meetingLabel(meeting, REALMS[currentRealm()].defaultLocale, timezone),
                 administrativeBody: meeting.administrativeBody?.name ?? null,
                 topic: subject.topic?.name ?? null,
             }),
@@ -985,7 +979,7 @@ export async function mcpSearch(
                 cityName: result.councilMeeting.city.name,
                 meetingId: result.councilMeetingId,
                 meetingDate: result.councilMeeting.dateTime,
-                meetingName: meetingLabelInCity(result.councilMeeting, 'el'),
+                meetingName: meetingLabelInCity(result.councilMeeting, REALMS[result.councilMeeting.city.realm].defaultLocale),
                 administrativeBody: result.councilMeeting.administrativeBody?.name ?? null,
                 topic: result.topic?.name ?? null,
             }),

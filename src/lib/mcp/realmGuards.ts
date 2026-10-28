@@ -1,5 +1,5 @@
 import "server-only";
-import type { Prisma } from '@prisma/client';
+import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { NotFoundError } from '@/lib/api/errors';
 import { filterCityIdsByRealm } from '@/lib/db/cities';
@@ -34,13 +34,17 @@ export async function assertCitiesInRealm(cityIds: string[]): Promise<void> {
  * Reject a municipality outside this connector's realm, for the tools that act
  * on one city by id. A superadmin reaches every realm (reachesEveryRealm): only
  * an id that does not exist fails, and the city's realm is recorded for its
- * links.
+ * links. Returns the realm of the city.
  */
-export async function requireRealmCity(cityId: string): Promise<void> {
-    if (!reachesEveryRealm()) return assertCitiesInRealm([cityId]);
+export async function requireRealmCity(cityId: string): Promise<Realm> {
+    if (!reachesEveryRealm()) {
+        await assertCitiesInRealm([cityId]);
+        return currentRealm();
+    }
     const realm = (await getCityRealms([cityId])).get(cityId);
     if (!realm) throw new NotFoundError(`Unknown municipality: ${cityId}. See list_cities.`);
     rememberCityRealm(cityId, realm);
+    return realm;
 }
 
 /**

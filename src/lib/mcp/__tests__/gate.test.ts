@@ -41,6 +41,7 @@ function payload(released: boolean, editor: boolean | null) {
         released,
         dateTime: new Date('2026-05-12T18:00:00Z'),
         name: 'Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 12/05/2026',
+        locale: 'el',
         videoUrl: null,
         administrativeBody: { name: 'Δημοτικό Συμβούλιο' },
         publicTranscript: true,
@@ -104,6 +105,24 @@ describe('requireVisibleMeeting', () => {
         mockMeetingFindFirst.mockResolvedValue({ ...draft, administrativeBodyId: null });
         asBodyAdmin('council', 'athens');
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+    });
+
+    it('names the meeting in the UI language of the realm of its city, as the site does', async () => {
+        // A Kraków meeting without a kind: the poland realm shows the city in English.
+        mockMeetingFindFirst.mockResolvedValue({
+            ...row(true),
+            dateTime: new Date('2026-10-20T15:00:00Z'),
+            kind: null,
+            administrativeBody: { name: 'Rada Miasta Krakowa', name_en: 'Kraków City Council', showUnreviewedTranscript: true },
+            city: { timezone: 'Europe/Warsaw', realm: 'poland' },
+        });
+        await expect(requireVisibleMeeting('krakow', 'm1', null)).resolves.toMatchObject({
+            name: 'Kraków City Council · Meeting 20/10/2026',
+            locale: 'en',
+        });
+
+        mockMeetingFindFirst.mockResolvedValue({ ...row(true), city: { timezone: 'Europe/Paris', realm: 'france' } });
+        await expect(requireVisibleMeeting('lyon', 'm1', null)).resolves.toMatchObject({ locale: 'fr' });
     });
 
     it('reads the body of the meeting in the same query', async () => {

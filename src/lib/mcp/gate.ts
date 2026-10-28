@@ -4,6 +4,8 @@ import { canUserEditCity, getUserCityRights } from '@/lib/db/highlights-core';
 import type { McpIdentity } from './auth';
 import { currentRealm, reachesEveryRealm, rememberCityRealm } from './realm-context';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { REALMS } from '@/lib/realm';
+import type { AppLocale } from '@/i18n/config';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
 /**
@@ -51,6 +53,11 @@ export async function requireVisibleMeeting(
     released: boolean;
     dateTime: Date;
     name: string;
+    /**
+     * The UI language of the city's realm. The site shows the city in this
+     * language, so a tool names the meeting and the roles in it too.
+     */
+    locale: AppLocale;
     videoUrl: string | null;
     administrativeBody: { name: string } | null;
     administrativeBodyId: string | null;
@@ -93,11 +100,13 @@ export async function requireVisibleMeeting(
 
     const editor = meeting.released ? null : await canSeeUnreleasedMeeting(identity, cityId, meeting.administrativeBodyId);
     if (editor === false) throw new NotFoundError('Meeting not found');
+    const locale = REALMS[meeting.city.realm].defaultLocale;
 
     return {
         released: meeting.released,
         dateTime: meeting.dateTime,
-        name: meetingLabelInCity(meeting, 'el'),
+        name: meetingLabelInCity(meeting, locale),
+        locale,
         videoUrl: meeting.videoUrl,
         administrativeBody: meeting.administrativeBody && { name: meeting.administrativeBody.name },
         administrativeBodyId: meeting.administrativeBodyId,
