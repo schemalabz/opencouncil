@@ -2,18 +2,29 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getSpeakerIdentificationsForMeeting } from '@/lib/actions/speakerTags';
 import type { SpeakerTagIdentification } from '@/lib/db/speakerTags';
+import type { MethodIdentification } from '@/lib/speakerIdentifications';
 import { speakerIdentificationsDisagree } from '@/lib/speakerIdentifications';
 import { useCouncilMeetingMeta } from './CouncilMeetingDataContext';
 import { useTranscriptOptions } from './options/OptionsContext';
 
+/**
+ * An opinion that names a roster person. A transcript identification of a
+ * speaker who is not on the roster names nobody: the rules the editor shows
+ * compare people, so the editor leaves it out.
+ */
+type PersonIdentification = SpeakerTagIdentification & Pick<MethodIdentification, 'personId'>;
+
+const namesPerson = (identification: SpeakerTagIdentification): identification is PersonIdentification =>
+    identification.personId !== null;
+
 interface SpeakerIdentificationsContextType {
     /** What each method says about a speaker tag; empty when no method has an opinion, or outside editing mode. */
-    getIdentifications: (speakerTagId: string) => SpeakerTagIdentification[];
+    getIdentifications: (speakerTagId: string) => PersonIdentification[];
     /** True while both methods would act, on different people, and no reviewer has decided. */
     needsReview: (speakerTagId: string) => boolean;
 }
 
-const NONE: SpeakerTagIdentification[] = [];
+const NONE: PersonIdentification[] = [];
 const NO_IDENTIFICATIONS: SpeakerIdentificationsContextType = {
     getIdentifications: () => NONE,
     needsReview: () => false,
@@ -29,7 +40,7 @@ const SpeakerIdentificationsContext = createContext<SpeakerIdentificationsContex
 export function SpeakerIdentificationsProvider({ children }: { children: React.ReactNode }) {
     const { options } = useTranscriptOptions();
     const { meeting, speakerTags } = useCouncilMeetingMeta();
-    const [byTagId, setByTagId] = useState<Map<string, SpeakerTagIdentification[]>>(new Map());
+    const [byTagId, setByTagId] = useState<Map<string, PersonIdentification[]>>(new Map());
 
     useEffect(() => {
         if (!options.editable) return;
@@ -37,8 +48,8 @@ export function SpeakerIdentificationsProvider({ children }: { children: React.R
         getSpeakerIdentificationsForMeeting(meeting.cityId, meeting.id)
             .then(identifications => {
                 if (cancelled) return;
-                const grouped = new Map<string, SpeakerTagIdentification[]>();
-                for (const identification of identifications) {
+                const grouped = new Map<string, PersonIdentification[]>();
+                for (const identification of identifications.filter(namesPerson)) {
                     grouped.set(identification.speakerTagId, [...(grouped.get(identification.speakerTagId) ?? []), identification]);
                 }
                 setByTagId(grouped);

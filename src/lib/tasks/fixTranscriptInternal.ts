@@ -107,11 +107,13 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
 
     // Absent when the task ran no speaker identification (an older task server,
     // or the pass failed): the hints of an earlier run then stay as they are.
+    // The unlisted hints came with task version 4: a result without them is a
+    // result that names no unlisted speaker.
     // The text corrections above are committed one by one, so a failure here
     // must not fail the task: it would report corrected text as a failed run.
     if (result.speakerHints) {
         try {
-            await applySpeakerHints(taskId, result.speakerHints);
+            await applySpeakerHints(taskId, result.speakerHints, result.unlistedSpeakerHints ?? []);
         } catch (error) {
             console.error(`Failed to apply speaker hints of task ${taskId}; the text corrections stand:`, error);
         }
