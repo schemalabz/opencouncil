@@ -28,13 +28,14 @@ jest.mock('../../db/prisma', () => ({
   },
 }));
 
-import { applySpeakerHints, automaticAssignmentWhere } from '../speakerHints';
+import { applySpeakerHints, automaticAssignmentWhere, isPlaceholderLabel } from '../speakerHints';
 import { isReviewerAssignment } from '@/lib/speakerIdentifications';
-import type { SpeakerHint } from '@/lib/apiTypes';
+import type { SpeakerHint, UnlistedSpeakerHint } from '@/lib/apiTypes';
 
 type Identification = {
   method: 'voiceprint' | 'transcript';
-  personId: string;
+  personId: string | null;
+  name: string | null;
   actionable: boolean;
   evidenceKind: string | null;
   confidence: number | null;
@@ -51,7 +52,7 @@ type Tag = {
 const tag = (id: string, over: Partial<Tag> = {}): Tag => ({
   id, label: 'Άγνωστος Ομιλητής 1', personId: null, personSetBy: null, identifications: [], ...over,
 });
-const matched = (personId: string): Identification => ({ method: 'voiceprint', personId, actionable: true, evidenceKind: null, confidence: 90, evidence: null });
+const matched = (personId: string): Identification => ({ method: 'voiceprint', personId, name: null, actionable: true, evidenceKind: null, confidence: 90, evidence: null });
 const voiceprintTag = (id: string, personId: string) => tag(id, { label: 'SPEAKER_7', personId, personSetBy: 'voiceprint', identifications: [matched(personId)] });
 
 /** A name the task would act on by itself. */
@@ -61,13 +62,31 @@ const hint = (speakerTagId: string, personId: string, over: Partial<SpeakerHint>
 const tentative = (speakerTagId: string, personId: string) =>
   hint(speakerTagId, personId, { actionable: false, evidenceKind: 'roleBehaviour', confidence: 60 });
 
+/** A label for a speaker who is not on the roster, that the task would act on by itself. */
+const unlistedHint = (speakerTagId: string, name: string, over: Partial<UnlistedSpeakerHint> = {}): UnlistedSpeakerHint =>
+  ({ speakerTagId, name, actionable: true, evidenceKind: 'named', confidence: 90, evidence: 'e', ...over });
+/** A label the task returns as a suggestion only. */
+const tentativeUnlisted = (speakerTagId: string, name: string) =>
+  unlistedHint(speakerTagId, name, { actionable: false, evidenceKind: 'addressed', confidence: 60 });
+
 /** What a hint is stored as. */
-const stored = ({ speakerTagId, ...given }: SpeakerHint) => ({
-  where: { speakerTagId_method: { speakerTagId, method: 'transcript' } },
-  create: { speakerTagId, method: 'transcript', ...given },
-  update: given,
+const asStored = ({ speakerTagId: _tag, ...given }: SpeakerHint | UnlistedSpeakerHint): Identification => ({
+  method: 'transcript',
+  personId: 'personId' in given ? given.personId : null,
+  name: 'name' in given ? given.name : null,
+  actionable: given.actionable,
+  evidenceKind: given.evidenceKind,
+  confidence: given.confidence,
+  evidence: given.evidence,
 });
-const asStored = ({ speakerTagId: _tag, ...given }: SpeakerHint): Identification => ({ method: 'transcript', ...given });
+const stored = (hint: SpeakerHint | UnlistedSpeakerHint) => {
+  const { method: _method, ...given } = asStored(hint);
+  return {
+    where: { speakerTagId_method: { speakerTagId: hint.speakerTagId, method: 'transcript' } },
+    create: { speakerTagId: hint.speakerTagId, method: 'transcript', ...given },
+    update: given,
+  };
+};
 
 const AUTOMATIC = automaticAssignmentWhere;
 
@@ -315,5 +334,234 @@ describe('applySpeakerHints', () => {
     setup([]);
     mockTaskFindUnique.mockResolvedValue(null);
     await expect(applySpeakerHints('nope', [])).rejects.toThrow('Task not found');
+  });
+});
+
+describe('isPlaceholderLabel', () => {
+  it.each(['', 'SPEAKER_3', 'New speaker segment', 'Άγνωστος Ομιλητής 2', 'Unknown Speaker 4', 'Intervenant inconnu 1'])('names nobody: %s', label => {
+    expect(isPlaceholderLabel(label)).toBe(true);
+  });
+  it('names nobody when there is no label', () => {
+    expect(isPlaceholderLabel(null)).toBe(true);
+  });
+  it.each(['Παπαδόπουλος Γιώργος - κάτοικος', 'Κάτοικος', 'Νέος Δημότης'])('is a name: %s', label => {
+    expect(isPlaceholderLabel(label)).toBe(false);
+  });
+});
+
+describe('applySpeakerHints: speakers who are not on the roster', () => {
+  const LABEL = 'Παπαδόπουλος Γιώργος - κάτοικος Χαλέπας';
+  /** A tag an earlier run labelled. */
+  const labelledTag = (id: string, name = LABEL) =>
+    tag(id, { label: name, personSetBy: 'transcript', identifications: [asStored(unlistedHint(id, name))] });
+
+  it('stores the hint without a person, and labels an unknown speaker the task would act on', async () => {
+    const given = unlistedHint('t1', LABEL, { evidence: '[00:03:10] τον λόγο έχει ο κ. Παπαδόπουλος' });
+    setup([tag('t1')]);
+    await applySpeakerHints('task-1', [], [given]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(given));
+    expect(mockIdentificationUpsert.mock.calls[0][0].create).toMatchObject({ personId: null, name: LABEL });
+    expect(mockTagUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: LABEL },
+    });
+  });
+
+  it('treats a result without the array as one that names no unlisted speaker', async () => {
+    setup([labelledTag('t1')]);
+    await applySpeakerHints('task-1', []);
+
+    expect(mockIdentificationDeleteMany).toHaveBeenCalledWith({ where: { speakerTagId: 't1', method: 'transcript' } });
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: null, label: 'Άγνωστος Ομιλητής 1' },
+    });
+  });
+
+  it.each([
+    ['the import\'s raw label', 'SPEAKER_3'],
+    ['the editor\'s new segment', 'New speaker segment'],
+    ['an unknown speaker in another language', 'Unknown Speaker 4'],
+    ['no label', null],
+  ])('replaces a placeholder: %s', async (_case, label) => {
+    setup([tag('t1', { label })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: LABEL },
+    });
+  });
+
+  it('leaves a label that is not a placeholder, when no run wrote it', async () => {
+    setup([tag('t1', { label: 'Κάτοικος' })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('stores a label the task would not act on, and changes nothing', async () => {
+    setup([tag('t1')]);
+    await applySpeakerHints('task-1', [], [tentativeUnlisted('t1', 'Παπαδόπουλος')]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(tentativeUnlisted('t1', 'Παπαδόπουλος')));
+    expect(mockIdentificationUpsert.mock.calls[0][0].create).toMatchObject({ actionable: false });
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('never overwrites a reviewer\'s label, and still stores the hint', async () => {
+    setup([
+      tag('typed', { label: 'Παπαδόπουλος Γ. - κάτοικος', personSetBy: 'user' }),
+      tag('cleared', { label: 'Άγνωστος Ομιλητής 1', personSetBy: 'user' }),
+      tag('added', { label: 'New speaker segment', personSetBy: 'user' }),
+      tag('chosen', { personId: 'anna', personSetBy: 'user' }),
+    ]);
+    await applySpeakerHints('task-1', [], ['typed', 'cleared', 'added', 'chosen'].map(id => unlistedHint(id, LABEL)));
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(4);
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('skips a tag that has a person: the voiceprint match stands, and the hint is stored', async () => {
+    setup([voiceprintTag('t1', 'anna'), tag('legacy', { personId: 'babis' })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL), unlistedHint('legacy', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(2);
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(unlistedHint('t1', LABEL)));
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps the voiceprint match when the voiceprint would act, whatever the transcript says', async () => {
+    // The match stands even when its person came from an earlier run on this tag.
+    setup([tag('t1', { label: 'SPEAKER_2', personId: 'anna', personSetBy: 'both', identifications: [matched('anna'), asStored(hint('t1', 'anna'))] })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(unlistedHint('t1', LABEL)));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({ where: { id: 't1', ...AUTOMATIC }, data: { personId: 'anna', personSetBy: 'voiceprint' } });
+  });
+
+  it('replaces the label an earlier run wrote when a rerun names the speaker differently', async () => {
+    const rerun = unlistedHint('t1', 'Παπαδόπουλος Γεώργιος - κάτοικος Χαλέπας');
+    setup([labelledTag('t1')]);
+    await applySpeakerHints('task-1', [], [rerun]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(rerun));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: rerun.name },
+    });
+  });
+
+  it('writes nothing when a rerun says the same thing', async () => {
+    setup([labelledTag('t1')]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).not.toHaveBeenCalled();
+    expect(mockIdentificationDeleteMany).not.toHaveBeenCalled();
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('takes back the label an earlier run wrote when a rerun would not act on its name', async () => {
+    setup([labelledTag('t1'), tag('t2', { label: 'Άγνωστος Ομιλητής 3' })]);
+    await applySpeakerHints('task-1', [], [tentativeUnlisted('t1', 'Παπαδόπουλος')]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(tentativeUnlisted('t1', 'Παπαδόπουλος')));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: null, label: 'Άγνωστος Ομιλητής 4' },
+    });
+  });
+
+  it('labels a tag whose person an earlier run named and this run does not', async () => {
+    setup([tag('t1', { label: 'Άγνωστος Ομιλητής 2', personId: 'anna', personSetBy: 'transcript', identifications: [asStored(hint('t1', 'anna'))] })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(unlistedHint('t1', LABEL)));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: LABEL },
+    });
+  });
+
+  it('keeps the label behind a roster person a rerun names, and takes it back with the person', async () => {
+    // Run 1 wrote the label; run 2 names a roster person on the same tag.
+    setup([labelledTag('t1')]);
+    await applySpeakerHints('task-1', [hint('t1', 'anna')]);
+
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({ where: { id: 't1', ...AUTOMATIC }, data: { personId: 'anna', personSetBy: 'transcript' } });
+
+    // Run 3 names nobody: readers must not see the withdrawn name.
+    jest.clearAllMocks();
+    setup([tag('t1', { label: LABEL, personId: 'anna', personSetBy: 'transcript', identifications: [asStored(hint('t1', 'anna'))] })]);
+    await applySpeakerHints('task-1', []);
+
+    expect(mockIdentificationDeleteMany).toHaveBeenCalledWith({ where: { speakerTagId: 't1', method: 'transcript' } });
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: null, label: 'Άγνωστος Ομιλητής 1' },
+    });
+  });
+
+  it('relabels a tag that carries an earlier label behind a roster person the rerun withdraws', async () => {
+    setup([tag('t1', { label: LABEL, personId: 'anna', personSetBy: 'transcript', identifications: [asStored(hint('t1', 'anna'))] })]);
+    const rerun = unlistedHint('t1', 'Παπαδόπουλος Γεώργιος - κάτοικος');
+    await applySpeakerHints('task-1', [], [rerun]);
+
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: rerun.name },
+    });
+  });
+
+  it('gives a tag one transcript opinion: the roster person wins over the unlisted label', async () => {
+    setup([tag('t1')]);
+    await applySpeakerHints('task-1', [hint('t1', 'anna')], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(hint('t1', 'anna')));
+    expect(mockTagUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({ where: { id: 't1', ...AUTOMATIC }, data: { personId: 'anna', personSetBy: 'transcript' } });
+  });
+
+  it('falls back to the unlisted label when the roster person is not in the city', async () => {
+    setup([tag('t1')], { people: [] });
+    await applySpeakerHints('task-1', [hint('t1', 'stranger')], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(stored(unlistedHint('t1', LABEL)));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: LABEL },
+    });
+  });
+
+  it('replaces the person an earlier run named with the unlisted label, in one write', async () => {
+    setup([tag('t1', { label: 'SPEAKER_5', personId: 'anna', personSetBy: 'transcript', identifications: [asStored(hint('t1', 'anna'))] })]);
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockTagUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({
+      where: { id: 't1', ...AUTOMATIC },
+      data: { personId: null, personSetBy: 'transcript', label: LABEL },
+    });
+  });
+
+  it('changes no label once human review is complete', async () => {
+    setup([tag('t1')], { reviewed: true });
+    await applySpeakerHints('task-1', [], [unlistedHint('t1', LABEL)]);
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('drops a hint for a tag outside the meeting', async () => {
+    setup([tag('t1')]);
+    await applySpeakerHints('task-1', [], [unlistedHint('gone', LABEL)]);
+
+    expect(mockIdentificationUpsert).not.toHaveBeenCalled();
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
   });
 });

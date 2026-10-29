@@ -529,8 +529,14 @@ model SpeakerIdentification {
   speakerTag   SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
   method       SpeakerIdentificationMethod
-  person       Person @relation(fields: [personId], references: [id], onDelete: Cascade)
-  personId     String
+  /// The person the method names. Null on a transcript identification of a
+  /// speaker who is not on the roster: `name` then carries the label.
+  person       Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId     String?
+  /// The label of a speaker who is not on the roster, as the transcript names
+  /// them: "Επώνυμο Όνομα - Ιδιότητα", or only the part that was spoken. Set
+  /// exactly when personId is null.
+  name         String?
 
   /// Whether the method would act on this opinion by itself. The task server
   /// decides, as it decides whether a voiceprint matched; nothing here
