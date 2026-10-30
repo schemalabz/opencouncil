@@ -141,7 +141,7 @@
     "recharts": "^2.15.0",
     "redis": "^6.3.0",
     "remark-gfm": "^4.0.1",
-    "resend": "^4.0.0",
+    "resend": "^6.34.1",
     "sanitize-html": "^2.18.1",
     "sharp": "^0.35.5",
     "swagger-ui-react": "^5.34.0",
