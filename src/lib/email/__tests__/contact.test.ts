@@ -1,6 +1,9 @@
 jest.mock('../resend', () => ({
     sendEmail: jest.fn(),
 }));
+const mockClaim = jest.fn();
+jest.mock('@/lib/rate-limit/limiter', () => ({ claimAllowance: (...args: unknown[]) => mockClaim(...args) }));
+jest.mock('next/headers', () => ({ headers: async () => new Headers({ 'do-connecting-ip': '203.0.113.9' }) }));
 
 import { sendEmail } from '../resend';
 import { sendContactEmail } from '../contact';
@@ -19,6 +22,26 @@ function sentHtml(): string {
 }
 
 describe('sendContactEmail', () => {
+    beforeEach(() => {
+        mockClaim.mockReset();
+        mockClaim.mockResolvedValue({ ok: true });
+    });
+
+    it('counts the submission against the client and the whole form', async () => {
+        await sendContactEmail(form);
+        const [surface, caps] = mockClaim.mock.calls[0] as [string, { name: string; key: string }[]];
+        expect(surface).toBe('contact-form');
+        expect(caps.map((cap) => cap.name)).toEqual(['ip', 'all']);
+        expect(caps[0].key).toBe('rate-limit:contact-form:ip:203.0.113.9');
+    });
+
+    it('sends nothing when the limit refuses', async () => {
+        mockClaim.mockResolvedValue({ ok: false, cap: { name: 'ip' }, retryAfterMs: 1000 });
+        const result = await sendContactEmail(form);
+        expect(result.success).toBe(false);
+        expect(mockSendEmail).not.toHaveBeenCalled();
+    });
+
     beforeEach(() => {
         mockSendEmail.mockReset();
         mockSendEmail.mockResolvedValue({ success: true, message: 'Email sent successfully' });

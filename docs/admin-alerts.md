@@ -188,6 +188,28 @@ Task ID: `cmh…` | [Open Admin Panel](https://...)
 
 When the agenda has something that a person must decide, a second alert follows, `⚠️ The agenda needs a look`. A problem is an invitation that differs from a value the record holds, an agenda that holds more than one meeting, or a record that the rules refuse to write. Nothing was overwritten.
 
+**Rate limit alerts:**
+
+The shared rate limiter (`src/lib/rate-limit/limiter.ts`) caps the emails that a public form can send. The magic-link sign-in has a cap per address and a cap per client. The contact form has a cap per client and a cap on the whole form. When a cap refuses a request, one alert names the surface and the cap. The same cap is not reported again for an hour. The alert carries no address and no client, only the cap:
+
+```
+🚦 Rate limit reached: magic-link
+The "address" cap of magic-link refused a request: more than 5 in an hour.
+Further refusals on this cap are not reported for an hour.
+Surface: magic-link | Cap: address: 5 in an hour
+```
+
+The limiter counts in Valkey. When `CACHE_URL` is set and Valkey does not answer, the request goes through uncounted. The limiter then sends one alert, and not another for ten minutes:
+
+```
+🚦 Rate limiting degraded
+Valkey did not count a request on magic-link. Requests go through uncounted until it answers.
+Not reported again for ten minutes.
+Surface: magic-link
+```
+
+The SMS code for phone verification has its own exact window in the database and its own alerts (`src/lib/phone-verification/abuseAlerts.ts`). It does not use this limiter.
+
 ## Troubleshooting
 
 **Admin alerts not appearing?**
