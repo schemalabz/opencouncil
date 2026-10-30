@@ -1029,67 +1029,48 @@ USAGE
                 fi
                 echo "   ✓ SSH connection OK"
 
-                # Detect DB type: isolated (has .has-local-db marker) vs shared staging
-                preview_base_dir="/var/lib/opencouncil-previews"
-                # shellcheck disable=SC2029 # Intentional: expand variables locally before sending to server
-                if ssh "$OC_PREVIEW_SSH" "test -f $preview_base_dir/pr-$preview_db_pr/.has-local-db" 2>/dev/null; then
-                  # Isolated DB: tunnel to the per-PR postgres
-                  preview_db_port=$((5432 + preview_db_pr))
+                # Isolated DB: tunnel to the per-PR postgres
+                preview_db_port=$((30000 + preview_db_pr))
 
-                  # Verify the DB service is running
-                  # shellcheck disable=SC2029
-                  if ! ssh "$OC_PREVIEW_SSH" "systemctl is-active opencouncil-preview-db@$preview_db_pr" >/dev/null 2>&1; then
-                    echo "  ✗ Isolated database service is not running on the server." >&2
-                    echo "  Start it with: ssh $OC_PREVIEW_SSH systemctl start opencouncil-preview-db@$preview_db_pr" >&2
-                    exit 1
-                  fi
-
-                  echo "   ✓ Isolated database detected (port $preview_db_port)"
-
-                  # Check port is free before opening tunnel
-                  if is_port_in_use "$preview_db_port"; then
-                    echo "  ✗ Local port $preview_db_port is already in use." >&2
-                    echo "  Kill the existing process (e.g., a leftover SSH tunnel) and retry." >&2
-                    exit 1
-                  fi
-
-                  # Open SSH tunnel in background
-                  ssh -N -L "$preview_db_port:127.0.0.1:$preview_db_port" "$OC_PREVIEW_SSH" &
-                  ssh_tunnel_pid=$!
-
-                  # Wait for tunnel to bind the local port
-                  for _i in $(seq 1 10); do
-                    if is_port_in_use "$preview_db_port"; then
-                      break
-                    fi
-                    sleep 0.5
-                  done
-                  if ! is_port_in_use "$preview_db_port"; then
-                    echo "  ✗ SSH tunnel failed to bind port $preview_db_port." >&2
-                    kill "$ssh_tunnel_pid" 2>/dev/null || true
-                    exit 1
-                  fi
-
-                  echo "   ✓ SSH tunnel active: localhost:$preview_db_port → 127.0.0.1:$preview_db_port"
-
-                  db_url="postgresql://opencouncil@localhost:$preview_db_port/opencouncil"
-                  direct_url="$db_url"
-                  echo "   Database: $db_url"
-                else
-                  # Shared staging DB: read DATABASE_URL from server's .env
-                  echo "   ✓ Shared staging database detected"
-                  # shellcheck disable=SC2029
-                  preview_db_url=$(ssh "$OC_PREVIEW_SSH" "grep '^DATABASE_URL=' $preview_base_dir/.env 2>/dev/null | head -1 | cut -d= -f2-")
-                  if [ -z "$preview_db_url" ]; then
-                    echo "  ✗ Could not read DATABASE_URL from $preview_base_dir/.env on server." >&2
-                    exit 1
-                  fi
-
-                  db_url="$preview_db_url"
-                  direct_url="$preview_db_url"
-                  # Mask credentials in output
-                  echo "   Database: ''${preview_db_url%%@*}@***"
+                # Verify the DB service is running
+                # shellcheck disable=SC2029
+                if ! ssh "$OC_PREVIEW_SSH" "systemctl is-active opencouncil-preview-db@$preview_db_pr" >/dev/null 2>&1; then
+                  echo "  ✗ Isolated database service is not running on the server." >&2
+                  echo "  Start it with: ssh $OC_PREVIEW_SSH systemctl start opencouncil-preview-db@$preview_db_pr" >&2
+                  exit 1
                 fi
+
+                echo "   ✓ Isolated database detected (port $preview_db_port)"
+
+                # Check port is free before opening tunnel
+                if is_port_in_use "$preview_db_port"; then
+                  echo "  ✗ Local port $preview_db_port is already in use." >&2
+                  echo "  Kill the existing process (e.g., a leftover SSH tunnel) and retry." >&2
+                  exit 1
+                fi
+
+                # Open SSH tunnel in background
+                ssh -N -L "$preview_db_port:127.0.0.1:$preview_db_port" "$OC_PREVIEW_SSH" &
+                ssh_tunnel_pid=$!
+
+                # Wait for tunnel to bind the local port
+                for _i in $(seq 1 10); do
+                  if is_port_in_use "$preview_db_port"; then
+                    break
+                  fi
+                  sleep 0.5
+                done
+                if ! is_port_in_use "$preview_db_port"; then
+                  echo "  ✗ SSH tunnel failed to bind port $preview_db_port." >&2
+                  kill "$ssh_tunnel_pid" 2>/dev/null || true
+                  exit 1
+                fi
+
+                echo "   ✓ SSH tunnel active: localhost:$preview_db_port → 127.0.0.1:$preview_db_port"
+
+                db_url="postgresql://opencouncil@localhost:$preview_db_port/opencouncil"
+                direct_url="$db_url"
+                echo "   Database: $db_url"
 
                 echo ""
                 # Force external DB mode (skip local postgres)
@@ -1433,23 +1414,8 @@ EOF
               # but at runtime the client needs it in a known location.
               cp ${pkgs.prisma-engines}/lib/libquery_engine.node $out/prisma/
 
-              # Bundle seed script with dependencies (includes @/ path aliases)
-              # Externals: @prisma/client (runtime), axios (dynamically imported, not needed
-              # in production since preview-create pre-downloads seed data with curl)
-              echo "Bundling seed script..."
-              ${pkgs.esbuild}/bin/esbuild prisma/seed.ts \
-                --bundle \
-                --platform=node \
-                --format=esm \
-                --outfile=$out/prisma/seed.mjs \
-                --external:@prisma/client \
-                --external:axios \
-                --loader:.ts=ts \
-                --tsconfig=tsconfig.json \
-                --define:process.env.SKIP_ENV_VALIDATION='"1"' || echo "Seed bundling failed, seeding may not work"
-
-              # Copy tsconfig for tsx fallback (if bundling fails)
-              cp tsconfig.json $out/ 2>/dev/null || true
+              ln -s ${seed} $out/seed
+              ln -s ${seed-bundle} $out/seed-bundle
 
               # Create start script. The Nix store is read-only; Next.js needs a writable
               # .next/cache for ISR, image optimization, and response cache. We create a
@@ -1816,94 +1782,52 @@ EOF
 
       # Preview deployment config for the generic preview module in nix-openclaw.
       # See nix-openclaw/generic-preview.nix for the full interface spec.
-      # Notis preview config (paired with the same PR's opencouncil preview
-      # via the pr-previews `siblings` context). Consumed by the preview host:
-      #   services.pr-previews.projects = opencouncil.previews // ...;
-      # The host supplies envFile with a (dummy) ANTHROPIC_API_KEY and — for
-      # non-isolated previews, where the createHook below does not run — the
-      # staging NOTIS_DATABASE_URL / MAIN_DATABASE_URL. See
-      # docs/guides/preview-deployments.md.
+      # Every app preview owns a database; Notis uses the paired app's cluster.
       previews.notis = let
-        postgresCompat = self.lib.mkPostgresCompat;
         prismaEnv = self.lib.mkPrismaEnv;
       in {
         hostPattern = "notis-pr-@id@.opencouncil.dev";
-        # 20000+N: clear of the main app (3000+N), tasks (4000+N), and the
-        # ad-hoc isolated-DB ports (5432+N) — 5000+N would collide with a DB
-        # whenever notis PR = DB PR + 432.
         basePort = 20000;
         environment = [ "NODE_ENV=production" "HOSTNAME=0.0.0.0" ];
-
-        # When the paired main preview runs an isolated cluster (migration
-        # PRs — --with-db), give notis its own database there, run notis's
-        # migrations, and bridge the login role onto notis_reader (created
-        # NOLOGIN by the main app's views migration). The cluster uses
-        # trust auth on 127.0.0.1, so no passwords. Skipped when no
-        # isolated cluster exists — the envFile's staging URLs then apply.
-        createHook = pkgs: ctx: let
-          pc = postgresCompat pkgs;
-          pe = prismaEnv pkgs;
-        in ''
-          oc_dir="/var/lib/opencouncil-previews/pr-$pr_num"
-          if [ -f "$oc_dir/.has-local-db" ]; then
-            db_port=$(cat "$oc_dir/.db-port")
-
-            echo "Setting up notis database in the paired cluster (port $db_port)..."
-            ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d postgres \
-              -tc "SELECT 1 FROM pg_database WHERE datname = 'notis'" | grep -q 1 || \
-              ${pc}/bin/createdb -h 127.0.0.1 -p "$db_port" -U opencouncil notis
-
-            echo "Running notis migrations..."
-            ${pe}
-            export NOTIS_DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/notis"
+        database.databases.notis = {
+          "in" = "opencouncil";
+          fingerprint = pkgs: _: ''
+            {
+              cd "$store_path/services/notis/prisma/migrations"
+              ${pkgs.findutils}/bin/find -L . -name migration.sql -type f -print0 | \
+                ${pkgs.coreutils}/bin/sort -z | ${pkgs.findutils}/bin/xargs -0 ${pkgs.coreutils}/bin/sha256sum
+              ${pkgs.coreutils}/bin/sha256sum "$store_path/services/notis/prisma/provision-main-reader.sql" | ${pkgs.coreutils}/bin/cut -d ' ' -f 1
+            } | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.coreutils}/bin/cut -d ' ' -f 1
+          '';
+          init = pkgs: ctx: ''
+            ${prismaEnv pkgs}
+            export NOTIS_DATABASE_URL="$DATABASE_URL"
             ${pkgs.prisma}/bin/prisma migrate deploy \
               --schema "$store_path/services/notis/prisma/schema.prisma"
-
-            # Login role for the read-only main-DB views. notis_reader is
-            # created (idempotently, NOLOGIN) by the main app's migration,
-            # which the paired preview has already run.
-            ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil <<'SQL'
-          DO $$ BEGIN
-            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'notis_service') THEN
-              CREATE ROLE notis_service LOGIN IN ROLE notis_reader;
-            END IF;
-          END $$;
-          SQL
-
-            echo "Notis database ready (isolated, port $db_port)"
-          else
-            echo "No isolated cluster for PR #$pr_num - notis uses the envFile's staging database"
-          fi
-        '';
-
+            ${pkgs.postgresql_16}/bin/psql "${ctx.siblings.opencouncil.databases.opencouncil.url}" -v ON_ERROR_STOP=1 \
+              -f "$store_path/services/notis/prisma/provision-main-reader.sql"
+            ${pkgs.postgresql_16}/bin/psql "${ctx.siblings.opencouncil.databases.opencouncil.url}" -v ON_ERROR_STOP=1 <<'SQL'
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'notis_service') THEN
+                CREATE ROLE notis_service LOGIN;
+              END IF;
+            END $$;
+            GRANT notis_reader TO notis_service;
+            SQL
+          '';
+        };
         startScript = _: ctx: ''
-          # Point the REST proxies and MCP wakes at this PR's paired main
-          # preview instead of production.
           export OPENCOUNCIL_BASE_URL="${ctx.siblings.opencouncil.url}"
           export NOTIS_MCP_URL="${ctx.siblings.opencouncil.url}/mcp"
-
-          # Shared-cookie session validation against the paired preview: the
-          # main app mirrors its session as __Secure-oc-session-prN on the
-          # shared parent domain (see previews.opencouncil).
           export MAIN_SESSION_COOKIE_NAME="__Secure-oc-session-pr$PR_NUM"
-
-          # Isolated-cluster case (migration PRs): notis's own database and
-          # the read-only views connection, provisioned by createHook.
-          oc_dir="/var/lib/opencouncil-previews/pr-$PR_NUM"
-          if [ -f "$oc_dir/.has-local-db" ]; then
-            db_port=$(cat "$oc_dir/.db-port")
-            export NOTIS_DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/notis"
-            export MAIN_DATABASE_URL="postgresql://notis_service@127.0.0.1:$db_port/opencouncil"
-          fi
-
+          export NOTIS_DATABASE_URL="${ctx.databases.notis.url}"
+          export MAIN_DATABASE_URL="${builtins.replaceStrings [ "postgresql://${ctx.cfg.user}@" ] [ "postgresql://notis_service@" ] ctx.siblings.opencouncil.databases.opencouncil.url}"
           export NOTIS_RUN_DIR="$PR_DIR/work"
           exec "$APP_DIR/start.sh"
         '';
       };
       previews.opencouncil = let
         postgresCompat = self.lib.mkPostgresCompat;
-        prismaEnv = self.lib.mkPrismaEnv;
-        opensslEnv = self.lib.mkOpenSslEnv;
       in {
         hostPattern = "pr-@id@.opencouncil.dev";
         # Keep the old preview URLs answering with 301s during the move;
@@ -1930,121 +1854,63 @@ EOF
         # with `or ""`).
         settings.githubRepo = "schemalabz/opencouncil";
 
-        # Extra sudo commands for per-PR PostgreSQL service control
-        extraSudoCommands = { pkgs, serviceName }: [
-          { command = "${pkgs.systemd}/bin/systemctl start opencouncil-preview-db@*"; options = [ "NOPASSWD" ]; }
-          { command = "${pkgs.systemd}/bin/systemctl stop opencouncil-preview-db@*"; options = [ "NOPASSWD" ]; }
-          { command = "${pkgs.systemd}/bin/systemctl status opencouncil-preview-db@*"; options = [ "NOPASSWD" ]; }
-        ];
-
-        # Extra NixOS config: per-PR PostgreSQL template service
-        extraConfig = { config, lib, pkgs, cfg }: let
-          pc = postgresCompat pkgs;
-        in {
-          systemd.services."opencouncil-preview-db@" = {
-            description = "PostgreSQL for OpenCouncil preview PR %i";
-            after = [ "network.target" ];
-
-            serviceConfig = {
-              Type = "simple";
-              User = cfg.user;
-              Group = cfg.group;
-              ExecStart = let
-                startDbScript = pkgs.writeShellScript "opencouncil-preview-db-start" ''
-                  set -euo pipefail
-                  PR_NUM="$1"
-                  DB_PORT=$((5432 + PR_NUM))
-                  DATA_DIR="${cfg.previewsDir}/pr-$PR_NUM/postgres"
-                  DB_USER="opencouncil"
-                  DB_NAME="opencouncil"
-
-                  mkdir -p "$DATA_DIR"
-
-                  # Initialize cluster if needed
-                  if [ ! -f "$DATA_DIR/PG_VERSION" ]; then
-                    if [ -n "$(find "$DATA_DIR" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
-                      echo "Error: non-empty data dir without PG_VERSION: $DATA_DIR" >&2
-                      echo "Delete it to reinitialize: rm -rf $DATA_DIR" >&2
-                      exit 2
-                    fi
-                    ${pc}/bin/initdb -D "$DATA_DIR" --username="$DB_USER" --auth=trust
-                  fi
-
-                  SOCKET_DIR="/tmp/oc-preview-pg-$PR_NUM"
-                  mkdir -p "$SOCKET_DIR"
-
-                  ${pc}/bin/pg_ctl -D "$DATA_DIR" \
-                    -o "-c port=$DB_PORT -c listen_addresses=127.0.0.1 -c unix_socket_directories=$SOCKET_DIR" \
-                    -w start
-                  ${pc}/bin/createdb -h 127.0.0.1 -p "$DB_PORT" -U "$DB_USER" \
-                    --maintenance-db=template1 "$DB_NAME" >/dev/null 2>&1 || true
-                  ${pc}/bin/pg_ctl -D "$DATA_DIR" -m fast -w stop
-
-                  exec ${pc}/bin/postgres -D "$DATA_DIR" \
-                    -c "port=$DB_PORT" \
-                    -c "listen_addresses=127.0.0.1" \
-                    -c "unix_socket_directories=$SOCKET_DIR" \
-                    -c "shared_buffers=48MB" \
-                    -c "work_mem=4MB" \
-                    -c "maintenance_work_mem=16MB" \
-                    -c "max_connections=20"
-                '';
-              in "${startDbScript} %i";
-              Restart = "on-failure";
-              RestartSec = "5s";
+        database = {
+          cluster = {
+            package = postgresCompat;
+            basePort = 30000;
+            settings = {
+              shared_buffers = "48MB";
+              work_mem = "4MB";
+              maintenance_work_mem = "16MB";
+              max_connections = 20;
             };
+          };
+          databases.opencouncil = {
+            extensions = [ "postgis" ];
+            fingerprint = pkgs: _: ''
+              if [ "$DATA_VARIANT" != default ]; then
+                echo "Error: preview data variant '$DATA_VARIANT' is not available yet" >&2
+                exit 1
+              fi
+              if [ ! -x "$store_path/seed/bin/seed" ] || [ ! -f "$store_path/seed-bundle/lib/seed.cjs" ]; then
+                echo "Error: this preview build lacks the packaged seed command; update the PR with the preview database change and rebuild" >&2
+                exit 1
+              fi
+              {
+                cd "$store_path/prisma/migrations"
+                ${pkgs.findutils}/bin/find -L . -name migration.sql -type f -print0 | \
+                  ${pkgs.coreutils}/bin/sort -z | ${pkgs.findutils}/bin/xargs -0 ${pkgs.coreutils}/bin/sha256sum
+                ${pkgs.coreutils}/bin/sha256sum "$store_path/seed-bundle/lib/seed.cjs" | ${pkgs.coreutils}/bin/cut -d ' ' -f 1
+              } | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.coreutils}/bin/cut -d ' ' -f 1
+            '';
+            init = _: ctx: ''
+              if [ "$DATA_VARIANT" != default ]; then
+                echo "Error: preview data variant '$DATA_VARIANT' is not available yet" >&2
+                exit 1
+              fi
+              export XDG_CACHE_HOME="${ctx.cfg.previewsDir}/.cache"
+              cd "$pr_dir"
+              "$store_path/seed/bin/seed" setup --db "$DATABASE_URL"
+            '';
           };
         };
 
-        # Extra create-script arguments: --with-db flag
-        createExtraArgs = {
-          usage = ''
-            Options:
-              --with-db    Start an isolated PostgreSQL instance for this PR
-                           (for PRs with database migrations)'';
-          initScript = "with_db=false";
-          parseScript = "--with-db) with_db=true ;;";
-        };
-
-        # Start script: host-side env composition only — the app's own
-        # start.sh (built with the app's nixpkgs) owns the runtime and the
-        # ISR work-dir setup. Runtime-ownership rule: see pr-previews README.
         startScript = _: ctx: ''
-          # Check if this PR has an isolated database (migration PR)
-          if [ -f "$PR_DIR/.has-local-db" ]; then
-            DB_PORT=$(cat "$PR_DIR/.db-port")
-            export DATABASE_URL="postgresql://opencouncil@127.0.0.1:$DB_PORT/opencouncil"
-            export DIRECT_URL="$DATABASE_URL"
-            echo "Using isolated database on port $DB_PORT"
-          fi
-
-          # Load per-preview env overrides (e.g., linked tasks preview)
           if [ -f "$PR_DIR/.env.local" ]; then
-            echo "Loading per-preview env from .env.local"
             set -a
             . "$PR_DIR/.env.local"
             set +a
           fi
-
+          export DATABASE_URL="${ctx.databases.opencouncil.url}"
+          export DIRECT_URL="$DATABASE_URL"
           export NEXTAUTH_URL="https://${ctx.host}"
-
-          # Mirror the session onto the shared preview parent so the paired
-          # notis preview can validate it; the per-PR suffix keeps previews
-          # from clobbering each other's cookies.
           export SESSION_COOKIE_DOMAIN=".opencouncil.dev"
           export SESSION_COOKIE_SUFFIX="-pr$PR_NUM"
-
           export OC_RUN_DIR="$PR_DIR/work"
           exec "$APP_DIR/start.sh"
         '';
 
-        # Create hook: auto-link tasks preview + optional isolated database setup
-        createHook = pkgs: ctx: let
-          cfg = ctx.cfg;
-          pc = postgresCompat pkgs;
-          pe = prismaEnv pkgs;
-          oe = opensslEnv pkgs;
-        in ''
+        createHook = pkgs: ctx: let cfg = ctx.cfg; in ''
           # Auto-link tasks preview if PR body contains <!-- preview-link: tasks=N -->
           tasks_domain="${toString (cfg.settings.tasksPreview.domain or "")}"
           tasks_env_file="${toString (cfg.settings.tasksPreview.envFile or "")}"
@@ -2074,89 +1940,9 @@ EOF
             fi
           fi
 
-          # Handle isolated database for migration PRs
-          if [ "$with_db" = "true" ]; then
-            echo ""
-            echo "Setting up isolated database for PR #$pr_num..."
-
-            db_port=$((5432 + pr_num))
-
-            systemctl start "opencouncil-preview-db@$pr_num"
-
-            # Wait for postgres AND the opencouncil database to be ready.
-            # The DB service does a start->createdb->stop->start cycle, so pg_isready
-            # alone can succeed on the first (temporary) start before the database exists.
-            echo "Waiting for PostgreSQL on port $db_port..."
-            for i in $(seq 1 30); do
-              if ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil \
-                   -c "SELECT 1" >/dev/null 2>&1; then
-                echo "PostgreSQL is ready"
-                break
-              fi
-              if [ "$i" = "30" ]; then
-                echo "Error: PostgreSQL did not become ready in time" >&2
-                systemctl status "opencouncil-preview-db@$pr_num" --no-pager || true
-                exit 1
-              fi
-              sleep 1
-            done
-
-            echo "Creating PostGIS extension..."
-            ${pc}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil \
-              -c "CREATE EXTENSION IF NOT EXISTS postgis;" >/dev/null
-
-            cd "$store_path"
-            ${pe}
-            ${oe}
-            export DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/opencouncil"
-            export DIRECT_URL="$DATABASE_URL"
-            export SKIP_ENV_VALIDATION=1
-            export PATH="${pkgs.nodejs}/bin:$PATH"
-
-            echo "Running migrations..."
-            ${pkgs.prisma}/bin/prisma migrate deploy
-
-            echo "Seeding database..."
-            SEED_DATA_URL="https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json"
-            SEED_DATA_PATH="$pr_dir/seed_data.json"
-            if [ ! -f "$SEED_DATA_PATH" ]; then
-              echo "Downloading seed data..."
-              ${pkgs.curl}/bin/curl -fsSL "$SEED_DATA_URL" -o "$SEED_DATA_PATH"
-            fi
-            export SEED_DATA_PATH
-
-            if [ -f prisma/seed.mjs ]; then
-              ${pkgs.nodejs}/bin/node prisma/seed.mjs
-            else
-              echo "Bundled seed not found, trying tsx..."
-              ${pkgs.nodejs}/bin/npx --yes tsx prisma/seed.ts
-            fi
-
-            touch "$pr_dir/.has-local-db"
-            echo "$db_port" > "$pr_dir/.db-port"
-            chown ${cfg.user}:${cfg.group} "$pr_dir/.has-local-db" "$pr_dir/.db-port"
-
-            echo "Isolated database ready on port $db_port (PostGIS 3.3.5)"
-          fi
         '';
-
-        # Destroy hook: stop per-PR postgres and clean up socket dir
-        destroyHook = pkgs: ctx: ''
-          if [ -f "$pr_dir/.has-local-db" ]; then
-            echo "Stopping isolated database..."
-            systemctl stop "opencouncil-preview-db@$pr_num" || true
-            rm -rf "/tmp/oc-preview-pg-$pr_num"
-          fi
-        '';
-
-        # Extra summary lines after "Preview created successfully"
-        createSummary = pkgs: ctx: ''
-          if [ "''${with_db:-false}" = "true" ]; then
-            db_port=$((5432 + pr_num))
-            echo "  Database: isolated (port $db_port, PostGIS 3.3.5)"
-          else
-            echo "  Database: shared staging"
-          fi
+        createSummary = _: ctx: ''
+          echo "  Database: ${ctx.databases.opencouncil.url} (published seed subset)"
         '';
       };
 

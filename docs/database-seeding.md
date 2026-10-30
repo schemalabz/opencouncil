@@ -49,7 +49,7 @@ Every `seed` command refuses a database that is not on this machine. `restore` r
 
 ## Overview of `prisma/seed.ts`
 
-Local setups no longer use `prisma/seed.ts` and `prisma/seed_data.json`. The previews of pull requests with migrations still seed from them, until previews load the seed artifact too.
+Local setups and PR previews load the published seed artifact. The legacy JSON export and `prisma/seed.ts` commands below remain available for manual use. They no longer supply preview data.
 
 The seeding process consists of two main components:
 1. A seed data generator script (`scripts/generate_seed_dump.ts`)

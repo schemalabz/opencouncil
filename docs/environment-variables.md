@@ -191,8 +191,8 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 | `DEV_EMAIL_OVERRIDE` | Email address that receives outgoing email instead of the real recipients. See [Email Testing in Development](#email-testing-in-development) for which emails it redirects. | No | - |
 | `SEED_ARTIFACT_URL` | Base URL of the published seed artifact, or a local artifact directory, for `npm run seed`. | No | `https://github.com/schemalabz/opencouncil-seed-data/releases/latest/download` |
 | `SEED_PG_BIN` | Directory of the PostgreSQL tools that the seed commands use. `npm run seed` takes the 16 client tools (`pg_restore`, `psql`) from it. `npm run seed-pipeline` takes a server with PostGIS from it for `produce` and `verify`. When it is not set, `npm run seed` uses `PATH`. | No | |
-| `SEED_DATA_URL` | For previews only: URL to fetch `prisma/seed.ts` data from if the local file doesn't exist. | No | [link](https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json) |
-| `SEED_DATA_PATH` | For previews only: path to the local data file of `prisma/seed.ts`. | No | `./prisma/seed_data.json` |
+| `SEED_DATA_URL` | Legacy JSON seeder only: URL to fetch `prisma/seed.ts` data from if the local file doesn't exist. | No | [link](https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json) |
+| `SEED_DATA_PATH` | Legacy JSON seeder only: path to the local data file of `prisma/seed.ts`. | No | `./prisma/seed_data.json` |
 
 ### Docker Port Configuration
 | Variable | Description | Required | Default |

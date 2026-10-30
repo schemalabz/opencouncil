@@ -1,6 +1,6 @@
 # PR Preview Deployments
 
-Automated per-PR preview environments on a NixOS droplet. Each PR gets a subdomain (`pr-123.opencouncil.dev`), a systemd service, and Caddy reverse proxy entry. All previews share a staging database.
+Automated per-PR preview environments on a NixOS droplet. Each PR gets a subdomain (`pr-123.opencouncil.dev`), a systemd service, and Caddy reverse proxy entry. Each OpenCouncil preview has its own seeded PostgreSQL database.
 
 ## How It Works
 
@@ -210,20 +210,16 @@ The app requires many env vars at runtime (API keys, storage config, etc.). Thes
 
 **Shared (env file at `/var/lib/opencouncil-previews/.env`):**
 
-All secrets and shared env vars, including `DATABASE_URL`. This file is `chmod 600` and never ends up in the Nix store. Create it on the droplet:
+Shared secrets and service settings live here. Preview startup supplies the database URLs. This file is `chmod 600` and never ends up in the Nix store. Create it on the droplet:
 
 ```bash
 ssh root@<droplet-ip>
 nano /var/lib/opencouncil-previews/.env
 ```
 
-Required contents (replace values with real staging credentials):
+Required contents (replace the example service credentials):
 
 ```env
-# Database
-DATABASE_URL=postgresql://...
-DIRECT_URL=postgresql://...
-
 # Auth
 RESEND_API_KEY=...
 NEXTAUTH_SECRET=...
@@ -290,18 +286,12 @@ Manual management mirrors the main app: `notis-preview-list`,
 `notis-preview-logs <N>`, `sudo notis-preview-create <N> <store-path>`,
 and `sudo notis-preview-destroy <N>`. The shared env lives in
 `/var/lib/notis-previews/.env`. It holds a dummy `ANTHROPIC_API_KEY` — the
-trust model allows preview-grade secrets only, so agent calls fail by
-design — and, for previews WITHOUT an isolated database, the staging
-`NOTIS_DATABASE_URL` and `MAIN_DATABASE_URL`. A droplet reboot wipes every
-preview, so this file is part of the recovery path: recreate it before
-recreating previews.
+trust model allows preview-grade secrets only, so agent calls fail by design.
+The shared file does not need database URLs. Startup supplies the database URLs for the paired preview.
 
-Migration PRs get the full pair automatically: the notis createHook creates
-a `notis` database in the per-PR cluster, runs the notis migrations from the
-deployed closure, and bridges `notis_service` onto the `notis_reader` role
-the main app's views migration creates. Admin access uses the shared-cookie
-session mirror (`__Secure-oc-session-prN` on `.opencouncil.dev`); there is
-no `NOTIS_ADMIN_SECRET` any more.
+The database module creates `notis` in the paired OpenCouncil cluster. Its initializer applies the Notis migrations. It then restores the reader role and view grants that seed restores omit. Finally, it grants `notis_reader` to `notis_service`.
+Create the OpenCouncil preview before creating its Notis preview.
+Admin access uses the shared session cookie (`__Secure-oc-session-prN` on `.opencouncil.dev`).
 
 ## Manual Management
 
@@ -365,88 +355,58 @@ curl -sI https://pr-999.opencouncil.dev | head -20
 ssh root@$DROPLET "sudo opencouncil-preview-destroy 999"
 ```
 
-## Migration Handling
+## Preview databases
 
-PRs with database migrations are automatically deployed with **isolated databases**:
+Every OpenCouncil preview gets a PostgreSQL cluster with PostGIS 3.3.5. The cluster uses port `30000 + PR_NUMBER`.
+The database user and database name are both `opencouncil`. Loopback connections use trust authentication.
 
-- Each migration PR gets its own PostgreSQL instance (PostGIS 3.3.5)
-- Migrations are applied automatically, followed by seed data
-- The isolated DB is destroyed when the PR closes
-- Non-migration PRs continue to use the shared staging database
+On the first deployment, `seed setup` restores the published subset. It then applies the checkout's migrations and creates test accounts.
+The production closure carries the seed command and its PostgreSQL 16 client tools.
 
-### How It Works
+The module records the data variant, database fingerprint, and generation after successful initialization.
+The fingerprint includes the migration contents and seed bundle. An unchanged fingerprint preserves preview data.
+A changed fingerprint rebuilds the database from the latest published subset. A new seed release alone does not rebuild existing previews.
+Notis rebuilds on its next deployment when the paired OpenCouncil generation changes.
 
-When `prisma/migrations/` changes are detected:
-1. The workflow passes `--with-db` to `opencouncil-preview-create`
-2. A dedicated PostgreSQL service starts (`opencouncil-preview-db@<pr-num>`)
-3. Migrations run via `prisma migrate deploy`, then `prisma db seed`
-4. The app connects to the isolated DB instead of staging
+A failed initialization fails deployment. The module drops the incomplete database and removes its successful state.
+The next deployment retries initialization. Destroying the main preview stops its cluster and removes its data directory.
+Destroy paired Notis previews before destroying the main preview.
 
-### Resource Usage
+The default data variant is `default`. Other variants fail with an explicit message until the application implements them.
+PR numbers must be integers from 1 through 9999.
 
-Each isolated database uses ~80-100MB RAM (tuned settings: `shared_buffers=48MB`). The 4GB droplet can comfortably handle 2-3 concurrent migration PRs.
+Before a new cluster starts, the module requires at least 2048 MiB of free disk space.
+Monitor database memory and disk usage as the number of previews increases.
 
-### Manual Testing (before CI)
+### Rollout prerequisites
 
-To test isolated DB deployment manually before merging workflow changes:
+Existing PR builds do not contain the packaged seed command. Update each open PR with this application change before rebuilding it.
+The host checks database inputs before stopping a running preview. An incompatible build fails with an explicit message and preserves the running application.
+
+Deploy the new preview module before deploying the updated workflow. The workflow passes `--data-variant=default`, which older hosts reject.
+Redeploy OpenCouncil before its paired Notis preview. Existing clusters restart on their new ports when their previews redeploy.
+Remove shared staging URL entries only after every active preview uses its generated local URLs.
+
+### Development and debugging
+
+Run these commands on the preview host:
 
 ```bash
-# 1. Update the NixOS module on the droplet
-ssh root@<droplet-ip>
-nix flake update opencouncil --flake /etc/nixos
-nixos-rebuild switch --flake /etc/nixos#preview
-
-# 2. Build your migration branch locally
-cd /path/to/opencouncil
-git checkout your-migration-branch
-set -a; source .env; set +a
-nix build --impure .#opencouncil-prod
-
-# 3. Push to Cachix
-cachix push opencouncil ./result
-
-# 4. Deploy with --with-db (use a test PR number like 9999)
-STORE_PATH=$(readlink ./result)
-ssh root@<droplet-ip> "sudo opencouncil-preview-create 9999 '$STORE_PATH' --with-db"
-
-# 5. Test the preview
-curl -I https://pr-9999.opencouncil.dev
-
-# 6. Check logs if needed
-ssh root@<droplet-ip> "journalctl -u opencouncil-preview@12999 -n 50"
-ssh root@<droplet-ip> "journalctl -u opencouncil-preview-db@9999 -n 50"
-
-# 7. Clean up
-ssh root@<droplet-ip> "sudo opencouncil-preview-destroy 9999"
-```
-
-### Development & Debugging
-
-SSH to the droplet (`ssh root@159.89.98.26`), then:
-
-**Service inspection:**
-```bash
-# Check app service
+PR_NUM=123
 systemctl status opencouncil-preview@$((3000 + PR_NUM))
-journalctl -u opencouncil-preview@$((3000 + PR_NUM)) -f
-
-# Check DB service (migration PRs only)
-systemctl status opencouncil-preview-db@<pr-num>
-
-# Check if isolated DB marker exists
-ls -la /var/lib/opencouncil-previews/pr-<num>/.has-local-db
-
-# View postgres data directory
-ls -la /var/lib/opencouncil-previews/pr-<num>/postgres/
+systemctl status opencouncil-preview-db@$PR_NUM
+cat /var/lib/opencouncil-previews/pr-$PR_NUM/.databases/opencouncil.json
+psql -h 127.0.0.1 -p $((30000 + PR_NUM)) -U opencouncil -d opencouncil
 ```
 
-**Direct database access (migration PRs with isolated DBs):**
-
-Each isolated DB runs on port `5432 + PR_NUMBER` (e.g., PR 288 → port 5720), user/db both `opencouncil`, trust auth (no password). `psql` is available on the system PATH.
+To deploy a built closure manually:
 
 ```bash
-psql -h 127.0.0.1 -p $((5432 + PR_NUM)) -U opencouncil -d opencouncil
+sudo opencouncil-preview-create 123 /nix/store/<application-closure>
 ```
+
+To connect through the local development helper, set `OC_PREVIEW_SSH`. Then run `nix run .#dev -- --preview-db=123`.
+The helper opens an SSH tunnel to the preview's database. It fails when that preview's database service is unavailable.
 
 ## Testing Other Realms
 
@@ -470,19 +430,10 @@ ignored on the production apex domains. See `realmOverride` in
 
 ## Troubleshooting
 
-**Amended migration files (schema mismatch after force-push):**
+**Migration changes:**
 
-`prisma migrate deploy` tracks applied migrations by name. If you amend a migration file that was already applied (e.g., rename a column from `diavgeiaUnitId` to `diavgeiaUnitIds`), the isolated DB keeps the old schema — Prisma sees the migration name as already applied and skips it. Symptoms: `The column X does not exist in the current database` errors at runtime.
-
-Fix: destroy and recreate the preview to get a fresh DB with the updated migration:
-```bash
-ssh root@<droplet-ip>
-STORE_PATH=$(readlink /var/lib/opencouncil-previews/pr-<num>/app)
-sudo opencouncil-preview-destroy <num>
-sudo opencouncil-preview-create <num> "$STORE_PATH" --with-db
-```
-
-To avoid this, prefer creating additive migrations instead of amending existing ones. If you must amend, remember to reset the preview DB afterwards.
+The fingerprint includes each migration file's contents. Changing an applied migration rebuilds the preview database on the next deployment.
+Use additive migrations when possible. A rebuild replaces manual preview data with the published subset.
 
 **Preview not accessible:**
 1. DNS: `dig pr-123.opencouncil.dev` should resolve to droplet IP
