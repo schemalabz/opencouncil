@@ -69,7 +69,7 @@ describe('claimWithToken', () => {
 
 describe('sendJoinEmail', () => {
     it('sends the sign-in email with a return path built from the verified code', async () => {
-        mockSignIn.mockResolvedValue('https://opencouncil.gr/api/auth/verify-request');
+        mockSignIn.mockResolvedValue({ ok: true });
         const token = generatePersonClaimToken('person-1');
         expect(await sendJoinEmail(token, '  Maria@Gmail.com ')).toEqual({ ok: true });
         const form = mockSignIn.mock.calls[0][0] as FormData;

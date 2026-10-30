@@ -1,7 +1,7 @@
 import "server-only";
 import { signIn } from "@/auth";
 import { safeRedirectPath } from "@/lib/safeRedirect";
-import { signInFailurePath } from "@/lib/auth/signInResult";
+import { rateLimitedRetryAfterMs, signInFailurePath } from "@/lib/auth/signInResult";
 
 /**
  * Sends the magic link. `returnTo` is where it lands — the page the reader
@@ -21,6 +21,12 @@ export async function sendMagicLink(email: string, returnTo?: string): Promise<b
             ...(returnTo ? { redirectTo: safeRedirectPath(returnTo) } : {}),
             redirect: false,
         });
+        const retryAfterMs = rateLimitedRetryAfterMs(url);
+        if (retryAfterMs !== null) {
+            // Not an error: the limit did its work. The caller reports "not sent".
+            console.warn(`Magic link to ${email} refused by the rate limit (retry in ${retryAfterMs}ms)`);
+            return false;
+        }
         const failurePath = signInFailurePath(url);
         if (failurePath) {
             console.error(`Magic link not sent to ${email} (redirected to ${failurePath})`);
