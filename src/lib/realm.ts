@@ -61,7 +61,7 @@ export const REALMS = {
     italy: { domain: 'opencouncil.it', defaultLocale: 'en', country: 'IT', contactPhone: OFFICE_PHONE, stage: 'pending' },
     netherlands: { domain: 'opencouncil.nl', defaultLocale: 'en', country: 'NL', contactPhone: OFFICE_PHONE, stage: 'pending' },
     poland: { domain: 'opencouncil.pl', defaultLocale: 'en', country: 'PL', contactPhone: OFFICE_PHONE, stage: 'pending' },
-    portugal: { domain: 'opencouncil.pt', defaultLocale: 'en', country: 'PT', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    portugal: { domain: 'pt.opencouncil.eu', defaultLocale: 'en', country: 'PT', contactPhone: OFFICE_PHONE, stage: 'pending' },
     spain: { domain: 'opencouncil.es', defaultLocale: 'en', country: 'ES', contactPhone: OFFICE_PHONE, stage: 'pending' },
 } as const satisfies Record<
     Realm,

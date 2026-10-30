@@ -70,11 +70,15 @@ describe('realmForHost', () => {
         ['opencouncil.it', 'italy'],
         ['opencouncil.nl', 'netherlands'],
         ['opencouncil.pl', 'poland'],
-        ['opencouncil.pt', 'portugal'],
+        ['pt.opencouncil.eu', 'portugal'],
         ['opencouncil.es', 'spain'],
     ])('resolves %s and its www subdomain to %s', (host, realm) => {
         expect(realmForHost(host)).toBe(realm);
         expect(realmForHost(`www.${host}`)).toBe(realm);
+    });
+
+    it('does not match the parent of a Portugal realm domain', () => {
+        expect(realmForHost('opencouncil.eu')).toBe('greece');
     });
 
     it('resolves subdomains of a realm domain to that realm', () => {
