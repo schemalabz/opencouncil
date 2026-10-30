@@ -1230,6 +1230,7 @@
         "errors": {
             "verification": "This sign-in link has expired or was already used. Enter your email to get a new one.",
             "accessDenied": "We can only sign you in with a Google account whose email is verified.",
+            "tooManyEmails": "Too many sign-in emails were requested for this address or from your network. Try again in {minutes, plural, one {# minute} other {# minutes}}.",
             "generic": "Sign-in did not complete. Please try again."
         },
         "error": "There was a problem sending the email. Please try again later.",

@@ -8,6 +8,7 @@ import { GoogleSignInButton } from "@/components/user/GoogleSignInButton"
 import { useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { authErrorKey } from "@/lib/auth/authErrorKey"
+import { RATE_LIMITED_ERROR, retryAfterMinutes } from "@/lib/auth/signInResult"
 import { signInWithEmail } from "@/lib/serverSignIn"
 import { useState } from "react"
 import { MailCheck } from "lucide-react"
@@ -22,6 +23,23 @@ const AUTH_ERROR_KEYS: Record<string, string> = {
     Verification: "errors.verification",
     // The signIn callback refused: a Google account with an unverified email.
     AccessDenied: "errors.accessDenied",
+    // The magic-link rate limit refused; the URL also carries retryAfterMs.
+    [RATE_LIMITED_ERROR]: "errors.tooManyEmails",
+}
+
+/** A message key with the values its copy needs. */
+type ErrorMessage = { key: string; values?: Record<string, number> }
+
+/** The wait a refusal names, in minutes, from the Server Action's result or Auth.js's URL. */
+function tooManyEmails(retryAfterMs: number): ErrorMessage {
+    return { key: "errors.tooManyEmails", values: { minutes: retryAfterMinutes(retryAfterMs) } }
+}
+
+function errorFromQuery(searchParams: URLSearchParams): ErrorMessage | null {
+    const code = searchParams.get("error")
+    if (code === RATE_LIMITED_ERROR) return tooManyEmails(Number(searchParams.get("retryAfterMs")) || 0)
+    const key = authErrorKey(code, AUTH_ERROR_KEYS, "errors.generic")
+    return key ? { key } : null
 }
 
 export function SignIn({
@@ -36,7 +54,7 @@ export function SignIn({
     const tCommon = useTranslations("Common")
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
-    const [error, setError] = useState<string | null>(authErrorKey(searchParams.get("error"), AUTH_ERROR_KEYS, "errors.generic"))
+    const [error, setError] = useState<ErrorMessage | null>(errorFromQuery(searchParams))
     const [isLoading, setIsLoading] = useState(false)
     const [sentTo, setSentTo] = useState<string | null>(null)
     const [draftEmail, setDraftEmail] = useState(email ?? "")
@@ -51,14 +69,19 @@ export function SignIn({
         posthog.capture("sign_in_requested", { method: "email", has_callback_url: !!callbackUrl })
 
         try {
-            await signInWithEmail(formData)
+            const result = await signInWithEmail(formData)
+            if (!result.ok) {
+                posthog.capture("sign_in_rate_limited", { retry_after_ms: result.retryAfterMs })
+                setError(tooManyEmails(result.retryAfterMs))
+                return
+            }
             // The email is sent. Confirm it here rather than on Auth.js's
             // built-in verify-request page, which is unstyled, untranslated
             // and outside the site layout.
             setSentTo(String(formData.get("email") ?? ""))
         } catch (err) {
             posthog.captureException(err)
-            setError("error")
+            setError({ key: "error" })
             console.error("Sign in error:", err)
         } finally {
             setIsLoading(false)
@@ -129,7 +152,7 @@ export function SignIn({
                         {callbackUrl && (
                             <input type="hidden" name="callbackUrl" value={callbackUrl} />
                         )}
-                        {error && <ErrorLine>{t(error)}</ErrorLine>}
+                        {error && <ErrorLine>{t(error.key, error.values)}</ErrorLine>}
                     </div>
                 </CardContent>
                 <CardFooter>
