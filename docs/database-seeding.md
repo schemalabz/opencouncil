@@ -43,12 +43,13 @@ npm run seed -- fixtures --db postgresql://opencouncil@localhost:5432/opencounci
 - `--from` takes a local archive, a directory that holds one, or the base URL of another published artifact. `SEED_ARTIFACT_URL` sets the default.
 - `npm run seed -- fetch` only downloads and checks. Downloads stay in `~/.cache/opencouncil/seed-artifacts/` (`$XDG_CACHE_HOME` when it is set). Every clone and worktree on the machine shares them, so a second restore of the same artifact reads nothing from the network. In Docker, the cache is in `.data/cache/` of the checkout.
 - `--db` defaults to `DATABASE_URL`, from the environment or from `.env`.
+- `nix run .#seed -- <command>` runs the same command from a Nix package, with no checkout and no `.env`: the package carries the schema, the migrations, a generated Prisma client, and the PostgreSQL 16 client tools. Pass `--db` explicitly. A preview host uses it to load the artifact into a preview's database.
 
 Every `seed` command refuses a database that is not on this machine. `restore` refuses a database that already has tables, and an artifact with a migration that your checkout does not have: pull `main` first.
 
 ## Overview of `prisma/seed.ts`
 
-Local setups no longer use `prisma/seed.ts` and `prisma/seed_data.json`. The previews of pull requests with migrations still seed from them, until previews load the seed artifact too.
+Local setups and PR previews load the published seed artifact. The legacy JSON export and `prisma/seed.ts` commands below remain available for manual use. They no longer supply preview data.
 
 The seeding process consists of two main components:
 1. A seed data generator script (`scripts/generate_seed_dump.ts`)

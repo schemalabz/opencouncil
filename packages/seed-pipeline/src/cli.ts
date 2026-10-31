@@ -26,17 +26,12 @@ import { withClient } from './catalog';
 import { meetingSetSql } from './greenmask-config';
 import { resolvePgBin } from './process';
 import { produce } from './produce';
-import { loadPinnedMeetings, pipelineHome } from './tables';
+import { loadPinnedMeetings, pipelineHome, schemaPath } from './tables';
 import { runningClusters } from './transient-postgres';
 import { verify } from './verify';
 import { checkedSnapshot, restoreArtifact } from './restore';
 import { assertLocalTarget } from './target-guard';
 import { formatError } from './errors';
-
-function schemaPath(): string {
-    const home = process.env.SEED_PIPELINE_HOME;
-    return home ? path.join(home, '..', 'prisma', 'schema.prisma') : path.join(process.cwd(), 'prisma', 'schema.prisma');
-}
 
 /**
  * Run `fn` with a work directory. A given `--work` directory is the caller's:

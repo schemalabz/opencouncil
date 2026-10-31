@@ -33,7 +33,7 @@ graph TB
 
     subgraph preview_droplet ["Preview Droplet (NixOS · nix-openclaw)"]
         app_preview["🌐 PR Previews<br/><i>pr-N.opencouncil.dev</i>"]
-        db_preview[("🗄️ Isolated DB<br/><i>migration PRs only</i>")]
+        db_preview[("🗄️ Isolated DB<br/><i>every app PR</i>")]
     end
 
     subgraph local ["Local Development"]
@@ -61,8 +61,7 @@ graph TB
     app_staging <-->|"API + callbacks"| tasks_staging
     tasks_staging --- spaces
     tasks_staging --- external
-    app_preview --- db_staging
-    app_preview -.- db_preview
+    app_preview --- db_preview
 
     app_local --- db_local
     app_local -.- db_dev
@@ -94,7 +93,7 @@ graph TB
 
 **Production & Staging** are deployed via [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform). Both environments are configured to auto-deploy when their respective branches are pushed — `production` for opencouncil.gr, `main` for staging.opencouncil.gr. No CI/CD workflow in this repo; App Platform handles the build and deploy.
 
-**PR Previews** are deployed to a NixOS droplet managed by [nix-openclaw](https://github.com/schemalabz/nix-openclaw), via GitHub Actions workflows in this repo (`.github/workflows/preview-deploy.yml` and `preview-cleanup.yml`). The workflow builds the app with Nix, pushes to Cachix, then SSHs into the droplet to create the preview. PRs that include Prisma migrations get an isolated PostgreSQL instance on the droplet itself (instead of the shared staging DB), seeded via [opencouncil-seed-data](https://github.com/schemalabz/opencouncil-seed-data) — the same seed script contributors use locally. See [guides/preview-deployments.md](./guides/preview-deployments.md) for the full setup.
+**PR Previews** are deployed to a NixOS droplet managed by [nix-openclaw](https://github.com/schemalabz/nix-openclaw), via GitHub Actions workflows in this repo (`.github/workflows/preview-deploy.yml` and `preview-cleanup.yml`). The workflow builds the app with Nix, pushes to Cachix, then SSHs into the droplet to create the preview. Every app preview gets a PostgreSQL cluster on the droplet. The packaged seed command loads the verified subset from [opencouncil-seed-data](https://github.com/schemalabz/opencouncil-seed-data/releases). Preview startup always uses its generated local database URL. See [guides/preview-deployments.md](./guides/preview-deployments.md) for the full setup.
 
 **Tasks Server** (opencouncil-tasks) runs on a DigitalOcean droplet — both the production (`:3005`) and staging (`:3006`) instances run on the same machine. Deployed manually via SSH from the opencouncil-tasks repo.
 

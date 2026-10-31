@@ -26,8 +26,10 @@ export function lookupHashFor(cookieName: string, cookieValue: string): string {
 }
 
 export const getAdminSession = cache(async (): Promise<AdminSession | null> => {
-  if (!hasMainDb()) return null;
+  // Read request state even when the build has no database credentials, so
+  // Next.js cannot pre-render protected pages as permanent login redirects.
   const jar = await cookies();
+  if (!hasMainDb()) return null;
   const name = sessionCookieName();
   const value = jar.get(name)?.value;
   if (!value) return null;
