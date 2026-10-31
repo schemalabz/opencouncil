@@ -1,9 +1,10 @@
 'use client';
 
 import { useId } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { XCircle } from 'lucide-react';
-import { Link } from '@/i18n/routing';
+import { Link, getPathname } from '@/i18n/routing';
+import { signInPath } from '@/lib/auth/signInDestination';
 import { DoneCheck } from '@/components/notifications/signup/CompleteScreen';
 import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
 import { useCelebration } from '@/components/signup/useCelebration';
@@ -104,6 +105,7 @@ export function JoinProblem(
     props: { kind: 'invalid' } | { kind: 'used'; signedIn: boolean; own: boolean; person: JoinPersonView },
 ) {
     const t = useTranslations('personJoin');
+    const locale = useLocale();
     return (
         <div className="mx-auto flex min-h-[70dvh] w-full max-w-md flex-col items-center justify-center px-6 py-12 text-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50" aria-hidden>
@@ -126,8 +128,10 @@ export function JoinProblem(
             {props.kind === 'used' && !props.signedIn && (
                 <p className="mt-8 text-[15px] text-muted-foreground">
                     {t('problem.usedYours')}{' '}
-                    {/* Sign-in lands on the profile by default: the account is done. */}
-                    <Link href="/sign-in" className="font-medium text-foreground underline underline-offset-4">
+                    <Link
+                        href={signInPath(getPathname({ href: '/profile', locale }))}
+                        className="font-medium text-foreground underline underline-offset-4"
+                    >
                         {t('problem.signIn')}
                     </Link>
                 </p>

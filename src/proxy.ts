@@ -9,6 +9,7 @@ import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
 import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
 import { applySessionMirror } from './lib/auth/sessionMirror';
+import { signInPath } from './lib/auth/signInDestination';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -61,7 +62,10 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     if (adminPath === '/admin' || adminPath.startsWith('/admin/')) {
         const session = await auth();
         if (!session?.user?.isSuperAdmin) {
-            return NextResponse.redirect(new URL('/sign-in', req.url));
+            const target = session
+                ? '/sign-in'
+                : signInPath(req.nextUrl.pathname + req.nextUrl.search);
+            return NextResponse.redirect(new URL(target, req.url));
         }
     }
 

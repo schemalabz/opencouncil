@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 // The locale-aware redirect: next/navigation's would send a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek page.
 import { getPathname, redirect } from "@/i18n/routing";
+import { signInPath } from "@/lib/auth/signInDestination";
 import { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyHighlights } from "@/lib/db/highlights";
@@ -19,7 +20,7 @@ export default async function MyHighlightsPage() {
         // The callbackUrl needs the prefix too: sign-in forwards it verbatim,
         // and a bare path would return the reader to the Greek page.
         const callbackUrl = getPathname({ href: "/profile/highlights", locale });
-        redirect({ href: `/sign-in?callbackUrl=${encodeURIComponent(callbackUrl)}`, locale });
+        redirect({ href: signInPath(callbackUrl), locale });
     }
 
     const [{ highlights, truncated }, t] = await Promise.all([

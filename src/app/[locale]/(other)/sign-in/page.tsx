@@ -4,9 +4,9 @@ import { redirect } from "next/navigation"
 import { getLocale } from "next-intl/server"
 // The locale-aware redirect: next/navigation's would send a bare "/profile",
 // dropping the locale prefix and landing the reader on the Greek page.
-import { redirect as redirectWithLocale } from "@/i18n/routing"
-import { safeRedirectPath } from "@/lib/safeRedirect"
+import { getPathname, redirect as redirectWithLocale } from "@/i18n/routing"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
+import { postSignInFallback, resolvePostSignInPath } from "@/lib/auth/signInDestination"
 import { Metadata } from "next"
 import { cookies, headers } from "next/headers"
 import { googleSignInAvailable } from "@/lib/auth/googleSignIn"
@@ -44,7 +44,10 @@ export default async function SignInPage(
         if (raw && isTrustedExternalRedirect(raw)) {
             redirect(raw)
         }
-        redirect(safeRedirectPath(raw))
+        const isOnboarded = Boolean(session.user?.onboarded)
+        const locale = await getLocale()
+        const fallback = getPathname({ href: postSignInFallback(isOnboarded), locale })
+        redirect(resolvePostSignInPath({ callbackUrl: raw, onboarded: isOnboarded, fallback }))
     }
 
     let callbackUrl = firstSearchParam(searchParams.callbackUrl) || null
