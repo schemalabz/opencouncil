@@ -119,6 +119,21 @@ describe('cityPopulationSchema unique names', () => {
     const party = (name: string) => ({ name, name_en: name, name_short: 'PA', name_short_en: 'PA', colorHex: '#123456' });
     const body = (name: string) => ({ name, name_en: name, type: 'council' });
 
+    it('accepts distinct people with the same name and preserves their profiles and roles', () => {
+        const input = {
+            ...payload({}),
+            people: [
+                { ...payload({ electedOrder: 1 }).people[0], profileUrl: 'https://example.org/councillors/1' },
+                { ...payload({ electedOrder: 2 }).people[0], profileUrl: 'https://example.org/councillors/2' },
+            ],
+        };
+        const result = cityPopulationSchema.parse(input);
+        expect(result.people.map(person => [person.name, person.profileUrl, person.roles?.[0].electedOrder])).toEqual([
+            ['Μαρία Παπαδοπούλου', 'https://example.org/councillors/1', 1],
+            ['Μαρία Παπαδοπούλου', 'https://example.org/councillors/2', 2],
+        ]);
+    });
+
     it('refuses a second party with the same name, at the name of the second one', () => {
         const result = cityPopulationSchema.safeParse({ ...payload({}), parties: [party('Party'), party('Other'), party('Party')] });
         expect(result.success).toBe(false);

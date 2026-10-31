@@ -1,14 +1,17 @@
 /**
- * Build and validate a populate_city payload from a roster.json.
+ * Build a Greek populate_city payload from a roster.json, and print any payload for the checkpoint.
  *
- *   npx tsx --tsconfig tsconfig.json .claude/skills/add-city/scripts/payload.ts <roster.json> [<payload.json>] [--summary]
+ *   npx -y tsx .claude/skills/add-city/scripts/payload.ts <roster.json | payload.json> [<payload.json>] [--summary]
  *
- * Default output: payload.json next to the roster. --summary prints every role for the
- * checkpoint. The payload is then checked as populate_city checks it (the schema and the
- * role references); the command prints VALID, or each problem, and exits 1 on a problem.
+ * The input's shape picks the job:
+ *  - a Greek roster (it has `factions`): builds payload.json (default: next to the roster) and
+ *    prints the council order; --summary also prints every role.
+ *  - a payload (it has `administrativeBodies`; every other country writes the populate_city
+ *    payload itself): prints every role, and writes nothing.
+ * populate_city validates the payload with the app's schema, in one transaction: it refuses a
+ * bad payload and saves nothing. This script has no dependency on the app.
  *
- * The roster's shape picks the convention:
- *  - `factions` (Greece, see references/roster.example.json): this file owns the
+ * The Greek roster (see references/roster.example.json): this file owns the
  *    conventions, so that every Greek city gets the same shape.
  *    - council electedOrder: presidium 1..3 (President, Vice President, Secretary), then
  *      each faction in the order given (largest first), leader first, then members in the
@@ -29,27 +32,12 @@
  *    the VP; the VP is numbered 1 once. The chair may be the mayor or a council
  *    member. `name_en` is optional: the Greek name is transliterated (ELOT 743). `seats`
  *    (optional, from election.ts) is checked against the council members.
- *  - `bodies` (any other country): the roster holds every title in the country's own words
- *    and this file only shapes it. One body per `bodies` entry, whose `members` (in order)
- *    get a plain membership with electedOrder 1..n; one party per `parties` entry, the heads
- *    named in `heads` get their party role with isHead and the given title; `cityRoles` per
- *    person become city roles. `name_en` defaults to `name`: give it when the script is not
- *    Latin.
- *    {
- *      "cityId": "rouen",
- *      "bodies": [{"name": "Conseil municipal", "name_en": "City Council", "type": "council", "youtubeChannelUrl": "https://www.youtube.com/@…", "members": ["…"]}],
- *      "parties": [{"name": "…", "name_en": "…", "name_short": "…", "colorHex": "#…",
- *                   "heads": [{"name": "…", "title": "Président du groupe", "title_en": "Group president"}]}],
- *      "people": [{"name": "…", "name_en": "…", "name_short_en": "…", "profileUrl": "…", "party": "…" | null,
- *                  "cityRoles": [{"name": "…", "name_en": "…", "isHead": false, "startDate": "YYYY-MM-DD" | null, "endDate": "…"}]}]
- *    }
- * A name that matches nobody, a duplicate person and a party that is not in `parties` stop
- * both conventions; the Greek one also stops on one person in two presidium posts and on a
- * current committee chair who is also listed as a member.
+ * The builder stops on a name that matches nobody, a duplicate person, a party that is not in
+ * `parties`, one person in two presidium posts and a current committee chair who is also
+ * listed as a member.
  */
 import fs from 'fs';
 import path from 'path';
-import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 type Role = Record<string, string | number | boolean | null>;
 type Person = {
@@ -59,7 +47,10 @@ type Person = {
 type Party = Record<string, string | null>;
 // `youtubeChannelUrl` and (Greece) `diavgeiaUnitIds` ("unit" or "unit:signer") go through to the body as the roster gives them.
 type Body = { name: string; name_en: string; type?: string; diavgeiaUnitIds?: string[]; youtubeChannelUrl?: string };
-export type Payload = { cityId: string; parties: Party[]; administrativeBodies: Body[]; people: Person[] };
+export type Payload = {
+    cityId: string; parties: Party[]; administrativeBodies: Body[];
+    people: Array<Omit<Person, 'roles'> & { roles?: Role[] }>;
+};
 
 type Officer = string | { name: string; startDate?: string | null; endDate?: string | null };
 type CityRole = { person?: string; name: string; name_en: string; isHead?: boolean; startDate?: string | null; endDate?: string | null };
@@ -76,14 +67,7 @@ export type GreekRoster = {
     cityRoles?: Array<CityRole & { person: string }>;
     others?: Array<{ name: string; name_en?: string; roles: CityRole[] }>;
 };
-export type GenericRoster = {
-    cityId: string;
-    bodies: Array<{ name: string; name_en: string; type: string; youtubeChannelUrl?: string; members: string[] }>;
-    parties: Array<{ name: string; name_en: string; name_short: string; name_short_en?: string; colorHex: string;
-                     heads?: Array<{ name: string; title: string; title_en: string }> }>;
-    people: Array<{ name: string; name_en?: string; profileUrl?: string | null; party?: string | null; cityRoles?: CityRole[] }>;
-};
-type Built = { payload: Payload; councilOrder: string[]; errors: string[] };
+type Built = { payload: Omit<Payload, 'people'> & { people: Person[] }; councilOrder: string[]; errors: string[] };
 
 function short(name: string): string {
     const space = name.indexOf(' ');
@@ -101,7 +85,7 @@ const VOICELESS = new Set('θκξπστφχψ');
 const isLetter = (c: string) => /\p{L}/u.test(c);
 
 /** Greek to Latin per ELOT 743, for a name_en the roster leaves out. One project rule
- * differs from strict ELOT 743: medial μπ is "mb" (gr.md, Names). */
+ * differs from strict ELOT 743: medial μπ is "mb". */
 export function elot(s: string): string {
     const low = s.normalize('NFC').toLowerCase();
     const out: string[] = [];
@@ -138,8 +122,13 @@ function person(name: string, nameEn: string | undefined): Person {
     return { name, name_en: en, name_short: short(name), name_short_en: short(en), image: null, profileUrl: null, roles: [] };
 }
 
-/** A person's party is the party of their party role; an independent has none. */
-const partyOf = (p: Person) => (p.roles.find(r => r.type === 'party')?.partyName as string | undefined) ?? null;
+/** The standalone printer reads raw JSON dates, without importing application dependencies. */
+const activeAt = (r: Role, at: number) =>
+    (!r.startDate || Date.parse(String(r.startDate)) <= at) && (!r.endDate || at < Date.parse(String(r.endDate)));
+
+/** A person's current party; an independent or a former member has none. */
+const partyOf = (p: Payload['people'][number], at: number) =>
+    (p.roles?.find(r => r.type === 'party' && activeAt(r, at))?.partyName as string | undefined) ?? null;
 
 /** An officer is a name, or {"name", "startDate", "endDate"} when its dates differ from the body's. */
 function officer(x: Officer, defaultStart: string | null | undefined): [string, string | null, string | null] {
@@ -297,70 +286,8 @@ export function buildGreek(spec: GreekRoster): Built {
         people.set(o.name, p);
     }
 
-    const payload: Payload = { cityId: spec.cityId, parties: spec.parties, administrativeBodies: bodies, people: [...people.values()] };
+    const payload: Built['payload'] = { cityId: spec.cityId, parties: spec.parties, administrativeBodies: bodies, people: [...people.values()] };
     return { payload, councilOrder: order.map(o => o[4]), errors };
-}
-
-export function buildGeneric(roster: GenericRoster): Built {
-    const errors: string[] = [];
-    const names = roster.people.map(p => p.name);
-    const known = new Set(names);
-    if (known.size !== names.length) {
-        errors.push(`duplicate people: ${[...new Set(names.filter((n, i) => names.indexOf(n) !== i))].join(', ')}`);
-    }
-    const partyNames = new Set(roster.parties.map(p => p.name));
-    const heads = new Map<string, { name: string; title: string; title_en: string }>();
-    const headKey = (party: string, name: string) => `${party}\u0000${name}`;
-    for (const party of roster.parties) {
-        for (const h of party.heads ?? []) {
-            if (!known.has(h.name)) errors.push(`head ${h.name} of ${party.name} is not a person`);
-            heads.set(headKey(party.name, h.name), h);
-        }
-    }
-    for (const body of roster.bodies) {
-        for (const m of body.members) if (!known.has(m)) errors.push(`member ${m} of ${body.name} is not a person`);
-    }
-    for (const p of roster.people) {
-        if (p.party && !partyNames.has(p.party)) errors.push(`${p.name}: unknown party ${p.party}`);
-    }
-    for (const party of roster.parties) {
-        for (const h of party.heads ?? []) {
-            const member = roster.people.find(p => p.name === h.name);
-            if (member && member.party !== party.name) errors.push(`head ${h.name} of ${party.name} is in party ${member.party ?? null}`);
-        }
-    }
-
-    const people = new Map<string, Person>();
-    for (const p of roster.people) {
-        const en = p.name_en ?? p.name;
-        const built: Person = { name: p.name, name_en: en, name_short: short(p.name), name_short_en: short(en), image: null, profileUrl: p.profileUrl ?? null, roles: [] };
-        for (const r of p.cityRoles ?? []) {
-            built.roles.push({ type: 'city', name: r.name, name_en: r.name_en, isHead: Boolean(r.isHead),
-                               startDate: r.startDate ?? null, endDate: r.endDate ?? null });
-        }
-        if (p.party) {
-            const h = heads.get(headKey(p.party, p.name));
-            built.roles.push({ type: 'party', partyName: p.party, name: h ? h.title : null, name_en: h ? h.title_en : null,
-                               isHead: Boolean(h), startDate: null, endDate: null });
-        }
-        people.set(p.name, built);
-    }
-    for (const body of roster.bodies) {
-        body.members.forEach((m, i) => {
-            people.get(m)?.roles.push({ type: 'adminBody', administrativeBodyName: body.name, name: null, name_en: null,
-                                        isHead: false, startDate: null, endDate: null, electedOrder: i + 1 });
-        });
-    }
-    const payload: Payload = {
-        cityId: roster.cityId,
-        parties: roster.parties.map(p => ({ name: p.name, name_en: p.name_en, name_short: p.name_short,
-                                            name_short_en: p.name_short_en ?? p.name_short, colorHex: p.colorHex, logo: null })),
-        administrativeBodies: roster.bodies.map(b => ({ name: b.name, name_en: b.name_en, type: b.type,
-                                                      ...(b.youtubeChannelUrl ? { youtubeChannelUrl: b.youtubeChannelUrl } : {}) })),
-        people: [...people.values()],
-    };
-    const council = roster.bodies.find(b => b.type === 'council');
-    return { payload, councilOrder: council ? council.members : [], errors };
 }
 
 const dates = (r: Role) => [r.startDate && `from ${r.startDate}`, r.endDate && `to ${r.endDate}`].filter(Boolean).join(' ');
@@ -370,10 +297,11 @@ const byFirstThenName = <T extends [number | boolean, string]>(a: T, b: T) =>
 /** Every role, grouped, for the checkpoint presentation. */
 export function summary(payload: Payload, electedOn: Map<string, string> = new Map()): string {
     const lines: string[] = [];
+    const at = Date.now();
     for (const body of payload.administrativeBodies) {
         const rows: Array<[number, string, string | null, Role]> = [];
         for (const p of payload.people) {
-            for (const r of p.roles) if (r.administrativeBodyName === body.name) rows.push([(r.electedOrder as number | null) ?? 0, p.name, partyOf(p), r]);
+            for (const r of p.roles ?? []) if (r.administrativeBodyName === body.name) rows.push([(r.electedOrder as number | null) ?? 0, p.name, partyOf(p, at), r]);
         }
         lines.push(`\n### ${body.name} (${body.type}, ${rows.length} roles)`);
         lines.push(`    channel: ${body.youtubeChannelUrl ?? 'none'}${body.diavgeiaUnitIds ? ` · Diavgeia units: ${body.diavgeiaUnitIds.join(', ')}` : ''}`);
@@ -386,43 +314,41 @@ export function summary(payload: Payload, electedOn: Map<string, string> = new M
     }
     lines.push('\n### City roles (current, then ENDED)');
     const city: Array<[boolean, string, string, Role]> = payload.people.flatMap(p =>
-        p.roles.filter(r => r.type === 'city').map(r => [Boolean(r.endDate), r.name as string, p.name, r] as [boolean, string, string, Role]));
+        (p.roles ?? []).filter(r => r.type === 'city').map(r => [Boolean(r.endDate), r.name as string, p.name, r] as [boolean, string, string, Role]));
     city.sort((a, b) => byFirstThenName([a[0], a[1]], [b[0], b[1]]));
     for (const [ended, , n, r] of city) lines.push(`  ${ended ? 'ENDED ' : ''}${n} · ${r.name} / ${r.name_en} ${dates(r)}`.trimEnd());
-    lines.push('\n### Party leaders');
+    lines.push('\n### Party roles (current, then ENDED / FUTURE)');
     const led = new Set<string>();
-    for (const p of payload.people) {
-        for (const r of p.roles) {
-            if (r.type === 'party' && r.isHead) {
-                lines.push(`  ${r.partyName}: ${p.name}`);
-                led.add(r.partyName as string);
-            }
-        }
+    const partyRoles = payload.people.flatMap(p => (p.roles ?? []).filter(r => r.type === 'party').map(r => ({
+        person: p.name, role: r,
+        state: activeAt(r, at) ? 0 : r.endDate && Date.parse(String(r.endDate)) <= at ? 1 : 2,
+    })));
+    partyRoles.sort((a, b) => byFirstThenName([a.state, a.person], [b.state, b.person]));
+    for (const { person, role: r, state } of partyRoles) {
+        const status = state === 1 ? 'ENDED ' : state === 2 ? 'FUTURE ' : '';
+        const title = r.name ? ` · ${r.name}${r.name_en ? ` / ${r.name_en}` : ''}` : '';
+        lines.push(`  ${status}${r.partyName}: ${person}${title}${r.isHead ? ' · HEAD' : ''} ${dates(r)}`.trimEnd());
+        if (state === 0 && r.isHead) led.add(r.partyName as string);
     }
     for (const party of payload.parties) if (!led.has(party.name as string)) lines.push(`  ${party.name}: NO LEADER`);
     return lines.join('\n');
 }
 
-/** The problems populate_city would refuse the payload for: its schema, which also checks that each role names a party or body of the payload. */
-export function validate(payload: Payload): string[] {
-    const parsed = cityPopulationSchema.safeParse(payload);
-    return parsed.success ? [] : parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`);
-}
-
-function build(roster: GreekRoster | GenericRoster): Built {
-    return 'factions' in roster ? buildGreek(roster) : buildGeneric(roster);
-}
-
 function main(argv: string[]) {
     const args = argv.filter(a => !a.startsWith('--'));
     if (!args[0]) {
-        console.error('usage: payload.ts <roster.json> [<payload.json>] [--summary]');
+        console.error('usage: payload.ts <roster.json | payload.json> [<payload.json>] [--summary]');
         process.exit(2);
     }
-    const rosterPath = args[0];
-    const out = args[1] ?? path.join(path.dirname(path.resolve(rosterPath)), 'payload.json');
-    const roster = JSON.parse(fs.readFileSync(rosterPath, 'utf8')) as GreekRoster | GenericRoster;
-    const { payload, councilOrder, errors } = build(roster);
+    const input = JSON.parse(fs.readFileSync(args[0], 'utf8')) as GreekRoster | Payload;
+    if (!('factions' in input)) {
+        const roles = input.people.reduce((sum, p) => sum + (p.roles?.length ?? 0), 0);
+        console.log(`${args[0]}: ${input.people.length} people, ${roles} roles`);
+        console.log(summary(input));
+        return;
+    }
+    const out = args[1] ?? path.join(path.dirname(path.resolve(args[0])), 'payload.json');
+    const { payload, councilOrder, errors } = buildGreek(input);
     if (errors.length) {
         for (const e of errors) console.error('ERROR', e);
         process.exit(1);
@@ -432,17 +358,10 @@ function main(argv: string[]) {
     console.log(`${out}: ${payload.people.length} people, ${councilOrder.length} council members, ${roles} roles`);
     councilOrder.forEach((n, i) => console.log(`  ${String(i + 1).padStart(2)} ${n}`));
     if (argv.includes('--summary')) {
-        const electedOn = new Map('factions' in roster
-            ? roster.factions.flatMap(f => f.members.filter(x => x.independent).map(x => [x.name, f.party] as [string, string]))
-            : []);
+        const electedOn = new Map(input.factions.flatMap(f =>
+            f.members.filter(x => x.independent).map(x => [x.name, f.party] as [string, string])));
         console.log(summary(payload, electedOn));
     }
-    const problems = validate(payload);
-    if (problems.length) {
-        for (const p of problems) console.log(p);
-        process.exit(1);
-    }
-    console.log('VALID');
 }
 
 if (require.main === module) main(process.argv.slice(2));
