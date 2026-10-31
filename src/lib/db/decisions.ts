@@ -229,8 +229,8 @@ export async function getDecisionCountsForCity(cityId: string): Promise<MeetingD
 
 export interface SubjectExtractedData {
     subjectId: string;
-    attendance: { personId: string; personName: string; status: AttendanceStatus }[];
-    votes: { personId: string; personName: string; voteType: VoteType }[];
+    attendance: { personId: string; personName: string; status: AttendanceStatus; source: DataSource }[];
+    votes: { personId: string; personName: string; voteType: VoteType; source: DataSource }[];
 }
 
 export async function getExtractedDataForMeeting(
@@ -250,6 +250,7 @@ export async function getExtractedDataForMeeting(
                 select: {
                     personId: true,
                     status: true,
+                    source: true,
                     person: { select: { name: true } },
                 },
                 orderBy: { person: { name: 'asc' } },
@@ -258,6 +259,7 @@ export async function getExtractedDataForMeeting(
                 select: {
                     personId: true,
                     voteType: true,
+                    source: true,
                     person: { select: { name: true } },
                 },
                 orderBy: { person: { name: 'asc' } },
@@ -273,11 +275,13 @@ export async function getExtractedDataForMeeting(
                 personId: a.personId,
                 personName: a.person.name,
                 status: a.status,
+                source: a.source,
             })),
             votes: s.votes.map(v => ({
                 personId: v.personId,
                 personName: v.person.name,
                 voteType: v.voteType,
+                source: v.source,
             })),
         }));
 }

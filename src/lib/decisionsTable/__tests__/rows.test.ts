@@ -53,11 +53,27 @@ describe('buildDecisionTable', () => {
         expect(untitled.subject.name).toBe('Summary name');
     });
 
-    it('marks a row with no decision as pending, whatever votes it holds', () => {
+    it('keeps public rows pending before a decision is linked', () => {
         const [row] = buildDecisionTable([subject({ votes: [{ voteType: 'FOR' }] })]).rows;
         expect(row.decision).toBeNull();
         expect(row.result).toBe('none');
         expect(row.voteCounts).toBeNull();
+    });
+
+    it('uses a stated outcome when dissent-only rows cannot represent the full vote', () => {
+        const [row] = buildDecisionTable([subject({
+            statedOutcome: 'majority', votes: [{ voteType: 'AGAINST' }],
+        })], { includeUnlinkedVotes: true }).rows;
+        expect(row.result).toBe('majority');
+        expect(row.voteCounts).toBeNull();
+    });
+
+    it('uses complete vote rows in preference to a stated outcome', () => {
+        const [row] = buildDecisionTable([subject({
+            statedOutcome: 'majority', votes: [{ voteType: 'FOR' }],
+        })], { includeUnlinkedVotes: true }).rows;
+        expect(row.result).toBe('unanimous');
+        expect(row.voteCounts).toMatchObject({ forCount: 1 });
     });
 
     it('carries the decision number, or the protocol number when the document carries no number of its own', () => {

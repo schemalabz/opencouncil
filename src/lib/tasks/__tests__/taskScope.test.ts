@@ -5,7 +5,7 @@ describe('taskScope', () => {
     const cityTypes = Object.entries(TASK_CONFIG).filter(([, config]) => config.scope === 'city').map(([type]) => type);
 
     it('gives the meeting scope to the tasks that a body admin runs, and no other', () => {
-        expect(meetingTypes.sort()).toEqual(['fixTranscript', 'generateHighlight', 'processAgenda', 'summarize', 'transcribe']);
+        expect(meetingTypes.sort()).toEqual(['fixTranscript', 'generateHighlight', 'processAgenda', 'readAttendanceSheet', 'readTranscriptFacts', 'summarize', 'transcribe']);
         expect(cityTypes.sort()).toEqual(['generateVoiceprint', 'humanReview', 'pollDecisions', 'transcriptSent']);
     });
 

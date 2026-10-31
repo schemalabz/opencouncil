@@ -1,7 +1,8 @@
 import type { NonAgendaReason, VoteType } from '@prisma/client';
+import type { StatedOutcomeWord } from '@/lib/derivation/types';
 import { compareAgendaPosition } from '@/lib/utils';
 import { agendaItemTitleOrName, isRecordSubject, recordSection, type RecordSection } from '@/lib/utils/subjects';
-import { hasRecordedVote, resultKey, type ResultKey } from '@/lib/utils/decisionResult';
+import { hasRecordedVote, resultKey, rowsCoverVote, type ResultKey } from '@/lib/utils/decisionResult';
 import { calculateVoteResult, type VoteCounts } from '@/lib/utils/votes';
 
 /**
@@ -20,6 +21,8 @@ export interface DecisionTableSubject {
     withdrawn: boolean;
     /** What the transcript says the body decided (`Subject.outcome`). */
     outcome: string | null;
+    /** The outcome explicitly stated by a sheet or transcript source. */
+    statedOutcome?: StatedOutcomeWord | null;
     decision: {
         decisionNumber: string | null;
         protocolNumber: string | null;
@@ -84,9 +87,12 @@ export interface DecisionTable {
  * builder, so the three cannot disagree on which subjects are rows, in what
  * order, or on the result word beside each one.
  */
-export function buildDecisionTable(subjects: ReadonlyArray<DecisionTableSubject>): DecisionTable {
+export function buildDecisionTable(
+    subjects: ReadonlyArray<DecisionTableSubject>,
+    { includeUnlinkedVotes = false }: { includeUnlinkedVotes?: boolean } = {},
+): DecisionTable {
     return {
-        rows: orderRecordSubjects(subjects).map(buildRow),
+        rows: orderRecordSubjects(subjects).map(subject => buildRow(subject, includeUnlinkedVotes)),
         beforeAgenda: subjects
             .filter(s => !isRecordSubject(s))
             .map(s => ({ id: s.id, name: agendaItemTitleOrName(s) })),
@@ -110,8 +116,9 @@ export function orderRecordSubjects<T extends {
     ];
 }
 
-function buildRow(subject: DecisionTableSubject): DecisionTableRow {
-    const result = resultKey({ withdrawn: subject.withdrawn, hasDecision: subject.decision !== null, votes: subject.votes });
+function buildRow(subject: DecisionTableSubject, includeUnlinkedVotes: boolean): DecisionTableRow {
+    // Public tables retain their pending result until an official decision is linked.
+    const result = !subject.withdrawn && !subject.decision && !includeUnlinkedVotes ? 'none' : resultKey({ withdrawn: subject.withdrawn, hasDecision: subject.decision !== null, votes: subject.votes, statedOutcome: subject.statedOutcome });
     return {
         subject: {
             id: subject.id,
@@ -129,7 +136,7 @@ function buildRow(subject: DecisionTableSubject): DecisionTableRow {
             }
             : null,
         result,
-        voteCounts: hasRecordedVote(result) ? calculateVoteResult([...subject.votes]) : null,
+        voteCounts: hasRecordedVote(result) && rowsCoverVote(subject) ? calculateVoteResult([...subject.votes]) : null,
         summary: summaryOf(subject),
     };
 }

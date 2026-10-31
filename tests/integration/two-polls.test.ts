@@ -93,8 +93,12 @@ describe('two polls of one meeting', () => {
         await prisma.meetingAttendance.create({ data: { cityId, councilMeetingId: meetingId, personId: a.id, status: 'ABSENT', source: 'manual' } })
         const out = await deriveAndPersist(cityId, meetingId)
         expect(await statusOf(a.id, 1)).toBe('ABSENT')
-        // No product path writes a manual roll call yet, so the precedence
-        // decides without a report (rankRollCall in replayAttendance.ts).
-        expect(out.issues.filter(i => i.code === 'SOURCES_DISAGREE')).toEqual([])
+        // The precedence decides, and each subject's losing row is reported
+        // (rankRollCall in replayAttendance.ts).
+        const disagreements = out.issues.filter(i => i.code === 'SOURCES_DISAGREE')
+        expect(disagreements.length).toBeGreaterThan(0)
+        for (const issue of disagreements) {
+            expect(issue).toMatchObject({ personId: a.id, params: { kind: 'rollCall', winSource: 'manual', winStatus: 'ABSENT', loseSource: 'decision', loseStatus: 'PRESENT' } })
+        }
     })
 })

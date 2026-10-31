@@ -7,6 +7,7 @@ import { ISSUE_SEVERITY, groupByCode } from '@/lib/derivation/issueCatalogue';
 import { renderIssue, renderIssuePerson, renderIssueStages } from '@/lib/derivation/issueText';
 import { ExplainDerivationLink, SeverityChip, SeverityDot } from './auditGlossary';
 import type { AuditIssue } from './auditSignal';
+import { IssueEvidence, type EvidenceLinks } from './IssueEvidence';
 
 /**
  * Every issue of one subject, in a row that spans the whole table under the
@@ -22,12 +23,14 @@ import type { AuditIssue } from './auditSignal';
  * A region named by its heading, so `aria-controls` on the line points a
  * screen reader at something with a name.
  */
-export function AuditIssueRow({ id, issues, onClose, onExplainDerivation }: {
+export function AuditIssueRow({ id, issues, onClose, onExplainDerivation, evidenceLinks }: {
     id: string;
     issues: AuditIssue[];
     onClose: () => void;
     /** Opens the page's account of the whole derivation. The link is offered only when there is one. */
     onExplainDerivation?: () => void;
+    /** Where a statement cited by an issue can be checked: the recording, the sheet. */
+    evidenceLinks?: EvidenceLinks;
 }) {
     const t = useTranslations('admin.decisionsPage');
     const headingId = useId();
@@ -78,6 +81,7 @@ export function AuditIssueRow({ id, issues, onClose, onExplainDerivation }: {
                                             {issue.rawText && !message.includes(issue.rawText) && (
                                                 <span className="block text-muted-foreground/70">{`«${issue.rawText}»`}</span>
                                             )}
+                                            <IssueEvidence issue={issue} links={evidenceLinks} />
                                         </li>
                                     );
                                 })}

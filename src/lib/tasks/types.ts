@@ -76,6 +76,16 @@ export const TASK_CONFIG = {
     discordAlertMode: 'none',
     concurrentRuns: true,
   },
+  // The back office's attendance sheet, read into what it states (issue #807).
+  readAttendanceSheet: {
+    scope: 'meeting',
+    requiredForPipeline: false,
+  },
+  // The meeting-facts pass of fixTranscript on its own, for a rerun after review.
+  readTranscriptFacts: {
+    scope: 'meeting',
+    requiredForPipeline: false,
+  },
 } satisfies Record<string, TaskConfig>;
 
 // Derive MeetingTaskType from the configuration

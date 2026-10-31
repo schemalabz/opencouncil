@@ -1,13 +1,17 @@
 const mockReadDerivationRows = jest.fn();
 const mockReplaceDerivedRows = jest.fn();
+const mockDeleteDerivedRowsOfSources = jest.fn();
 jest.mock('@/lib/db/derivationFacts', () => ({
+    sourcesVersionOf: () => null,
     readDerivationRows: (...a: unknown[]) => mockReadDerivationRows(...a),
     replaceDerivedRows: (...a: unknown[]) => mockReplaceDerivedRows(...a),
+    deleteDerivedRowsOfSources: (...a: unknown[]) => mockDeleteDerivedRowsOfSources(...a),
+    readUtteranceSpeakers: async () => new Map(),
 }));
 
 import { derivationSkipIssue, hasNothingToDeriveFrom, deriveAndPersist } from '../persist';
 import { deriveMeetingFacts } from '../deriveMeetingFacts';
-import type { DerivationInput, DocumentFacts } from '../types';
+import type { DerivationInput, DocumentFacts, SourceFacts } from '../types';
 
 /** A read page prints the roll call «p1 present» unless told otherwise; an unread one states nothing. */
 const doc = (subjectId: string, hasExtraction: boolean, rollCallPresentIds: string[] | null = hasExtraction ? ['p1'] : null): DocumentFacts => ({
@@ -17,6 +21,7 @@ const doc = (subjectId: string, hasExtraction: boolean, rollCallPresentIds: stri
 });
 
 const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
+    sources: [], partyMembers: new Map(), 
     cityId: 'c', meetingId: 'm', mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null, bodyType: null, cityMayorPersonId: null,
     subjects: [
         { id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' },
@@ -65,6 +70,15 @@ describe('derivationSkipIssue', () => {
             .toMatchObject({ code: 'NO_STORED_FACTS' });
     });
 
+    it('derives from the sheet while every page is still unread, unless a page holds votes to lose', () => {
+        const sheet: SourceFacts = { source: 'sheet', rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'sheet' }], statedChanges: [], votes: [], unplacedVotes: [], presidedById: null, presidedByName: null, nameMatches: null, unmatchedNames: [] };
+        const i = input({ documents: [doc('s1', false), doc('s2', false)], sources: [sheet] });
+        expect(derivationSkipIssue(i)).toBeNull();
+        expect(deriveMeetingFacts(i).attendance.some(a => a.subjectId === 's1' && a.personId === 'p1')).toBe(true);
+        expect(derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', false)], sources: [sheet], subjectIdsWithStoredVotes: ['s1'] })))
+            .toMatchObject({ code: 'NO_STORED_FACTS' });
+    });
+
     it('refuses the write when no page prints a roll call and no other source states one', () => {
         expect(derivationSkipIssue(input({ documents: [doc('s1', true, null), doc('s2', true, null)] })))
             .toMatchObject({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' } });
@@ -86,7 +100,8 @@ describe('derivationSkipIssue', () => {
 });
 
 describe('deriveAndPersist', () => {
-    const rows = (over: Partial<DerivationInput> = {}) => {
+    type FactSourceRow = { source: 'sheet' | 'transcript'; status: 'uploaded' | 'read'; reading: unknown };
+    const rows = (over: Partial<DerivationInput> = {}, factSources: FactSourceRow[] = []) => {
         const i = input(over);
         mockReadDerivationRows.mockResolvedValue({
             meeting: {
@@ -112,6 +127,8 @@ describe('deriveAndPersist', () => {
             rollCall: i.rollCall,
             events: i.events,
             people: [{ id: 'p1', roles: [] }],
+            factSources,
+            parties: [],
             subjectIdsWithStoredVotes: i.subjectIdsWithStoredVotes,
         });
     };
@@ -119,6 +136,7 @@ describe('deriveAndPersist', () => {
     beforeEach(() => {
         mockReadDerivationRows.mockReset();
         mockReplaceDerivedRows.mockReset();
+        mockDeleteDerivedRowsOfSources.mockReset();
     });
 
     it('writes when the unread document has no rows to lose', async () => {
@@ -143,6 +161,31 @@ describe('deriveAndPersist', () => {
         expect(out.issues.map(i => i.code)).toEqual(['NO_ROLL_CALL']);
     });
 
+    it('drops the rows of the sheet and the transcript when neither states anything and the write is refused', async () => {
+        rows({ documents: [doc('s1', true, null), doc('s2', true, null)] });
+        await deriveAndPersist('c', 'm');
+        expect(mockDeleteDerivedRowsOfSources).toHaveBeenCalledWith({ cityId: 'c', meetingId: 'm' }, ['s1', 's2'], ['sheet', 'transcript'], { sourcesVersion: null });
+    });
+
+    it('drops the rows of a source that still counts when no source states a roll call: they came from an earlier reading', async () => {
+        rows(
+            { documents: [doc('s1', true, null), doc('s2', true, null)] },
+            [{ source: 'transcript', status: 'read', reading: { rollCall: null, attendanceChanges: [], votes: [], presidedBy: null, nameMatches: [], unmatchedNames: [], warnings: [] } }],
+        );
+        await deriveAndPersist('c', 'm');
+        expect(mockDeleteDerivedRowsOfSources).toHaveBeenCalledWith({ cityId: 'c', meetingId: 'm' }, ['s1', 's2'], ['sheet', 'transcript'], { sourcesVersion: null });
+    });
+
+    it('keeps the rows of a source that still states something when the write is refused for another reason', async () => {
+        rows(
+            { documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredVotes: ['s1'] },
+            [{ source: 'transcript', status: 'read', reading: { rollCall: null, attendanceChanges: [], votes: [], presidedBy: null, nameMatches: [], unmatchedNames: [], warnings: [] } }],
+        );
+        const out = await deriveAndPersist('c', 'm');
+        expect(out.issues.map(i => i.code)).toEqual(['NO_STORED_FACTS']);
+        expect(mockDeleteDerivedRowsOfSources).toHaveBeenCalledWith({ cityId: 'c', meetingId: 'm' }, ['s1', 's2'], ['sheet'], { sourcesVersion: null });
+    });
+
     it('writes the derived rows, and the roll call the pages resolve, when the input is complete', async () => {
         rows();
         await deriveAndPersist('c', 'm', 'task-1');
@@ -152,7 +195,7 @@ describe('deriveAndPersist', () => {
         expect(subjectIds).toEqual(['s1', 's2']);
         expect(attendance.length).toBeGreaterThan(0);
         expect(votes.length).toBeGreaterThan(0);
-        expect(rollCall).toEqual([{ personId: 'p1', status: 'PRESENT' }]);
+        expect(rollCall).toEqual([{ personId: 'p1', status: 'PRESENT', source: 'decision' }]);
         expect(events).toEqual([]);
         expect(taskId).toBe('task-1');
     });

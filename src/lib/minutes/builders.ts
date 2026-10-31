@@ -6,6 +6,7 @@ import { splitAttendance } from '@/lib/utils/attendance';
 import { compareAgendaPosition } from '@/lib/utils';
 import { isRecordSubject } from '@/lib/utils/subjects';
 import { phrasePermitsInference, phraseOutcome, type PhraseOutcome } from '@/lib/derivation/deriveVotes';
+import type { StatedOutcomeWord } from '@/lib/derivation/types';
 import { decisionOrdinal, placeEvents, type PlaceableEvent } from '@/lib/derivation/placeEvents';
 import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import {
@@ -134,12 +135,14 @@ export function buildVoteResult(
     resolveMember: MemberResolver,
     getElectedOrder: ElectedOrderGetter,
     phrase: string | null = null,
+    /** The outcome the statement states in its own words, when its phrase names none: the sheet's or the transcript's rejection. */
+    statedOutcome: StatedOutcomeWord | null = null,
 ): MinutesVoteResult | null {
     // No FOR row under a phrase that says a vote carried is the derivation
     // declining to infer: the page counts in favour without naming, and the
     // members present do not fit that count. The rows then hold only the named
     // dissent, and counting them would print a carried decision as rejected.
-    const permits = !!phrase && phrasePermitsInference(phrase);
+    const permits = !!phrase && (phrasePermitsInference(phrase) || statedOutcome !== null);
     const fromPhraseOnly = !votes.some(v => v.voteType === 'FOR') && permits;
     if (votes.length === 0 && !fromPhraseOnly) return null;
 
@@ -181,7 +184,8 @@ export function buildVoteResult(
     if (fromPhraseOnly) {
         return {
             forMembers, againstMembers, abstainMembers, presentMembers, didNotVoteMembers, absentMembers,
-            fromPhraseOnly: true, outcome: phraseOutcome(phrase), phrase,
+            // A rejection has no outcome word of its own here: the phrase prints whole.
+            fromPhraseOnly: true, outcome: statedOutcome === 'rejected' ? null : statedOutcome ?? phraseOutcome(phrase), phrase,
         };
     }
 
