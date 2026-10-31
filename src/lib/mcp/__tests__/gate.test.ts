@@ -33,7 +33,7 @@ function row(released: boolean) {
         videoUrl: null,
         administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', showUnreviewedTranscript: true },
         taskStatuses: [],
-        city: { timezone: 'Europe/Athens', realm: 'greece' },
+        city: { timezone: 'Europe/Athens', realm: 'greece', language: 'el' },
     };
 }
 function payload(released: boolean, editor: boolean | null) {
@@ -42,6 +42,7 @@ function payload(released: boolean, editor: boolean | null) {
         dateTime: new Date('2026-05-12T18:00:00Z'),
         name: 'Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 12/05/2026',
         locale: 'el',
+        contentLanguage: 'el',
         videoUrl: null,
         administrativeBody: { name: 'Δημοτικό Συμβούλιο' },
         publicTranscript: true,
@@ -114,11 +115,12 @@ describe('requireVisibleMeeting', () => {
             dateTime: new Date('2026-10-20T15:00:00Z'),
             kind: null,
             administrativeBody: { name: 'Rada Miasta Krakowa', name_en: 'Kraków City Council', showUnreviewedTranscript: true },
-            city: { timezone: 'Europe/Warsaw', realm: 'poland' },
+            city: { timezone: 'Europe/Warsaw', realm: 'poland', language: 'pl' },
         });
         await expect(requireVisibleMeeting('krakow', 'm1', null)).resolves.toMatchObject({
             name: 'Kraków City Council · Meeting 20/10/2026',
             locale: 'en',
+            contentLanguage: 'pl',
         });
 
         mockMeetingFindFirst.mockResolvedValue({ ...row(true), city: { timezone: 'Europe/Paris', realm: 'france' } });
@@ -128,7 +130,7 @@ describe('requireVisibleMeeting', () => {
     it('reads the body of the meeting in the same query', async () => {
         mockMeetingFindFirst.mockResolvedValue(row(true));
         await requireVisibleMeeting('athens', 'm1', null);
-        expect(mockMeetingFindFirst.mock.calls[0][0].select).toMatchObject({ administrativeBodyId: true });
+        expect(mockMeetingFindFirst.mock.calls[0][0].select).toMatchObject({ administrativeBodyId: true, city: { select: { language: true } } });
     });
 
     it('404s missing meetings for everyone', async () => {

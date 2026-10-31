@@ -65,7 +65,7 @@ function PartyMembersTab({
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(city.language);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
     // The picker sits in the current-members header and offers the bodies those
@@ -140,6 +140,7 @@ function PartyMembersTab({
                             <PersonCard
                                 key={person.id}
                                 item={person}
+                                cityLanguage={city.language}
                                 editable={canEdit}
                                 analyticsSurface="party_members"
                             />
@@ -209,6 +210,7 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
+    cityLanguage,
     typeOptions,
     selectedType,
     onSelectType,
@@ -222,6 +224,7 @@ function SegmentsTab({
     allLabel,
     timezone
 }: {
+    cityLanguage: string,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
@@ -289,6 +292,7 @@ function SegmentsTab({
                                 transition={{ delay: 0.1 * index }}
                             >
                                 <ContributionCard
+                                    cityLanguage={cityLanguage}
                                     contribution={contribution}
                                     subjectId={contribution.subject.id}
                                     meeting={{
@@ -664,6 +668,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
 
                             <TabsContent value="contributions" className="mt-6">
                                 <SegmentsTab
+                                    cityLanguage={city.language}
                                     typeOptions={typeOptions}
                                     selectedType={selectedAdminBodyType}
                                     onSelectType={handleAdminBodyTypeSelect}

@@ -60,6 +60,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
                         </div>
 
                         <PersonBadge
+                            cityLanguage={result.meeting.city.language}
                             person={result.person || undefined}
                         />
                     </div>

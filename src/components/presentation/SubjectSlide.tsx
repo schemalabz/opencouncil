@@ -9,11 +9,12 @@ import SpeakerTimer from "./SpeakerTimer";
 
 interface SubjectSlideProps {
     subject: SubjectWithRelations;
+    cityLanguage?: string;
 }
 
-export default function SubjectSlide({ subject }: SubjectSlideProps) {
+export default function SubjectSlide({ subject, cityLanguage }: SubjectSlideProps) {
     const t = useTranslations("presentation");
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(cityLanguage);
     const locale = useLocale();
     const introducer = subject.introducedBy;
     const introducerParty = introducer ? getPartyFromRoles(introducer.roles) : null;

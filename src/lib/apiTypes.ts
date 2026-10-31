@@ -18,13 +18,13 @@ export interface TaskRequest {
 // Content language of the city a task runs for. Kept as a self-contained string
 // union (this file is the backend contract and has no Prisma imports); mirrors
 // the Prisma `CityLanguage` enum.
-export type CityLanguage = 'el' | 'fr' | 'sr' | 'de' | 'nl' | 'it' | 'pl' | 'pt' | 'es' | 'fi' | 'ca' | 'sv' | 'gl';
+export type CityLanguage = 'el' | 'fr' | 'sr' | 'de' | 'nl' | 'it' | 'pl' | 'pt' | 'es' | 'fi' | 'ca' | 'sv' | 'gl' | 'bs' | 'en' | 'cy' | 'ga' | 'da' | 'no' | 'is' | 'et' | 'lv' | 'lt' | 'cs' | 'sk' | 'hu' | 'sl' | 'hr' | 'ro' | 'bg' | 'mk' | 'mt' | 'lb' | 'uk' | 'ru' | 'tr' | 'sq' | 'eu';
 
-// ISO 3166-1 alpha-2 code (uppercase) of the country a task's city is in. The
+// Uppercase country code (ISO 3166-1 alpha-2, plus XK for Kosovo). The
 // backend restricts geocoding of subject locations to it; without it everything
 // is geocoded as if it were in Greece. Comes from the city's realm, not its
 // language — see `getRealmCountry`.
-export type Country = 'GR' | 'FR' | 'CY' | 'RS' | 'AT' | 'BE' | 'FI' | 'DE' | 'IT' | 'NL' | 'PL' | 'PT' | 'ES';
+export type Country = 'GR' | 'FR' | 'CY' | 'RS' | 'AT' | 'BE' | 'FI' | 'DE' | 'IT' | 'NL' | 'PL' | 'PT' | 'ES' | 'BA' | 'AD' | 'AL' | 'BG' | 'CH' | 'CZ' | 'DK' | 'EE' | 'GB' | 'HR' | 'HU' | 'IE' | 'IS' | 'LI' | 'LT' | 'LU' | 'LV' | 'MC' | 'MD' | 'ME' | 'MK' | 'MT' | 'NO' | 'RO' | 'SE' | 'SI' | 'SK' | 'SM' | 'UA' | 'XK';
 
 /*
  * System endpoints

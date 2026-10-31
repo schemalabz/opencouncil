@@ -41,7 +41,7 @@ export default function Hero({ realm, stage, shots, onContactClick }: HeroProps)
                         {pending ? (
                             <div className="inline-flex items-start gap-2 rounded-2xl bg-[hsl(24,100%,96%)] py-[7px] pl-2.5 pr-3 text-[12.5px] font-semibold leading-snug text-[hsl(var(--orange-deep))]">
                                 <span aria-hidden className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-[hsl(var(--orange))]" />
-                                <span>{t(`pilot.${realm}`)}</span>
+                                <span>{t.has(`pilot.${realm}`) ? t(`pilot.${realm}`) : t('pilot.default')}</span>
                             </div>
                         ) : (
                             <Kicker>{t('kicker')}</Kicker>

@@ -585,6 +585,8 @@ export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | '
 export interface RoleTitles {
   t: RoleTextTranslator;
   locale: string;
+  /** Language of the stored role names, independently of the reader's locale. */
+  contentLanguage?: string;
 }
 
 type TitleFields = RoleKindFields & { isHead: boolean; name: string | null };
@@ -598,16 +600,15 @@ const HEAD_TITLE_KEY = { city: 'mayor', body: 'president', party: 'partyLeader' 
  * a stored name overrides it. `name_en` is not read: it holds machine
  * translations of uneven quality.
  *
- * The stored name is written in the city's language, a `CityLanguage`, which is
- * never `en`. So `en` is the one locale where the stored name is foreign: there
- * the translated head title wins, and a role that is not a head keeps its
- * stored name.
+ * On an English translation of another language, the translated head title
+ * wins. Native English councils keep their stored titles. Unknown content
+ * languages retain the translation behavior used by existing callers.
  */
-export function getRoleTitle(role: TitleFields, { t, locale }: RoleTitles): string | null {
+export function getRoleTitle(role: TitleFields, { t, locale, contentLanguage }: RoleTitles): string | null {
   const kind = getRoleKind(role);
   const headTitle = role.isHead && kind ? t(HEAD_TITLE_KEY[kind]) : null;
   const stored = role.name ? localizeText(role.name, locale) : null;
-  const storedNameIsForeign = locale === 'en';
+  const storedNameIsForeign = locale === 'en' && contentLanguage !== 'en';
   return storedNameIsForeign ? headTitle ?? stored : stored ?? headTitle;
 }
 

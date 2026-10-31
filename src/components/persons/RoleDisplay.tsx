@@ -14,6 +14,7 @@ const truncateWithEllipsis = (text: string, max: number) =>
 
 interface RoleDisplayProps {
     roles: RoleWithRelations[];
+    cityLanguage?: string;
     size?: 'sm' | 'md' | 'lg';
     layout?: 'inline' | 'stacked' | 'compact';
     maxDisplay?: number;
@@ -51,6 +52,7 @@ const getRoleVariant = (role: RoleWithRelations) => {
 
 export function RoleDisplay({
     roles,
+    cityLanguage,
     size = 'md',
     layout = 'inline',
     maxDisplay,
@@ -60,7 +62,7 @@ export function RoleDisplay({
     className
 }: RoleDisplayProps) {
     const t = useTranslations('Person');
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(cityLanguage);
 
     if (!roles.length) return null;
 

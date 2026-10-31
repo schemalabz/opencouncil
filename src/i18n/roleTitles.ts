@@ -14,7 +14,8 @@ import { catalogLocaleForCityLanguage } from './config';
  * A city language without a catalog takes the English titles, but keeps its
  * own code as `locale`: the stored role names are in that language, so they
  * still win over a translated head title (see getRoleTitle).
+ * Callers using a reader's locale pass the city's language separately.
  */
-export async function getRoleTitles(locale: string): Promise<RoleTitles> {
-    return { t: await getTranslations({ locale: catalogLocaleForCityLanguage(locale), namespace: 'Person' }), locale };
+export async function getRoleTitles(locale: string, contentLanguage = locale): Promise<RoleTitles> {
+    return { t: await getTranslations({ locale: catalogLocaleForCityLanguage(locale), namespace: 'Person' }), locale, contentLanguage };
 }

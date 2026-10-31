@@ -80,7 +80,8 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, roleLimit, currentUser] = await Promise.all([
+    const [city, partiesWithPersons, administrativeBodies, allPeople, roleLimit, currentUser] = await Promise.all([
+        getCityCached(cityId),
         getPartiesForCityCached(cityId),
         getPublicAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
@@ -94,7 +95,7 @@ export default async function PeoplePage(
     ]);
     const canEdit = roleLimit === null || roleLimit.size > 0;
 
-    if (!partiesWithPersons) {
+    if (!city || !partiesWithPersons) {
         notFound();
     }
 
@@ -104,6 +105,7 @@ export default async function PeoplePage(
             partiesWithPersons={partiesWithPersons}
             administrativeBodies={administrativeBodies}
             cityId={cityId}
+            cityLanguage={city.language}
             canEdit={canEdit}
             isSuperAdmin={!!currentUser?.isSuperAdmin}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}

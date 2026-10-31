@@ -27,7 +27,8 @@
       "netherlands": "We are looking for our first pilot municipality in the Netherlands",
       "poland": "We are looking for our first pilot municipality in Poland",
       "portugal": "We are looking for our first pilot municipality in Portugal",
-      "spain": "We are looking for our first pilot municipality in Spain"
+      "spain": "We are looking for our first pilot municipality in Spain",
+      "default": "We are looking for our first pilot municipality"
     },
     "title": "Municipal councils and committees,",
     "titleHighlight": "open to everyone",
@@ -244,7 +245,8 @@
       "netherlands": "Become the first pilot municipality in the Netherlands.",
       "poland": "Become the first pilot municipality in Poland.",
       "portugal": "Become the first pilot municipality in Portugal.",
-      "spain": "Become the first pilot municipality in Spain."
+      "spain": "Become the first pilot municipality in Spain.",
+      "default": "Become our first pilot municipality."
     },
     "subtitle": "We are looking for one municipality to launch OpenCouncil in your country. The pilot is free, for as long as it takes.",
     "points": {

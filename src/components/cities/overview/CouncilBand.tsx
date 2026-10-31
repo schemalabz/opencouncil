@@ -95,7 +95,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
                         its first word. */}
                     <div className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
                         {ordered.map(person => (
-                            <PersonRow key={person.id} person={person} cityId={city.id} locale={locale} />
+                            <PersonRow key={person.id} person={person} cityId={city.id} cityLanguage={city.language} locale={locale} />
                         ))}
                     </div>
                 </div>
@@ -104,8 +104,8 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
     );
 }
 
-function PersonRow({ person, cityId, locale }: { person: PersonWithRelations; cityId: string; locale: string }) {
-    const roleTitles = useRoleTitles();
+function PersonRow({ person, cityId, cityLanguage, locale }: { person: PersonWithRelations; cityId: string; cityLanguage: string; locale: string }) {
+    const roleTitles = useRoleTitles(cityLanguage);
     const party = getPartyFromRoles(person.roles);
     // The most prominent titled role, and the same label PersonCard prints for
     // it. Taking the first role the relation happened to return captioned the

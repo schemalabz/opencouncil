@@ -24,6 +24,7 @@ type CityPeopleProps = {
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: PublicAdministrativeBody[],
     cityId: string,
+    cityLanguage?: string;
     canEdit: boolean,
     /** Superadmin-only tools. `canEdit` is true for a city admin too, who must not get these. */
     isSuperAdmin: boolean,
@@ -39,6 +40,7 @@ export default function CityPeople({
     partiesWithPersons,
     administrativeBodies,
     cityId,
+    cityLanguage,
     canEdit,
     isSuperAdmin,
     editableBodyIds,
@@ -46,7 +48,7 @@ export default function CityPeople({
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(cityLanguage);
 
     // Both name columns, not just the localized one: a reader on the Greek page
     // may well type a councillor's name in Latin script. `getRoleText` adds the
@@ -141,11 +143,12 @@ export default function CityPeople({
 
     return (
         <>
-        <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
+        <List<PersonWithRelations, { cityLanguage?: string }, AdministrativeBodyType>
             state={state}
             editable={canEdit}
             adminTools={adminTools}
             ItemComponent={PersonCard}
+            itemProps={{ cityLanguage }}
             FormComponent={PersonForm}
             formProps={editableBodyIds
                 ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)), roleTypes: ['administrativeBody' as const] }

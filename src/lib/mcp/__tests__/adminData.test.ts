@@ -327,7 +327,10 @@ describe('list_realms', () => {
         ]);
         const { realms } = await inRealm(Realm.greece, () => mcpListRealms(SUPERADMIN_TOKEN));
 
-        expect(realms).toHaveLength(13);
+        expect(realms).toHaveLength(Object.values(Realm).length);
+        expect(realms.find((r) => r.realm === 'bosnia')).toMatchObject({
+            country: 'BA', domain: 'ba.opencouncil.eu', uiLanguage: 'en', stage: 'pending',
+        });
         expect(realms.find((r) => r.realm === 'greece')).toMatchObject({ domain: 'opencouncil.gr', thisConnection: true, cities: { supported: 13, pending: 0 } });
         expect(realms.find((r) => r.realm === 'poland')).toMatchObject({
             country: 'PL', countryName: 'Poland', domain: 'opencouncil.pl', uiLanguage: 'en', stage: 'pending',

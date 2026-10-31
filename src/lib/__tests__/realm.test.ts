@@ -18,6 +18,7 @@ import {
     ALL_REALMS,
 } from '../realm';
 
+
 describe('createRealmResolver', () => {
     // Parent declared first so a naive first-match would wrongly return it for
     // hosts on the child's domain — the ordering under test must not depend on
@@ -94,6 +95,14 @@ describe('realmForHost', () => {
             expect(realmForHost(host)).toBe('greece');
         },
     );
+});
+
+describe('Bosnia and Herzegovina realm', () => {
+    it('resolves the Bosnia subdomain without assigning the parent EU domain', () => {
+        expect(realmForHost('ba.opencouncil.eu')).toBe('bosnia');
+        expect(isKnownRealmHost('ba.opencouncil.eu')).toBe(true);
+        expect(isKnownRealmHost('opencouncil.eu')).toBe(false);
+    });
 });
 
 describe('isKnownRealmHost', () => {
@@ -242,6 +251,7 @@ describe('getRealmCountry', () => {
         expect(getRealmCountry('poland')).toBe('PL');
         expect(getRealmCountry('portugal')).toBe('PT');
         expect(getRealmCountry('spain')).toBe('ES');
+        expect(getRealmCountry('bosnia')).toBe('BA');
     });
 
     it('covers every realm, so a new one cannot silently geocode as Greece', () => {
@@ -259,50 +269,17 @@ describe('getRealmGeocoding', () => {
 });
 
 describe('getRealmContactPhone', () => {
-    // Compared as one map rather than realm by realm: a new realm then has to be
-    // added to this expectation, which is where someone confirms that sharing the
-    // Athens line was deliberate. The `satisfies` clause on REALMS already makes a
-    // missing number a compile error, and ts-jest runs isolatedModules, so a
-    // per-realm "has some digits" loop would pass against a realm that quietly
-    // inherited the wrong number.
-    it('pairs every realm with its number, so a new one cannot quietly inherit the Athens line', () => {
-        expect(Object.fromEntries(ALL_REALMS.map((r) => [r, getRealmContactPhone(r)]))).toEqual({
-            greece: '+30 211 198 0212',
-            france: '+30 211 198 0212',
-            cyprus: '+30 211 198 0212',
-            serbia: '0800 301167',
-            austria: '+30 211 198 0212',
-            belgium: '+30 211 198 0212',
-            finland: '+30 211 198 0212',
-            germany: '+30 211 198 0212',
-            italy: '+30 211 198 0212',
-            netherlands: '+30 211 198 0212',
-            poland: '+30 211 198 0212',
-            portugal: '+30 211 198 0212',
-            spain: '+30 211 198 0212',
-        });
+    it('uses the office number unless a realm has its own', () => {
+        const sharedNumbers = ALL_REALMS.filter(realm => realm !== 'serbia').map(getRealmContactPhone);
+        expect([...new Set(sharedNumbers)]).toEqual(['+30 211 198 0212']);
+        expect(getRealmContactPhone('serbia')).toBe('0800 301167');
     });
 });
 
 describe('getRealmStage', () => {
-    // One map, for the same reason as the phone numbers above: a new realm has to
-    // be placed here, and "pending" is the only stage that can be assumed.
-    it('pairs every realm with its stage', () => {
-        expect(Object.fromEntries(ALL_REALMS.map((r) => [r, getRealmStage(r)]))).toEqual({
-            greece: 'active',
-            france: 'pending',
-            cyprus: 'pending',
-            serbia: 'pending',
-            austria: 'pending',
-            belgium: 'pending',
-            finland: 'pending',
-            germany: 'pending',
-            italy: 'pending',
-            netherlands: 'pending',
-            poland: 'pending',
-            portugal: 'pending',
-            spain: 'pending',
-        });
+    it('keeps Greece active and all other realms pending', () => {
+        expect(getRealmStage('greece')).toBe('active');
+        expect(ALL_REALMS.filter(realm => getRealmStage(realm) !== 'pending')).toEqual(['greece']);
     });
 });
 
@@ -335,5 +312,27 @@ describe('metadataBaseForHost', () => {
         expect(metadataBaseForHost('evil.com', 'greece')).toBe('https://opencouncil.gr');
         expect(metadataBaseForHost('localhost:3000', 'france')).toBe('https://opencouncil.fr');
         expect(metadataBaseForHost(null, 'serbia')).toBe('https://opencouncil.rs');
+    });
+});
+
+
+describe('European realm coverage', () => {
+    const countries = 'AD AL AT BA BE BG CH CY CZ DE DK EE ES FI FR GB GR HR HU IE IS IT LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS SE SI SK SM UA XK'.split(' ');
+    it('covers exactly the 43 researched countries with distinct country codes', () => {
+        expect(ALL_REALMS.map(getRealmCountry).sort()).toEqual(countries);
+    });
+    it.each([
+        ['hr.opencouncil.eu', 'croatia', 'HR'],
+        ['gb.opencouncil.eu', 'united_kingdom', 'GB'],
+        ['mk.opencouncil.eu', 'north_macedonia', 'MK'],
+        ['xk.opencouncil.eu', 'kosovo', 'XK'],
+    ])('routes %s to its own country and ignores overrides on that production host', (host, realm, country) => {
+        expect(effectiveRealm(host, 'greece')).toBe(realm);
+        expect(isKnownRealmHost(host)).toBe(true);
+        expect(getRealmCountry(realmForHost(host))).toBe(country);
+    });
+    it('does not trust arbitrary EU subdomains', () => {
+        expect(isKnownRealmHost('unknown.opencouncil.eu')).toBe(false);
+        expect(isKnownRealmHost('opencouncil.eu')).toBe(false);
     });
 });

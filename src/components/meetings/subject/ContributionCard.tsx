@@ -34,6 +34,7 @@ const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : nu
 interface ContributionCardProps {
     contribution: SpeakerContribution & { id: string };
     subjectId: string;
+    cityLanguage?: string;
     highlighted?: boolean;
     meeting: { id: string; cityId: string; released: boolean };
     speaker: PersonWithRelations | null;
@@ -73,6 +74,7 @@ interface ContributionCardProps {
 export const ContributionCard = memo(function ContributionCard({
     contribution,
     subjectId,
+    cityLanguage,
     highlighted = false,
     meeting,
     speaker,
@@ -84,7 +86,7 @@ export const ContributionCard = memo(function ContributionCard({
     sourcePage = 'subject',
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(cityLanguage);
     const locale = useLocale();
     const sharing = useTranslations('sharing');
     const articleRef = useRef<HTMLElement>(null);
