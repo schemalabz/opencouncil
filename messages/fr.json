@@ -1230,6 +1230,7 @@
     "errors": {
         "verification": "Ce lien de connexion a expiré ou a déjà été utilisé. Saisissez votre e-mail pour en recevoir un nouveau.",
         "accessDenied": "Nous ne pouvons vous connecter qu'avec un compte Google dont l'e-mail est vérifié.",
+        "tooManyEmails": "Trop d'e-mails de connexion ont été demandés pour cette adresse ou depuis votre réseau. Réessayez dans {minutes, plural, one {# minute} other {# minutes}}.",
         "generic": "La connexion n'a pas abouti. Veuillez réessayer."
     },
     "error": "Un problème est survenu lors de l'envoi de l'e-mail. Veuillez réessayer plus tard.",
