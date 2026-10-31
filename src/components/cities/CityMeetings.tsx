@@ -10,6 +10,7 @@ import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { useServerCollection } from '@/components/collection/useServerCollection';
 import { meetingsTabFilters } from '@/lib/meetingsTab';
+import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
 
 type CityMeetingsProps = {
     /** The meetings on the current page. The server page loads one page at a time. */
@@ -31,6 +32,8 @@ type CityMeetingsProps = {
      * last meeting fell outside them: no chip, no empty state.
      */
     administrativeBodies: PublicAdministrativeBody[],
+    /** Whether the city has a body of the secondary tier (#829), and whether the tab shows it. */
+    secondaryTier?: { available: boolean; shown: boolean },
     /** Fixed by the server page, so a card's stage survives hydration. */
     now: Date,
 };
@@ -46,14 +49,16 @@ export default function CityMeetings({
     canEdit,
     editableBodyIds,
     administrativeBodies,
+    secondaryTier,
     now,
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
     const tCommon = useTranslations('Common');
 
+    const widened = secondaryTier?.shown ?? false;
     const { filterOptions, defaultFilterValues, bodyOptionsFor } = useMemo(
-        () => meetingsTabFilters(administrativeBodies, tCommon),
-        [administrativeBodies, tCommon]
+        () => meetingsTabFilters(administrativeBodies, tCommon, { widened }),
+        [administrativeBodies, tCommon, widened]
     );
 
     const state = useServerCollection<CouncilMeetingWithSubjectPreview, AdministrativeBodyType>({
@@ -73,7 +78,7 @@ export default function CityMeetings({
     );
 
     return (
-        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType>
+        <List
             state={state}
             editable={canEdit}
             ItemComponent={MeetingCardV2}
@@ -85,15 +90,18 @@ export default function CityMeetings({
             renderFilter={({ selectedValues, onChange }) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
                 return (
-                    <AdminBodyPicker
-                        groups={bodyGroups}
-                        selectedType={selectedType}
-                        onTypeChange={(type) => onChange(type ? [type] : [])}
-                        selectedBodyId={state.selectedBody}
-                        onBodyChange={state.setBody}
-                        allTypesLabel={tCommon('allMeetings')}
-                        allBodiesLabel={tCommon('allBodies')}
-                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <AdminBodyPicker
+                            groups={bodyGroups}
+                            selectedType={selectedType}
+                            onTypeChange={(type) => onChange(type ? [type] : [])}
+                            selectedBodyId={state.selectedBody}
+                            onBodyChange={state.setBody}
+                            allTypesLabel={tCommon('allMeetings')}
+                            allBodiesLabel={tCommon('allBodies')}
+                        />
+                        {secondaryTier?.available && <SecondaryTierToggle shown={secondaryTier.shown} />}
+                    </div>
                 );
             }}
             showCount

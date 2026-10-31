@@ -8,8 +8,9 @@ import {
     savePetition,
     setNotifyByPhoneForUser,
 } from '@/lib/db/notifications'
+import { getSignupPreference } from '@/lib/db/signup'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createCity, createTopic, signInAsSuperAdmin } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createTopic, signInAsSuperAdmin } from '../helpers/factories'
 
 /**
  * The signup's delivery step and the profile switch write channel consent
@@ -24,6 +25,22 @@ describe('notification signup channel consent', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma)
+    })
+
+    test('marks a save in a municipality without notifications as bodies only, and a save in its own signup clears the mark (#829)', async () => {
+        const admin = await signInAsSuperAdmin()
+        const city = await createCity({ id: 'ns_quiet', supportsNotifications: false })
+        const youth = await createAdministrativeBody(city.id, { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' })
+        const row = () => prisma.notificationPreference.findUniqueOrThrow({ where: { userId_cityId: { userId: admin.id, cityId: city.id } } })
+
+        // The signup of such a municipality offers the youth council alone.
+        expect((await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [], notifyByEmail: true, bodyIds: [youth.id] })).success).toBe(true)
+        expect(await row()).toMatchObject({ bodiesOnly: true })
+
+        // The municipality starts to support notifications and the reader saves its own signup.
+        await prisma.city.update({ where: { id: city.id }, data: { supportsNotifications: true } })
+        await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [], notifyByEmail: true, bodyIds: [youth.id] })
+        expect(await row()).toMatchObject({ bodiesOnly: false })
     })
 
     test('writes the email flag on the preference and the WhatsApp consent on the person, on create and on update', async () => {
@@ -66,6 +83,31 @@ describe('notification signup channel consent', () => {
             phone: '+306900000001',
             notifyByPhone: false,
         })
+    })
+
+    test('follows the secondary bodies of the city the reader ticked, and no other body (#829)', async () => {
+        const admin = await signInAsSuperAdmin()
+        const city = await createCity({ id: 'ns_follow', supportsNotifications: true })
+        const other = await createCity({ id: 'ns_follow_other', supportsNotifications: true })
+        const youth = await createAdministrativeBody(city.id, { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' })
+        const council = await createAdministrativeBody(city.id)
+        const elsewhere = await createAdministrativeBody(other.id, { name: 'ΔΣΝ αλλού', name_en: 'Youth elsewhere', type: 'youthCouncil' })
+
+        // A primary body and a body of another city are dropped, as an unknown topic is.
+        const saved = await saveNotificationPreferences({
+            cityId: city.id, locations: [], topicIds: [], notifyByEmail: true, bodyIds: [youth.id, council.id, elsewhere.id],
+        })
+        expect(saved.success).toBe(true)
+        expect((await getSignupPreference(admin.id, city.id))!.bodies.map((b) => b.id)).toEqual([youth.id])
+
+        // The list is the whole choice: an unticked body leaves.
+        await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [], notifyByEmail: true, bodyIds: [] })
+        expect((await getSignupPreference(admin.id, city.id))!.bodies).toEqual([])
+
+        // An older caller that sends no list leaves the bodies as they are.
+        await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [], notifyByEmail: true, bodyIds: [youth.id] })
+        await saveNotificationPreferences({ cityId: city.id, locations: [], topicIds: [] })
+        expect((await getSignupPreference(admin.id, city.id))!.bodies.map((b) => b.id)).toEqual([youth.id])
     })
 
     test('the WhatsApp consent is one per person: a second municipality reads the same tick', async () => {

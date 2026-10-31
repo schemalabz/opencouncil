@@ -1,6 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus, type Realm, type AdministrativeBodyType, type CouncilMeeting, type MeetingFormat, type MeetingScheduleStatus } from '@prisma/client';
-import { hasPublicRecording, takesPlace } from '@/lib/meetingLifecycleRules';
+import { noRecordingReason, takesPlace } from '@/lib/meetingLifecycleRules';
 import { stageSignalsFromPreview } from '@/lib/meetingStage';
 import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
@@ -366,7 +366,7 @@ export async function mcpListMeetings(
  * step has not run.
  */
 function meetingNote(
-    meeting: { scheduleStatus: MeetingScheduleStatus; format: MeetingFormat | null; dateTime: Date; subjects: unknown[] },
+    meeting: { scheduleStatus: MeetingScheduleStatus; format: MeetingFormat | null; noRecording: boolean; dateTime: Date; subjects: unknown[] },
     transcribed: boolean,
     summarized: boolean
 ): string | null {
@@ -388,9 +388,13 @@ function meetingNote(
     if (meeting.dateTime > new Date()) {
         return 'This meeting has not been held yet, so there is nothing to read beyond the agenda document at agendaUrl.';
     }
-    if (!hasPublicRecording(meeting)) {
+    if (noRecordingReason(meeting) === 'byCirculation') {
         return 'This meeting was held by circulation: the members voted in writing, so it has no recording and no '
             + 'transcript. Read the agenda document at agendaUrl; its decisions are on Diavgeia.';
+    }
+    if (noRecordingReason(meeting) === 'notRecorded') {
+        return 'This meeting was held with no recording: the body marked it so, and there is no transcript. '
+            + 'Read the agenda document at agendaUrl.';
     }
     return 'This meeting was held, but no transcript has been produced for it. Its recording may still be '
         + 'processing, or the meeting may never have been recorded.';

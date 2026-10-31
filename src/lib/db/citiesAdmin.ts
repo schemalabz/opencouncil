@@ -1,6 +1,8 @@
 import "server-only";
 import type { City, Prisma } from "@prisma/client";
 import prisma from "./prisma";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
+export { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 
 /**
  * Create a city with no auth check, for a caller that has already authorized
@@ -20,26 +22,6 @@ export async function createCityDirect(cityData: Omit<City, 'createdAt' | 'updat
 export async function getCityNameEnAndTimezone(cityId: string): Promise<{ name_en: string; timezone: string } | null> {
     return prisma.city.findUnique({ where: { id: cityId }, select: { name_en: true, timezone: true } });
 }
-
-// Shared by the site's city lists (cities.ts) and the MCP. They live here, not
-// in the "use server" cities.ts, which may export async functions only.
-export const CITY_COUNT_SELECT = {
-    select: {
-        persons: true,
-        parties: true,
-        councilMeetings: {
-            where: {
-                released: true
-            }
-        }
-    }
-};
-
-export const CITY_ORDER_BY = [
-    // supported > demo > pending, by CityStatus declaration order
-    { status: 'desc' as const },
-    { name: 'asc' as const }
-];
 
 /**
  * Cities that match `where`, with their counts, in the order of the site's

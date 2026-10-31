@@ -8,6 +8,9 @@ jest.mock('next/cache', () => ({
 jest.mock('@/lib/google-calendar', () => ({ syncMeetingToCalendar: jest.fn() }))
 jest.mock('@/lib/tasks/processAgendaInternal', () => ({ requestProcessAgendaInternal: jest.fn() }))
 jest.mock('@/lib/discord', () => ({ sendMeetingCreatedAdminAlert: jest.fn() }))
+// The work after the response runs at once, so a test observes it.
+jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (fn: () => unknown) => { void fn() } }))
+jest.mock('@/lib/agendaText', () => ({ processAgendaText: jest.fn().mockResolvedValue(undefined) }))
 
 import { NextRequest } from 'next/server'
 import prisma from '@/lib/db/prisma'
@@ -17,8 +20,9 @@ import { getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries'
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList'
 import { setMeetingReleased } from '@/lib/db/meetingLifecycle'
 import { syncMeetingToCalendar } from '@/lib/google-calendar'
+import { processAgendaText } from '@/lib/agendaText'
 import { resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, signInAsSuperAdmin } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createMeeting, createTaskStatus, signInAsSuperAdmin } from '../helpers/factories'
 
 const CITY = 'c1'
 
@@ -175,6 +179,32 @@ describe('meeting API routes', () => {
             date: '2026-03-12T16:00:00.000Z', youtubeUrl: '', administrativeBodyId: null,
         }), meetingParams('m'))
         expect(await cleared.json()).toMatchObject({ youtubeUrl: null, administrativeBodyId: null, agendaUrl: 'https://example.com/agenda.pdf' })
+    })
+
+    test('PUT hands a pasted agenda to the extraction and clears the agenda link (#829)', async () => {
+        const extract = processAgendaText as jest.MockedFunction<typeof processAgendaText>
+        extract.mockClear()
+        await createMeeting(CITY, { id: 'm', dateTime: new Date('2026-03-12T16:00:00Z'), administrativeBodyId: councilId, agendaUrl: 'https://example.com/agenda.pdf' })
+        const put = await PUT(request(`/api/cities/${CITY}/meetings/m`, {
+            date: '2026-03-12T16:00:00.000Z', agendaUrl: '', agendaText: '1. Έγκριση προϋπολογισμού',
+        }), meetingParams('m'))
+        expect(put.status).toBe(200)
+        expect(await put.json()).toMatchObject({ agendaUrl: null })
+        expect(extract).toHaveBeenCalledWith(CITY, 'm', '1. Έγκριση προϋπολογισμού')
+    })
+
+    test('PUT refuses a pasted agenda on a summarized meeting and keeps the agenda link', async () => {
+        const extract = processAgendaText as jest.MockedFunction<typeof processAgendaText>
+        extract.mockClear()
+        await createMeeting(CITY, { id: 'm', dateTime: new Date('2026-03-12T16:00:00Z'), administrativeBodyId: councilId, agendaUrl: 'https://example.com/agenda.pdf' })
+        await createTaskStatus('m', CITY, { type: 'summarize', status: 'succeeded' })
+        const put = await PUT(request(`/api/cities/${CITY}/meetings/m`, {
+            date: '2026-03-12T16:00:00.000Z', agendaUrl: '', agendaText: '1. Έγκριση προϋπολογισμού',
+        }), meetingParams('m'))
+        expect(put.status).toBe(409)
+        expect(extract).not.toHaveBeenCalled()
+        const row = await prisma.councilMeeting.findUniqueOrThrow({ where: { cityId_id: { cityId: CITY, id: 'm' } } })
+        expect(row.agendaUrl).toBe('https://example.com/agenda.pdf')
     })
 
     test('PUT lets the calendar create the event when a meeting becomes scheduled, and only then', async () => {

@@ -27,6 +27,7 @@ describe('meetingRequestFields', () => {
         closedToPublic: false,
         scheduleStatusReason: null,
         place: null,
+        noRecording: false,
     };
 
     it('clears the optional fields when the inputs are empty, and sends no name', () => {
@@ -47,6 +48,10 @@ describe('meetingRequestFields', () => {
             scheduleStatus: 'postponed', scheduleStatusReason: 'Λόγω απεργίας', sessionNumber: 15,
             place: 'Πολιτιστικό Κέντρο', postponedFromId: 'mar12_2026',
         });
+    });
+
+    it('carries the no-recording switch with the record (#829)', () => {
+        expect(meetingRequestFields({ ...base, noRecording: true }, { linkChanged: false, greekCodeFacts: true }).noRecording).toBe(true);
     });
 
     it('drops the reason of a meeting that is scheduled again', () => {

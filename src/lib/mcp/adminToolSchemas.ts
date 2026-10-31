@@ -54,6 +54,8 @@ const meetingRecordInput = {
             + 'byCirculation: a written vote with no recording, so the meeting is never transcribed or polled for a livestream' }),
     closedToPublic: baseMeetingFields.closedToPublic.optional()
         .meta({ description: 'The council decided to meet behind closed doors. Readers see this fact. The meeting is still recorded and transcribed' }),
+    noRecording: baseMeetingFields.noRecording.optional()
+        .meta({ description: 'The body states that the meeting was not recorded: no video and no transcription, the agenda stays' }),
     place: baseMeetingFields.place.nullable().optional(),
 } satisfies Record<(typeof MEETING_RECORD_INPUT_KEYS)[number], z.ZodType>;
 
@@ -63,7 +65,7 @@ export const createMeetingToolInput = z.object({
     youtubeUrl: baseMeetingFields.youtubeUrl.optional().meta({ description: 'URL of the meeting video' }),
     agendaUrl: baseMeetingFields.agendaUrl.optional().meta({ description: 'URL of the agenda PDF' }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.optional()
-        .meta({ description: 'The body that meets (council, committee, community). See get_city' }),
+        .meta({ description: 'The body that meets (council, committee, community, youthCouncil). See get_city' }),
     processAgenda: z.boolean().default(false)
         .meta({ description: 'Also queue the task that extracts the subjects from the agenda PDF. Needs agendaUrl' }),
     ...meetingRecordInput,

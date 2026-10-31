@@ -70,14 +70,22 @@ interface RolesListProps {
      * offers no city role and no party role.
      */
     roleTypes?: RoleType[];
+    /**
+     * The start date a new role gets before the editor touches it. The body
+     * page passes where the last membership of the body ended (#829), so a
+     * member added after a new term does not count at the old term's meetings.
+     */
+    defaultStartDate?: Date | null;
 }
 
-export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES }: RolesListProps) {
+export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES, defaultStartDate = null }: RolesListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [startDateOpen, setStartDateOpen] = useState(false)
     const [endDateOpen, setEndDateOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
+    // Static keys, so the catalog check sees them.
+    const typeLabels: Record<RoleType, string> = { city: t('types.city'), party: t('types.party'), administrativeBody: t('types.administrativeBody') }
 
     const form = useForm({
         resolver: useZodResolver(formSchema),
@@ -85,7 +93,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name: editingRole?.name || "",
             name_en: editingRole?.name_en || "",
             isHead: editingRole?.isHead || false,
-            startDate: editingRole?.startDate || null,
+            startDate: editingRole ? editingRole.startDate || null : defaultStartDate,
             endDate: editingRole?.endDate || null,
             type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : roleTypes[0],
             partyId: editingRole?.partyId || undefined,
@@ -138,9 +146,9 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name: "",
             name_en: "",
             isHead: false,
-            startDate: null,
+            startDate: defaultStartDate,
             endDate: null,
-            type: 'city',
+            type: roleTypes[0],
             partyId: undefined,
             administrativeBodyId: undefined,
         })
@@ -172,9 +180,9 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 name: "",
                                 name_en: "",
                                 isHead: false,
-                                startDate: null,
+                                startDate: defaultStartDate,
                                 endDate: null,
-                                type: 'city',
+                                type: roleTypes[0],
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
                             })
@@ -210,9 +218,9 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="city">{t('types.city')}</SelectItem>
-                                                <SelectItem value="party">{t('types.party')}</SelectItem>
-                                                <SelectItem value="administrativeBody">{t('types.administrativeBody')}</SelectItem>
+                                                {roleTypes.map(type => (
+                                                    <SelectItem key={type} value={type}>{typeLabels[type]}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />

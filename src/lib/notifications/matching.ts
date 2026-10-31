@@ -28,7 +28,17 @@ interface SubjectMatch {
 export async function matchUsersToSubjects(
     subjects: Subject[],
     usersWithPreferences: UserPreference[],
-    subjectImportanceOverrides?: Record<string, SubjectImportance>
+    subjectImportanceOverrides?: Record<string, SubjectImportance>,
+    options: {
+        /**
+         * The meeting is a body's that every reader here follows by name
+         * (#829). The follow is their choice of every meeting of the body, so
+         * the topics and the places of their municipality preference do not
+         * narrow it: each subject that the editors did not mark do-not-notify
+         * matches, as a subject of general interest does.
+         */
+        followedBody?: boolean;
+    } = {},
 ): Promise<Map<string, Set<SubjectMatch>>> {
     const userSubjectMatches = new Map<string, Set<SubjectMatch>>();
 
@@ -53,6 +63,12 @@ export async function matchUsersToSubjects(
             }
 
             const matches = userSubjectMatches.get(userId)!;
+
+            // Rule 0: a body the reader follows by name (see options.followedBody).
+            if (options.followedBody && topicImportance !== 'doNotNotify') {
+                matches.add({ subjectId: subject.id, reason: 'generalInterest' });
+                continue;
+            }
 
             // Rule 1: High importance - notify everyone
             if (topicImportance === 'high') {

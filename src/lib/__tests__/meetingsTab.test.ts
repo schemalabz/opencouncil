@@ -1,5 +1,6 @@
 import type { PublicAdministrativeBody } from '@/lib/db/types';
-import { meetingBodyFilter, meetingsTabFilters } from '../meetingsTab';
+import { parseCollectionParams } from '@/lib/utils/filterURL';
+import { meetingBodyFilter, meetingsTabFilters, meetingsTabHrefForBody } from '../meetingsTab';
 
 const body = (id: string, type: PublicAdministrativeBody['type'], name: string): PublicAdministrativeBody => ({
     id, type, name, name_en: name, cityId: 'c', place: null, youtubeChannelUrl: null,
@@ -42,5 +43,29 @@ describe('meetingBodyFilter', () => {
 
     it('matches nothing, never everything, when a selected type has no body in the list', () => {
         expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: null }, bodies.slice(0, 2))).toBeNull();
+    });
+});
+
+describe('meetingsTabHrefForBody', () => {
+    const paramsOf = (href: string) => new URL(href, 'https://example.test').searchParams;
+
+    it('names a body the way the tab parses it, and widens the tier for a secondary body (#829)', () => {
+        const youth = body('youth', 'youthCouncil', 'Δημοτικό Συμβούλιο Νέων');
+        const href = meetingsTabHrefForBody('c', youth, t);
+        expect(href.startsWith('/c/meetings?')).toBe(true);
+        const params = paramsOf(href);
+        expect(params.get('tier')).toBe('all');
+        const view = parseCollectionParams(params, meetingsTabFilters([...bodies, youth], t, { widened: true }));
+        expect(view.selectedFilters).toEqual(['youthCouncil']);
+        expect(view.selectedBody).toBe('youth');
+    });
+
+    it('sends the council to its type alone, and keeps the tier of the tab', () => {
+        const params = paramsOf(meetingsTabHrefForBody('c', bodies[0], t));
+        expect(params.get('body')).toBeNull();
+        expect(params.get('tier')).toBeNull();
+        const view = parseCollectionParams(params, meetingsTabFilters(bodies, t));
+        expect(view.selectedFilters).toEqual(['council']);
+        expect(view.selectedBody).toBeNull();
     });
 });

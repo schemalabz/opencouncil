@@ -63,3 +63,23 @@ export const councilWithAbsentPresident = (): MinutesData => base({
     },
     absentMembers: [member('p1', 'Καραγιάννη Τάνια', 'Χαλάνδρι Ανάσα'), member('p2', 'Λαμπρόπουλος Παναγιώτης', 'Χαλάνδρι Ανάσα', true)],
 });
+
+/**
+ * A Δημοτικό Συμβούλιο Νέων (#829), a body of the secondary tier: no ΔΗΜΑΡΧΟΣ
+ * line, «ΜΕΛΗ» over the flat list, and no party after a name. The president
+ * is a member, as on a council. One member is absent.
+ */
+export const youthCouncilWithAbsentMember = (): MinutesData => base({
+    administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil' },
+    councilComposition: {
+        mayor: null,
+        president: { name: 'Νεανίδη Μαρία', personId: 'y1' },
+        members: [
+            member('y1', 'Νεανίδη Μαρία', null),
+            member('y2', 'Νεαρός Γιώργος', null),
+            member('y3', 'Παιδάκη Ελένη', null),
+        ],
+        substituteMembers: [],
+    },
+    absentMembers: [member('y3', 'Παιδάκη Ελένη', null)],
+});

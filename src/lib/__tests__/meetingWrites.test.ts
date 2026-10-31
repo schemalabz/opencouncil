@@ -18,6 +18,9 @@ jest.mock('@/lib/discord', () => ({ sendMeetingCreatedAdminAlert: jest.fn() }));
 jest.mock('@/lib/google-calendar', () => ({ syncMeetingToCalendar: jest.fn() }));
 jest.mock('@/lib/tasks/processAgendaInternal', () => ({ requestProcessAgendaInternal: jest.fn() }));
 jest.mock('@/lib/cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
+jest.mock('@/lib/agendaText', () => ({ processAgendaText: jest.fn() }));
+jest.mock('@/lib/db/tasksInternal', () => ({ meetingHasSucceededTask: jest.fn().mockResolvedValue(false) }));
+jest.mock('@/lib/tasks/transcribeInternal', () => ({ requestTranscribeInternal: jest.fn() }));
 
 const createRecord = createMeetingRecord as jest.Mock;
 const generateId = generateUniqueMeetingId as jest.Mock;

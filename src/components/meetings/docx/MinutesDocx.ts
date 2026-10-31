@@ -349,9 +349,10 @@ function createTitlePage(
 
 /**
  * Renders the composition section and absent members for the meeting body.
- * Adapts to the administrative body type:
+ * Adapts to the administrative body type (`buildRollCall`):
  * - Council: ΔΗΜΑΡΧΟΣ + ΠΡΟΕΔΡΟΣ + ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ (flat list)
  * - Committee: ΠΡΟΕΔΡΟΣ + ΤΑΚΤΙΚΑ ΜΕΛΗ + ΑΝΑΠΛΗΡΩΜΑΤΙΚΑ ΜΕΛΗ
+ * - A body of the secondary tier: ΠΡΟΕΔΡΟΣ + ΜΕΛΗ (flat list), no ΔΗΜΑΡΧΟΣ line
  *
  * @param composition - Members, substitute members, mayor, and president
  * @param absentMembers - Members absent at session start, or null if no roll call data
@@ -403,12 +404,12 @@ function createCouncilCompositionSection(
 
     // Council: composition heading and flat member list. Committees skip both —
     // their members are shown in ΠΑΡΟΝΤΑ/ΑΠΟΝΤΑ ΜΕΛΗ below.
-    if (!isCommittee) {
+    if (rollCall.compositionHeading) {
         paragraphs.push(new Paragraph({
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 360, after: 200 },
             children: [new TextRun({
-                text: `ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ (${composition.members.length})`,
+                text: `${rollCall.compositionHeading} (${composition.members.length})`,
                 size: FONT_SIZE.HEADING,
                 bold: true,
             })],
