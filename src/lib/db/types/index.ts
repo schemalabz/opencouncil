@@ -49,3 +49,5 @@ export * from './adaLookups';
 export * from './decision';
 export * from './highlight';
 export * from './consultation';
+
+export type { VoiceprintCandidateSegment } from "./voiceprint";

@@ -1,61 +1,13 @@
 "use server";
 
 import prisma from "@/lib/db/prisma";
-import { getCouncilMeeting } from "@/lib/db/meetings";
+import { dispatchVoiceprintTaskForSegment } from "@/lib/tasks/voiceprintRequests";
 import { withUserAuthorizedToEdit } from "../auth";
-import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
-import { Prisma, SpeakerSegment } from "@prisma/client";
+import { SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
-
-const VOICEPRINT_DURATION = 30;
-
-/**
- * A person's speaker tags, with what decides whether their audio may become the
- * person's voiceprint: the completed reviews of each segment's meeting.
- */
-const voiceprintCandidateTagInclude = {
-    speakerSegments: {
-        include: {
-            meeting: {
-                select: {
-                    taskStatuses: {
-                        where: { type: 'humanReview', status: 'succeeded' },
-                        select: { createdAt: true },
-                    },
-                },
-            },
-        },
-    },
-} satisfies Prisma.SpeakerTagInclude;
-
-type VoiceprintCandidateTag = Prisma.SpeakerTagGetPayload<{ include: typeof voiceprintCandidateTagInclude }>;
-
-/**
- * Whether a tag's audio may become its person's voiceprint.
- *
- * A name only the transcript gave is unreviewed, and a voiceprint built on a
- * wrong one would make the voiceprint method repeat the transcript's mistake in
- * every later meeting. Such a tag counts once the review of its meeting is
- * complete: the reviewer read the name and left it, which is how a reviewer
- * confirms one.
- *
- * The review must be later than the tag. A re-transcribe replaces every tag,
- * and a review of the earlier transcript says nothing about the new ones.
- */
-function isVoiceprintSource(tag: VoiceprintCandidateTag): boolean {
-    if (tag.personSetBy !== 'transcript') return true;
-    return tag.speakerSegments.some(segment =>
-        segment.meeting.taskStatuses.some(review => review.createdAt > tag.createdAt)
-    );
-}
-
-/** The segments a person's voiceprint may be cut from, without the review data they were chosen by. */
-function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegment[] {
-    return tags
-        .filter(isVoiceprintSource)
-        .flatMap(tag => tag.speakerSegments.map(({ meeting: _meeting, ...segment }) => segment));
-}
+import { voiceprintCandidateTagInclude, voiceprintSourceSegments } from "@/lib/db/voiceprintCandidates";
+import { VOICEPRINT_DURATION } from "@/lib/tasks/voiceprintWindow";
 
 /**
  * Find the people of a city who are eligible for voiceprint generation: all of
@@ -151,7 +103,8 @@ export async function requestGenerateVoiceprintsForCity(cityId: string, personId
 }
 
 /**
- * Request to generate a voiceprint for a person
+ * Request to generate a voiceprint for a person, automatically selecting the
+ * longest available speaker segment.
  */
 export async function requestGenerateVoiceprint(personId: string) {
     // Find the longest speaker segment for this person
@@ -161,47 +114,7 @@ export async function requestGenerateVoiceprint(personId: string) {
         throw new Error("No speaker segments found for this person");
     }
 
-    // Check if the segment is long enough for a voiceprint
-    const segmentDuration = segment.endTimestamp - segment.startTimestamp;
-    if (segmentDuration < VOICEPRINT_DURATION) {
-        throw new Error(
-            `Speaker segment is too short (${segmentDuration.toFixed(1)}s). At least ${VOICEPRINT_DURATION}s of audio is required for a voiceprint.`,
-        );
-    }
-
-    // Get meeting details
-    const meeting = await getCouncilMeeting(segment.cityId, segment.meetingId);
-
-    if (!meeting) {
-        throw new Error("Meeting not found");
-    }
-
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
-
-    const mediaUrl = meeting.audioUrl || meeting.videoUrl;
-    if (!mediaUrl) {
-        throw new Error("Meeting media URL not found");
-    }
-
-    // Calculate a segment centered on the midpoint
-    const segmentMidpoint = segment.startTimestamp + segmentDuration / 2;
-
-    // Take VOICEPRINT_DURATION seconds centered on the midpoint, ensuring we stay within segment bounds
-    const halfDuration = VOICEPRINT_DURATION / 2;
-    const startTimestamp = Math.max(segment.startTimestamp, segmentMidpoint - halfDuration);
-    const endTimestamp = Math.min(segment.endTimestamp, startTimestamp + VOICEPRINT_DURATION);
-
-    // Create the request
-    const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
-        mediaUrl,
-        personId,
-        segmentId: segment.id,
-        startTimestamp,
-        endTimestamp,
-        cityId: segment.cityId,
-    };
-
-    return startTask("generateVoiceprint", request, segment.meetingId, segment.cityId);
+    return dispatchVoiceprintTaskForSegment(personId, segment);
 }
 
 /**
@@ -243,6 +156,10 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
     }
 }
 
+/**
+ * A speaker segment that is eligible to be used as the source for a voiceprint,
+ * enriched with the metadata an admin needs to choose between candidates.
+ */
 /**
  * Handle the result of a generate voiceprint task
  */
