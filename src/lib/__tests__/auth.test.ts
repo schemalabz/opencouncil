@@ -9,11 +9,13 @@ const mockMeetingFindUnique = jest.fn();
 const mockBodyFindUnique = jest.fn();
 const mockPersonFindUnique = jest.fn();
 const mockPartyFindUnique = jest.fn();
+const mockUtteranceFindMany = jest.fn();
 
 jest.mock('@/auth', () => ({ auth: (...args: unknown[]) => mockAuth(...args) }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
+        utterance: { findMany: (...args: unknown[]) => mockUtteranceFindMany(...args) },
         user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
         councilMeeting: { findUnique: (...args: unknown[]) => mockMeetingFindUnique(...args) },
         administrativeBody: { findUnique: (...args: unknown[]) => mockBodyFindUnique(...args) },
@@ -23,6 +25,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { replaceAllInUtterances } from '../db/transcriptFindReplace';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 
 type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
@@ -227,5 +230,27 @@ describe('a superadmin', () => {
         expect(await isUserAuthorizedToEdit({})).toBe(true);
         expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'cm1' })).toBe(true);
         expect(await getRoleLimitForCity('athens')).toBeNull();
+    });
+});
+
+
+describe('find and replace meeting authorization', () => {
+    beforeEach(() => {
+        signIn({ administers: [{ administrativeBodyId: 'youth' }] });
+        mockUtteranceFindMany.mockResolvedValue([]);
+    });
+
+    it('lets a body admin replace within their meeting', async () => {
+        await expect(replaceAllInUtterances('athens', 'ym1', 'before', 'after', true))
+            .resolves.toEqual({ utteranceCount: 0, occurrenceCount: 0 });
+        expect(mockUtteranceFindMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ speakerSegment: { cityId: 'athens', meetingId: 'ym1' } }),
+        }));
+    });
+
+    it('refuses another body meeting before reading or changing utterances', async () => {
+        await expect(replaceAllInUtterances('athens', 'cm1', 'before', 'after', true))
+            .rejects.toBeInstanceOf(ForbiddenError);
+        expect(mockUtteranceFindMany).not.toHaveBeenCalled();
     });
 });
