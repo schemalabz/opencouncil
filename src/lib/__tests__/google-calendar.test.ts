@@ -50,6 +50,7 @@ function makeMeeting(overrides: Partial<MeetingForCalendarSync> = {}): MeetingFo
         dateTime: FUTURE,
         youtubeUrl: null,
         agendaUrl: null,
+        municipalMinutesUrl: null,
         videoUrl: null,
         audioUrl: null,
         muxPlaybackId: null,

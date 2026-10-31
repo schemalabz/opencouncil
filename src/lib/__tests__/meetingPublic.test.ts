@@ -1,4 +1,4 @@
-import { effectivePlace, hideLinks, toPublicApiMeeting } from '../meetingPublic';
+import { effectivePlace, hideLinks, hideMinutesOutsideScope, toPublicApiMeeting } from '../meetingPublic';
 
 const row = {
     id: 'b',
@@ -47,6 +47,28 @@ describe('public meeting projections', () => {
 
     it('keeps the shape of a page row and clears the link', () => {
         expect(hideLinks(row)).toEqual({ ...row, postponedFromId: null, continuationOfId: null });
+    });
+
+    it('keeps the municipal minutes out of every public payload (#876)', () => {
+        const withMinutes = { ...row, municipalMinutesUrl: 'https://example.com/private-minutes.pdf' };
+
+        expect(hideLinks(withMinutes).municipalMinutesUrl).toBeNull();
+        const payload = toPublicApiMeeting(withMinutes, { timezone: 'Europe/Athens', postponedFromDate: null });
+        expect(payload).not.toHaveProperty('municipalMinutesUrl');
+        expect(JSON.stringify(payload)).not.toContain('private-minutes');
+        // A row without the column keeps its shape.
+        expect(hideLinks(row)).not.toHaveProperty('municipalMinutesUrl');
+    });
+
+    it('keeps the municipal minutes on the editor rows of the meetings the caller edits only', () => {
+        const rows = [
+            { id: 'ours', administrativeBodyId: 'b1', municipalMinutesUrl: 'https://example.com/ours.pdf' },
+            { id: 'theirs', administrativeBodyId: 'b2', municipalMinutesUrl: 'https://example.com/theirs.pdf' },
+            { id: 'city', administrativeBodyId: null, municipalMinutesUrl: 'https://example.com/city.pdf' },
+        ];
+        expect(hideMinutesOutsideScope(rows, { all: true })).toEqual(rows);
+        expect(hideMinutesOutsideScope(rows, { all: false, bodyIds: ['b1'] }).map(row => row.municipalMinutesUrl))
+            .toEqual(['https://example.com/ours.pdf', null, null]);
     });
 
     it('prefers the place of the meeting over the hall of its body', () => {

@@ -96,3 +96,57 @@ describe('speakerIdentificationsStatus', () => {
         expect(speakerIdentificationsStatus([])).toBeNull();
     });
 });
+
+/** A name the minutes task would act on by itself, unless said otherwise (#876). */
+const minutes = (personId: string, actionable = true, evidence: string | null = null) =>
+    ({ method: 'minutes' as const, personId, actionable, evidence });
+
+describe('three methods', () => {
+    it('assigns the person every actionable opinion names, as agreed', () => {
+        expect(reconcileSpeakerIdentifications([voiceprint('anna'), transcript('anna'), minutes('anna')]))
+            .toEqual({ personId: 'anna', personSetBy: 'both' });
+    });
+
+    it('lets two methods outvote the third', () => {
+        expect(reconcileSpeakerIdentifications([voiceprint('anna'), transcript('babis'), minutes('anna')]))
+            .toEqual({ personId: 'anna', personSetBy: 'both' });
+        expect(reconcileSpeakerIdentifications([voiceprint('babis'), transcript('anna'), minutes('anna')]))
+            .toEqual({ personId: 'anna', personSetBy: 'both' });
+        expect(speakerIdentificationsDisagree([voiceprint('babis'), transcript('anna'), minutes('anna')])).toBe(false);
+    });
+
+    it('assigns nobody when the actionable opinions tie', () => {
+        expect(reconcileSpeakerIdentifications([voiceprint('anna'), minutes('babis')])).toEqual({ personId: null, personSetBy: null });
+        expect(reconcileSpeakerIdentifications([voiceprint('anna'), transcript('babis'), minutes('carla')])).toEqual({ personId: null, personSetBy: null });
+        expect(speakerIdentificationsDisagree([voiceprint('anna'), minutes('babis')])).toBe(true);
+        expect(speakerIdentificationsDisagree([voiceprint('anna'), transcript('babis'), minutes('carla')])).toBe(true);
+    });
+
+    it('never lets the minutes overwrite a speaker on their own against an actionable name', () => {
+        expect(reconcileSpeakerIdentifications([transcript('anna'), minutes('babis')])).toEqual({ personId: null, personSetBy: null });
+    });
+
+    it('assigns a minutes-only name the task would act on, and records the method', () => {
+        expect(reconcileSpeakerIdentifications([minutes('babis')])).toEqual({ personId: 'babis', personSetBy: 'minutes' });
+        expect(reconcileSpeakerIdentifications([minutes('babis', TENTATIVE)])).toEqual({ personId: null, personSetBy: null });
+        expect(reconcileSpeakerIdentifications([transcript('anna', TENTATIVE), minutes('babis')])).toEqual({ personId: 'babis', personSetBy: 'minutes' });
+    });
+
+    it('counts a contested minutes opinion as agreement when it names the assigned person', () => {
+        expect(reconcileSpeakerIdentifications([voiceprint('anna'), minutes('anna', TENTATIVE)])).toEqual({ personId: 'anna', personSetBy: 'both' });
+    });
+
+    it('lists every person once, in method order, and reports the status', () => {
+        expect(listSpeakerSuggestions([minutes('anna', true, 'ΠΡΟΕΔΡΟΣ, p. 4'), voiceprint('anna'), transcript('babis', TENTATIVE, 'κύριε Μπάμπη')])).toEqual([
+            { personId: 'anna', source: 'both', evidence: 'ΠΡΟΕΔΡΟΣ, p. 4' },
+            { personId: 'babis', source: 'transcript', evidence: 'κύριε Μπάμπη' },
+        ]);
+        expect(speakerIdentificationsStatus([minutes('anna')])).toBe('minutesOnly');
+        expect(speakerIdentificationsStatus([voiceprint('anna'), transcript('anna'), minutes('anna')])).toBe('agree');
+        expect(speakerIdentificationsStatus([voiceprint('anna'), transcript('anna'), minutes('babis')])).toBe('disagree');
+    });
+
+    it('leaves a minutes assignment open to the next automatic pass', () => {
+        expect(isReviewerAssignment({ personId: 'anna', personSetBy: 'minutes' })).toBe(false);
+    });
+});

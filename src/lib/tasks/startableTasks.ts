@@ -5,11 +5,12 @@
  */
 import type { MeetingTaskType } from './types';
 
-export const STARTABLE_MEETING_TASKS = ['processAgenda', 'transcribe', 'fixTranscript', 'summarize'] as const satisfies readonly MeetingTaskType[];
+export const STARTABLE_MEETING_TASKS = ['processAgenda', 'transcribe', 'fixTranscript', 'fixFromMinutes', 'summarize'] as const satisfies readonly MeetingTaskType[];
 export type StartableMeetingTask = (typeof STARTABLE_MEETING_TASKS)[number];
 
 export type MeetingTaskRequest =
     | { type: 'processAgenda'; agendaUrl?: string; force?: boolean }
     | { type: 'transcribe'; videoUrl?: string; force?: boolean }
     | { type: 'fixTranscript'; force?: boolean }
+    | { type: 'fixFromMinutes'; municipalMinutesUrl?: string; force?: boolean }
     | { type: 'summarize'; additionalInstructions?: string; force?: boolean };
