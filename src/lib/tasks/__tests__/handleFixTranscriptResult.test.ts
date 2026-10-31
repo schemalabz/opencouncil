@@ -54,7 +54,14 @@ describe('handleFixTranscriptResult', () => {
     expect(mockUtteranceEditCreate).toHaveBeenCalledWith({
       data: { utteranceId: 'u1', beforeText: 'Λάθος.', afterText: 'Διορθωμένο.', editedBy: 'task' },
     });
-    expect(mockApplySpeakerHints).toHaveBeenCalledWith('task-1', result.speakerHints);
+    expect(mockApplySpeakerHints).toHaveBeenCalledWith('task-1', result.speakerHints, []);
+  });
+
+  it('passes on the labels of speakers who are not on the roster', async () => {
+    const unlistedSpeakerHints = [{ speakerTagId: 't2', name: 'Παπαδόπουλος Γιώργος - κάτοικος', actionable: true, evidenceKind: 'named' as const, confidence: 90, evidence: 'e' }];
+    await handleFixTranscriptResult('task-1', { ...result, unlistedSpeakerHints });
+
+    expect(mockApplySpeakerHints).toHaveBeenCalledWith('task-1', result.speakerHints, unlistedSpeakerHints);
   });
 
   it('looks for a later transcribe or fixTranscript run of the same meeting whose result has arrived', async () => {
