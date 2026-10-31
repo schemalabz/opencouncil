@@ -456,3 +456,5 @@ nix-collect-garbage -d   # remove old builds (also runs weekly via systemd timer
 - [Cachix Setup](./cachix-setup.md)
 - [GitHub Secrets Reference](../../.github/SECRETS.md)
 - `flake.nix` — production build package + self-contained NixOS module
+
+<!-- Temporary preview database lifecycle smoke test; do not merge. -->
