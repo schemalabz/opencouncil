@@ -6,7 +6,7 @@ import { handleApiError } from '@/lib/api/errors';
 
 /**
  * The transcript as a .docx file: the same document the municipality receives
- * by email (sendTranscriptToMunicipality), built on the server in the city's
+ * by email (sendTranscript in src/lib/documents/transcript.ts), built on the server in the city's
  * language. 404 for a meeting that has no transcript yet.
  */
 export async function GET(

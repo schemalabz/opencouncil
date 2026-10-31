@@ -51,7 +51,7 @@ export const administrativeBodiesPaths: Paths = {
                 + 'A body of `{ "confirmConventions": true, "decisionConventions": {…} }` instead confirms the '
                 + 'decision conventions of the body, and the meetings of the body are derived again. '
                 + 'An admin of the body who is not an admin of the city sends AdministrativeBodyContactsRequest. '
-                + 'That request changes only `youtubeChannelUrl` and `contactEmails`, and the route ignores the other fields.',
+                + 'That request changes only `youtubeChannelUrl` and `documentSendSettings`, and the route ignores the other fields.',
             tags: ['Administrative bodies'],
             security: sessionAuthRequirement,
             requestParams: { path: bodyIdParam },

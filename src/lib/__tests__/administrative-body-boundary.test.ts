@@ -4,7 +4,7 @@ import path from 'path';
 /**
  * Architecture guard: a read outside src/lib/tasks never loads the whole
  * administrative body row. The row holds the settings of the municipality
- * (contact emails, Diavgeia units, conventions). A public read includes the
+ * (Diavgeia units, conventions). A public read includes the
  * relation with `publicAdministrativeBodyRelation`, and an editor reads the
  * settings through the guarded readers in src/lib/db/administrativeBodies.ts.
  *

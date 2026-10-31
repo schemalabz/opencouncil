@@ -1,4 +1,12 @@
-import { administrativeBodyContactsSchema, administrativeBodyFormSchema, administrativeBodySchema } from '../administrativeBody';
+import {
+    administrativeBodyContactsSchema,
+    administrativeBodyFormSchema,
+    administrativeBodySchema,
+    documentSendCardSchema,
+    documentSendCardsFromSettings,
+    documentSendSettingsFromCards,
+    type DocumentSendCard,
+} from '../administrativeBody';
 
 const validBody = { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council' };
 
@@ -15,7 +23,6 @@ describe('administrativeBodySchema', () => {
         const absent = administrativeBodySchema.parse(validBody);
         expect(absent.youtubeChannelUrl).toBeUndefined();
         expect(absent.diavgeiaUnitIds).toBeUndefined();
-        expect(absent.contactEmails).toBeUndefined();
     });
 
     it.each([
@@ -35,10 +42,6 @@ describe('administrativeBodySchema', () => {
         expect(administrativeBodySchema.safeParse({ ...validBody, youtubeChannelUrl: url }).success).toBe(false);
     });
 
-    it('rejects an invalid contact email', () => {
-        expect(administrativeBodySchema.safeParse({ ...validBody, contactEmails: ['not-an-email'] }).success).toBe(false);
-    });
-
     it('trims the place and clears it when empty', () => {
         expect(administrativeBodySchema.parse({ ...validBody, place: '  Αίθουσα Δημοτικού Συμβουλίου ' }).place).toBe('Αίθουσα Δημοτικού Συμβουλίου');
         expect(administrativeBodySchema.parse({ ...validBody, place: '' }).place).toBeNull();
@@ -49,12 +52,73 @@ describe('administrativeBodySchema', () => {
 describe('administrativeBodyFormSchema', () => {
     const validForm = { ...validBody, notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, decisionConventions: null };
 
-    it('rejects a CC list with an invalid address', () => {
-        expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: 'a@example.com, nope' }).success).toBe(false);
+    const cards = { transcript: { enabled: false, to: '', cc: '' }, minutes: { enabled: false, to: '', cc: '' } };
+
+    it('accepts a form without the optional fields', () => {
+        expect(administrativeBodyFormSchema.safeParse({ ...validForm, documentSendSettings: cards }).success).toBe(true);
     });
 
-    it('accepts an empty CC list', () => {
-        expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: '' }).success).toBe(true);
+    it('needs a card per document', () => {
+        expect(administrativeBodyFormSchema.safeParse(validForm).success).toBe(false);
+    });
+});
+
+describe('document send settings', () => {
+    const validBody = { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council' };
+
+    it('accepts a body without the settings, which leaves them as they are', () => {
+        expect(administrativeBodySchema.parse(validBody).documentSendSettings).toBeUndefined();
+    });
+
+    it('requires a recipient for a document that is switched on', () => {
+        const on = (recipientEmails: string[]) => administrativeBodySchema.safeParse({
+            ...validBody,
+            documentSendSettings: [{ document: 'minutes', enabled: true, recipientEmails }],
+        }).success;
+        expect(on([])).toBe(false);
+        expect(on(['clerk@example.org'])).toBe(true);
+    });
+
+    it('accepts a document that is switched off with no recipient, and rejects a bad address', () => {
+        const parse = (setting: unknown) => administrativeBodySchema.safeParse({ ...validBody, documentSendSettings: [setting] }).success;
+        expect(parse({ document: 'transcript', enabled: false, recipientEmails: [] })).toBe(true);
+        expect(parse({ document: 'transcript', enabled: false, recipientEmails: ['nope'] })).toBe(false);
+        expect(parse({ document: 'agenda', enabled: false, recipientEmails: [] })).toBe(false);
+    });
+
+    describe('the cards of the form', () => {
+        const card = (overrides: Partial<DocumentSendCard>): DocumentSendCard => ({ enabled: false, to: '', cc: '', ...overrides });
+        const issues = (c: DocumentSendCard) => {
+            const result = documentSendCardSchema.safeParse(c);
+            return result.success ? [] : result.error.issues.map(issue => issue.path.join('.'));
+        };
+
+        it('needs a To address only when the document is on', () => {
+            expect(issues(card({ enabled: true }))).toEqual(['to']);
+            expect(issues(card({ enabled: false }))).toEqual([]);
+            expect(issues(card({ enabled: true, to: 'clerk@example.org' }))).toEqual([]);
+        });
+
+        it('checks every typed address, on or off', () => {
+            expect(issues(card({ to: 'nope' }))).toEqual(['to']);
+            expect(issues(card({ cc: 'a@example.org, nope' }))).toEqual(['cc']);
+            expect(issues(card({ cc: 'a@example.org, b@example.org' }))).toEqual([]);
+        });
+
+        it('round-trips the stored settings through the cards', () => {
+            const stored = [
+                { document: 'transcript' as const, enabled: true, enabledAt: null, recipientEmails: ['to@example.org', 'cc1@example.org', 'cc2@example.org'] },
+            ];
+            const cards = documentSendCardsFromSettings(stored);
+            expect(cards).toEqual({
+                transcript: { enabled: true, to: 'to@example.org', cc: 'cc1@example.org, cc2@example.org' },
+                minutes: { enabled: false, to: '', cc: '' },
+            });
+            expect(documentSendSettingsFromCards(cards)).toEqual([
+                { document: 'transcript', enabled: true, recipientEmails: ['to@example.org', 'cc1@example.org', 'cc2@example.org'] },
+                { document: 'minutes', enabled: false, recipientEmails: [] },
+            ]);
+        });
     });
 });
 

@@ -209,13 +209,18 @@ async function extractCities(prisma: PrismaClient, cityIds: string[]) {
 }
 
 /**
- * Extract administrative bodies with their roles
+ * Extract administrative bodies with the switches of their document sends.
+ * The recipient addresses stay out: they belong to people in the back office,
+ * and the seed pipeline treats them as private too.
  */
 async function extractAdministrativeBodies(prisma: PrismaClient, cityIds: string[]) {
   console.log('Extracting administrative bodies...');
   return prisma.administrativeBody.findMany({
     where: { cityId: { in: cityIds } },
     // Don't include roles - they're captured in persons
+    include: {
+      documentSendSettings: { select: { document: true, enabled: true, enabledAt: true } },
+    },
   });
 }
 

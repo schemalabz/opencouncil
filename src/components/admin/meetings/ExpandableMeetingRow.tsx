@@ -3,6 +3,8 @@
 import { format } from "date-fns";
 import React from "react";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
+import type { DocumentSendSummary } from "@/lib/db/types";
+import { SentDocumentMarks } from "@/components/admin/documents/SentDocumentMarks";
 import { MeetingStage, MeetingStatus } from "@/lib/meetingStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,8 @@ interface ExpandableMeetingRowProps {
     isSelected: boolean;
     onSelect: (checked: boolean) => void;
     decisionCounts?: { linked: number; eligible: number };
+    /** The latest send that went out of each document of the meeting. */
+    sentDocuments: DocumentSendSummary[];
 }
 
 export function ExpandableMeetingRow({
@@ -44,6 +48,7 @@ export function ExpandableMeetingRow({
     isSelected,
     onSelect,
     decisionCounts,
+    sentDocuments,
 }: ExpandableMeetingRowProps) {
     const [meetingStage, setMeetingStage] = React.useState<MeetingStage>('scheduled');
     const [meetingStatus, setMeetingStatus] = React.useState<MeetingStatus | null>(null);
@@ -291,13 +296,9 @@ export function ExpandableMeetingRow({
                 </div>
             </TableCell>
 
-            {/* Transcript Sent Status */}
+            {/* Documents sent to the municipality */}
             <TableCell className="w-16 text-center">
-                <div className="flex items-center justify-center">
-                    {meetingStatus?.tasks.transcriptSent && (
-                        <CheckCircle className="h-3 w-3 text-green-600" />
-                    )}
-                </div>
+                <SentDocumentMarks sends={sentDocuments} />
             </TableCell>
 
             {/* Subjects Count */}

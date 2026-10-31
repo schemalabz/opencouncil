@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { PeopleOrdering } from '@prisma/client';
+import { DocumentKind, PeopleOrdering } from '@prisma/client';
 import { baseCityFields } from '@/lib/zod-schemas/city';
 import { administrativeBodyTypeSchema, notificationBehaviorSchema } from '@/lib/zod-schemas/administrativeBody';
 import { decisionConventionsRecordSchema } from '@/lib/decisionConventions';
@@ -72,7 +72,6 @@ export const AdministrativeBodySchema = z.object({
 export const AdministrativeBodyWithSettingsSchema = AdministrativeBodySchema.extend({
     notificationBehavior: notificationBehaviorSchema,
     showUnreviewedTranscript: z.boolean(),
-    contactEmails: z.array(z.string()),
     diavgeiaUnitIds: z.array(z.string()).meta({
         description: 'Diavgeia scopes polled for the decisions of the body, each `unit[:signer]`.',
     }),
@@ -83,6 +82,22 @@ export const AdministrativeBodyWithSettingsSchema = AdministrativeBodySchema.ext
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
 }).meta({ id: 'AdministrativeBodyWithSettings' });
+
+// One document of the "Αποστολή Εγγράφων" section of a body (#874).
+export const DocumentSendSettingSchema = z.object({
+    document: z.enum(DocumentKind),
+    enabled: z.boolean(),
+    enabledAt: z.iso.datetime().nullable().meta({
+        description: 'When the document was last switched on. An automatic send covers only a meeting held from then on. Null covers every meeting.',
+    }),
+    recipientEmails: z.array(z.string()).meta({ description: 'The first address is To, the rest are CC.' }),
+}).meta({ id: 'DocumentSendSetting' });
+
+// A body as the body form of an admin of the city reads it: the settings and
+// the document send settings.
+export const AdministrativeBodyWithSendSettingsSchema = AdministrativeBodyWithSettingsSchema.extend({
+    documentSendSettings: z.array(DocumentSendSettingSchema),
+}).meta({ id: 'AdministrativeBodyWithSendSettings' });
 
 // Matches the Party Prisma model fields returned by the handlers.
 export const PartySchema = z.object({
