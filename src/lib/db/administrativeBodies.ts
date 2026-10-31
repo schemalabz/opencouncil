@@ -48,6 +48,34 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 /**
+ * What the page of a body shows everyone: the public fields (with the hall it
+ * sits in and its channel), and how many public meetings it has held.
+ */
+export const bodyPageSelect = {
+    ...publicAdministrativeBodySelect,
+    _count: { select: { meetings: { where: { released: true } } } },
+} satisfies Prisma.AdministrativeBodySelect;
+
+export type BodyPageRow = Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyPageSelect }>;
+
+/** The body for its page. Null when the body does not exist or belongs to another city. */
+export async function getBodyPageRow(cityId: string, bodyId: string): Promise<BodyPageRow | null> {
+    return prisma.administrativeBody.findFirst({ where: { id: bodyId, cityId }, select: bodyPageSelect });
+}
+
+/** The contact settings that an admin of the body may change (#828). Gated on the body. */
+export async function getAdministrativeBodyContacts(
+    cityId: string,
+    bodyId: string,
+): Promise<{ youtubeChannelUrl: string | null; contactEmails: string[] } | null> {
+    await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
+    return prisma.administrativeBody.findFirst({
+        where: { id: bodyId, cityId },
+        select: { youtubeChannelUrl: true, contactEmails: true },
+    });
+}
+
+/**
  * Every administrative body of a city, with the fields anyone may read. The
  * public twin of {@link getAdministrativeBodiesForCity}.
  */

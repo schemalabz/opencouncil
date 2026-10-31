@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 
@@ -938,6 +939,10 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
 
   // Only track reviews for officially supported cities
   conditions.push({ city: CUSTOMER_CITY_WHERE });
+
+  // A secondary body's meetings get no human review: their transcripts go
+  // out as the machine wrote them, under the unreviewed banner (#829).
+  conditions.push(primaryMeetingWhere);
 
   // Add status filter
   conditions.push(buildStatusWhereConditions(show));

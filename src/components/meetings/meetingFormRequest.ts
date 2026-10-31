@@ -22,7 +22,7 @@ export function meetingIdForRequest(typedId: string | undefined, editing: boolea
  */
 export type MeetingFormLifecycleValues = Pick<
     z.output<typeof meetingFormSchema>,
-    'kind' | 'urgent' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format' | 'closedToPublic' | 'place' | 'postponedFromId'
+    'kind' | 'urgent' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format' | 'closedToPublic' | 'noRecording' | 'place' | 'postponedFromId'
 >;
 
 /**
@@ -47,6 +47,7 @@ export function meetingRequestFields(
         sessionNumber: !greekCodeFacts ? undefined : number ? Number(number) : null,
         format: values.format,
         closedToPublic: values.closedToPublic,
+        noRecording: values.noRecording,
         place: values.place ?? null,
         postponedFromId: !linkChanged
             ? undefined

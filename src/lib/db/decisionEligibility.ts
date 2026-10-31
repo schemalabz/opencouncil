@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
 import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
 import { getPollableMeetingDateRange, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 /**
  * Which subjects can carry a decision — the single definition, shared by every
@@ -36,6 +37,8 @@ export const AWAITING_DECISIONS_MEETING_WHERE = {
     ...TAKES_DECISIONS_WHERE,
     ...TAKES_PLACE_WHERE,
     subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
+    // A secondary body publishes no decisions (#829).
+    ...primaryMeetingWhere,
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
