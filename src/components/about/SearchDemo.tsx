@@ -3,13 +3,13 @@ import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
 import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
-import { DEMO_SCENARIO_BY_REALM } from './config'
+import { demoScenarioForRealm } from './config'
 
 const RESULT_DATES = ['15/01/2026', '22/01/2026', '10/02/2026']
 
 export default function SearchDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.search')
-    const tScenario = useTranslations(`about.demos.search.byRealm.${DEMO_SCENARIO_BY_REALM[realm]}`)
+    const tScenario = useTranslations(`about.demos.search.byRealm.${demoScenarioForRealm(realm)}`)
 
     return (
         <BrowserFrame url={`${getRealmDomain(realm)}/search`} className="w-full">

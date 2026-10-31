@@ -27,7 +27,8 @@
       "netherlands": "Nous cherchons notre première commune pilote aux Pays-Bas",
       "poland": "Nous cherchons notre première commune pilote en Pologne",
       "portugal": "Nous cherchons notre première commune pilote au Portugal",
-      "spain": "Nous cherchons notre première commune pilote en Espagne"
+      "spain": "Nous cherchons notre première commune pilote en Espagne",
+      "default": "Nous recherchons notre première commune pilote"
     },
     "title": "Conseils municipaux et commissions,",
     "titleHighlight": "ouverts à tous",
@@ -244,7 +245,8 @@
       "netherlands": "Devenez la première commune pilote aux Pays-Bas.",
       "poland": "Devenez la première commune pilote en Pologne.",
       "portugal": "Devenez la première commune pilote au Portugal.",
-      "spain": "Devenez la première commune pilote en Espagne."
+      "spain": "Devenez la première commune pilote en Espagne.",
+      "default": "Devenez notre première commune pilote."
     },
     "subtitle": "Nous cherchons une commune pour lancer OpenCouncil dans votre pays. Le pilote est gratuit, aussi longtemps qu’il le faut.",
     "points": {

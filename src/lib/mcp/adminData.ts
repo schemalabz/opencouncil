@@ -210,10 +210,11 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
     // another. The fields a tool does not offer take the defaults of the
     // site's form, and `pending` keeps the city off every public page.
     const realm = args.realm ?? currentRealm();
-    // A realm that serves the English UI has no default content language:
-    // its councils do not meet in English.
-    const realmLanguage = cityLanguageSchema.safeParse(REALMS[realm].defaultLocale);
-    const language = args.language ?? (realmLanguage.success ? realmLanguage.data : undefined);
+    // English is also a fallback UI locale, so it cannot establish the
+    // council's content language. Require it explicitly on English-UI realms.
+    const uiLocale = REALMS[realm].defaultLocale;
+    const realmLanguage = uiLocale === 'en' ? undefined : cityLanguageSchema.parse(uiLocale);
+    const language = args.language ?? realmLanguage;
     if (!language) {
         throw new BadRequestError(
             `The ${realm} realm has no default content language. Pass "language", the language the council meets in: one of ${Object.values(CityLanguage).join(', ')}. A council that meets in another language cannot be added yet.`,

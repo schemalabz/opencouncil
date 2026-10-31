@@ -433,6 +433,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                 <div className="divide-y divide-border">
                                     {contributions.map(contribution => (
                                         <ContributionCard
+                                            cityLanguage={city.language}
                                             key={contribution.id}
                                             contribution={contribution}
                                             highlighted={contribution.id === highlightedContributionId}
@@ -459,7 +460,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
 
                         {introducedBy && (
                             <RailCard title={t("introducer")}>
-                                <PersonBadge person={introducedBy} />
+                                <PersonBadge cityLanguage={city.language} person={introducedBy} />
                             </RailCard>
                         )}
 

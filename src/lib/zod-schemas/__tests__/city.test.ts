@@ -54,6 +54,20 @@ describe('cityFormSchema (Frontend)', () => {
     expect(parsed.name).toBe('Αθήνα');
   });
 
+  it('accepts a Bosnian-language city in the Bosnia realm', () => {
+    expect(cityFormSchema.parse({
+      ...validCityData,
+      id: 'sarajevo',
+      name: 'Sarajevo',
+      name_en: 'Sarajevo',
+      name_municipality: 'Grad Sarajevo',
+      name_municipality_en: 'City of Sarajevo',
+      timezone: 'Europe/Sarajevo',
+      language: 'bs',
+      realm: 'bosnia',
+    })).toMatchObject({ id: 'sarajevo', language: 'bs', realm: 'bosnia' });
+  });
+
   it('should reject invalid city ID format (uppercase)', () => {
     expect(() => cityFormSchema.parse({
       ...validCityData,
@@ -394,5 +408,11 @@ describe('CITY_DEFAULTS alignment', () => {
       language: 'el',
       realm: 'greece',
     });
+  });
+});
+
+describe('European meeting language acceptance', () => {
+  it.each('en cy ga da no is et lv lt cs sk hu sl hr ro bg mk mt lb uk ru tr sq eu'.split(' '))('accepts the meeting language %s independently of the UI locale', language => {
+    expect(baseCityFormSchema.parse({ ...validFrontendBase, language }).language).toBe(language);
   });
 });

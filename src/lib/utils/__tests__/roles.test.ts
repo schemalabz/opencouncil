@@ -900,6 +900,18 @@ describe('getRoleKind', () => {
 });
 
 describe('getRoleTitle', () => {
+  it('preserves native English head titles and falls back when no title is saved', () => {
+    const titles = { ...roleTEn, contentLanguage: 'en' };
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: 'Council Leader' }, titles)).toBe('Council Leader');
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: 'Committee Chair' }, titles)).toBe('Committee Chair');
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, titles)).toBe('Mayor');
+  });
+
+  it('translates head titles when an English page displays another content language', () => {
+    const titles = { ...roleTEn, contentLanguage: 'el' };
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: 'Δήμαρχος' }, titles)).toBe('Mayor');
+  });
+
   it('gives a head with no stored name the title of what it heads', () => {
     expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, roleT)).toBe('Δήμαρχος');
     expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: null }, roleT)).toBe('Πρόεδρος');

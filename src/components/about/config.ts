@@ -193,25 +193,10 @@ export const PILOT_POINTS: Array<{ id: PilotPointId; icon: LucideIcon }> = [
 // The /explain page still shows the drawn mockups of these features; /about
 // shows the real product instead.
 
-export const DEMO_SCENARIO_BY_REALM: Record<Realm, DemoScenario> = {
-    greece: 'greece',
-    // Cyprus has no scenario of its own yet. The Greek one at least speaks the
-    // right language, which no other scenario does.
-    cyprus: 'greece',
-    france: 'france',
-    serbia: 'serbia',
-    // The Record needs an entry for every realm. These realms have no scenario
-    // of their own, and /explain, the page that renders the demos, is
-    // greece-only.
-    austria: 'france',
-    belgium: 'france',
-    finland: 'france',
-    germany: 'france',
-    italy: 'france',
-    netherlands: 'france',
-    poland: 'france',
-    portugal: 'france',
-    spain: 'france',
+export function demoScenarioForRealm(realm: Realm): DemoScenario {
+    if (realm === 'greece' || realm === 'cyprus') return 'greece';
+    if (realm === 'serbia') return 'serbia';
+    return 'france';
 }
 
 /** Center and zoom of the static map tile behind the map mockup, per scenario. */

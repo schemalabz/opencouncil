@@ -103,6 +103,9 @@
         }
     },
     "Footer": {
+        "selectCountry": "Select country",
+        "searchCountry": "Search countries",
+        "noCountries": "No countries found.",
         "tagline": "Built with respect and appreciation for local government.",
         "companyDescription": "OpenCouncil is a company of <link>Schema Labs</link>, a non-profit that builds technology to strengthen democracy.",
         "linksHeading": "Links",

@@ -108,11 +108,9 @@ When a send fails, the dev server console shows `[auth][error] Error: Resend err
 
 #### Sign in with Google
 Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console.
-For each realm in `REALMS` (`src/lib/realm.ts`), add an authorized redirect URI: `https://<realm domain>/api/auth/callback/google`.
-Add each top private domain to the OAuth consent screen's authorized domains. Add each domain once.
-Today, the redirect hosts are `opencouncil.gr`, `opencouncil.fr`, `opencouncil.cy`, `opencouncil.rs`, `opencouncil.at`, `opencouncil.be`, `opencouncil.fi`, `opencouncil.de`, `opencouncil.it`, `opencouncil.nl`, `opencouncil.pl`, `pt.opencouncil.eu` and `opencouncil.es`.
-For Portugal, use `https://pt.opencouncil.eu/api/auth/callback/google` and ensure that `opencouncil.eu` is an authorized domain.
-A new realm needs its redirect URI and top private domain before readers can use Google sign-in.
+Use the canonical domains defined in [`REALMS`](../src/lib/realm.ts) as the source of truth. For each domain, add an authorized redirect URI: `https://<realm domain>/api/auth/callback/google`.
+Add each top private domain to the OAuth consent screen's authorized domains once (country subdomains of `opencouncil.eu` share that authorized domain).
+Route each domain to this deployment and configure its redirect URI before enabling Google sign-in there.
 For development, add `http://localhost:3000/api/auth/callback/google`.
 
 The button appears on the host that `NEXTAUTH_URL` names and on every realm apex. One deployment serves every realm, and next-auth rewrites each request to the origin of `NEXTAUTH_URL`. The auth route therefore sends the Google sign-in and its callback on another realm apex through Auth.js core with the request's own host (`realmOAuthUrl`), so the sign-in finishes on the domain it started on. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.

@@ -58,6 +58,7 @@ export async function requireVisibleMeeting(
      * language, so a tool names the meeting and the roles in it too.
      */
     locale: AppLocale;
+    contentLanguage: string;
     videoUrl: string | null;
     administrativeBody: { name: string } | null;
     administrativeBodyId: string | null;
@@ -91,7 +92,7 @@ export async function requireVisibleMeeting(
             administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
             administrativeBodyId: true,
             taskStatuses: transcriptGateSelect.taskStatuses,
-            city: { select: { timezone: true, realm: true } },
+            city: { select: { timezone: true, realm: true, language: true } },
         },
     });
 
@@ -107,6 +108,7 @@ export async function requireVisibleMeeting(
         dateTime: meeting.dateTime,
         name: meetingLabelInCity(meeting, locale),
         locale,
+        contentLanguage: meeting.city.language,
         videoUrl: meeting.videoUrl,
         administrativeBody: meeting.administrativeBody && { name: meeting.administrativeBody.name },
         administrativeBodyId: meeting.administrativeBodyId,

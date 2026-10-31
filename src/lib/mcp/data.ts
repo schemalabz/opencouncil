@@ -499,7 +499,7 @@ export async function mcpGetSubject(subjectId: string, identity: McpIdentity) {
     // Speaker role labels ride along with quoted speech so consumers copy titles
     // instead of guessing them. The label is the site's own (getRoleLabelAt), as
     // of the meeting date, in the UI language of the city's realm.
-    const t = await getRoleTitles(meeting.locale);
+    const t = await getRoleTitles(meeting.locale, meeting.contentLanguage);
 
     return {
         id: subject.id,
@@ -559,7 +559,7 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
     );
     await requirePublicTranscript(visibleMeeting, subject.cityId, identity);
     const meetingDate = visibleMeeting.dateTime;
-    const t = await getRoleTitles(visibleMeeting.locale);
+    const t = await getRoleTitles(visibleMeeting.locale, visibleMeeting.contentLanguage);
 
     const where: Prisma.UtteranceWhereInput = {
         discussionSubjectId: subjectId,
@@ -691,7 +691,7 @@ export async function mcpGetTranscript(
     const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
     await requirePublicTranscript(visibleMeeting, cityId, identity);
     const meetingDate = visibleMeeting.dateTime;
-    const t = await getRoleTitles(visibleMeeting.locale);
+    const t = await getRoleTitles(visibleMeeting.locale, visibleMeeting.contentLanguage);
 
     const allSegments = await getTranscript(meetingId, cityId);
 

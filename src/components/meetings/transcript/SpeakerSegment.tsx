@@ -287,6 +287,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                             className='flex flex-1 min-w-0 min-h-11 items-center justify-between gap-2 py-1.5 text-left hover:bg-accent/20 transition-colors'
                                         >
                                             <PersonBadge
+                                                cityLanguage={city.language}
                                                 person={headerData.person}
                                                 speakerTag={headerData.speakerTag}
                                                 variant="inline"
@@ -310,6 +311,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                         <div className='flex-grow overflow-hidden min-w-0' {...speakerBarHover}>
                                             {headerData.speakerTag && (
                                                 <PersonBadge
+                                                    cityLanguage={city.language}
                                                     person={headerData.person}
                                                     speakerTag={headerData.speakerTag}
                                                     segmentCount={headerData.segmentCount}

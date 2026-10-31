@@ -175,7 +175,7 @@ export default function PresentationView({
                         className="absolute inset-0 [&_button]:pointer-events-auto"
                     >
                         {currentSubject ? (
-                            <SubjectSlide key={currentSubject.id} subject={currentSubject} />
+                            <SubjectSlide key={currentSubject.id} subject={currentSubject} cityLanguage={city.language} />
                         ) : (
                             <MeetingInfoSlide
                                 meeting={meeting}

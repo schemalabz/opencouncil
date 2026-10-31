@@ -53,6 +53,7 @@ export default async function PeoplePage(props: PageProps) {
                 people={people}
                 consents={consents}
                 currentCityName={currentCityName}
+                cityLanguage={cities.find(c => c.id === selectedCityId)?.language}
                 qrEligibleIds={qrEligibleIds}
             />
         </div>

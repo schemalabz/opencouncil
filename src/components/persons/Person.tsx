@@ -77,7 +77,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const locale = useLocale();
-    const roleTitles = useRoleTitles();
+    const roleTitles = useRoleTitles(city.language);
     const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
     const personParty = getPartyFromRoles(person.roles);
     const speakingMinutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
@@ -385,6 +385,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         transition={{ delay: 0.1 * index }}
                                     >
                                         <ContributionCard
+                                            cityLanguage={city.language}
                                             contribution={contribution}
                                             subjectId={contribution.subject.id}
                                             meeting={{

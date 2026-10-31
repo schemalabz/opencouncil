@@ -80,6 +80,31 @@ enum CityLanguage {
   ca
   sv
   gl
+  bs
+  en
+  cy
+  ga
+  da
+  no
+  is
+  et
+  lv
+  lt
+  cs
+  sk
+  hu
+  sl
+  hr
+  ro
+  bg
+  mk
+  mt
+  lb
+  uk
+  ru
+  tr
+  sq
+  eu
 }
 
 // Tenant/grouping a city belongs to (e.g. the Greek vs. French deployment).
@@ -97,6 +122,36 @@ enum Realm {
   poland
   portugal
   spain
+  bosnia
+  andorra
+  albania
+  bulgaria
+  switzerland
+  czechia
+  denmark
+  estonia
+  united_kingdom
+  croatia
+  hungary
+  ireland
+  iceland
+  liechtenstein
+  lithuania
+  luxembourg
+  latvia
+  monaco
+  moldova
+  montenegro
+  north_macedonia
+  malta
+  norway
+  romania
+  sweden
+  slovenia
+  slovakia
+  san_marino
+  ukraine
+  kosovo
 }
 
 /// Where a city stands with us. Collapses the old (status, officialSupport) pair:

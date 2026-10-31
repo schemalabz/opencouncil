@@ -6,7 +6,7 @@ import type { Realm } from '@prisma/client'
 import { publicEnv } from '@/lib/publicEnv'
 import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
-import { DEMO_MAP_VIEWS, DEMO_SCENARIO_BY_REALM } from './config'
+import { DEMO_MAP_VIEWS, demoScenarioForRealm } from './config'
 import type { DemoScenario } from './config'
 
 const SUBJECT_POSITIONS = [
@@ -24,7 +24,7 @@ function getStaticMapUrl(scenario: DemoScenario, width: number, height: number):
 
 export default function MapDemo({ realm }: { realm: Realm }) {
     const t = useTranslations('about.demos.map')
-    const scenario = DEMO_SCENARIO_BY_REALM[realm]
+    const scenario = demoScenarioForRealm(realm)
     const tScenario = useTranslations(`about.demos.map.byRealm.${scenario}`)
 
     return (

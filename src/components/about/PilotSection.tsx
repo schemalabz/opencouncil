@@ -23,7 +23,7 @@ export default function PilotSection({ realm, onContactClick }: PilotSectionProp
         <section id="pilot" className="scroll-mt-20 md:scroll-mt-36 border-t border-border py-14 md:py-[88px]">
             <Container>
                 <motion.div {...reveal} className="flex flex-col gap-6 rounded-[20px] bg-[hsl(24,100%,96%)] p-6 sm:p-8 md:gap-9 md:p-14">
-                    <SectionHeading kicker={t('kicker')} title={t(`title.${realm}`)} subtitle={t('subtitle')} className="max-w-[760px]" />
+                    <SectionHeading kicker={t('kicker')} title={t.has(`title.${realm}`) ? t(`title.${realm}`) : t('title.default')} subtitle={t('subtitle')} className="max-w-[760px]" />
 
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-5">
                         {PILOT_POINTS.map((point, index) => {
