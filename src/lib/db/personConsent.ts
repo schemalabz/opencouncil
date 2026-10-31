@@ -4,8 +4,12 @@ import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
 import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
+import { openPeriodWhere, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
+import { deleteVoicePrintsWithoutConsent } from "@/lib/db/voiceprintsDelete";
 
-const openPeriod = (personId: string) => ({ personId, withdrawnAt: null });
+export { voicePrintConsentInForce };
+
+const openPeriod = (personId: string) => ({ personId, ...openPeriodWhere });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
 type OpenPeriod = Prisma.VoicePrintConsentGetPayload<{ select: typeof openPeriodSelect }>;
 
@@ -52,8 +56,9 @@ const closePeriod = (tx: Prisma.TransactionClient, period: OpenPeriod) =>
  *
  * A consent is a period. A tick opens one, under this account, and a tick
  * on an open period keeps it, so the original time stands. A withdrawal
- * closes the open period and deletes nothing, so we can still show that
- * consent was in force while a voiceprint was processed.
+ * closes the open period and deletes no period, so we can still show that
+ * consent was in force while a voiceprint was processed; the person's
+ * voiceprints and clips are deleted (see deleteVoicePrintsAfterWithdrawal).
  *
  * A period that a superadmin recorded is not the account's to close: the
  * person revokes it by email. A tick on it changes nothing.
@@ -82,6 +87,20 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
         }
         if (open) await closePeriod(tx, open);
     });
+    if (!consent) await deleteVoicePrintsAfterWithdrawal(personId);
+}
+
+/**
+ * What a withdrawal leaves behind: nothing. The person's voiceprints go with
+ * their clips, after the period is closed and committed, so a failure here
+ * cannot undo the withdrawal. Idempotent, and a no-op while a period is open
+ * (a superadmin's recorded period, for instance, survives the app's tick).
+ */
+async function deleteVoicePrintsAfterWithdrawal(personId: string): Promise<void> {
+    const { voicePrints } = await deleteVoicePrintsWithoutConsent({ personId });
+    if (voicePrints.length > 0) {
+        console.log(`Deleted ${voicePrints.length} voiceprint(s) of person ${personId} after the withdrawal of their consent`);
+    }
 }
 
 /**
@@ -90,7 +109,7 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
  * need an account. A grant replaces a consent given in the app with the
  * recorded one, so the box locks; a recorded one stays as it is, so the
  * original time stands. A withdrawal closes the open period, whoever
- * opened it.
+ * opened it, and deletes the person's voiceprints and clips.
  */
 export async function recordVoicePrintConsent(personId: string, consent: boolean): Promise<void> {
     if (typeof consent !== "boolean") throw new BadRequestError("consent must be a boolean");
@@ -108,13 +127,15 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
         }
         if (open) await closePeriod(tx, open);
     });
+    if (!consent) await deleteVoicePrintsAfterWithdrawal(personId);
 }
 
 /**
  * Close the consent that an account gave in the app, if one is open. A claim
  * calls it: the account that is the person now answers the question itself,
  * and the answer of an earlier account must not stand in for it. A consent
- * recorded on paper stays.
+ * recorded on paper stays. Runs inside the claim's transaction, so it deletes
+ * no voiceprint itself: the claim does that once it has committed.
  */
 export async function closeAppConsent(tx: Prisma.TransactionClient, personId: string): Promise<void> {
     const open = await tx.voicePrintConsent.findFirst({
@@ -122,6 +143,11 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
         select: openPeriodSelect,
     });
     if (open) await closePeriod(tx, open);
+}
+
+/** The ids among `personIds` with a consent in force (see voicePrintConsentInForce). */
+export async function getConsentedPersonIds(personIds: string[]): Promise<Set<string>> {
+    return new Set((await getVoicePrintConsents(personIds)).keys());
 }
 
 /**
@@ -132,7 +158,7 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
 export async function getVoicePrintConsents(personIds: string[]): Promise<Map<string, VoicePrintConsentSource>> {
     if (personIds.length === 0) return new Map();
     const rows = await prisma.voicePrintConsent.findMany({
-        where: { personId: { in: personIds }, withdrawnAt: null },
+        where: { personId: { in: personIds }, ...openPeriodWhere },
         select: { personId: true, source: true },
     });
     return new Map(rows.map((r) => [r.personId, r.source]));
@@ -156,7 +182,7 @@ export type VoicePrintConsentStatus = Prisma.VoicePrintConsentGetPayload<{ selec
 export async function getVoicePrintConsentStatuses(personIds: string[]): Promise<Map<string, VoicePrintConsentStatus>> {
     if (personIds.length === 0) return new Map();
     const rows = await prisma.voicePrintConsent.findMany({
-        where: { personId: { in: personIds }, withdrawnAt: null },
+        where: { personId: { in: personIds }, ...openPeriodWhere },
         select: consentStatusSelect,
     });
     return new Map(rows.map((r) => [r.personId, r]));

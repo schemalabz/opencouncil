@@ -8,6 +8,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('../transcribeInternal', () => ({ requestTranscribeInternal: jest.fn(), deleteExistingSpeakerData: jest.fn() }));
 jest.mock('../fixTranscriptInternal', () => ({ requestFixTranscriptInternal: jest.fn() }));
 jest.mock('../autoTrigger', () => ({ autoTriggerTask: jest.fn() }));
+jest.mock('../../db/personConsent', () => ({ getConsentedPersonIds: jest.fn() }));
 
 const internal = requestTranscribeInternal as jest.Mock;
 
