@@ -25,6 +25,15 @@ export interface ExpoData {
         land: string[];
         dots: Array<{ id: string; name: string; status: "live" | "preview" | "requested"; x: number; y: number }>;
     };
+    /** The cover: Chania's streets around one subject, from the site's city map. */
+    chania: {
+        width: number;
+        height: number;
+        streets: Array<{ w: number; d: string }>;
+        coast: string;
+        pin: { x: number; y: number; title: string; place: string; date: string; url: string };
+        labels: Array<{ text: string; x: number; y: number }>;
+    };
 }
 
 const SITE = "opencouncil.eu";
@@ -86,7 +95,7 @@ function PanelTitle({ kicker, title }: { kicker: string; title: string }) {
 
 function Feature({ icon, title, text }: { icon: keyof typeof ICON_PATHS; title: string; text: string }) {
     return (
-        <View style={{ flexDirection: "row", gap: 9, marginBottom: 15 }}>
+        <View style={{ flexDirection: "row", gap: 9, marginBottom: 12 }}>
             <View style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: C.accentSoft, alignItems: "center", justifyContent: "center", marginTop: 1 }}>
                 <LucideIcon name={icon} size={13} />
             </View>
@@ -118,40 +127,71 @@ function BrowserFrame({ src, url, width, aspect }: { src: string; url: string; w
     );
 }
 
-/** The message a resident gets from Notis, drawn as a chat: the hook on the cover. */
-function WhatsAppMockup({ width }: { width: number }) {
-    const WA = { surface: "#ece5dd", header: "#008069", bubble: "#ffffff", ink: "#111b21", muted: "#667781", link: "#027eb5" };
+// ─── The cover map ──────────────────────────────────────────────────────────
+
+const WA = { sender: "#1fa855", ink: "#111b21", muted: "#667781", link: "#027eb5" };
+const STREET: Record<number, { color: string; width: number }> = {
+    1: { color: "#dedede", width: 0.55 },
+    2: { color: "#cfcfcf", width: 0.95 },
+    3: { color: "#bdbdbd", width: 1.4 },
+};
+
+/** One Notis message, as a resident sees it: the sender, the text, the subject, the link. */
+function NotisBubble({ pin, width }: { pin: ExpoData["chania"]["pin"]; width: number }) {
     return (
-        <View style={{ width, borderRadius: 10, overflow: "hidden", backgroundColor: WA.surface, borderWidth: 0.75, borderColor: C.line }}>
-            <View style={{ backgroundColor: WA.header, paddingVertical: 7, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 7 }}>
-                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: "#ffffff", alignItems: "center", justifyContent: "center" }}>
-                    {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
-                    <Image src={`${ASSET_BASE}/logo.png`} style={{ width: 11, height: 11 * (1354 / 1606) }} />
-                </View>
-                <View>
-                    <Text style={{ fontSize: 8.5, color: "#ffffff" }}>Notis · OpenCouncil Chania</Text>
-                    <Text style={{ fontSize: 6, color: "#d6f3ea" }}>WhatsApp Business</Text>
+        <View style={{ width, backgroundColor: "#ffffff", borderRadius: 8, borderTopLeftRadius: 2, padding: 8, borderWidth: 0.5, borderColor: C.line }}>
+            <Svg width={8} height={10} style={{ position: "absolute", left: -7.5, top: 0 }}>
+                <Path d="M8,0 L0,0 L8,9 Z" fill="#ffffff" stroke={C.line} strokeWidth={0.5} />
+            </Svg>
+            <Text style={{ fontSize: 6.5, color: WA.sender, marginBottom: 3 }}>Notis · OpenCouncil Chania</Text>
+            <Text style={{ fontSize: 7, color: WA.ink, lineHeight: 1.45 }}>
+                In tonight’s municipal committee meeting, a subject affecting your street was discussed:
+            </Text>
+            <View style={{ flexDirection: "row", gap: 4, marginTop: 5 }}>
+                <LucideIcon name="mapPin" size={8} color={C.accent} />
+                <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 7, color: WA.ink, lineHeight: 1.35 }}>{pin.title}</Text>
+                    <Text style={{ fontSize: 6, color: WA.muted, marginTop: 1 }}>
+                        {pin.place} · {fmtDate(pin.date)}
+                    </Text>
                 </View>
             </View>
-            <View style={{ padding: 9, gap: 6 }}>
-                <View style={{ maxWidth: "88%", backgroundColor: WA.bubble, borderRadius: 7, borderTopLeftRadius: 2, padding: 7 }}>
-                    <Text style={{ fontSize: 7.5, color: WA.ink, lineHeight: 1.45 }}>
-                        In tonight’s municipal committee meeting, a subject affecting your street was discussed:
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 4, marginTop: 5 }}>
-                        <LucideIcon name="mapPin" size={8} color={C.accent} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 7.5, color: WA.ink, fontWeight: 600 }}>Selinou Street in Nea Chora becomes one way</Text>
-                            <Text style={{ fontSize: 6.5, color: WA.muted }}>Selinou Street · Municipal Committee, 19 Oct 2026</Text>
-                        </View>
-                    </View>
-                    <Text style={{ fontSize: 7.5, color: WA.link, marginTop: 5 }}>View the summary and the decision →</Text>
-                    <Text style={{ fontSize: 5.5, color: WA.muted, textAlign: "right", marginTop: 2 }}>21:14</Text>
-                </View>
+            <Text style={{ fontSize: 7, color: WA.link, marginTop: 5 }}>View the summary and decision →</Text>
+            <Text style={{ fontSize: 5.5, color: WA.muted, textAlign: "right", marginTop: 1 }}>21:14</Text>
+        </View>
+    );
+}
+
+/** Chania's streets with the subject's pin and the message beside it. */
+function ChaniaMap({ chania, width }: { chania: ExpoData["chania"]; width: number }) {
+    const h = (chania.height / chania.width) * width;
+    const k = width / chania.width;
+    const pinX = chania.pin.x * k;
+    const pinY = chania.pin.y * k;
+    const bubbleW = 138;
+    return (
+        <View style={{ width, height: h, borderRadius: 8, backgroundColor: "#f5f5f4", borderWidth: 0.5, borderColor: C.line, overflow: "hidden" }}>
+            <Svg width={width} height={h} viewBox={`0 0 ${chania.width} ${chania.height}`}>
+                {chania.streets.map(street => (
+                    <Path key={street.w} d={street.d} fill="none" stroke={STREET[street.w]?.color ?? "#dedede"} strokeWidth={(STREET[street.w]?.width ?? 0.6) / k} strokeLinecap="round" strokeLinejoin="round" />
+                ))}
+                <Path d={chania.coast} fill="none" stroke="#a3a3a3" strokeWidth={1.1 / k} strokeLinecap="round" strokeLinejoin="round" />
+                <Circle cx={chania.pin.x} cy={chania.pin.y} r={13 / k} fill={C.accent} opacity={0.16} />
+                <Circle cx={chania.pin.x} cy={chania.pin.y} r={4.5 / k} fill={C.accent} stroke="#ffffff" strokeWidth={1.4 / k} />
+            </Svg>
+            {chania.labels.map(label => (
+                <Text key={label.text} style={{ position: "absolute", left: label.x * k, top: label.y * k, fontSize: 6, color: C.mid, letterSpacing: 0.4 }}>
+                    {label.text.toUpperCase()}
+                </Text>
+            ))}
+            <View style={{ position: "absolute", left: pinX + 14, top: pinY - 8, width: bubbleW }}>
+                <NotisBubble pin={chania.pin} width={bubbleW} />
             </View>
         </View>
     );
 }
+
+// ─── The Europe map ─────────────────────────────────────────────────────────
 
 /** Preview dots whose label goes on the left, because the one to the right is taken. */
 const LABEL_LEFT = new Set(["kortrijk", "rennes", "valladolid"]);
@@ -304,8 +344,13 @@ function BackPanel({ data }: { data: ExpoData }) {
                     </View>
                 </View>
             </View>
-            <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.45, marginTop: 9 }}>
-                OpenCouncil is the system of record for local government democracy. OpenCouncil P.C. is wholly owned by Schema Labs, a non-profit based in Athens. Our code is open source under the AGPL v3 licence.
+
+            {/* The closing statement: the site's headline, in its colours, quieter than the cover. */}
+            <Text style={{ fontSize: 11, color: C.ink, lineHeight: 1.35, marginTop: 14 }}>
+                OpenCouncil is the system of record for <Text style={{ color: C.accent }}>local government democracy</Text>.
+            </Text>
+            <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.45, marginTop: 6 }}>
+                OpenCouncil P.C. is wholly owned by Schema Labs, a non-profit based in Athens. Open source under the AGPL v3 licence.
             </Text>
         </Panel>
     );
@@ -324,35 +369,32 @@ function FrontPanel({ data }: { data: ExpoData }) {
                 <Text style={{ fontSize: 7.5, color: C.accent, marginTop: 6 }}>.eu</Text>
             </View>
 
-            <View style={{ marginTop: 22 }}>
-                <Text style={{ fontSize: 23, color: C.ink, lineHeight: 1.12 }}>Your council already meets in public.</Text>
-                <Text style={{ fontSize: 23, color: C.accent, lineHeight: 1.12 }}>Make the city pay attention.</Text>
-                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginTop: 9 }}>
-                    We carefully transcribe city council sessions and turn them into summarised subjects, WhatsApp updates for citizens, and official minutes for staff.
-                </Text>
+            <View style={{ marginTop: 12 }}>
+                <Text style={{ fontSize: 20, color: C.ink, lineHeight: 1.12 }}>Your council already meets in public.</Text>
+                <Text style={{ fontSize: 20, color: C.accent, lineHeight: 1.12 }}>Make the city pay attention.</Text>
             </View>
 
-            <View style={{ marginTop: 14 }}>
-                <WhatsAppMockup width={INNER} />
-                <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 4, lineHeight: 1.4 }}>
-                    A Notis message, as residents of Chania receive it. Real subject, decided on 19 Oct 2026.
+            <View style={{ width: 28, height: 1.5, backgroundColor: C.accent, marginTop: 10, marginBottom: 7 }} />
+            <Text style={{ fontSize: 11, color: C.ink, lineHeight: 1.45 }}>
+                We carefully transcribe city council sessions and turn them into summarised subjects, WhatsApp updates for citizens, and official minutes for staff.
+            </Text>
+
+            <View style={{ marginTop: 10 }}>
+                <ChaniaMap chania={data.chania} width={INNER} />
+                <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 5, lineHeight: 1.4 }}>
+                    Chania, {fmtDate(data.chania.pin.date)}. A real subject, and the message residents of the street received about it.
                 </Text>
             </View>
 
             <View style={{ flex: 1 }} />
 
-            <View style={{ flexDirection: "row", borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 10, marginBottom: 10 }}>
+            <View style={{ flexDirection: "row", borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 8, marginBottom: 10 }}>
                 {stats.map((stat, i) => (
                     <View key={stat.label} style={{ flex: 1, borderLeftWidth: i === 0 ? 0 : 0.5, borderLeftColor: C.line, paddingLeft: i === 0 ? 0 : 8 }}>
-                        <Text style={{ fontSize: 17, color: i === 0 ? C.accent : C.ink }}>{stat.value}</Text>
+                        <Text style={{ fontSize: 16, color: i === 0 ? C.accent : C.ink }}>{stat.value}</Text>
                         <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.35, marginTop: 2 }}>{stat.label}</Text>
                     </View>
                 ))}
-            </View>
-
-            <View style={{ borderLeftWidth: 2, borderLeftColor: C.accent, paddingLeft: 10, paddingVertical: 2, marginBottom: 12 }}>
-                <Text style={{ fontSize: 10.5, color: C.ink }}>Free demo on your own council’s meeting.</Text>
-                <Text style={{ fontSize: 7.5, color: C.body, marginTop: 2 }}>Ready in 24 hours. Ask us at the stand, or on {SITE}.</Text>
             </View>
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
@@ -365,44 +407,57 @@ function FrontPanel({ data }: { data: ExpoData }) {
 
 // ─── Inside ─────────────────────────────────────────────────────────────────
 
+/** Image first, then the list: the resident's panel is the one with a product in it. */
 function ResidentsPanel() {
     return (
         <Panel>
             <PanelTitle kicker="For residents" title="Hours-long meetings, understood in minutes." />
-            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>
-                Within 48 hours of every meeting, every subject has its video, summary, contributions per speaker and decision.
+            <BrowserFrame src={`${ASSET_BASE}/brochure/salzburg-subject.png`} url="opencouncil.at/salzburg" width={INNER} aspect={2560 / 1480} />
+            <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 5, marginBottom: 14 }}>
+                Salzburg City Council, 21 Oct 2026: “A €13 million shared space for three old town squares”, from a debate in German. Speech recognition handles most European languages well.
             </Text>
             <Feature icon="fileText" title="Subjects and summaries" text="Every meeting is split into subjects. For each one: a summary, each speaker’s position in brief, the video and the decision." />
             <Feature icon="search" title="Search" text="Search everything that has been said, in every meeting." />
             <Feature icon="bell" title="WhatsApp updates" text="Residents get a message whenever the council discusses their street, their neighbourhood or a subject they follow." />
             <Feature icon="mapPin" title="Subject map" text="The council’s subjects on the map. Zoom into any area, neighbourhood and street." />
             <Feature icon="landmark" title="Councillors and parties" text="Every member’s page: what they spoke on, for how long, and where they stood on each subject." />
-            <View style={{ flex: 1 }} />
-            <BrowserFrame src={`${ASSET_BASE}/brochure/salzburg-subject.png`} url="opencouncil.at/salzburg" width={INNER} aspect={2560 / 1000} />
-            <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 5 }}>
-                Salzburg City Council, 21 Oct 2026: “A €13 million shared space for three old town squares”, from a debate in German. Speech recognition handles most European languages well.
-            </Text>
         </Panel>
     );
 }
 
+function RuledItem({ title, text, last = false }: { title: string; text: string; last?: boolean }) {
+    return (
+        <View style={{ paddingVertical: 9, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: C.line }}>
+            <Text style={{ fontSize: 10.5, color: C.ink }}>{title}</Text>
+            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginTop: 2 }}>{text}</Text>
+        </View>
+    );
+}
+
+/** Tinted panel in the middle of the spread: one big number, a ruled list, the Europe list in a card, a big line. */
 function StaffPanel({ data }: { data: ExpoData }) {
     return (
-        <Panel>
+        <Panel style={{ backgroundColor: C.surface }}>
             <PanelTitle kicker="For council staff" title="What took days now takes hours." />
-            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>
-                Transcripts, minutes, decisions: automatically, or with minimal human intervention.
-            </Text>
-            <Feature icon="mic" title="Transcript within 48 hours" text="Every meeting, accurate and checked by a person, with automatic speaker recognition." />
-            <Feature icon="fileCheck" title="Minutes ready to sign" text="The meeting’s minutes, with attendance, votes and decisions, ready for review and signature." />
-            <Feature icon="package" title="Open API and MCP server" text="The record is open data. Query it through the public API, or ask about your council in Claude or ChatGPT." />
-            <Feature icon="globe" title="Your data, in Europe" text="Hosted in the EU, GDPR compliant, open source. European or self-hosted models when your policy asks for it." />
 
-            <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 10, marginTop: 4 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2, marginBottom: 6 }}>
+                <Text style={{ fontSize: 44, color: C.accent, lineHeight: 1 }}>48h</Text>
+                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.45, flex: 1 }}>
+                    from the end of the meeting to a transcript of every word, every speaker recognised, checked by a person.
+                </Text>
+            </View>
+
+            <View style={{ borderTopWidth: 0.5, borderTopColor: C.line }}>
+                <RuledItem title="Minutes ready to sign" text="The meeting’s minutes, with attendance, votes and decisions, ready for review and signature." />
+                <RuledItem title="Open API and MCP server" text="The record is open data. Query it through the public API, or ask about your council in Claude or ChatGPT." />
+                <RuledItem title="Your data, in Europe" text="Hosted in the EU, GDPR compliant, open source. European or self-hosted models when your policy asks for it." last />
+            </View>
+
+            <View style={{ backgroundColor: "#ffffff", borderWidth: 0.5, borderColor: C.line, borderRadius: 6, padding: 10, marginTop: 8 }}>
                 <Kicker>What European councils discussed</Kicker>
-                {data.cards.map(card => (
-                    <View key={card.title} style={{ flexDirection: "row", gap: 8, marginBottom: 7 }}>
-                        <Text style={{ width: 52, fontSize: 7.5, color: C.accent }}>{card.city}</Text>
+                {data.cards.map((card, i) => (
+                    <View key={card.title} style={{ flexDirection: "row", gap: 8, marginBottom: i === data.cards.length - 1 ? 0 : 6 }}>
+                        <Text style={{ width: 46, fontSize: 7.5, color: C.accent }}>{card.city}</Text>
                         <Text style={{ flex: 1, fontSize: 7.5, color: C.body, lineHeight: 1.4 }}>
                             {card.title} · {fmtDate(card.date)}
                         </Text>
@@ -412,26 +467,19 @@ function StaffPanel({ data }: { data: ExpoData }) {
 
             <View style={{ flex: 1 }} />
 
-            <View style={{ borderLeftWidth: 2, borderLeftColor: C.accent, backgroundColor: C.surface, paddingVertical: 10, paddingHorizontal: 11 }}>
-                <Text style={{ fontSize: 10.5, color: C.ink, lineHeight: 1.35 }}>
-                    OpenCouncil replaces the company that writes your minutes today, at a similar cost and with ten times the use.
-                </Text>
-            </View>
+            <Text style={{ fontSize: 13, color: C.ink, lineHeight: 1.35 }}>
+                OpenCouncil replaces the company that writes your minutes today, <Text style={{ color: C.accent }}>at a similar cost and with ten times the use.</Text>
+            </Text>
         </Panel>
     );
 }
 
 function Step({ number, title, text, last = false }: { number: string; title: string; text: string; last?: boolean }) {
     return (
-        <View style={{ flexDirection: "row", gap: 9 }}>
-            <View style={{ alignItems: "center" }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: C.accent, alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ fontSize: 7, color: C.accent }}>{number}</Text>
-                </View>
-                {!last && <View style={{ width: 0.5, flex: 1, backgroundColor: C.line, marginTop: 3 }} />}
-            </View>
-            <View style={{ flex: 1, paddingBottom: last ? 0 : 24 }}>
-                <Text style={{ fontSize: 10.5, color: C.ink }}>{title}</Text>
+        <View style={{ flexDirection: "row", gap: 10, paddingBottom: last ? 0 : 18 }}>
+            <Text style={{ width: 26, fontSize: 19, color: C.accent, lineHeight: 1, marginTop: 1 }}>{number}</Text>
+            <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: C.ink }}>{title}</Text>
                 <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5, marginTop: 3 }}>{text}</Text>
             </View>
         </View>
@@ -450,20 +498,20 @@ function HowItWorksPanel() {
     return (
         <Panel>
             <PanelTitle kicker="How it works" title="One video of the meeting in. Everything else out." />
-            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>
+            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 14 }}>
                 Nothing to install. The stream your council already runs is enough.
             </Text>
-            <Step number="01" title="The meeting" text="The council’s own stream or recording, as it is." />
-            <Step number="02" title="Carefully transcribed" text="Every word and every speaker, checked by a person. Then subjects, summaries and decisions." />
-            <Step number="03" title="Published and searchable" text="Each subject on its own page, in search, on the map. The record of the city." />
-            <Step number="04" title="Sent to the people it concerns" text="A WhatsApp message to the residents who follow the subject. Minutes to the staff who sign them." last />
+            <Step number="1" title="The meeting" text="The council’s own stream or recording, as it is." />
+            <Step number="2" title="Carefully transcribed" text="Every word and every speaker, checked by a person. Then subjects, summaries and decisions." />
+            <Step number="3" title="Published and searchable" text="Each subject on its own page, in search, on the map. The record of the city." />
+            <Step number="4" title="Sent to the people it concerns" text="A WhatsApp message to the residents who follow the subject. Minutes to the staff who sign them." last />
 
             <View style={{ flex: 1 }} />
 
-            <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 10 }}>
+            <View style={{ backgroundColor: C.surface, borderRadius: 6, padding: 12 }}>
                 <Kicker>Awards and mentions</Kicker>
-                {AWARDS.map(([title, detail]) => (
-                    <View key={title} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: 5 }}>
+                {AWARDS.map(([title, detail], i) => (
+                    <View key={title} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: i === AWARDS.length - 1 ? 0 : 5 }}>
                         <LucideIcon name="award" size={9} color={C.accent} />
                         <Text style={{ flex: 1, fontSize: 7.5, color: C.body, lineHeight: 1.4 }}>
                             <Text style={{ color: C.ink }}>{title}</Text> · {detail}
