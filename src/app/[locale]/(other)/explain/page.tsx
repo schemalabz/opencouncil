@@ -20,6 +20,7 @@ import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
 import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
 import { ExplainReader } from "./ExplainReader";
 import { ExplainFeatures } from "./ExplainFeatures";
+import { AiLiteracySection } from "./AiLiteracySection";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
 import { SUBSTACK_POSTS } from "@/lib/explain/substackPosts";
 import { getOgLocale } from '@/i18n/config';
@@ -278,7 +279,7 @@ export default async function ExplainPage() {
                             </div>
                         )}
                         {/* Product showcase (diagram + feature demos + coverage/pricing/CTA) */}
-                        <ExplainFeatures realm={realm} coverage={cityCoverage} pricing={pricing} />
+                        <ExplainFeatures realm={realm} coverage={cityCoverage} pricing={pricing} aiSection={<AiLiteracySection />} />
                     </section>
                 </div>
             </div>

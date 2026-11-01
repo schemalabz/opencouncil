@@ -1,12 +1,12 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Realm } from "@prisma/client";
 import { getRealmContactPhone, telHref } from "@/lib/realm";
 import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { MeetingStagesFlow } from "@/components/explain/MeetingStagesFlow";
 import { MeetingTimelineFigure } from "@/components/explain/MeetingTimelineFigure";
-import { AiLiteracySection } from "./AiLiteracySection";
 import { FeatureBlock } from "@/components/about/OpennessFeatures";
 import { OPENNESS_FEATURES } from "@/components/about/config";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
@@ -39,10 +39,13 @@ export function ExplainFeatures({
     realm,
     coverage,
     pricing,
+    aiSection,
 }: {
     realm: Realm;
     coverage: CoverageRow[];
     pricing: ExplainPricing;
+    /** The AI literacy section, rendered on the server and slotted in after the stages. */
+    aiSection: ReactNode;
 }) {
     return (
         <div className="mt-8 space-y-14 md:space-y-16">
@@ -65,8 +68,7 @@ export function ExplainFeatures({
                 <MeetingStagesFlow />
             </div>
 
-            {/* AI literacy: what the AI does, who checks it, how to read it */}
-            <AiLiteracySection />
+            {aiSection}
             {OPENNESS_FEATURES.map((feature, index) => (
                 <div key={feature.id} id={`oc-${feature.id}`} className="scroll-mt-24">
                     <FeatureBlock

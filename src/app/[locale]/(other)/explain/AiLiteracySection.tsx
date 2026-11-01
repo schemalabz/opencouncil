@@ -20,10 +20,11 @@ import {
  * it, which models and data, where to report errors, and a change log.
  */
 
-/** Who answers for what. The AI is a tool, so it is not a column here. */
-const RESPONSIBILITIES: { actor: Actor; items: string[] }[] = [
+/** Who answers for what. The AI is a tool, so it is not a card here. */
+const RESPONSIBILITIES: { actor: Actor; title: string; items: string[] }[] = [
     {
         actor: "opencouncil",
+        title: "Η OpenCouncil",
         items: [
             "Για το σύστημα και για κάθε κείμενο που παράγεται από το OpenCouncil, με ή χωρίς σήμανση.",
             "Για τον έλεγχο κάθε απομαγνητοφώνησης, λέξη προς λέξη, και των ομιλητών.",
@@ -33,6 +34,7 @@ const RESPONSIBILITIES: { actor: Actor; items: string[] }[] = [
     },
     {
         actor: "municipality",
+        title: "Ο δήμος",
         items: [
             "Για την ημερήσια διάταξη, το βίντεο και τις αποφάσεις που δημοσιεύει.",
             "Για τα πρακτικά: τα ελέγχει και τα υπογράφει όπως ορίζει η νομοθεσία.",
@@ -40,12 +42,6 @@ const RESPONSIBILITIES: { actor: Actor; items: string[] }[] = [
         ],
     },
 ];
-
-const RESPONSIBLE_LABEL: Record<Actor, string> = {
-    ai: ACTOR_LABEL.ai,
-    opencouncil: "Η OpenCouncil",
-    municipality: "Ο δήμος",
-};
 
 function ActorChips({ actors }: { actors: Actor[] }) {
     return (
@@ -170,13 +166,13 @@ export function AiLiteracySection() {
                 Η τεχνητή νοημοσύνη είναι εργαλείο. Δεν ευθύνεται για τίποτα: ευθύνονται όσοι τη χρησιμοποιούν.
             </p>
             <div className="not-prose mt-4 grid gap-3 sm:grid-cols-2">
-                {RESPONSIBILITIES.map(({ actor, items }) => {
+                {RESPONSIBILITIES.map(({ actor, title, items }) => {
                     const Icon = ACTOR_ICON[actor];
                     return (
                         <div key={actor} className="rounded-xl border border-border p-4">
                             <p className="flex items-center gap-2 font-semibold text-foreground">
                                 <Icon className="h-4 w-4 text-orange" aria-hidden="true" />
-                                {RESPONSIBLE_LABEL[actor]}
+                                {title}
                             </p>
                             <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted-foreground">
                                 {items.map((t) => (

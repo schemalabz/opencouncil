@@ -481,7 +481,7 @@ export function MeetingTimelineFigure() {
                     μόνο σε κάποιους δήμους ή όργανα
                 </li>
                 <li className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-4 rounded-sm bg-[repeating-linear-gradient(45deg,rgb(252_85_10)_0_2px,transparent_2px_5px)]" aria-hidden="true" />
+                    <span className="h-2.5 w-4 rounded-sm bg-[repeating-linear-gradient(45deg,hsl(var(--orange))_0_2px,transparent_2px_5px)]" aria-hidden="true" />
                     κείμενο από ΤΝ χωρίς έλεγχο
                 </li>
                 <li className="flex items-center gap-1.5">
@@ -518,7 +518,8 @@ export function MeetingTimelineFigure() {
             </ol>
 
             {/* what each row does in the lit phase */}
-            <div className="mt-4 border-t border-white/10 pt-4" aria-live="polite">
+            {/* announce changes only when the reader drives them, never during autoplay */}
+            <div className="mt-4 border-t border-white/10 pt-4" aria-live={idle ? 'off' : 'polite'}>
                 <p className="m-0 text-base font-semibold text-white">
                     {step + 1}. {current.label}
                 </p>
@@ -548,7 +549,7 @@ export function MeetingTimelineFigure() {
 }
 
 const STYLE = `
-.oc-tl{--panel:#14110D;--accent:rgb(252 85 10);--accent-hi:#ffb27a}
+.oc-tl{--panel:#14110D;--accent:hsl(var(--orange));--accent-hi:#ffb27a}
 .oc-tl svg *{vector-effect:non-scaling-stroke}
 .oc-tl .gutter svg *{vector-effect:none}
 .oc-tl .band{fill:var(--accent);opacity:.09;transition:x .35s ease,width .35s ease}
