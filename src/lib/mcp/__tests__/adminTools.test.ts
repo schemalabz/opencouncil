@@ -8,6 +8,8 @@ jest.mock('../adminData', () => ({
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
+    mcpPublishCityDemo: jest.fn().mockResolvedValue({}),
+    mcpSetCityBoundary: jest.fn().mockResolvedValue({}),
     mcpStartTask: jest.fn(),
     mcpUpdateMeeting: jest.fn(),
 }));
@@ -17,7 +19,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
 import {
-    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
+    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask, mcpUpdateMeeting,
 } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
 
@@ -96,6 +98,34 @@ describe('populate_city through the SDK', () => {
             expect(text).toContain(`"${field}"`);
         }
         expect(text).not.toContain('$ref');
+    });
+});
+
+describe('set_city_boundary through the SDK', () => {
+    it('passes the GeoJSON text without introducing a separate geometry schema', async () => {
+        const geojson = JSON.stringify({ type: 'FeatureCollection', features: [] });
+        const result = await mcp.call('set_city_boundary', { cityId: 'sarajevo', geojson });
+        expect(result.isError).not.toBe(true);
+        expect(mcpSetCityBoundary).toHaveBeenCalledWith(null, { cityId: 'sarajevo', geojson });
+    });
+
+    it('refuses a missing boundary before invoking the handler', async () => {
+        const result = await mcp.call('set_city_boundary', { cityId: 'sarajevo' });
+        expect(result.isError).toBe(true);
+        expect(mcpSetCityBoundary).not.toHaveBeenCalled();
+    });
+});
+
+describe('publish_city_demo through the SDK', () => {
+    it('accepts a city id without exposing arbitrary city or meeting edits', async () => {
+        const mcp = await connect();
+        try {
+            const result = await mcp.call('publish_city_demo', { cityId: 'mannheim', status: 'supported', released: true });
+            expect(result.isError).not.toBe(true);
+            expect(mcpPublishCityDemo).toHaveBeenCalledWith(null, { cityId: 'mannheim' });
+        } finally {
+            await mcp.close();
+        }
     });
 });
 

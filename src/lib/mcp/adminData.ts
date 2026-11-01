@@ -2,7 +2,7 @@ import "server-only";
 import { CityLanguage, Prisma, type City } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
-import { createCityDirect } from '@/lib/db/citiesAdmin';
+import { createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '@/lib/db/citiesAdmin';
 import { populateCity } from '@/lib/db/cityPopulate';
 import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
@@ -21,6 +21,8 @@ import type {
     CreateUploadUrlToolArgs,
     StartTaskToolArgs,
     UpdateMeetingToolArgs,
+    PublishCityDemoToolArgs,
+    SetCityBoundaryToolArgs,
 } from './adminToolSchemas';
 import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
@@ -29,6 +31,8 @@ import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
+import { landingSubjectsTag } from '@/lib/db/subject';
+import { parseBoundaryInput } from '@/lib/utils/geojson';
 import { isNewsPhase } from '@/lib/notifications/freshness';
 
 /**
@@ -215,6 +219,49 @@ async function createCityOrConflict(data: Parameters<typeof createCityDirect>[0]
     }
 }
 
+function revalidateCityDiscovery(cityId: string, realm: City['realm']) {
+    revalidateAfterResponse({ blockingTags: ['city', 'cities:all', `city:${cityId}`, landingSubjectsTag(realm)] });
+}
+
+export async function mcpSetCityBoundary(identity: McpIdentity, args: SetCityBoundaryToolArgs) {
+    await requireSuperadmin(identity);
+    const realm = await requireRealmCity(args.cityId);
+    const boundary = parseBoundaryInput(args.geojson);
+    if (!boundary.ok) throw new BadRequestError(`Invalid boundary GeoJSON: ${boundary.error}. Supply the municipality's WGS84 Polygon or MultiPolygon.`);
+    await updateCityGeometryDirect(args.cityId, boundary.geometry);
+    rememberCityRealm(args.cityId, realm);
+    revalidateCityDiscovery(args.cityId, realm);
+    revalidateAfterResponse({ blockingTags: [`city:${args.cityId}:geometry`] });
+    return {
+        cityId: args.cityId, realm,
+        geometryType: boundary.geometry.type,
+        polygonCount: boundary.geometry.type === 'Polygon' ? 1 : boundary.geometry.coordinates.length,
+        url: `${cityBaseUrl(args.cityId)}/${args.cityId}/map`,
+        next: 'The boundary is saved. Verify its outline on the city map. City status and meeting release flags are unchanged.',
+    };
+}
+
+export async function mcpPublishCityDemo(identity: McpIdentity, args: PublishCityDemoToolArgs) {
+    await requireSuperadmin(identity);
+    await requireRealmCity(args.cityId);
+    let city: City;
+    try {
+        city = await publishCityDemoDirect(args.cityId);
+    } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            throw new ConflictError('Only a pending or demo city can be published as a demo. Check list_cities with includePending before retrying.');
+        }
+        throw error;
+    }
+    rememberCityRealm(city.id, city.realm);
+    revalidateCityDiscovery(city.id, city.realm);
+    return {
+        id: city.id, status: city.status, realm: city.realm,
+        url: `${cityBaseUrl(city.id)}/${city.id}`,
+        next: 'The city is a public demo. Already released meetings are discoverable; draft meetings remain unreleased. No official support or notifications have been enabled.',
+    };
+}
+
 export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolArgs) {
     await requireSuperadmin(identity);
 
@@ -261,8 +308,8 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
         realm: city.realm,
         language: city.language,
         url: `${cityBaseUrl(city.id)}/${city.id}`,
-        next: 'The city is saved as pending, so it is not public. Fill it with populate_city. '
-            + `Add the logo and the boundary on the site: ${currentBaseUrl()}/admin/cities.`,
+        next: 'The city is saved as pending, so it is not public. Fill it with populate_city and save its verified boundary with set_city_boundary. '
+            + `Add the logo on the site: ${currentBaseUrl()}/admin/cities.`,
     };
 }
 
@@ -309,6 +356,6 @@ export async function mcpPopulateCity(
         cityId: data.cityId,
         ...stats,
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
-        next: 'The city stays pending. A superadmin checks the import and sets the status on the site.',
+        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call publish_city_demo.',
     };
 }

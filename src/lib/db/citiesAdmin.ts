@@ -1,6 +1,7 @@
 import "server-only";
 import type { City, Prisma } from "@prisma/client";
 import prisma from "./prisma";
+import { NotFoundError } from '@/lib/api/errors';
 
 /**
  * Create a city with no auth check, for a caller that has already authorized
@@ -14,6 +15,25 @@ import prisma from "./prisma";
  */
 export async function createCityDirect(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
     return prisma.city.create({ data: cityData });
+}
+
+/** Authorized callers only. The predicate also prevents a concurrent customer upgrade being overwritten. */
+export async function publishCityDemoDirect(cityId: string): Promise<City> {
+    return prisma.city.update({
+        where: { id: cityId, status: { in: ['pending', 'demo'] } },
+        data: { status: 'demo' },
+    });
+}
+
+/** Shared PostGIS write for callers that already authorized the city edit. Input is normalized by parseBoundaryInput. */
+export async function updateCityGeometryDirect(id: string, geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon): Promise<void> {
+    const updated = await prisma.$executeRaw`
+        UPDATE "City"
+        SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326),
+            "updatedAt" = NOW()
+        WHERE id = ${id}
+    `;
+    if (updated === 0) throw new NotFoundError('City not found');
 }
 
 /** The English name of a city, for an alert that needs nothing else of it. */
