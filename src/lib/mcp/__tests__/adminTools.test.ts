@@ -5,6 +5,7 @@
 jest.mock('../adminData', () => ({
     mcpCompleteUpload: jest.fn().mockResolvedValue({}),
     mcpCreateUploadUrl: jest.fn().mockResolvedValue({}),
+    mcpInspectMedia: jest.fn().mockResolvedValue({ supported: true, source: { kind: 'file' } }),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
@@ -218,4 +219,11 @@ describe('link inputs take http(s) only', () => {
         expect(result.isError).toBeFalsy();
         expect(handler).toHaveBeenCalledWith(null, expect.objectContaining({ [field]: 'https://example.com/file' }));
     });
+});
+
+
+it('advertises optional inspection to an admin and validates its URL through the SDK', async () => {
+    expect((await mcp.listTools()).map(t => t.name)).toContain('inspect_media');
+    const result = await mcp.call('inspect_media', { url: 'file:///secret' });
+    expect(result.isError).toBe(true);
 });

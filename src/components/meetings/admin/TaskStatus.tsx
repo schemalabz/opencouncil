@@ -1,3 +1,4 @@
+import { MEDIA_FAILURE_RESPONSE_PREFIX } from "@/lib/tasks/taskResponse";
 import React, { useState, useEffect } from "react";
 import { TaskStatus } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,6 +71,8 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
     };
 
     const isTranscribeTask = task.type === 'transcribe';
+    // Stored source failures are canonical envelopes; do not parse whole transcripts for a button.
+    const hasResult = task.responseBody !== null && !task.responseBody.startsWith(MEDIA_FAILURE_RESPONSE_PREFIX);
 
     const getStatusColor = (status: TaskStatus['status']) => {
         switch (status) {
@@ -189,14 +192,14 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                                             size="sm"
                                             className="h-5 w-5 p-0"
                                             onClick={onReprocessClick}
-                                            disabled={task.responseBody === null}
+                                            disabled={!hasResult}
                                         >
                                             <RefreshCw className="h-3 w-3" />
                                         </Button>
                                     </div>
                                 </div>
                             )}
-                            {task.status === 'succeeded' && task.responseBody && (
+                            {task.status === 'succeeded' && hasResult && (
                                 <div className="flex items-center justify-between">
                                     <code className="font-mono truncate block max-w-[300px]">
                                         {task.responseBody}

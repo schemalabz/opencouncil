@@ -5,6 +5,7 @@
 import "server-only";
 
 import { TaskUpdate } from '../apiTypes';
+import { parseMediaFailure, parseMediaSource, sanitizeMediaErrorText, encodeMediaFailureResponse, hasReplayableTaskResponse, MEDIA_FAILURE_RESPONSE_PREFIX } from './mediaMetadata';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
 import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
@@ -283,14 +284,35 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     const alertMode = getDiscordAlertMode(task.type);
     const sendGenericAlerts = alertMode !== 'none';
 
+    const mediaError = task.type === 'transcribe' && update.error ? sanitizeMediaErrorText(update.error) : update.error;
+    const mediaFailure = task.type === 'transcribe' ? parseMediaFailure(update.mediaFailure) : undefined;
+    const mediaSource = task.type === 'transcribe' && update.result && typeof update.result === 'object' && 'source' in update.result
+        ? parseMediaSource(update.result.source) : undefined;
+
+    const successClaimWhere: Prisma.TaskStatusWhereInput = {
+        id: taskId,
+        status: { not: 'succeeded' },
+        ...(task.type === 'transcribe' ? {
+            OR: [
+                { responseBody: null },
+                { status: 'failed', responseBody: { startsWith: MEDIA_FAILURE_RESPONSE_PREFIX } },
+            ],
+        } : { responseBody: null }),
+    };
+
+    if (update.status === 'success' && update.result && typeof update.result === 'object'
+        && '$opencouncilTaskResponse' in update.result) {
+        throw new Error('Success payload uses a reserved task-response discriminator');
+    }
+
     if (update.status === 'success') {
         // The task server retries a callback that times out, while the first
         // request is still processing. A second run of the result handler is
         // not safe (summarize replaces the non-agenda subjects), so only the
         // first success callback for a task proceeds.
         //
-        // The claim is the payload: responseBody is null until the first
-        // success callback writes it. The status stays as it was until the
+        // A null body or a canonical source-failure envelope accepts the first
+        // success callback. The task remains pending until the
         // handler has written the results, because `succeeded` is read from
         // outside as "the results are there". Notis fans a meeting out to its
         // readers on that status; when the flip came before the handler, it
@@ -301,8 +323,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             // payload already arrived is being written; a stray result-less
             // success must not flip it early.
             const claimed = await prisma.taskStatus.updateMany({
-                where: { id: taskId, status: { not: 'succeeded' }, responseBody: null },
-                data: { status: 'succeeded', failureReason: null, version: update.version }
+                where: successClaimWhere,
+                data: { status: 'succeeded', failureReason: null, version: update.version, ...(task.type === 'transcribe' && { responseBody: null }) }
             });
             if (claimed.count === 0) {
                 console.warn(`Ignoring duplicate success callback for task ${taskId}`);
@@ -316,9 +338,12 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             }
         } else {
             const claimed = await prisma.taskStatus.updateMany({
-                where: { id: taskId, status: { not: 'succeeded' }, responseBody: null },
+                where: successClaimWhere,
                 data: {
-                    responseBody: JSON.stringify(update.result),
+                    // A recovered failure is running again until its result handler finishes.
+                    status: 'pending',
+                    responseBody: JSON.stringify(task.type === 'transcribe' && typeof update.result === 'object'
+                        ? { ...update.result, source: mediaSource } : update.result),
                     stage: RESULT_PERSISTING_STAGE,
                     failureReason: null,
                     version: update.version,
@@ -378,11 +403,11 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             }
         }
     } else if (update.status === 'error') {
-        // A task whose result already arrived (responseBody set) is being
+        // A task whose result already arrived (a success payload in responseBody) is being
         // written by its handler; a late error callback does not fail it.
         const claimed = await prisma.taskStatus.updateMany({
             where: { id: taskId, status: { notIn: ['succeeded', 'failed'] }, responseBody: null },
-            data: { status: 'failed', failureReason: update.error, version: update.version }
+            data: { status: 'failed', failureReason: mediaError, version: update.version, ...(mediaFailure && { responseBody: encodeMediaFailureResponse(mediaFailure) }) }
         });
         if (claimed.count === 0) {
             console.warn(
@@ -395,7 +420,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
         // Send Discord admin alert for task failure
         if (sendGenericAlerts) {
-            sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: update.error });
+            sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: mediaError });
         }
     } else if (update.status === 'processing') {
         // Use updateMany with WHERE clause to atomically prevent overwriting
@@ -466,7 +491,7 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
     // callback, and a failed task without a payload has nothing to replay.
     // A pending task WITH a payload is a claim whose handler never finished
     // (the request was cut mid-write); the replay is how it finishes.
-    if (task.responseBody === null) {
+    if (!hasReplayableTaskResponse(task.responseBody)) {
         throw new Error(`Task ${taskId} has no result to replay (status ${task.status})`);
     }
     if (task.status !== 'succeeded' && task.status !== 'failed') {
@@ -484,7 +509,7 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
     // such a row does not record a parse error as the failure of the task.
     let payload: unknown;
     try {
-        payload = JSON.parse(task.responseBody);
+        payload = JSON.parse(task.responseBody!);
     } catch {
         throw new Error(`Task ${taskId} has no result to replay: responseBody is not a task payload`);
     }

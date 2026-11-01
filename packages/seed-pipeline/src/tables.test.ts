@@ -71,3 +71,17 @@ describe('json-remove-path rules', () => {
         expect(parses('transcript')).toBe(false);
     });
 });
+
+it('masks media source URLs, request video URLs and legacy error prose in exported seeds', () => {
+    expect(cfg.masking).toEqual(expect.arrayContaining([
+        { table: 'TaskStatus', column: 'failureReason', action: 'set-null' },
+        { table: 'TaskStatus', column: 'requestBody', action: 'json-remove-key', key: 'youtubeUrl' },
+        { table: 'TaskStatus', column: 'responseBody', action: 'json-remove-key', key: 'source' },
+    ]));
+});
+
+it('deletes source-failure envelopes rather than exporting a misleading replay payload', () => {
+    expect(cfg.masking.some(rule => rule.table === 'TaskStatus' && rule.action === 'delete-when'
+        && rule.when.includes('media-source-failure-v1') && rule.when.includes('pg_input_is_valid'))).toBe(true);
+    expect(cfg.masking.some(rule => 'column' in rule && ['mediaSource', 'mediaFailure'].includes(rule.column))).toBe(false);
+});

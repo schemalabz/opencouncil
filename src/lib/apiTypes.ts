@@ -8,6 +8,7 @@ export interface TaskUpdate<T> {
     progressPercent: number;
     result?: T;
     error?: string;
+    mediaFailure?: MediaFailure;
     version: number | undefined;
 }
 
@@ -69,6 +70,7 @@ export type TranscriptWithSpeakerIdentification = TranscriptWithUtteranceDrifts 
 }
 
 export interface TranscribeResult {
+    source?: MediaSourceInfo;
     videoUrl: string;
     audioUrl: string;
     muxPlaybackId: string;
@@ -778,3 +780,27 @@ export interface PollDecisionsResult {
     };
     lookups?: PollDecisionsLookup[]; // absent from older tasks versions and from polls with no lookupAdas
 }
+
+
+export type MediaFailureReason = 'unsupported' | 'playlist' | 'embed_only' | 'login_required' | 'drm' | 'unavailable' | 'not_found' | 'error';
+export interface MediaFailure {
+    reason: MediaFailureReason;
+    retryable: boolean;
+    hint?: string;
+}
+export interface MediaSourceInfo {
+    kind: 'spaces' | 'file' | 'yt-dlp';
+    extractor?: string;
+    id?: string;
+    title?: string;
+    durationSeconds?: number;
+    liveStatus?: string;
+    startedAt?: string;
+    uploader?: string;
+    webpageUrl?: string;
+    thumbnailUrl?: string;
+    chapters?: { title: string; startSeconds: number; endSeconds: number }[];
+}
+export interface InspectMediaRequest { url: string }
+export type InspectMediaResponse = { supported: true; source: MediaSourceInfo }
+    | ({ supported: false; message: string } & MediaFailure);

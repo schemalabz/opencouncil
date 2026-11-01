@@ -1,5 +1,6 @@
 import "server-only";
 import { CityLanguage, Prisma, type City } from '@prisma/client';
+import { inspectMedia } from '@/lib/tasks/inspectMedia';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
 import { createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '@/lib/db/citiesAdmin';
@@ -16,6 +17,7 @@ import { countCitiesByRealmAndStatus } from '@/lib/db/citiesAdmin';
 import type { McpIdentity } from './auth';
 import type {
     CompleteUploadToolArgs,
+    InspectMediaToolArgs,
     CreateCityToolArgs,
     CreateMeetingToolArgs,
     CreateUploadUrlToolArgs,
@@ -24,7 +26,7 @@ import type {
     PublishCityDemoToolArgs,
     SetCityBoundaryToolArgs,
 } from './adminToolSchemas';
-import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
+import { requireAdminAccess, requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
@@ -358,4 +360,9 @@ export async function mcpPopulateCity(
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
         next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call publish_city_demo.',
     };
+}
+
+export async function mcpInspectMedia(identity: McpIdentity, args: InspectMediaToolArgs) {
+    await requireAdminAccess(identity);
+    return inspectMedia(args);
 }

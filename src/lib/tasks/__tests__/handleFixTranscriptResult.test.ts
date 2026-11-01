@@ -26,6 +26,7 @@ jest.mock('@/lib/db/utils', () => ({ getFixTranscriptRequestBody: jest.fn() }));
 jest.mock('@/lib/tasks/tasks', () => ({ startTask: jest.fn() }));
 jest.mock('../speakerHints', () => ({ applySpeakerHints: (...args: unknown[]) => mockApplySpeakerHints(...args) }));
 
+import { MEDIA_FAILURE_RESPONSE_PREFIX } from '../mediaMetadata';
 import { handleFixTranscriptResult } from '../fixTranscriptInternal';
 
 const TASK_CREATED = new Date('2026-09-18T10:10:00Z');
@@ -72,7 +73,7 @@ describe('handleFixTranscriptResult', () => {
     expect(mockTaskFindFirst.mock.calls[0][0].where).toEqual({
       cityId: 'city-1',
       councilMeetingId: 'meeting-1',
-      OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
+      OR: [{ status: 'succeeded' }, { responseBody: { not: null }, NOT: { responseBody: { startsWith: MEDIA_FAILURE_RESPONSE_PREFIX } } }],
       type: { in: ['transcribe', 'fixTranscript'] },
       createdAt: { gt: TASK_CREATED },
     });

@@ -152,3 +152,10 @@ describe('processTaskResponse — replay of a stored payload', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
+
+it('never sends a media failure envelope to a result handler', async () => {
+    mockFindUnique.mockResolvedValue({ ...storedTask, status: 'failed', responseBody: JSON.stringify({ $opencouncilTaskResponse: 'media-source-failure-v1', mediaFailure: { reason: 'error', retryable: true } }) });
+    mockSummarizeHandler.mockClear();
+    await expect(processTaskResponse('summarize', TASK_ID)).rejects.toThrow('no result to replay');
+    expect(mockSummarizeHandler).not.toHaveBeenCalled();
+});

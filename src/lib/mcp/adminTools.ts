@@ -4,6 +4,7 @@ import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
 import {
     mcpCompleteUpload,
+    mcpInspectMedia,
     mcpCreateCity,
     mcpCreateMeeting,
     mcpCreateUploadUrl,
@@ -16,6 +17,7 @@ import {
 } from './adminData';
 import {
     completeUploadToolInput,
+    inspectMediaToolInput,
     createCityToolInput,
     createMeetingToolInput,
     createUploadUrlToolInput,
@@ -120,6 +122,21 @@ function registerMeetingAdminTools(server: McpServer) {
 }
 
 function registerTaskAdminTools(server: McpServer) {
+    server.registerTool(
+        'inspect_media',
+        {
+            title: 'Inspect a media URL',
+            annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+            _meta: category('admin'),
+            description: 'Optionally inspect a public media URL before creating a meeting or starting transcription. '
+                + 'Any administrator can inspect without a city or meeting. No task or callback is created. '
+                + 'The lookup can take up to 150 seconds. Use reason, retryable and hint to choose another URL. '
+                + 'A transient error does not mean that the source is unsupported. Do not retry endlessly. '
+                + 'Upload metadata does not establish the date of a council meeting.',
+            inputSchema: inspectMediaToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpInspectMedia(identityFromContext(ctx), args))
+    );
     server.registerTool(
         'start_task',
         {

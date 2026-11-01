@@ -169,3 +169,6 @@ export const createCityToolInput = z.object({
         .meta({ description: 'The realm (country) of the city. Omit for the realm of this domain' }),
 });
 export type CreateCityToolArgs = z.output<typeof createCityToolInput>;
+
+export const inspectMediaToolInput = z.object({ url: webUrl() });
+export type InspectMediaToolArgs = z.output<typeof inspectMediaToolInput>;
