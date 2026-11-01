@@ -7,7 +7,8 @@ import { Check, Loader2, Upload, AlertCircle } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "./button"
 import { Progress } from "./progress"
-import { UploadConfig } from "@/types/upload"
+import { uploadAccept, uploadFormatOfFile, type UploadConfig, type UploadPlan } from "@/types/upload"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 
 export interface LinkOrDropProps
     extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onProgress'> {
@@ -15,30 +16,90 @@ export interface LinkOrDropProps
     inputClassName?: string;
     onUrlChange?: (url: string) => void
     onProgress?: (percentage: number) => void
-    config?: UploadConfig
-    /** File types the upload takes, in the form of the file input's `accept`.
-     * A dropped file skips the picker's filter, so both paths check it. */
-    accept?: string
+    /** What the file is for. Its kind decides which files the upload takes. */
+    config: UploadConfig
 }
 
-/** Whether a file matches an `accept` list: MIME types, `type/*` wildcards or `.ext` suffixes. */
-const matchesAccept = (file: File, accept: string): boolean =>
-    accept.split(',').map(entry => entry.trim().toLowerCase()).filter(Boolean).some(entry => {
-        if (entry.startsWith('.')) return file.name.toLowerCase().endsWith(entry)
-        if (entry.endsWith('/*')) return file.type.toLowerCase().startsWith(entry.slice(0, -1))
-        return file.type.toLowerCase() === entry
-    })
+/** The message of a refused request: the one the route gave, or one for a refused sign-in. */
+async function requestError(response: Response, fallback: string): Promise<Error> {
+    if (response.status === 401) return new Error('Please sign in to upload files')
+    if (response.status === 403) return new Error('You do not have permission to upload files')
+    const body = await response.json().catch(() => ({}))
+    return new Error(apiErrorMessage(body, response.status, fallback))
+}
 
-/** The type the upload stores the file under. A browser can leave a PDF's
- * type empty or generic, and the presigned-URL route refuses an empty one.
- * Every other file keeps the type the browser reported. */
-const uploadContentType = (file: File): string => {
-    const generic = !file.type || file.type === 'application/octet-stream'
-    return generic && file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : file.type
+/**
+ * A PUT stops when no byte has moved for this long. A part of 1 GiB takes
+ * about 30 minutes at 5 Mbit/s, so a limit on the whole request would stop a
+ * slow line; a limit on silence stops only a dead one.
+ */
+export const PUT_STALL_MS = 2 * 60 * 1000
+
+/** One PUT to the bucket, with progress. */
+function put(url: string, body: Blob, headers: Record<string, string>, onProgress: (loaded: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        let stall: ReturnType<typeof setTimeout> | undefined
+        const watch = () => {
+            clearTimeout(stall)
+            stall = setTimeout(() => xhr.abort(), PUT_STALL_MS)
+        }
+        const settle = (error?: Error) => {
+            clearTimeout(stall)
+            if (error) reject(error)
+            else resolve()
+        }
+        xhr.upload.onprogress = event => {
+            watch()
+            onProgress(event.loaded)
+        }
+        xhr.onload = () => settle(xhr.status >= 200 && xhr.status < 300
+            ? undefined
+            : new Error(`Upload failed with status ${xhr.status}`))
+        xhr.onerror = () => settle(new Error('Upload failed. Please check your connection or contact support'))
+        xhr.onabort = () => settle(new Error('Upload stalled: no data moved for 2 minutes. Please try again'))
+        xhr.open('PUT', url)
+        for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
+        xhr.send(body)
+        watch()
+    })
+}
+
+/**
+ * Sends a file to the bucket as the server planned it: one PUT, or one PUT
+ * per part and then the request that joins the parts. Returns the public URL.
+ */
+async function uploadFile(file: File, config: UploadConfig, onProgress: (percentage: number) => void): Promise<string> {
+    const started = await fetch('/api/upload/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, sizeBytes: file.size, config }),
+    })
+    if (!started.ok) throw await requestError(started, 'Failed to get upload URL')
+    const plan: UploadPlan = await started.json()
+
+    let sent = 0
+    for (const part of plan.parts) {
+        const offset = (part.partNumber - 1) * plan.partSize
+        const body = file.slice(offset, offset + plan.partSize)
+        await put(part.uploadUrl, body, plan.headers, loaded => onProgress(Math.round(((sent + loaded) / file.size) * 100)))
+        sent += body.size
+    }
+
+    if (plan.completion) {
+        const completed = await fetch('/api/upload/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: plan.key, ...plan.completion, sizeBytes: file.size }),
+        })
+        if (!completed.ok) throw await requestError(completed, 'Failed to complete the upload')
+    }
+    return plan.publicUrl
 }
 
 const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
-    ({ className, inputClassName, onUrlChange, onProgress, config, accept, ...props }, ref) => {
+    ({ className, inputClassName, onUrlChange, onProgress, config, ...props }, ref) => {
+        const accept = uploadAccept(config.kind)
         const [isDragging, setIsDragging] = React.useState(false)
         const [isUploading, setIsUploading] = React.useState(false)
         const [showCheck, setShowCheck] = React.useState(false)
@@ -61,7 +122,8 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
         }, [])
 
         const handleFileUpload = React.useCallback(async (file: File) => {
-            if (accept && !matchesAccept(file, accept)) {
+            // A dropped file skips the picker's filter, so both paths check it.
+            if (!uploadFormatOfFile(config.kind, file.name)) {
                 setShowCheck(false)
                 setUploadError(`This file type is not accepted (${accept})`)
                 return
@@ -70,84 +132,12 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
             setUploadProgress(0)
             setUploadError(null)
             setShowCheck(false) // Clear any previous errors
-            
+
             try {
-                // Step 1: Get pre-signed URL from our API
-                const presignedResponse = await fetch('/api/upload/presigned-url', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        filename: file.name,
-                        contentType: uploadContentType(file),
-                        config: config
-                    })
+                const publicUrl = await uploadFile(file, config, percentage => {
+                    setUploadProgress(percentage)
+                    onProgress?.(percentage)
                 })
-
-                if (!presignedResponse.ok) {
-                    const error = await presignedResponse.json()
-                    const errorMessage = error.error || 'Failed to get upload URL'
-                    
-                    // Set user-friendly error messages based on status
-                    if (presignedResponse.status === 403) {
-                        throw new Error('You do not have permission to upload files')
-                    } else if (presignedResponse.status === 401) {
-                        throw new Error('Please sign in to upload files')
-                    } else {
-                        throw new Error(errorMessage)
-                    }
-                }
-
-                const { url: presignedUrl, publicUrl, key, aclToken } = await presignedResponse.json()
-
-                // Step 2: Upload directly to S3 with progress tracking
-                await new Promise<void>((resolve, reject) => {
-                    const xhr = new XMLHttpRequest()
-
-                    // Track upload progress
-                    xhr.upload.onprogress = (event) => {
-                        if (event.lengthComputable) {
-                            const percentage = Math.round((event.loaded / event.total) * 100)
-                            setUploadProgress(percentage)
-                            onProgress?.(percentage)
-                        }
-                    }
-
-                    xhr.onload = () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve()
-                        } else {
-                            reject(new Error(`Upload failed with status ${xhr.status}`))
-                        }
-                    }
-
-                    xhr.onerror = () => {
-                        // Check if it's a CORS error
-                        reject(new Error('Upload failed. Please check your connection or contact support'))
-                    }
-                    
-                    xhr.ontimeout = () => reject(new Error('Upload timeout. Please try again'))
-
-                    xhr.open('PUT', presignedUrl)
-                    xhr.setRequestHeader('Content-Type', uploadContentType(file))
-                    // Set timeout to 25 minutes for large file uploads
-                    xhr.timeout = 1500000
-                    xhr.send(file)
-                })
-
-                // Step 3: Set ACL to make file public
-                const aclResponse = await fetch('/api/upload/set-acl', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ key, token: aclToken }),
-                })
-
-                if (!aclResponse.ok) {
-                    throw new Error('Failed to set file permissions')
-                }
-
-                // Step 4: Update with public URL
                 if (combinedRef.current) {
                     combinedRef.current.value = publicUrl
                 }
@@ -156,12 +146,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                 setTimeout(() => setShowCheck(false), 2000)
             } catch (error) {
                 console.error('Upload error:', error)
-                
-                // Set error message for UI display
-                const errorMessage = error instanceof Error ? error.message : 'Failed to upload file'
-                setUploadError(errorMessage)
-                
-                // Reset progress on error
+                setUploadError(error instanceof Error ? error.message : 'Failed to upload file')
                 setUploadProgress(0)
                 onProgress?.(0)
             } finally {

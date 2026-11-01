@@ -19,7 +19,7 @@ jest.mock('@/lib/mcp/data', () => ({
 }));
 jest.mock('@/lib/mcp/adminData', () => ({
     mcpCreateMeeting: jest.fn(), mcpUpdateMeeting: jest.fn(), mcpStartTask: jest.fn(),
-    mcpCreateAgendaUploadUrl: jest.fn(), mcpCreateCity: jest.fn(), mcpPopulateCity: jest.fn(),
+    mcpCreateUploadUrl: jest.fn(), mcpCompleteUpload: jest.fn(), mcpCreateCity: jest.fn(), mcpPopulateCity: jest.fn(),
 }));
 
 import { POST } from '../route';

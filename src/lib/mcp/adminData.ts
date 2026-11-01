@@ -1,6 +1,5 @@
 import "server-only";
 import { CityLanguage, Prisma, type City } from '@prisma/client';
-import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
 import { createCityDirect } from '@/lib/db/citiesAdmin';
@@ -9,16 +8,17 @@ import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
 import { pickRecordInput } from '@/lib/meetingLifecycleRules';
 import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
-import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
+import { completeUpload, startUpload } from '@/lib/uploads';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS, cityLanguageSchema } from '@/lib/zod-schemas/city';
 import { ALL_REALMS, REALMS, getRealmDisplayName } from '@/lib/realm';
 import { countCitiesByRealmAndStatus } from '@/lib/db/citiesAdmin';
 import type { McpIdentity } from './auth';
 import type {
-    AgendaUploadUrlToolArgs,
+    CompleteUploadToolArgs,
     CreateCityToolArgs,
     CreateMeetingToolArgs,
+    CreateUploadUrlToolArgs,
     StartTaskToolArgs,
     UpdateMeetingToolArgs,
 } from './adminToolSchemas';
@@ -154,34 +154,46 @@ export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArg
     };
 }
 
-/** The agenda formats that the task server reads (documentConversion in opencouncil-tasks). */
-const AGENDA_CONTENT_TYPES = {
-    pdf: 'application/pdf',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-} as const satisfies Record<AgendaUploadUrlToolArgs['format'], string>;
-const AGENDA_UPLOAD_URL_SECONDS = 300;
+/** Where an uploaded file goes next, per kind. */
+const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
+    agenda: 'pass publicUrl as agendaUrl to create_meeting or update_meeting.',
+    recording: 'pass publicUrl as youtubeUrl (the video of the meeting) to create_meeting or update_meeting, '
+        + 'or as videoUrl to start_task with type transcribe.',
+};
 
-export async function mcpCreateAgendaUploadUrl(identity: McpIdentity, args: AgendaUploadUrlToolArgs) {
+/**
+ * Upload URLs for a meeting file, with the same naming, formats and size
+ * limits as the upload of the meeting admin page (lib/uploads).
+ */
+export async function mcpCreateUploadUrl(identity: McpIdentity, args: CreateUploadUrlToolArgs) {
     await requireCityAdmin(identity, args.cityId);
     await requireRealmCity(args.cityId);
 
-    const contentType = AGENDA_CONTENT_TYPES[args.format];
-    // A random suffix in place of the collision loop of the upload route: the
-    // name stays readable in the bucket, and needs no lookup.
-    const key = `uploads/${args.cityId}_${args.identifier}_agenda_${crypto.randomUUID().slice(0, 8)}.${args.format}`;
-    const uploadUrl = await generatePresignedUrl(key, contentType, AGENDA_UPLOAD_URL_SECONDS);
+    const plan = await startUpload(
+        { cityId: args.cityId, kind: args.kind, identifier: args.identifier }, args.format, args.sizeBytes,
+    );
+    const next = plan.completion
+        ? 'Split the file into parts of partSize bytes, e.g. `split -b <partSize> -d -a 3 --numeric-suffixes=1 '
+            + '<file> <file>.part-`; the last part takes the rest. Send each part with a PUT to the uploadUrl of its '
+            + 'partNumber, with no headers, within expiresIn seconds. Then call complete_upload with cityId, key, '
+            + 'sizeBytes and the two completion fields: the file does not exist until then. After that, '
+        : 'Send the file with a PUT to the uploadUrl of part 1, with exactly these headers, within expiresIn '
+            + 'seconds. Without the x-amz-acl header the file stays private. Then ';
+    return { ...plan, next: next + UPLOAD_NEXT_STEP[args.kind] };
+}
 
-    // Spaces ignores the ACL that the signature carries in the query string:
-    // the PUT must send it as a header, or the file stays private.
+export async function mcpCompleteUpload(identity: McpIdentity, args: CompleteUploadToolArgs) {
+    await requireCityAdmin(identity, args.cityId);
+    await requireRealmCity(args.cityId);
+    if (!args.key.startsWith(`uploads/${args.cityId}_`)) {
+        throw new BadRequestError(`The key ${args.key} is not an upload of ${args.cityId}`);
+    }
+
+    const done = await completeUpload(args);
     return {
-        uploadUrl,
-        method: 'PUT',
-        headers: { 'Content-Type': contentType, 'x-amz-acl': 'public-read' },
-        expiresIn: AGENDA_UPLOAD_URL_SECONDS,
-        publicUrl: constructPublicUrl(env.DO_SPACES_BUCKET, key),
-        next: 'Send the file with a PUT to uploadUrl, with exactly these headers, within expiresIn seconds. '
-            + 'Without the x-amz-acl header the file stays private. '
-            + 'Then pass publicUrl as agendaUrl to create_meeting or update_meeting.',
+        ...done,
+        next: 'The file is public at publicUrl. Use it as the next step of create_upload_url said: agendaUrl for an '
+            + 'agenda, youtubeUrl or the videoUrl of start_task for a recording.',
     };
 }
 

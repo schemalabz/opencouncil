@@ -459,13 +459,13 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             {...field}
                                             placeholder="https://... (YouTube, Vimeo, etc.)"
                                             onUrlChange={(url) => field.onChange(url)}
-                                            config={meetingId ? {
+                                            config={{
                                                 cityId,
                                                 identifier: meetingId,
                                                 councilMeetingId: meeting?.id,
-                                                suffix: 'recording',
+                                                kind: 'recording',
                                                 administrativeBodyId,
-                                            } : undefined}
+                                            }}
                                         />
                                     </FormControl>
                                     <YouTubePreview url={field.value || ""} />
@@ -492,13 +492,13 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             {...field}
                                             placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
                                             onUrlChange={(url) => field.onChange(url)}
-                                            config={meetingId ? {
+                                            config={{
                                                 cityId,
                                                 identifier: meetingId,
                                                 councilMeetingId: meeting?.id,
-                                                suffix: 'agenda',
+                                                kind: 'agenda',
                                                 administrativeBodyId,
-                                            } : undefined}
+                                            }}
                                         />
                                     </FormControl>
                                     <FormDescription>
