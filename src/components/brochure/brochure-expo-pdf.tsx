@@ -120,7 +120,7 @@ function BrowserFrame({ src, url, width, aspect }: { src: string; url: string; w
 
 /** The message a resident gets from Notis, drawn as a chat: the hook on the cover. */
 function WhatsAppMockup({ width }: { width: number }) {
-    const WA = { surface: "#ece5dd", header: "#008069", bubble: "#ffffff", reply: "#d9fdd3", ink: "#111b21", muted: "#667781", link: "#027eb5" };
+    const WA = { surface: "#ece5dd", header: "#008069", bubble: "#ffffff", ink: "#111b21", muted: "#667781", link: "#027eb5" };
     return (
         <View style={{ width, borderRadius: 10, overflow: "hidden", backgroundColor: WA.surface, borderWidth: 0.75, borderColor: C.line }}>
             <View style={{ backgroundColor: WA.header, paddingVertical: 7, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 7 }}>
@@ -136,7 +136,7 @@ function WhatsAppMockup({ width }: { width: number }) {
             <View style={{ padding: 9, gap: 6 }}>
                 <View style={{ maxWidth: "88%", backgroundColor: WA.bubble, borderRadius: 7, borderTopLeftRadius: 2, padding: 7 }}>
                     <Text style={{ fontSize: 7.5, color: WA.ink, lineHeight: 1.45 }}>
-                        Good evening! Tonight the council decided on a subject on your street:
+                        In tonight’s municipal committee meeting, a subject affecting your street was discussed:
                     </Text>
                     <View style={{ flexDirection: "row", gap: 4, marginTop: 5 }}>
                         <LucideIcon name="mapPin" size={8} color={C.accent} />
@@ -145,12 +145,8 @@ function WhatsAppMockup({ width }: { width: number }) {
                             <Text style={{ fontSize: 6.5, color: WA.muted }}>Selinou Street · Municipal Committee, 19 Oct 2026</Text>
                         </View>
                     </View>
-                    <Text style={{ fontSize: 7.5, color: WA.link, marginTop: 5 }}>Read the summary and the decision →</Text>
+                    <Text style={{ fontSize: 7.5, color: WA.link, marginTop: 5 }}>View the summary and the decision →</Text>
                     <Text style={{ fontSize: 5.5, color: WA.muted, textAlign: "right", marginTop: 2 }}>21:14</Text>
-                </View>
-                <View style={{ maxWidth: "62%", alignSelf: "flex-end", backgroundColor: WA.reply, borderRadius: 7, borderTopRightRadius: 2, padding: 7 }}>
-                    <Text style={{ fontSize: 7.5, color: WA.ink, lineHeight: 1.45 }}>At last. Thank you!</Text>
-                    <Text style={{ fontSize: 5.5, color: WA.muted, textAlign: "right", marginTop: 2 }}>21:20</Text>
                 </View>
             </View>
         </View>
@@ -339,7 +335,7 @@ function FrontPanel({ data }: { data: ExpoData }) {
             <View style={{ marginTop: 14 }}>
                 <WhatsAppMockup width={INNER} />
                 <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 4, lineHeight: 1.4 }}>
-                    What a resident of Selinou Street received the evening the council decided. Real subject, Chania, 19 Oct 2026.
+                    A Notis message, as residents of Chania receive it. Real subject, decided on 19 Oct 2026.
                 </Text>
             </View>
 
@@ -380,7 +376,7 @@ function ResidentsPanel() {
             <Feature icon="search" title="Search" text="Search everything that has been said, in every meeting." />
             <Feature icon="bell" title="WhatsApp updates" text="Residents get a message whenever the council discusses their street, their neighbourhood or a subject they follow." />
             <Feature icon="mapPin" title="Subject map" text="The council’s subjects on the map. Zoom into any area, neighbourhood and street." />
-            <Feature icon="landmark" title="Councillors and parties" text="Every member’s page: what they spoke on, for how long, and how they voted." />
+            <Feature icon="landmark" title="Councillors and parties" text="Every member’s page: what they spoke on, for how long, and where they stood on each subject." />
             <View style={{ flex: 1 }} />
             <BrowserFrame src={`${ASSET_BASE}/brochure/salzburg-subject.png`} url="opencouncil.at/salzburg" width={INNER} aspect={2560 / 1000} />
             <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 5 }}>
