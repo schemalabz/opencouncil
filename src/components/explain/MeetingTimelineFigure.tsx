@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Bot, Landmark, MessageSquare, PanelsTopLeft, UserRound, Users } from 'lucide-react';
+import { Bot, Landmark, MessageSquare, PanelsTopLeft, Pause, Play, UserRound, Users } from 'lucide-react';
 import { LANE_LABEL, TIMELINE_MOMENTS, type Lane, type MomentId } from '@/lib/explain/aiLiteracy';
 
 /**
@@ -16,8 +16,10 @@ import { LANE_LABEL, TIMELINE_MOMENTS, type Lane, type MomentId } from '@/lib/ex
  * output of one piece becomes the input of the next.
  *
  * Selecting a phase lights its column and the caption below says what each
- * row does then. Dark hairline drawing, one accent colour only on what is
- * happening now. The phase buttons are the accessible control.
+ * row does then. The figure advances on its own until the reader touches it,
+ * pauses while the pointer or the focus is on it, and has a visible pause
+ * button. Dark hairline drawing, one accent colour only on what is happening
+ * now. The phase buttons are the accessible control.
  */
 
 const W = 880;
@@ -221,7 +223,10 @@ const STATUSES: Status[] = ['future', 'now', 'past'];
 
 export function MeetingTimelineFigure() {
     const [step, setStep] = useState(0);
-    const [idle, setIdle] = useState(true);
+    /** The reader has not asked for a phase yet, and has not pressed pause. */
+    const [playing, setPlaying] = useState(true);
+    /** The pointer or the keyboard focus is on the figure: hold still while they read. */
+    const [held, setHeld] = useState(false);
     const [reduced, setReduced] = useState(false);
     const [pulseKey, setPulseKey] = useState(0);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -232,7 +237,7 @@ export function MeetingTimelineFigure() {
         const n = TIMELINE_MOMENTS.length;
         setStep(((i % n) + n) % n);
         setPulseKey((k) => k + 1);
-        if (byUser) setIdle(false);
+        if (byUser) setPlaying(false);
     }, []);
 
     useEffect(() => {
@@ -243,9 +248,11 @@ export function MeetingTimelineFigure() {
         return () => mq.removeEventListener('change', onChange);
     }, []);
 
+    const autoplay = playing && !held && !reduced;
+
     // Advance on its own until the reader touches it, and only while on screen.
     useEffect(() => {
-        if (!idle || reduced) return;
+        if (!autoplay) return;
         const el = rootRef.current;
         if (!el) return;
         let timer: number | undefined;
@@ -268,7 +275,7 @@ export function MeetingTimelineFigure() {
             io.disconnect();
             if (timer !== undefined) window.clearInterval(timer);
         };
-    }, [idle, reduced]);
+    }, [autoplay]);
 
     // On a narrow screen the chart and the buttons scroll sideways: keep the
     // lit column and its button in view. Only these rows scroll, never the page.
@@ -299,11 +306,34 @@ export function MeetingTimelineFigure() {
     const current = TIMELINE_MOMENTS[step];
 
     return (
-        <div ref={rootRef} className="oc-tl not-prose mt-6 rounded-2xl bg-[#14110D] p-4 text-white sm:p-6" onKeyDown={onKey}>
+        <div
+            ref={rootRef}
+            className="oc-tl not-prose mt-6 rounded-2xl bg-[#14110D] p-4 text-white sm:p-6"
+            onKeyDown={onKey}
+            onPointerEnter={() => setHeld(true)}
+            onPointerLeave={() => setHeld(false)}
+            onFocus={() => setHeld(true)}
+            onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false);
+            }}
+        >
             <style>{STYLE}</style>
-            <div className="flex items-baseline justify-between gap-3 text-[11px] uppercase tracking-wider text-white/45">
+            <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-wider text-white/45">
                 <span>Σχ. 1 · Η πορεία μιας συνεδρίασης</span>
-                <span className="hidden sm:inline">πατήστε μια στήλη · ← →</span>
+                <span className="flex items-center gap-3">
+                    <span className="hidden sm:inline">πατήστε μια στήλη · ← →</span>
+                    {!reduced && (
+                        <button
+                            type="button"
+                            onClick={() => setPlaying((p) => !p)}
+                            aria-pressed={!playing}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2 py-0.5 normal-case tracking-normal text-white/70 transition-colors hover:border-white/40 hover:text-white"
+                        >
+                            {playing ? <Pause className="h-3 w-3" aria-hidden="true" /> : <Play className="h-3 w-3" aria-hidden="true" />}
+                            {playing ? 'Παύση' : 'Αυτόματη προβολή'}
+                        </button>
+                    )}
+                </span>
             </div>
 
             <div
@@ -325,6 +355,10 @@ export function MeetingTimelineFigure() {
                         <pattern id="oc-tl-hatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
                             <rect width="6" height="6" className="hatch-bg" />
                             <line x1="0" y1="0" x2="0" y2="6" className="hatch-line" />
+                        </pattern>
+                        <pattern id="oc-tl-hatch-dim" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+                            <rect width="6" height="6" className="hatch-dim-bg" />
+                            <line x1="0" y1="0" x2="0" y2="6" className="hatch-dim-line" />
                         </pattern>
                         {STATUSES.map((s) => (
                             <marker
@@ -519,7 +553,7 @@ export function MeetingTimelineFigure() {
 
             {/* what each row does in the lit phase */}
             {/* announce changes only when the reader drives them, never during autoplay */}
-            <div className="mt-4 border-t border-white/10 pt-4" aria-live={idle ? 'off' : 'polite'}>
+            <div className="mt-4 border-t border-white/10 pt-4" aria-live={playing ? 'off' : 'polite'}>
                 <p className="m-0 text-base font-semibold text-white">
                     {step + 1}. {current.label}
                 </p>
@@ -570,8 +604,11 @@ const STYLE = `
 .oc-tl .mk.now{fill:var(--accent);stroke:var(--accent-hi);filter:url(#oc-tl-glow)}
 .oc-tl .mk.partial{stroke-dasharray:3 3}
 .oc-tl .mk.unchecked.now{fill:url(#oc-tl-hatch)}
+.oc-tl .mk.unchecked.past{fill:url(#oc-tl-hatch-dim)}
 .oc-tl .hatch-bg{fill:#4a1e07}
 .oc-tl .hatch-line{stroke:var(--accent);stroke-width:2.5}
+.oc-tl .hatch-dim-bg{fill:#3a332c}
+.oc-tl .hatch-dim-line{stroke:rgba(255,255,255,.35);stroke-width:2.5}
 .oc-tl .lb{font-size:12px;transition:fill .35s}
 .oc-tl .lb.in{font-size:11px}
 .oc-tl .lb.future{fill:rgba(255,255,255,.35)}
