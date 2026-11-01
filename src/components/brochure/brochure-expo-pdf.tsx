@@ -5,12 +5,14 @@
  *   Page 1 (outside): [flap: live in Greece + quote + demo | back: find us, map, team | front]
  *   Page 2 (inside):  [for residents | for council staff | how it works + awards]
  *
- * Data comes from the opencouncil.eu site snapshot (public/brochure/expo-data.json).
+ * Data comes from the opencouncil.eu site snapshot (public/brochure/expo-data.json);
+ * every line of copy from expo-leaflet-copy.ts.
  */
 import { Document, Page, View, Text, Image, Svg, Path, Circle } from "@react-pdf/renderer";
 import { ASSET_BASE, Brand, C, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { ICON_PATHS } from "@/components/pdf/shared";
 import { TEAM_MEMBERS } from "@/components/about/config";
+import { EXPO_COPY as T, fill } from "@/components/brochure/expo-leaflet-copy";
 import enAbout from "../../../messages/en/about.json";
 
 export interface ExpoData {
@@ -36,10 +38,8 @@ export interface ExpoData {
     };
 }
 
-const SITE = "opencouncil.eu";
-const EMAIL = "contact@opencouncil.eu";
-const WHATSAPP = "+30 698 058 6851";
-const EXPO = { name: "Smart City Expo World Congress", when: "3–5 Nov 2026 · Fira Gran Via, Barcelona", stand: "Hall 3 · Stand S20", area: "Innovation Playground", pitch: "Pitch · Wed 4 Nov, 16:05", stage: "Innovation Playground Stage" };
+/** The subject page on the residents panel: a live council's, in the English interface. */
+const SCREENSHOT = { file: "subject-page.png", url: "opencouncil.gr/athens", aspect: 2560 / 1480 };
 
 const memberNames: Record<string, string> = enAbout.team.members;
 const TEAM = TEAM_MEMBERS.map(m => ({ name: memberNames[m.id] ?? m.id, image: m.image }));
@@ -55,6 +55,31 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 function fmtDate(date: string): string {
     const [year, month, day] = date.split("-").map(Number);
     return `${day} ${MONTHS[month - 1]} ${year}`;
+}
+
+/** The numbers every template may use. */
+function vars(data: ExpoData): Record<string, string | number> {
+    return {
+        live: data.counts.live,
+        preview: data.counts.preview,
+        countries: data.counts.countries - 1,
+        cities: data.preview.map(c => c.name).join(" · "),
+        date: fmtDate(data.chania.pin.date),
+        place: data.chania.pin.place,
+        expoName: T.back.expoName,
+    };
+}
+
+/** A sentence with one part in orange: "{accent}" in the template marks where. */
+function Accented({ template, accent, style }: { template: string; accent: string; style: object }) {
+    const [before, after = ""] = template.split("{accent}");
+    return (
+        <Text style={style}>
+            {before}
+            <Text style={{ color: C.accent }}>{accent}</Text>
+            {after}
+        </Text>
+    );
 }
 
 // ─── Building blocks ────────────────────────────────────────────────────────
@@ -139,7 +164,9 @@ const STREET: Record<number, { color: string; width: number }> = {
 const WAT = { fontFamily: "Inter" };
 
 /** A phone screen with one Notis message, drawn the way WhatsApp draws a business chat. */
-function WhatsAppWindow({ pin, width }: { pin: ExpoData["chania"]["pin"]; width: number }) {
+function WhatsAppWindow({ data, width }: { data: ExpoData; width: number }) {
+    const w = T.whatsapp;
+    const v = vars(data);
     return (
         <View style={{ width }}>
             <View style={{ position: "absolute", left: 1.5, top: 3, width, height: "100%", borderRadius: 12, backgroundColor: "#000000", opacity: 0.12 }} />
@@ -152,8 +179,8 @@ function WhatsAppWindow({ pin, width }: { pin: ExpoData["chania"]["pin"]; width:
                         <Image src={`${ASSET_BASE}/logo.png`} style={{ width: 11.5, height: 11.5 * (1354 / 1606) }} />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={{ ...WAT, fontSize: 6.3, fontWeight: 500, color: "#ffffff" }}>Notis · OpenCouncil</Text>
-                        <Text style={{ ...WAT, fontSize: 4.6, color: WA.headerSub, marginTop: 0.5 }}>Business account</Text>
+                        <Text style={{ ...WAT, fontSize: 6.3, fontWeight: 500, color: "#ffffff" }}>{w.sender}</Text>
+                        <Text style={{ ...WAT, fontSize: 4.6, color: WA.headerSub, marginTop: 0.5 }}>{w.status}</Text>
                     </View>
                     <LucideIcon name="video" size={7.5} color="#ffffff" />
                     <LucideIcon name="phone" size={6.5} color="#ffffff" />
@@ -167,28 +194,24 @@ function WhatsAppWindow({ pin, width }: { pin: ExpoData["chania"]["pin"]; width:
                 {/* Chat */}
                 <View style={{ padding: 5, paddingBottom: 3, gap: 4 }}>
                     <View style={{ alignSelf: "center", backgroundColor: "#ffffff", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1.8 }}>
-                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.chip, letterSpacing: 0.2 }}>TODAY</Text>
+                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.chip, letterSpacing: 0.2 }}>{w.dateChip}</Text>
                     </View>
                     <View style={{ alignSelf: "flex-start", maxWidth: "88%", backgroundColor: "#ffffff", borderRadius: 7, borderTopLeftRadius: 0, paddingVertical: 4, paddingHorizontal: 6, marginLeft: 4 }}>
                         <Svg width={5} height={6} style={{ position: "absolute", left: -4.5, top: 0 }}>
                             <Path d="M5,0 L0,0 L5,6 Z" fill="#ffffff" />
                         </Svg>
-                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>
-                            In tonight’s municipal committee meeting, a subject affecting your street was discussed:
-                        </Text>
-                        <Text style={{ ...WAT, fontSize: 6.2, fontWeight: 600, color: WA.ink, lineHeight: 1.38, marginTop: 4 }}>{pin.title}</Text>
-                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>{pin.place}, Nea Chora</Text>
-                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.link, textDecoration: "underline", lineHeight: 1.38, marginTop: 4 }}>
-                            View the summary and the decision
-                        </Text>
-                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.muted, textAlign: "right", marginTop: 1 }}>21:14</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>{w.message}</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, fontWeight: 600, color: WA.ink, lineHeight: 1.38, marginTop: 4 }}>{data.chania.pin.title}</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>{fill(w.place, v)}</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.link, textDecoration: "underline", lineHeight: 1.38, marginTop: 4 }}>{w.link}</Text>
+                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.muted, textAlign: "right", marginTop: 1 }}>{w.time}</Text>
                     </View>
                 </View>
 
                 {/* Composer */}
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 5, paddingVertical: 3 }}>
                     <View style={{ flex: 1, height: 14, borderRadius: 7, backgroundColor: "#ffffff", justifyContent: "center", paddingHorizontal: 7 }}>
-                        <Text style={{ ...WAT, fontSize: 5.4, color: WA.placeholder }}>Message</Text>
+                        <Text style={{ ...WAT, fontSize: 5.4, color: WA.placeholder }}>{w.composer}</Text>
                     </View>
                     <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: WA.mic, alignItems: "center", justifyContent: "center" }}>
                         <LucideIcon name="mic" size={7} color="#ffffff" />
@@ -199,8 +222,9 @@ function WhatsAppWindow({ pin, width }: { pin: ExpoData["chania"]["pin"]; width:
     );
 }
 
-/** Chania's streets with the subject's pin and the message beside it. */
-function ChaniaMap({ chania, width }: { chania: ExpoData["chania"]; width: number }) {
+/** Chania's streets with the subject's pin and the phone beside it. */
+function ChaniaMap({ data, width }: { data: ExpoData; width: number }) {
+    const chania = data.chania;
     const h = (chania.height / chania.width) * width;
     const k = width / chania.width;
     const pinX = chania.pin.x * k;
@@ -221,7 +245,7 @@ function ChaniaMap({ chania, width }: { chania: ExpoData["chania"]; width: numbe
                 </Text>
             ))}
             <View style={{ position: "absolute", left: pinX + 16, top: 54, width: phoneW }}>
-                <WhatsAppWindow pin={chania.pin} width={phoneW} />
+                <WhatsAppWindow data={data} width={phoneW} />
             </View>
         </View>
     );
@@ -267,9 +291,11 @@ function EuropeMap({ map }: { map: ExpoData["map"] }) {
 // ─── Outside ────────────────────────────────────────────────────────────────
 
 function FlapPanel({ data }: { data: ExpoData }) {
+    const t = T.flap;
+    const v = vars(data);
     return (
         <Panel style={{ backgroundColor: C.surface }}>
-            <Kicker>{`Live in ${data.counts.live} municipalities in Greece`}</Kicker>
+            <Kicker>{fill(t.kicker, v)}</Kicker>
             <View style={{ flexDirection: "row", flexWrap: "wrap", rowGap: 8, marginTop: 2 }}>
                 {data.live.map(city => (
                     <View key={city.id} style={{ width: "50%", flexDirection: "row", alignItems: "center", gap: 5, paddingRight: 6 }}>
@@ -295,45 +321,48 @@ function FlapPanel({ data }: { data: ExpoData }) {
             )}
 
             <View style={{ borderTopWidth: 1.5, borderTopColor: C.accent, paddingTop: 12 }}>
-                <Kicker>Now opening across Europe</Kicker>
-                <Text style={{ fontSize: 12, color: C.ink, lineHeight: 1.3 }}>See it on your own council’s meeting.</Text>
-                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginTop: 5 }}>
-                    Tell us the name of your council. Within 24 hours you get a link to one of its meetings, on the record. Free.
-                </Text>
+                <Kicker>{t.demoKicker}</Kicker>
+                <Text style={{ fontSize: 12, color: C.ink, lineHeight: 1.3 }}>{t.demoTitle}</Text>
+                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginTop: 5 }}>{t.demoText}</Text>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 }}>
-                    <QRCode value={`https://${SITE}/#request`} size={56} />
+                    <QRCode value={`https://${T.contacts.site}/#request`} size={56} />
                     <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 10, color: C.ink, lineHeight: 1.3 }}>Scan to request a free demo</Text>
-                        <Text style={{ fontSize: 7, color: C.mid, marginTop: 3 }}>{SITE}/#request</Text>
+                        <Text style={{ fontSize: 10, color: C.ink, lineHeight: 1.3 }}>{t.scan}</Text>
+                        <Text style={{ fontSize: 7, color: C.mid, marginTop: 3 }}>{T.contacts.site}/#request</Text>
                     </View>
                 </View>
-                <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 10 }}>
-                    Already previewed in {data.counts.preview} European cities: {data.preview.map(c => c.name).join(" · ")}
-                </Text>
+                <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 10 }}>{fill(t.previewed, v)}</Text>
             </View>
         </Panel>
     );
 }
 
 function BackPanel({ data }: { data: ExpoData }) {
+    const t = T.back;
+    const v = vars(data);
+    const contacts: Array<[keyof typeof ICON_PATHS, string]> = [
+        ["mail", T.contacts.email],
+        ["phone", T.contacts.whatsapp],
+        ["globe", T.contacts.site],
+    ];
     return (
         <Panel>
             <View style={{ borderLeftWidth: 2, borderLeftColor: C.accent, backgroundColor: C.surface, paddingVertical: 9, paddingHorizontal: 11, marginBottom: 12 }}>
-                <Kicker>Find us in Barcelona</Kicker>
-                <Text style={{ fontSize: 13, color: C.ink, lineHeight: 1.25 }}>{EXPO.name}</Text>
-                <Text style={{ fontSize: 7.5, color: C.body, marginTop: 2 }}>{EXPO.when}</Text>
+                <Kicker>{t.kicker}</Kicker>
+                <Text style={{ fontSize: 13, color: C.ink, lineHeight: 1.25 }}>{t.expoName}</Text>
+                <Text style={{ fontSize: 7.5, color: C.body, marginTop: 2 }}>{t.expoWhen}</Text>
                 <View style={{ flexDirection: "row", gap: 6, marginTop: 7, alignItems: "flex-start" }}>
                     <LucideIcon name="mapPin" size={10} color={C.accent} />
                     <View>
-                        <Text style={{ fontSize: 10, color: C.ink }}>{EXPO.stand}</Text>
-                        <Text style={{ fontSize: 7, color: C.mid }}>{EXPO.area}</Text>
+                        <Text style={{ fontSize: 10, color: C.ink }}>{t.stand}</Text>
+                        <Text style={{ fontSize: 7, color: C.mid }}>{t.area}</Text>
                     </View>
                 </View>
                 <View style={{ flexDirection: "row", gap: 6, marginTop: 5, alignItems: "flex-start" }}>
                     <LucideIcon name="mic" size={10} color={C.accent} />
                     <View>
-                        <Text style={{ fontSize: 10, color: C.ink }}>{EXPO.pitch}</Text>
-                        <Text style={{ fontSize: 7, color: C.mid }}>{EXPO.stage}</Text>
+                        <Text style={{ fontSize: 10, color: C.ink }}>{t.pitch}</Text>
+                        <Text style={{ fontSize: 7, color: C.mid }}>{t.stage}</Text>
                     </View>
                 </View>
             </View>
@@ -342,15 +371,15 @@ function BackPanel({ data }: { data: ExpoData }) {
             <View style={{ flexDirection: "row", gap: 10, marginTop: 5, marginBottom: 12 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent }} />
-                    <Text style={{ fontSize: 6.5, color: C.mid }}>{data.counts.live} live councils in Greece</Text>
+                    <Text style={{ fontSize: 6.5, color: C.mid }}>{fill(t.legendLive, v)}</Text>
                 </View>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: C.ink, backgroundColor: "#ffffff" }} />
-                    <Text style={{ fontSize: 6.5, color: C.mid }}>{data.counts.preview} previews in {data.counts.countries - 1} more countries</Text>
+                    <Text style={{ fontSize: 6.5, color: C.mid }}>{fill(t.legendPreview, v)}</Text>
                 </View>
             </View>
 
-            <Kicker>The team</Kicker>
+            <Kicker>{t.teamKicker}</Kicker>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
                 {TEAM.map(member => (
                     <View key={member.name} style={{ width: INNER / 5, alignItems: "center" }}>
@@ -364,40 +393,27 @@ function BackPanel({ data }: { data: ExpoData }) {
             <View style={{ flex: 1 }} />
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 10 }}>
-                <QRCode value={`https://${SITE}`} size={46} />
+                <QRCode value={`https://${T.contacts.site}`} size={46} />
                 <View style={{ flex: 1, gap: 4 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="mail" size={8.5} color={C.accent} />
-                        <Text style={{ fontSize: 8, color: C.body }}>{EMAIL}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="phone" size={8.5} color={C.accent} />
-                        <Text style={{ fontSize: 8, color: C.body }}>{WHATSAPP}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <LucideIcon name="globe" size={8.5} color={C.accent} />
-                        <Text style={{ fontSize: 8, color: C.body }}>{SITE}</Text>
-                    </View>
+                    {contacts.map(([icon, text]) => (
+                        <View key={text} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                            <LucideIcon name={icon} size={8.5} color={C.accent} />
+                            <Text style={{ fontSize: 8, color: C.body }}>{text}</Text>
+                        </View>
+                    ))}
                 </View>
             </View>
 
             {/* The closing statement: the site's headline, in its colours, quieter than the cover. */}
-            <Text style={{ fontSize: 11, color: C.ink, lineHeight: 1.35, marginTop: 14 }}>
-                OpenCouncil is the system of record for <Text style={{ color: C.accent }}>local government democracy</Text>.
-            </Text>
-            <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.45, marginTop: 6 }}>
-                OpenCouncil P.C. is wholly owned by Schema Labs, a non-profit based in Athens. Open source under the AGPL v3 licence.
-            </Text>
+            <Accented template={t.closing} accent={t.closingAccent} style={{ fontSize: 11, color: C.ink, lineHeight: 1.35, marginTop: 14 }} />
+            <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.45, marginTop: 6 }}>{t.note}</Text>
         </Panel>
     );
 }
 
 function FrontPanel({ data }: { data: ExpoData }) {
-    const stats = [
-        { value: String(data.counts.live), label: "live councils\nin Greece" },
-        { value: String(data.counts.preview), label: "European cities\npreviewed" },
-        { value: "1,000+", label: "hours of meetings\non the record" },
-    ];
+    const t = T.front;
+    const v = vars(data);
     return (
         <Panel>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -406,36 +422,32 @@ function FrontPanel({ data }: { data: ExpoData }) {
             </View>
 
             <View style={{ marginTop: 12 }}>
-                <Text style={{ fontSize: 20, color: C.ink, lineHeight: 1.12 }}>Your council already meets in public.</Text>
-                <Text style={{ fontSize: 20, color: C.accent, lineHeight: 1.12 }}>Make the city pay attention.</Text>
+                <Text style={{ fontSize: 20, color: C.ink, lineHeight: 1.12 }}>{t.headline}</Text>
+                <Text style={{ fontSize: 20, color: C.accent, lineHeight: 1.12 }}>{t.headlineAccent}</Text>
             </View>
 
             <View style={{ width: 28, height: 1.5, backgroundColor: C.accent, marginTop: 10, marginBottom: 7 }} />
-            <Text style={{ fontSize: 11, color: C.ink, lineHeight: 1.45 }}>
-                We carefully transcribe city council sessions and turn them into summarised subjects, WhatsApp updates for citizens, and official minutes for staff.
-            </Text>
+            <Text style={{ fontSize: 11, color: C.ink, lineHeight: 1.45 }}>{t.statement}</Text>
 
             <View style={{ marginTop: 10 }}>
-                <ChaniaMap chania={data.chania} width={INNER} />
-                <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 5, lineHeight: 1.4 }}>
-                    Chania, {fmtDate(data.chania.pin.date)}. A real subject, and the message residents of the street received about it.
-                </Text>
+                <ChaniaMap data={data} width={INNER} />
+                <Text style={{ fontSize: 6.5, color: C.mid, marginTop: 5, lineHeight: 1.4 }}>{fill(t.mapCaption, v)}</Text>
             </View>
 
             <View style={{ flex: 1 }} />
 
             <View style={{ flexDirection: "row", borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 8, marginBottom: 10 }}>
-                {stats.map((stat, i) => (
+                {t.stats.map((stat, i) => (
                     <View key={stat.label} style={{ flex: 1, borderLeftWidth: i === 0 ? 0 : 0.5, borderLeftColor: C.line, paddingLeft: i === 0 ? 0 : 8 }}>
-                        <Text style={{ fontSize: 16, color: i === 0 ? C.accent : C.ink }}>{stat.value}</Text>
+                        <Text style={{ fontSize: 16, color: i === 0 ? C.accent : C.ink }}>{fill(stat.value, v)}</Text>
                         <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.35, marginTop: 2 }}>{stat.label}</Text>
                     </View>
                 ))}
             </View>
 
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.4 }}>{`${EXPO.name}\nBarcelona · 3–5 Nov 2026`}</Text>
-                <Text style={{ fontSize: 8, color: C.ink, textAlign: "right", lineHeight: 1.35 }}>{EXPO.stand.replace(" · ", "\n")}</Text>
+                <Text style={{ fontSize: 6.5, color: C.mid, lineHeight: 1.4 }}>{fill(t.footer, v)}</Text>
+                <Text style={{ fontSize: 8, color: C.ink, textAlign: "right", lineHeight: 1.35 }}>{T.back.stand.replace(" · ", "\n")}</Text>
             </View>
         </Panel>
     );
@@ -443,20 +455,19 @@ function FrontPanel({ data }: { data: ExpoData }) {
 
 // ─── Inside ─────────────────────────────────────────────────────────────────
 
+const FEATURE_ICONS: Array<keyof typeof ICON_PATHS> = ["fileText", "search", "bell", "mapPin", "landmark"];
+
 /** Image first, then the list: the resident's panel is the one with a product in it. */
 function ResidentsPanel() {
+    const t = T.residents;
     return (
         <Panel>
-            <PanelTitle kicker="For residents" title="Hours-long meetings, understood in minutes." />
-            <BrowserFrame src={`${ASSET_BASE}/brochure/salzburg-subject.png`} url="opencouncil.at/salzburg" width={INNER} aspect={2560 / 1480} />
-            <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 5, marginBottom: 14 }}>
-                Salzburg City Council, 21 Oct 2026: “A €13 million shared space for three old town squares”, from a debate in German. Speech recognition handles most European languages well.
-            </Text>
-            <Feature icon="fileText" title="Subjects and summaries" text="Every meeting is split into subjects. For each one: a summary, each speaker’s position in brief, the video and the decision." />
-            <Feature icon="search" title="Search" text="Search everything that has been said, in every meeting." />
-            <Feature icon="bell" title="WhatsApp updates" text="Residents get a message whenever the council discusses their street, their neighbourhood or a subject they follow." />
-            <Feature icon="mapPin" title="Subject map" text="The council’s subjects on the map. Zoom into any area, neighbourhood and street." />
-            <Feature icon="landmark" title="Councillors and parties" text="Every member’s page: what they spoke on, for how long, and where they stood on each subject." />
+            <PanelTitle kicker={t.kicker} title={t.title} />
+            <BrowserFrame src={`${ASSET_BASE}/brochure/${SCREENSHOT.file}`} url={SCREENSHOT.url} width={INNER} aspect={SCREENSHOT.aspect} />
+            <Text style={{ fontSize: 6.8, color: C.mid, lineHeight: 1.45, marginTop: 5, marginBottom: 14 }}>{t.screenshotCaption}</Text>
+            {t.features.map((feature, i) => (
+                <Feature key={feature.title} icon={FEATURE_ICONS[i] ?? "fileText"} title={feature.title} text={feature.text} />
+            ))}
         </Panel>
     );
 }
@@ -472,25 +483,24 @@ function RuledItem({ title, text, last = false }: { title: string; text: string;
 
 /** Tinted panel in the middle of the spread: one big number, a ruled list, the Europe list in a card, a big line. */
 function StaffPanel({ data }: { data: ExpoData }) {
+    const t = T.staff;
     return (
         <Panel style={{ backgroundColor: C.surface }}>
-            <PanelTitle kicker="For council staff" title="What took days now takes hours." />
+            <PanelTitle kicker={t.kicker} title={t.title} />
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2, marginBottom: 6 }}>
-                <Text style={{ fontSize: 44, color: C.accent, lineHeight: 1 }}>48h</Text>
-                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.45, flex: 1 }}>
-                    from the end of the meeting to a transcript of every word, every speaker recognised, checked by a person.
-                </Text>
+                <Text style={{ fontSize: 44, color: C.accent, lineHeight: 1 }}>{t.bigNumber}</Text>
+                <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.45, flex: 1 }}>{t.bigNumberText}</Text>
             </View>
 
             <View style={{ borderTopWidth: 0.5, borderTopColor: C.line }}>
-                <RuledItem title="Minutes ready to sign" text="The meeting’s minutes, with attendance, votes and decisions, ready for review and signature." />
-                <RuledItem title="Open API and MCP server" text="The record is open data. Query it through the public API, or ask about your council in Claude or ChatGPT." />
-                <RuledItem title="Your data, in Europe" text="Hosted in the EU, GDPR compliant, open source. European or self-hosted models when your policy asks for it." last />
+                {t.items.map((item, i) => (
+                    <RuledItem key={item.title} title={item.title} text={item.text} last={i === t.items.length - 1} />
+                ))}
             </View>
 
             <View style={{ backgroundColor: "#ffffff", borderWidth: 0.5, borderColor: C.line, borderRadius: 6, padding: 10, marginTop: 8 }}>
-                <Kicker>What European councils discussed</Kicker>
+                <Kicker>{t.cardsKicker}</Kicker>
                 {data.cards.map((card, i) => (
                     <View key={card.title} style={{ flexDirection: "row", gap: 8, marginBottom: i === data.cards.length - 1 ? 0 : 6 }}>
                         <Text style={{ width: 46, fontSize: 7.5, color: C.accent }}>{card.city}</Text>
@@ -503,9 +513,7 @@ function StaffPanel({ data }: { data: ExpoData }) {
 
             <View style={{ flex: 1 }} />
 
-            <Text style={{ fontSize: 13, color: C.ink, lineHeight: 1.35 }}>
-                OpenCouncil replaces the company that writes your minutes today, <Text style={{ color: C.accent }}>at a similar cost and with ten times the use.</Text>
-            </Text>
+            <Accented template={t.punchline} accent={t.punchlineAccent} style={{ fontSize: 13, color: C.ink, lineHeight: 1.35 }} />
         </Panel>
     );
 }
@@ -522,35 +530,25 @@ function Step({ number, title, text, last = false }: { number: string; title: st
     );
 }
 
-const AWARDS: Array<[string, string]> = [
-    ["Digital Governance Award", "Best Applied Idea in Local Government, Greek Ministry of Digital Governance"],
-    ["European Public Sector Award 2025–26", "Good Practice Certificate, EIPA"],
-    ["Innovation in Politics Awards 2026", "Finalist"],
-    ["7th Guangzhou International Award for Urban Innovation", "Finalist"],
-    ["OECD.AI Policy Navigator", "the OECD catalogue of AI in the public sector"],
-];
-
 function HowItWorksPanel() {
+    const t = T.how;
     return (
         <Panel>
-            <PanelTitle kicker="How it works" title="One video of the meeting in. Everything else out." />
-            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 14 }}>
-                Nothing to install. The stream your council already runs is enough.
-            </Text>
-            <Step number="1" title="The meeting" text="The council’s own stream or recording, as it is." />
-            <Step number="2" title="Carefully transcribed" text="Every word and every speaker, checked by a person. Then subjects, summaries and decisions." />
-            <Step number="3" title="Published and searchable" text="Each subject on its own page, in search, on the map. The record of the city." />
-            <Step number="4" title="Sent to the people it concerns" text="A WhatsApp message to the residents who follow the subject. Minutes to the staff who sign them." last />
+            <PanelTitle kicker={t.kicker} title={t.title} />
+            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.5, marginBottom: 14 }}>{t.intro}</Text>
+            {t.steps.map((step, i) => (
+                <Step key={step.title} number={String(i + 1)} title={step.title} text={step.text} last={i === t.steps.length - 1} />
+            ))}
 
             <View style={{ flex: 1 }} />
 
             <View style={{ backgroundColor: C.surface, borderRadius: 6, padding: 12 }}>
-                <Kicker>Awards and mentions</Kicker>
-                {AWARDS.map(([title, detail], i) => (
-                    <View key={title} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: i === AWARDS.length - 1 ? 0 : 5 }}>
+                <Kicker>{t.awardsKicker}</Kicker>
+                {t.awards.map((award, i) => (
+                    <View key={award.title} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6, marginBottom: i === t.awards.length - 1 ? 0 : 5 }}>
                         <LucideIcon name="award" size={9} color={C.accent} />
                         <Text style={{ flex: 1, fontSize: 7.5, color: C.body, lineHeight: 1.4 }}>
-                            <Text style={{ color: C.ink }}>{title}</Text> · {detail}
+                            <Text style={{ color: C.ink }}>{award.title}</Text> · {award.detail}
                         </Text>
                     </View>
                 ))}

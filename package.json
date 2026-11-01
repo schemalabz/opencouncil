@@ -7,6 +7,7 @@
     "services/*"
   ],
   "scripts": {
+        "leaflet:expo:copy": "tsx scripts/export_expo_copy.ts",
         "leaflet:expo": "esbuild scripts/render_expo_leaflet.tsx --bundle --platform=node --format=esm --packages=external --alias:@=./src --jsx=automatic --outfile=.next/leaflet/render.mjs --log-level=warning && node .next/leaflet/render.mjs",
     "postinstall": "patch-package --error-on-fail",
     "dev": "next dev --turbo -H 0.0.0.0",
