@@ -8,6 +8,8 @@ import {
     mcpCreateMeeting,
     mcpListRealms,
     mcpPopulateCity,
+    mcpPublishCityDemo,
+    mcpSetCityBoundary,
     mcpStartTask,
     mcpUpdateMeeting,
 } from './adminData';
@@ -17,6 +19,8 @@ import {
     createMeetingToolInput,
     startTaskToolInput,
     updateMeetingToolInput,
+    publishCityDemoToolInput,
+    setCityBoundaryToolInput,
 } from './adminToolSchemas';
 import { category, run } from './toolSupport';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
@@ -124,6 +128,36 @@ function registerTaskAdminTools(server: McpServer) {
 
 function registerCityAdminTools(server: McpServer) {
     server.registerTool(
+        'publish_city_demo',
+        {
+            title: 'Publish city demo',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description: 'Superadmin only. Promote a pending city to a public demo, or leave an existing demo unchanged. '
+                + 'The city and its already released meetings become discoverable on its realm. Draft meetings stay unreleased. '
+                + 'This does not enable official support or notifications, and refuses supported cities. '
+                + 'Read get_city and confirm publication with the user before calling; an approved pending import is not approval to publish.',
+            inputSchema: publishCityDemoToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpPublishCityDemo(identityFromContext(ctx), args)),
+    );
+
+    server.registerTool(
+        'set_city_boundary',
+        {
+            title: 'Set city boundary',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description: 'Superadmin only. Save or replace a city boundary using verified municipal GeoJSON in WGS84. '
+                + 'Uses the same normalization and storage as the city edit form. This replaces any existing boundary; '
+                + 'it does not publish the city or release meetings. Confirm the source, territorial unit and replacement with the user before calling. '
+                + 'Never substitute a country outline or a bounding box for the municipal boundary.',
+            inputSchema: setCityBoundaryToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpSetCityBoundary(identityFromContext(ctx), args)),
+    );
+
+    server.registerTool(
         'list_realms',
         {
             title: 'List realms',
@@ -147,8 +181,8 @@ function registerCityAdminTools(server: McpServer) {
             description:
                 'Superadmin only. Create a municipality or a region in the realm of this domain, or in the realm '
                 + 'you name. The city is saved as '
-                + 'pending, so it is not public, and it has no logo and no boundary: those are added on the '
-                + 'site. Fill it next with populate_city. The id is permanent and is part of every URL of '
+                + 'pending, so it is not public, and it has no logo and no boundary. Add the logo on the site '
+                + 'and the verified boundary with set_city_boundary. Fill it with populate_city. The id is permanent and is part of every URL of '
                 + 'the city. Confirm the id and the names with the user before you call.',
             inputSchema: createCityToolInput,
         },
