@@ -5,7 +5,7 @@
  * the client ExplainFeatures wrapper can share the ids.
  *
  * The ids follow the `oc-<featureId>` convention used in ExplainFeatures
- * (`oc-subjects`, `oc-search`, …), plus `oc-how` for the "how it works" diagram.
+ * (`oc-subjects`, `oc-search`, …), plus `oc-stages` and `oc-ai`.
  */
 export interface NavSection {
     id: string;
@@ -13,8 +13,8 @@ export interface NavSection {
 }
 
 export const OPENCOUNCIL_SUBSECTIONS: NavSection[] = [
-    { id: "oc-how", title: "Αναλυτικά" },
     { id: "oc-stages", title: "Η πορεία μιας συνεδρίασης" },
+    { id: "oc-ai", title: "Η τεχνητή νοημοσύνη στο OpenCouncil" },
     { id: "oc-subjects", title: "Θέματα & Περιλήψεις" },
     { id: "oc-search", title: "Αναζήτηση" },
     { id: "oc-notifications", title: "Ενημερώσεις" },

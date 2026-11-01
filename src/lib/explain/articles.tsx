@@ -5,6 +5,8 @@ import { MunicipalitiesChart } from "@/components/explain/MunicipalitiesChart";
 import { MunicipalFinanceChart } from "@/components/explain/MunicipalFinanceChart";
 import { MunicipalityGovernance } from "@/components/explain/MunicipalityGovernance";
 import { AgendaViewer } from "@/components/embeds/AgendaViewer";
+import { AI_ACT_URL, LAST_UPDATED } from "@/lib/explain/aiLiteracy";
+import { formatDate } from "@/lib/formatters/time";
 
 /**
  * Content model for the single, scrollable /explain page.
@@ -433,26 +435,41 @@ function OpenCouncilBody() {
     return (
         <>
             <p>
-                Κάθε συνεδρίαση Δημοτικού Συμβουλίου και Δημοτικής Επιτροπής είναι ανοιχτή σε όλους και μπορεί να
-                την παρακολουθήσει μέσω των επίσημων καναλιών του κάθε δήμου.
+                Κάθε συνεδρίαση Δημοτικού Συμβουλίου και Δημοτικής Επιτροπής (πλην των σπανίων εξαιρέσεων που ορίζει
+                η νομοθεσία) είναι ανοιχτή σε όλους, και μπορεί κανείς να την παρακολουθήσει από τα επίσημα κανάλια
+                του δήμου. Το OpenCouncil μετατρέπει αυτές τις πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο και
+                προσβάσιμο περιεχόμενο και σε ενημερώσεις προς δημότες.
             </p>
-            <div className="not-prose my-6 flex items-start gap-3 rounded-2xl border border-orange/30 bg-orange/5 p-5">
-                <span className="text-2xl leading-none" aria-hidden="true">
-                    ✨
-                </span>
-                <p className="text-base font-semibold leading-relaxed text-foreground">
-                    Το OpenCouncil μετατρέπει τις πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο και προσβάσιμο
-                    περιεχόμενο - αυτόματα.
+            <p>
+                Απομαγνητοφωνεί τις συνεδριάσεις, αναγνωρίζει τους ομιλητές, χωρίζει τη συζήτηση σε θέματα και γράφει
+                μια σύνοψη για κάθε τοποθέτηση. Φτιάχνει σελίδες για κάθε{" "}
+                <Ext href="https://opencouncil.gr/athens/parties/cm0tq4fgs08m54o47ljf1jxxd">παράταξη</Ext> και κάθε{" "}
+                <Ext href="https://opencouncil.gr/athens/people/cm0tqeh9m08mj4o47a2xw2265">σύμβουλο</Ext>, βάζει τα
+                θέματα στον χάρτη, ενημερώνει τους δημότες για ό,τι αφορά τη γειτονιά τους, και κάνει όλα τα θέματα αναζητήσιμα. Ένα μεγάλο μέρος της δουλειάς το κάνει τεχνητή νοημοσύνη και ένα μέρος άνθρωποι. Παρακάτω
+                λέμε ποιος κάνει τι.
+            </p>
+            <div className="not-prose my-6 rounded-2xl border border-orange/30 bg-orange/5 p-5" id="oc-ai-act">
+                <p className="text-sm font-semibold uppercase tracking-wider text-orange">
+                    Για τους δήμους και τον Κανονισμό για την Τεχνητή Νοημοσύνη
+                </p>
+                <p className="mt-2 text-base leading-relaxed text-foreground">
+                    Αυτή η ενότητα είναι το υλικό του OpenCouncil για τον «γραμματισμό στον τομέα της ΤΝ», όπως τον
+                    ζητά το άρθρο 4 του{" "}
+                    <a href={AI_ACT_URL} target="_blank" rel="noopener noreferrer" className="text-orange underline underline-offset-2">
+                        Κανονισμού (ΕΕ) 2024/1689
+                    </a>{" "}
+                    (AI Act) από τους παρόχους και τους φορείς εφαρμογής συστημάτων ΤΝ. Απευθύνεται στους υπαλλήλους
+                    και τους αιρετούς των δήμων που χρησιμοποιούν το OpenCouncil, αλλά και σε κάθε πολίτη που διαβάζει το
+                    περιεχόμενό του. Οι δήμοι που συνεργάζονται μαζί μας μπορούν να παραπέμπουν σε αυτή τη σελίδα.
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Τελευταία ενημέρωση: {formatDate(new Date(LAST_UPDATED))}. Το{" "}
+                    <a href="#oc-ai-changes" className="text-orange underline underline-offset-2">
+                        ιστορικό αλλαγών
+                    </a>{" "}
+                    βρίσκεται στο τέλος της ενότητας.
                 </p>
             </div>
-            <p>
-                Μεταξύ άλλων, το OpenCouncil απομαγνητοφωνεί τις συνεδριάσεις των Δημοτικών Συμβουλίων, αναγνωρίζει
-                ομιλητές, εξάγει συνόψεις από κάθε τοποθέτηση που γίνεται στη συνεδρίαση, παράγει στατιστικά,
-                φτιάχνει σελίδες{" "}
-                <Ext href="https://opencouncil.gr/athens/parties/cm0tq4fgs08m54o47ljf1jxxd">παρατάξεων</Ext> και{" "}
-                <Ext href="https://opencouncil.gr/athens/people/cm0tqeh9m08mj4o47a2xw2265">ομιλητών</Ext>, κάνει
-                όλες τις συνεδριάσεις αναζητήσιμες
-            </p>
         </>
     );
 }
