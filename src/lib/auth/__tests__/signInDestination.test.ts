@@ -103,6 +103,29 @@ describe('signInDestination', () => {
             ).toBe('/en/profile');
         });
 
+        it.each(['/sr', '/sr/', '/lat', '/fr', '/el'])(
+            'redirects non-onboarded readers to profile when callbackUrl is the %s homepage',
+            (homepage) => {
+                expect(
+                    resolvePostSignInPath({
+                        callbackUrl: homepage,
+                        onboarded: false,
+                        fallback: '/sr/profile',
+                    }),
+                ).toBe('/sr/profile');
+            },
+        );
+
+        it('keeps a non-homepage Serbian callbackUrl for non-onboarded readers', () => {
+            expect(
+                resolvePostSignInPath({
+                    callbackUrl: '/sr/chania',
+                    onboarded: false,
+                    fallback: '/sr/profile',
+                }),
+            ).toBe('/sr/chania');
+        });
+
         it('preserves homepage callbackUrl for onboarded readers', () => {
             expect(
                 resolvePostSignInPath({

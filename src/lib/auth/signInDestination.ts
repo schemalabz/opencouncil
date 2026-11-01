@@ -1,4 +1,7 @@
+import { localePrefixPattern } from '@/i18n/config';
 import { safeRedirectPath } from '@/lib/safeRedirect';
+
+const ROOT_PATH_RE = new RegExp(`^/(${localePrefixPattern})?/?$`);
 
 function isSignInPath(path: string): boolean {
     const clean = path.split('?')[0].split('#')[0];
@@ -7,7 +10,7 @@ function isSignInPath(path: string): boolean {
 
 function isRootPath(path: string): boolean {
     const clean = path.split('?')[0].split('#')[0];
-    return /^\/(el|en|fr|lat)?\/?$/.test(clean);
+    return ROOT_PATH_RE.test(clean);
 }
 
 /**
