@@ -38,7 +38,7 @@ const whereClause = {
 
   /** Match succeeded task statuses for review tracking */
   reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
-    type: { in: ['transcribe', 'fixTranscript', 'humanReview', 'transcriptSent'] },
+    type: { in: ['transcribe', 'fixTranscript', 'humanReview'] },
     status: 'succeeded'
   }),
 };
@@ -68,7 +68,12 @@ const includePattern = {
       // request/response payloads (~1.7 GB across production), which
       // overflow the engine's result buffer on unfiltered lists (#303).
       select: { type: true, status: true }
-    }
+    },
+    // The sent transcript, recorded as a document send (#874)
+    documentSends: {
+      where: { document: 'transcript' as const, status: 'sent' as const },
+      select: { id: true },
+    },
   }),
 
   /** Utterances with user edits for session calculation */
@@ -986,7 +991,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
     }
 
     const hasHumanReview = hasSucceededTask(m.taskStatuses, 'humanReview');
-    const hasTranscriptSent = hasSucceededTask(m.taskStatuses, 'transcriptSent');
+    const hasTranscriptSent = m.documentSends.length > 0;
     const status = determineReviewStatus(hasTranscribe, hasHumanReview, stats.reviewedUtterances);
 
     const reviewDurationMs = stats.lastEditAt && m.dateTime
@@ -1102,7 +1107,7 @@ export async function getReviewProgressForMeeting(
   // Check task statuses
   const hasTranscribe = hasSucceededTask(meetingRecord.taskStatuses, 'transcribe');
   const hasHumanReview = hasSucceededTask(meetingRecord.taskStatuses, 'humanReview');
-  const hasTranscriptSent = hasSucceededTask(meetingRecord.taskStatuses, 'transcriptSent');
+  const hasTranscriptSent = meetingRecord.documentSends.length > 0;
 
   if (!hasTranscribe) {
     return null;

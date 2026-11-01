@@ -178,6 +178,16 @@ The mayor: never a member of a council or a community; a member of a committee o
 
 The quality tooling (the meeting checker with its claims fixture, the measure over every meeting with readings, and the per-meeting traces) comes in a follow-up pull request.
 
+## Sending the minutes to the back office
+
+The platform emails the minutes to the secretariat of the body (#874). A city admin switches the minutes on for each administrative body. The switch is in the "Αποστολή Εγγράφων" section of the body form, with the To and CC addresses. The transcript is in the same section. Switching a document on covers only the meetings held from that moment on.
+
+The rule (`src/lib/documents/readiness.ts`) has two moments. First, the complete minutes go out when every eligible subject has its decision. The end of the decision poll that finds the last decision sends them. Second, the provisional minutes go out after 5 calendar days (`MINUTES_THRESHOLD_DAYS`) if a subject still has no decision. The days count in the city's timezone, so a meeting on 1 Oct is due on 6 Oct. The subject line of the provisional email says that the minutes are provisional («Πρόχειρα πρακτικά»). The email says why: the subjects without a decision on Diavgeia, which it lists. It also gives three steps: open the meeting page and sign in, open the decisions page, and link the subjects listed at the top. Both emails attach the DOCX, and their first sentence carries no link. Both forms need a complete human review and a meeting that took place. A λογοδοσία or an απολογισμός takes no decisions, so its minutes are complete at review time, whatever its agenda holds. A review completion that also starts a summarize holds the minutes until the summarize ends, because the summarize adds the subjects discussed outside the agenda; the result hook of the summarize sends them. A later part of a continued meeting sends nothing of its own. An operator may send the minutes by hand at any time, with what the meeting holds. The exceptions are an unreviewed meeting and a meeting with no agenda subjects.
+
+`getMinutesData` renders the record it is given: its own subjects and its own transcript. It does not merge the parts of a continued meeting, so the minutes of the first part cover the first part only.
+
+Nothing goes out twice on its own. A send by hand counts too: after it, neither the cron nor the hooks send the minutes of that meeting. After a provisional send, the back office can complete the minutes on the decisions page and export them there. The minutes card of the decisions page also says where the minutes stand. It names the last send, with its date, its To address and the subjects it lacked. Before a send, it says when the minutes go out on their own. Its button «Αποστολή στη γραμματεία» sends them by hand, for example the complete minutes after a provisional send. Unconfirmed means that the email was handed to the provider, but its outcome was never recorded. Check whether it arrived before you send it by hand. The admin meetings list only marks the documents that went out. The daily `send-documents` cron is the authority on these sends; see [task-architecture.md](../task-architecture.md#document-sends).
+
 ## Key design decisions
 
 ### Per-subject attendance is derived, not stated

@@ -18,9 +18,19 @@ import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
-import { administrativeBodyFormSchema, administrativeBodySchema, confirmConventionsRequestSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
+import {
+    administrativeBodyFormSchema,
+    administrativeBodySchema,
+    confirmConventionsRequestSchema,
+    documentSendCardsFromSettings,
+    documentSendSettingsFromCards,
+    type AdministrativeBodyFormInput,
+    type AdministrativeBodyFormOutput,
+} from "@/lib/zod-schemas/administrativeBody"
+import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS, type DocumentSendRule } from '@/lib/documents/settings'
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
+import type { DocumentKind } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -54,25 +64,29 @@ function ConventionsMessage({ error }: { error: unknown }) {
     )
 }
 
+/** A body as the form edits it: an editor's read carries its document send settings. */
+type EditableBody = AdministrativeBodyWithSettings & {
+    documentSendSettings?: Array<DocumentSendRule & { document: DocumentKind }>;
+};
+
 interface AdministrativeBodiesListProps {
     cityId: string;
-    bodies: AdministrativeBodyWithSettings[];
+    bodies: EditableBody[];
     onUpdate: () => void;
 }
 
-function getFormDefaults(body?: AdministrativeBodyWithSettings | null): AdministrativeBodyFormInput {
+function getFormDefaults(body?: EditableBody | null): AdministrativeBodyFormInput {
     return {
         name: body?.name || "",
         name_en: body?.name_en || "",
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         place: body?.place || "",
-        contactEmailPrimary: body?.contactEmails?.[0] || "",
-        contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: body?.decisionConventions ?? null,
+        documentSendSettings: documentSendCardsFromSettings(body?.documentSendSettings),
     };
 }
 
@@ -80,9 +94,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isConfirmingConventions, setIsConfirmingConventions] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
-    const [editingBody, setEditingBody] = useState<AdministrativeBodyWithSettings | null>(null)
+    const [editingBody, setEditingBody] = useState<EditableBody | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBodyWithSettings | null>(null)
+    const [bodyToDelete, setBodyToDelete] = useState<EditableBody | null>(null)
     const t = useTranslations('AdministrativeBodiesList')
     const { data: session } = useSession()
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false
@@ -103,16 +117,6 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         const method = editingBody ? 'PUT' : 'POST'
 
         try {
-            // Combine primary + CC emails into a single array for API
-            const contactEmailsArray: string[] = [];
-            if (values.contactEmailPrimary) {
-                contactEmailsArray.push(values.contactEmailPrimary);
-            }
-            if (values.contactEmailsCC) {
-                const ccEmails = values.contactEmailsCC.split(',').map(e => e.trim()).filter(e => e !== '');
-                contactEmailsArray.push(...ccEmails);
-            }
-
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -126,10 +130,10 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     type: values.type,
                     youtubeChannelUrl: values.youtubeChannelUrl,
                     place: values.place,
-                    contactEmails: contactEmailsArray,
                     notificationBehavior: values.notificationBehavior,
                     showUnreviewedTranscript: values.showUnreviewedTranscript,
                     diavgeiaUnitIds: values.diavgeiaUnitIds,
+                    documentSendSettings: documentSendSettingsFromCards(values.documentSendSettings),
                 } satisfies z.input<typeof administrativeBodySchema>),
             })
 
@@ -285,46 +289,71 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailPrimary"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailPrimary')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailPrimaryPlaceholder')}
-                                                type="email"
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="text-sm font-medium">{t('documentSends.title')}</h3>
+                                    <p className="text-sm text-muted-foreground">{t('documentSends.description')}</p>
+                                </div>
+                                {DOCUMENT_KINDS.map((document) => {
+                                    const enabled = form.watch(`documentSendSettings.${document}.enabled`)
+                                    // An address typed and then switched off still fails its check, so its field stays in view
+                                    const addressError = form.formState.errors.documentSendSettings?.[document]
+                                    return (
+                                        <div key={document} className="space-y-3 rounded-lg border p-3">
+                                            <FormField
+                                                control={form.control}
+                                                name={`documentSendSettings.${document}.enabled`}
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-1">
+                                                        {/* The name and the switch share the first line; the description sits under the name */}
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <FormLabel className="text-sm font-medium">{t(`documentSends.documents.${document}.name`)}</FormLabel>
+                                                            <FormControl>
+                                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                                            </FormControl>
+                                                        </div>
+                                                        <FormDescription>
+                                                            {t(`documentSends.documents.${document}.description`, { days: MINUTES_THRESHOLD_DAYS })}
+                                                        </FormDescription>
+                                                    </FormItem>
+                                                )}
                                             />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailPrimaryDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailsCC"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailsCC')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailsCCPlaceholder')}
-                                                type="text"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailsCCDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                            {/* The addresses show for a document that is on, where the schema requires a To address, and for one whose addresses fail their check */}
+                                            {(enabled || addressError) && (
+                                                <>
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`documentSendSettings.${document}.to`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>{t('documentSends.to')}</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} type="email" placeholder={t('documentSends.toPlaceholder')} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`documentSendSettings.${document}.cc`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>{t('documentSends.cc')}</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} type="text" placeholder={t('documentSends.ccPlaceholder')} />
+                                                                </FormControl>
+                                                                <FormDescription>{t('documentSends.ccDescription')}</FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"

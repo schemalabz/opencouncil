@@ -969,8 +969,7 @@
         "transcribe": "Транскрибовано",
         "fixTranscript": "Аутоматска исправка",
         "humanReview": "Прегледано од стране човека",
-        "summarize": "Сажето",
-        "transcriptSent": "Транскрипт послат"
+        "summarize": "Сажето"
     },
     "AdministrativeBodiesList": {
         "addNew": "Додај ново",
@@ -994,12 +993,6 @@
         "place": "Сала за седнице",
         "placePlaceholder": "нпр. Сала скупштине, Градска кућа",
         "placeDescription": "Где орган по правилу заседа. Страница сваке седнице уживо то приказује, осим ако седница има своје место.",
-        "contactEmailPrimary": "Имејл примаоца (To)",
-        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-        "contactEmailPrimaryDescription": "Примарни имејл примаоца за слање транскрипата.",
-        "contactEmailsCC": "Копија (CC)",
-        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-        "contactEmailsCCDescription": "Додатни имејлови за копију (одвојени зарезима).",
         "notificationBehavior": "Понашање обавештења",
         "notificationBehaviorDescription": "Изаберите понашање обавештења за седнице овог тела.",
         "notificationBehaviorOptions": {
@@ -1012,6 +1005,25 @@
         "diavgeiaUnitIds": "ID-јеви јединица на платформи Diavgeia",
         "diavgeiaUnitIdsPlaceholder": "нпр. 81689, 84655:100010590",
         "diavgeiaUnitIdsDescription": "Опсези на платформи Diavgeia, одвојени зарезима (за аутоматско преузимање одлука). Сваки је ID јединице, а иза двотачке може стајати и ID потписника: 84655:100010590. Потписника додајте само када више тела дели исту јединицу, уз једну ставку по потписнику.",
+        "documentSends": {
+            "title": "Слање докумената",
+            "description": "Која документа OpenCouncil шаље имејлом секретаријату тела и на које адресе. Укључивање важи само за седнице одржане од сада.",
+            "to": "Прималац (To)",
+            "toPlaceholder": "grammateia@municipality.gr",
+            "cc": "Копија (CC)",
+            "ccPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+            "ccDescription": "Додатне адресе, одвојене зарезима.",
+            "documents": {
+                "transcript": {
+                    "name": "Транскрипт",
+                    "description": "Шаље се када се заврши преглед транскрипта."
+                },
+                "minutes": {
+                    "name": "Записник",
+                    "description": "Шаље се када свака тачка има своју одлуку, или најкасније {days} дана после седнице, са тачкама које још немају одлуку."
+                }
+            }
+        },
         "submitting": "Слање...",
         "update": "Ажурирај",
         "create": "Креирај",

@@ -523,7 +523,21 @@
       "minutesProvenance": "Rédigé à partir de la transcription et des décisions de cette page.",
       "conventionsTitle": "Règles de lecture",
       "conventionsEdit": "Modifier les règles de l'organe",
-      "conventionsNone": "Aucune règle n'est enregistrée pour cet organe. Ses pages de décision ne sont pas lues tant qu'une personne ne les a pas enregistrées ; les faits affichés ont été déduits avec les valeurs par défaut."
+      "conventionsNone": "Aucune règle n'est enregistrée pour cet organe. Ses pages de décision ne sont pas lues tant qu'une personne ne les a pas enregistrées ; les faits affichés ont été déduits avec les valeurs par défaut.",
+      "minutesSend": {
+        "sent": "Procès-verbal : envoyé le {date} à {to}.",
+        "sentIncomplete": "Procès-verbal : envoyé provisoire le {date} à {to}, {n, plural, one {# point} other {# points}} sans décision.",
+        "pending": "Procès-verbal : l'envoi est en cours.",
+        "unconfirmed": "Procès-verbal : l'envoi n'a pas été confirmé. Vérifiez s'il est arrivé avant de l'envoyer à nouveau.",
+        "failed": "Procès-verbal : le dernier envoi a échoué ({reason}).",
+        "earlier": "Un envoi précédent est parti le {date}.",
+        "waitReview": "Procès-verbal : envoyé automatiquement une fois la relecture de la transcription terminée.",
+        "waitDecisions": "Procès-verbal : envoyé automatiquement quand chaque point a sa décision, au plus tard le {date}.",
+        "waitAgenda": "Procès-verbal : envoyé automatiquement une fois les points de la séance saisis.",
+        "unsent": "Procès-verbal : non envoyé.",
+        "byHandOnly": "Procès-verbal : non envoyé automatiquement, car la séance a eu lieu avant l'activation de son envoi. Vous pouvez l'envoyer d'ici.",
+        "send": "Envoyer au secrétariat"
+      }
     },
     "presenceHeadline": "{present} présents sur {total}",
     "presenceAbsentInline": "{n} absents :",
@@ -1053,5 +1067,28 @@
     "errors": {
       "failed": "L'action a échoué. Rechargez la page et réessayez."
     }
+  },
+  "documentSend": {
+    "names": {
+      "transcript": "Transcription",
+      "minutes": "Procès-verbal"
+    },
+    "send": "Envoyer",
+    "sendAgain": "Envoyer à nouveau",
+    "sending": "Envoi…",
+    "sent": "{name} : envoyé à la municipalité",
+    "title": "Envoyer : {name}",
+    "description": "Le document (DOCX) part par e-mail aux destinataires des paramètres d'envoi des documents de l'organe.",
+    "loadFailed": "Le chargement de l'envoi a échoué",
+    "notCovered": "Le paramètre de cet organe ne couvre pas cette séance.",
+    "to": "À :",
+    "cc": "Cc :",
+    "provisional": "{n, plural, one {Provisoire : # point n'a pas encore de décision.} other {Provisoire : # points n'ont pas encore de décision.}}",
+    "waitAgenda": "La séance n'a pas encore de points à l'ordre du jour, le procès-verbal serait donc vide.",
+    "waitReview": "La relecture de la séance n'est pas terminée, rien ne peut partir.",
+    "notSent": "Ce document n'est pas envoyé pour cette séance ({reason}).",
+    "cancel": "Annuler",
+    "confirm": "Envoyer",
+    "failed": "L'envoi a échoué"
   }
 }

@@ -523,7 +523,21 @@
       "minutesProvenance": "Drafted from the transcript and the decisions on this page.",
       "conventionsTitle": "Reading rules",
       "conventionsEdit": "Edit the rules on the body",
-      "conventionsNone": "No rules are recorded for this body. Its decision pages are not read until a person records them; any facts shown were derived on the defaults."
+      "conventionsNone": "No rules are recorded for this body. Its decision pages are not read until a person records them; any facts shown were derived on the defaults.",
+      "minutesSend": {
+        "sent": "Minutes: sent {date} to {to}.",
+        "sentIncomplete": "Minutes: sent as provisional {date} to {to}, {n, plural, one {# subject} other {# subjects}} without a decision.",
+        "pending": "Minutes: the send is in progress.",
+        "unconfirmed": "Minutes: the send was not confirmed. Check whether they arrived before you send them again.",
+        "failed": "Minutes: the last send failed ({reason}).",
+        "earlier": "An earlier send went out {date}.",
+        "waitReview": "Minutes: sent on their own once the review of the transcript is complete.",
+        "waitDecisions": "Minutes: sent on their own when every subject has its decision, at the latest on {date}.",
+        "waitAgenda": "Minutes: sent on their own once the subjects of the meeting are entered.",
+        "unsent": "Minutes: not sent.",
+        "byHandOnly": "Minutes: not sent on their own, because the meeting was held before their send was switched on. You can send them from here.",
+        "send": "Send to the secretariat"
+      }
     },
     "presenceHeadline": "{present} present of {total}",
     "presenceAbsentInline": "{n} absent:",
@@ -1053,5 +1067,28 @@
     "errors": {
       "failed": "The action failed. Reload the page and try again."
     }
+  },
+  "documentSend": {
+    "names": {
+      "transcript": "Transcript",
+      "minutes": "Minutes"
+    },
+    "send": "Send now",
+    "sendAgain": "Send again",
+    "sending": "Sending…",
+    "sent": "{name}: sent to the municipality",
+    "title": "Send: {name}",
+    "description": "The document (DOCX) goes by email to the recipients in the document send settings of the body.",
+    "loadFailed": "Failed to load the send",
+    "notCovered": "The setting of this administrative body does not cover this meeting.",
+    "to": "To:",
+    "cc": "CC:",
+    "provisional": "{n, plural, one {Provisional: # subject has no decision yet.} other {Provisional: # subjects have no decision yet.}}",
+    "waitAgenda": "The meeting has no agenda subjects yet, so its minutes would be empty.",
+    "waitReview": "The review of the meeting is not complete, so nothing can go out.",
+    "notSent": "This document is not sent for this meeting ({reason}).",
+    "cancel": "Cancel",
+    "confirm": "Send",
+    "failed": "The send failed"
   }
 }

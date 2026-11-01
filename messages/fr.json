@@ -963,8 +963,7 @@
     "transcribe": "Transcrite",
     "fixTranscript": "Correction automatique",
     "humanReview": "Révisée par un humain",
-    "summarize": "Résumée",
-    "transcriptSent": "Transcription envoyée"
+    "summarize": "Résumée"
   },
   "AdministrativeBodiesList": {
     "addNew": "Ajouter un nouvel élément",
@@ -988,12 +987,6 @@
     "place": "Salle des séances",
     "placePlaceholder": "p. ex. Salle du conseil, Hôtel de ville",
     "placeDescription": "Là où l’organe siège en règle générale. La page de chaque séance en présentiel l’affiche, sauf si la séance a son propre lieu.",
-    "contactEmailPrimary": "E-mail du destinataire (À)",
-    "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
-    "contactEmailPrimaryDescription": "E-mail principal du destinataire pour l'envoi des transcriptions.",
-    "contactEmailsCC": "Copie (CC)",
-    "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
-    "contactEmailsCCDescription": "E-mails de copie supplémentaires (séparés par des virgules).",
     "notificationBehavior": "Comportement des notifications",
     "notificationBehaviorDescription": "Choisissez le comportement des notifications pour les séances de cet organe.",
     "notificationBehaviorOptions": {
@@ -1006,6 +999,25 @@
     "diavgeiaUnitIds": "ID des unités Diavgeia",
     "diavgeiaUnitIdsPlaceholder": "p. ex. 81689, 84655:100010590",
     "diavgeiaUnitIdsDescription": "Portées Diavgeia séparées par des virgules (pour la récupération automatique des décisions). Chacune est un ID d'unité, éventuellement suivi de deux-points et d'un ID de signataire : 84655:100010590. N'ajoutez le signataire que lorsque plusieurs organes partagent une même unité, avec une entrée par signataire.",
+    "documentSends": {
+      "title": "Envoi des documents",
+      "description": "Quels documents OpenCouncil envoie par e-mail au secrétariat de l'organe, et à quelles adresses. L'activation ne concerne que les séances tenues à partir de maintenant.",
+      "to": "Destinataire (À)",
+      "toPlaceholder": "grammateia@municipality.gr",
+      "cc": "Copie (CC)",
+      "ccPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+      "ccDescription": "Adresses supplémentaires, séparées par des virgules.",
+      "documents": {
+        "transcript": {
+          "name": "Transcription",
+          "description": "Envoyée quand la relecture de la transcription est terminée."
+        },
+        "minutes": {
+          "name": "Procès-verbal",
+          "description": "Envoyé quand chaque point a sa décision, ou au plus tard {days} jours après la séance, avec les points qui n'ont pas encore de décision."
+        }
+      }
+    },
     "submitting": "Enregistrement...",
     "update": "Mettre à jour",
     "create": "Créer",
