@@ -155,6 +155,7 @@ function BrowserFrame({ src, url, width, aspect }: { src: string; url: string; w
 // ─── The cover map ──────────────────────────────────────────────────────────
 
 const WA = { header: "#008069", headerSub: "#cfe9e1", bg: "#efeae2", ink: "#111b21", muted: "#667781", link: "#027eb5", chip: "#54656f", placeholder: "#8696a0", mic: "#00a884" };
+const MAP_BG = "#f5f5f4";
 const STREET: Record<number, { color: string; width: number }> = {
     1: { color: "#dedede", width: 0.55 },
     2: { color: "#cfcfcf", width: 0.95 },
@@ -170,7 +171,9 @@ function WhatsAppWindow({ data, width }: { data: ExpoData; width: number }) {
     return (
         <View style={{ width }}>
             <View style={{ position: "absolute", left: 1.5, top: 3, width, height: "100%", borderRadius: 12, backgroundColor: "#000000", opacity: 0.12 }} />
-            <View style={{ borderRadius: 12, overflow: "hidden", backgroundColor: WA.bg, borderWidth: 1.2, borderColor: "#262626" }}>
+            {/* The bezel is a layer of its own: a border on a clipped box leaves a light wedge at each corner. */}
+            <View style={{ borderRadius: 12, backgroundColor: "#262626", padding: 1.2 }}>
+            <View style={{ borderRadius: 10.8, overflow: "hidden", backgroundColor: WA.bg }}>
                 {/* Header */}
                 <View style={{ backgroundColor: WA.header, paddingVertical: 5, paddingHorizontal: 7, flexDirection: "row", alignItems: "center", gap: 5 }}>
                     <Text style={{ ...WAT, fontSize: 8, color: "#ffffff", marginRight: -1 }}>‹</Text>
@@ -218,6 +221,7 @@ function WhatsAppWindow({ data, width }: { data: ExpoData; width: number }) {
                     </View>
                 </View>
             </View>
+            </View>
         </View>
     );
 }
@@ -230,7 +234,7 @@ function ChaniaMap({ data, width }: { data: ExpoData; width: number }) {
     const pinX = chania.pin.x * k;
     const phoneW = 138;
     return (
-        <View style={{ width, height: h, borderRadius: 8, backgroundColor: "#f5f5f4", borderWidth: 0.5, borderColor: C.line, overflow: "hidden" }}>
+        <View style={{ width, height: h, borderRadius: 8, backgroundColor: MAP_BG, borderWidth: 0.5, borderColor: C.line, overflow: "hidden" }}>
             <Svg width={width} height={h} viewBox={`0 0 ${chania.width} ${chania.height}`}>
                 {chania.streets.map(street => (
                     <Path key={street.w} d={street.d} fill="none" stroke={STREET[street.w]?.color ?? "#dedede"} strokeWidth={(STREET[street.w]?.width ?? 0.6) / k} strokeLinecap="round" strokeLinejoin="round" />
@@ -239,10 +243,11 @@ function ChaniaMap({ data, width }: { data: ExpoData; width: number }) {
                 <Circle cx={chania.pin.x} cy={chania.pin.y} r={13 / k} fill={C.accent} opacity={0.16} />
                 <Circle cx={chania.pin.x} cy={chania.pin.y} r={4.5 / k} fill={C.accent} stroke="#ffffff" strokeWidth={1.4 / k} />
             </Svg>
+            {/* Each label on a patch of the map's own colour, so no street runs through the letters. */}
             {chania.labels.map(label => (
-                <Text key={label.text} style={{ position: "absolute", left: label.x * k, top: label.y * k, fontSize: 6, color: C.mid, letterSpacing: 0.4 }}>
-                    {label.text.toUpperCase()}
-                </Text>
+                <View key={label.text} style={{ position: "absolute", left: label.x * k - 2.5, top: label.y * k - 1, backgroundColor: MAP_BG, borderRadius: 2, paddingHorizontal: 2.5, paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 6, color: C.mid, letterSpacing: 0.4 }}>{label.text.toUpperCase()}</Text>
+                </View>
             ))}
             <View style={{ position: "absolute", left: pinX + 16, top: 54, width: phoneW }}>
                 <WhatsAppWindow data={data} width={phoneW} />
