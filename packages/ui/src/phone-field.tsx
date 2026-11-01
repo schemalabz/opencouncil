@@ -39,6 +39,8 @@ interface PhoneFieldProps {
     /** Refuse a number that WhatsApp or SMS cannot reach, such as a landline.
      *  Set it to false for a number we only call. */
     mobileOnly?: boolean;
+    /** ISO country code used only when the number does not identify its country. */
+    defaultCountry?: string;
     id?: string;
 }
 
@@ -51,6 +53,7 @@ export function PhoneField({
     invalidMessage,
     notMobileMessage,
     mobileOnly = true,
+    defaultCountry = 'gr',
     id = 'phone',
 }: PhoneFieldProps) {
     const [active, setActive] = useState(!isPhoneEmpty(value));
@@ -91,7 +94,7 @@ export function PhoneField({
             {active ? (
                 <div className={`phone-input-container relative ${PHONE_INPUT_THEME}`}>
                     <PhoneInput
-                        defaultCountry="gr"
+                        defaultCountry={defaultCountry}
                         // The dial code cannot be deleted: a reader who types
                         // a national number on top of it gets `+30 69…`, not
                         // `+69…`. Another country is chosen from the flag.

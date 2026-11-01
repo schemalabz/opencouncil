@@ -7,7 +7,7 @@ import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
-import { createCityDirect } from "./citiesAdmin";
+import { createCityDirect, updateCityGeometryDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -87,12 +87,7 @@ export async function updateCityGeometry(
     geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
 ): Promise<void> {
     await withUserAuthorizedToEdit({ cityId: id });
-    await prisma.$executeRaw`
-        UPDATE "City"
-        SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(geometry)}), 4326),
-            "updatedAt" = NOW()
-        WHERE id = ${id}
-    `;
+    await updateCityGeometryDirect(id, geometry);
     // The geometry cache carries no TTL, so a redrawn boundary would otherwise
     // frame the old outline for good. The invalidation belongs to the writer,
     // not to one of its callers.

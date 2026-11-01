@@ -28,7 +28,8 @@ jest.mock('../../db/prisma', () => ({
 // Collaborators that do the writes. Each one reaches far into the app (the
 // session, Discord, the calendar), and none of that is under test here.
 jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
-jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn() }));
+jest.mock('../../db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
+jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn(), publishCityDemoDirect: jest.fn(), updateCityGeometryDirect: jest.fn() }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
 jest.mock('../realmGuards', () => ({
     assertCitiesInRealm: jest.fn(),
@@ -42,14 +43,15 @@ jest.mock('../../uploads', () => ({ startUpload: jest.fn(), completeUpload: jest
 
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpStartTask,
+    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask,
     mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { cityPopulationSchema, type CityPopulationInput } from '../../zod-schemas/cityPopulation';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../api/errors';
-import { countCitiesByRealmAndStatus, createCityDirect } from '../../db/citiesAdmin';
+import { countCitiesByRealmAndStatus, createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '../../db/citiesAdmin';
+import { revalidateAfterResponse } from '../../cache/afterResponse';
 import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
@@ -316,6 +318,61 @@ describe('create_city', () => {
     });
 });
 
+describe('publish_city_demo', () => {
+    it('promotes across realms, invalidates discovery and returns the city realm URL', async () => {
+        (publishCityDemoDirect as jest.Mock).mockResolvedValue({ id: 'mannheim', status: 'demo', realm: 'germany' });
+        const result = await inRealm(Realm.greece, () => mcpPublishCityDemo(SUPERADMIN_TOKEN, { cityId: 'mannheim' }));
+        expect(requireRealmCity).toHaveBeenCalledWith('mannheim');
+        expect(publishCityDemoDirect).toHaveBeenCalledWith('mannheim');
+        expect(result).toMatchObject({ id: 'mannheim', status: 'demo', realm: 'germany', url: 'https://opencouncil.de/mannheim' });
+        expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:mannheim', 'realm:germany:landing-subjects'] });
+    });
+
+    it.each([null, ADMIN_TOKEN])('refuses callers without superadmin rights before writing (%j)', async identity => {
+        await expect(mcpPublishCityDemo(identity, { cityId: 'mannheim' })).rejects.toThrow();
+        expect(publishCityDemoDirect).not.toHaveBeenCalled();
+    });
+
+    it('reports a missing or ineligible city instead of changing official support', async () => {
+        asSuperadmin();
+        (publishCityDemoDirect as jest.Mock).mockRejectedValue(new Prisma.PrismaClientKnownRequestError('no eligible city', { code: 'P2025', clientVersion: 'test' }));
+        await expect(mcpPublishCityDemo(SUPERADMIN_TOKEN, { cityId: 'mannheim' })).rejects.toThrow(ConflictError);
+    });
+});
+
+describe('set_city_boundary', () => {
+    const polygon = { type: 'Polygon', coordinates: [[[18.3, 43.8], [18.4, 43.8], [18.4, 43.9]]] };
+
+    it('normalizes an exported collection through the existing parser and refreshes discovery', async () => {
+        (requireRealmCity as jest.Mock).mockResolvedValue('bosnia');
+        const result = await inRealm(Realm.greece, () => mcpSetCityBoundary(SUPERADMIN_TOKEN, {
+            cityId: 'sarajevo', geojson: JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { source: 'official' }, geometry: polygon }] }),
+        }));
+        expect(updateCityGeometryDirect).toHaveBeenCalledWith('sarajevo', {
+            ...polygon, coordinates: [[[18.3, 43.8], [18.4, 43.8], [18.4, 43.9], [18.3, 43.8]]],
+        });
+        expect(result).toMatchObject({ cityId: 'sarajevo', realm: 'bosnia', geometryType: 'Polygon', polygonCount: 1, url: 'https://ba.opencouncil.eu/sarajevo/map' });
+        expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:sarajevo', 'realm:bosnia:landing-subjects'] });
+        expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city:sarajevo:geometry'] });
+    });
+
+    it.each([
+        '{', JSON.stringify({ type: 'Point', coordinates: [18.3, 43.8] }),
+        JSON.stringify({ type: 'Polygon', coordinates: [[[500000, 4000000], [500100, 4000000], [500000, 4000100]]] }),
+    ])('refuses malformed, non-polygonal or projected coordinates before writing', async geojson => {
+        asSuperadmin();
+        await expect(mcpSetCityBoundary(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson })).rejects.toThrow(BadRequestError);
+        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
+    });
+
+    it('does not invalidate caches or report success when the database rejects the boundary', async () => {
+        asSuperadmin();
+        (updateCityGeometryDirect as jest.Mock).mockRejectedValueOnce(new Error('Invalid geometry'));
+        await expect(mcpSetCityBoundary(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).rejects.toThrow('Invalid geometry');
+        expect(revalidateAfterResponse).not.toHaveBeenCalled();
+    });
+});
+
 describe('list_realms', () => {
     it('lists every realm with its domain, site language, stage and cities per status', async () => {
         (countCitiesByRealmAndStatus as jest.Mock).mockResolvedValue([
@@ -483,10 +540,12 @@ describe('permission matrix', () => {
     const superadminOnly = {
         create_city: (id: McpIdentityArg) => mcpCreateCity(id, CITY),
         populate_city: (id: McpIdentityArg) => mcpPopulateCity(id, COUNCIL),
+        publish_city_demo: (id: McpIdentityArg) => mcpPublishCityDemo(id, { cityId: 'argos' }),
+        set_city_boundary: (id: McpIdentityArg) => mcpSetCityBoundary(id, { cityId: 'argos', geojson: '{}' }),
     };
     type McpIdentityArg = Parameters<typeof mcpCreateMeeting>[0];
     const writes = () => [
-        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity, startUpload,
+        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity, publishCityDemoDirect, updateCityGeometryDirect, startUpload,
         completeUpload,
     ].map(fn => (fn as jest.Mock).mock.calls.length).reduce((a, b) => a + b, 0);
 
