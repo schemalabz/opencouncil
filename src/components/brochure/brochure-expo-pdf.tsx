@@ -129,35 +129,72 @@ function BrowserFrame({ src, url, width, aspect }: { src: string; url: string; w
 
 // ─── The cover map ──────────────────────────────────────────────────────────
 
-const WA = { sender: "#1fa855", ink: "#111b21", muted: "#667781", link: "#027eb5" };
+const WA = { header: "#008069", headerSub: "#cfe9e1", bg: "#efeae2", ink: "#111b21", muted: "#667781", link: "#027eb5", chip: "#54656f", placeholder: "#8696a0", mic: "#00a884" };
 const STREET: Record<number, { color: string; width: number }> = {
     1: { color: "#dedede", width: 0.55 },
     2: { color: "#cfcfcf", width: 0.95 },
     3: { color: "#bdbdbd", width: 1.4 },
 };
+/** WhatsApp sets its own type; Inter is the closest face the PDF has. */
+const WAT = { fontFamily: "Inter" };
 
-/** One Notis message, as a resident sees it: the sender, the text, the subject, the link. */
-function NotisBubble({ pin, width }: { pin: ExpoData["chania"]["pin"]; width: number }) {
+/** A phone screen with one Notis message, drawn the way WhatsApp draws a business chat. */
+function WhatsAppWindow({ pin, width }: { pin: ExpoData["chania"]["pin"]; width: number }) {
     return (
-        <View style={{ width, backgroundColor: "#ffffff", borderRadius: 8, borderTopLeftRadius: 2, padding: 8, borderWidth: 0.5, borderColor: C.line }}>
-            <Svg width={8} height={10} style={{ position: "absolute", left: -7.5, top: 0 }}>
-                <Path d="M8,0 L0,0 L8,9 Z" fill="#ffffff" stroke={C.line} strokeWidth={0.5} />
-            </Svg>
-            <Text style={{ fontSize: 6.5, color: WA.sender, marginBottom: 3 }}>Notis · OpenCouncil Chania</Text>
-            <Text style={{ fontSize: 7, color: WA.ink, lineHeight: 1.45 }}>
-                In tonight’s municipal committee meeting, a subject affecting your street was discussed:
-            </Text>
-            <View style={{ flexDirection: "row", gap: 4, marginTop: 5 }}>
-                <LucideIcon name="mapPin" size={8} color={C.accent} />
-                <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 7, color: WA.ink, lineHeight: 1.35 }}>{pin.title}</Text>
-                    <Text style={{ fontSize: 6, color: WA.muted, marginTop: 1 }}>
-                        {pin.place} · {fmtDate(pin.date)}
-                    </Text>
+        <View style={{ width }}>
+            <View style={{ position: "absolute", left: 1.5, top: 3, width, height: "100%", borderRadius: 12, backgroundColor: "#000000", opacity: 0.12 }} />
+            <View style={{ borderRadius: 12, overflow: "hidden", backgroundColor: WA.bg, borderWidth: 1.2, borderColor: "#262626" }}>
+                {/* Header */}
+                <View style={{ backgroundColor: WA.header, paddingVertical: 5, paddingHorizontal: 7, flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Text style={{ ...WAT, fontSize: 8, color: "#ffffff", marginRight: -1 }}>‹</Text>
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: "#ffffff", alignItems: "center", justifyContent: "center" }}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                        <Image src={`${ASSET_BASE}/logo.png`} style={{ width: 11.5, height: 11.5 * (1354 / 1606) }} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ ...WAT, fontSize: 6.3, fontWeight: 500, color: "#ffffff" }}>Notis · OpenCouncil</Text>
+                        <Text style={{ ...WAT, fontSize: 4.6, color: WA.headerSub, marginTop: 0.5 }}>Business account</Text>
+                    </View>
+                    <LucideIcon name="video" size={7.5} color="#ffffff" />
+                    <LucideIcon name="phone" size={6.5} color="#ffffff" />
+                    <View style={{ gap: 1.2, marginLeft: 1 }}>
+                        {[0, 1, 2].map(i => (
+                            <View key={i} style={{ width: 1.4, height: 1.4, borderRadius: 0.7, backgroundColor: "#ffffff" }} />
+                        ))}
+                    </View>
+                </View>
+
+                {/* Chat */}
+                <View style={{ padding: 5, paddingBottom: 3, gap: 4 }}>
+                    <View style={{ alignSelf: "center", backgroundColor: "#ffffff", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1.8 }}>
+                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.chip, letterSpacing: 0.2 }}>TODAY</Text>
+                    </View>
+                    <View style={{ alignSelf: "flex-start", maxWidth: "88%", backgroundColor: "#ffffff", borderRadius: 7, borderTopLeftRadius: 0, paddingVertical: 4, paddingHorizontal: 6, marginLeft: 4 }}>
+                        <Svg width={5} height={6} style={{ position: "absolute", left: -4.5, top: 0 }}>
+                            <Path d="M5,0 L0,0 L5,6 Z" fill="#ffffff" />
+                        </Svg>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>
+                            In tonight’s municipal committee meeting, a subject affecting your street was discussed:
+                        </Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, fontWeight: 600, color: WA.ink, lineHeight: 1.38, marginTop: 4 }}>{pin.title}</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.ink, lineHeight: 1.38 }}>{pin.place}, Nea Chora</Text>
+                        <Text style={{ ...WAT, fontSize: 6.2, color: WA.link, textDecoration: "underline", lineHeight: 1.38, marginTop: 4 }}>
+                            View the summary and the decision
+                        </Text>
+                        <Text style={{ ...WAT, fontSize: 4.4, color: WA.muted, textAlign: "right", marginTop: 1 }}>21:14</Text>
+                    </View>
+                </View>
+
+                {/* Composer */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 5, paddingVertical: 3 }}>
+                    <View style={{ flex: 1, height: 14, borderRadius: 7, backgroundColor: "#ffffff", justifyContent: "center", paddingHorizontal: 7 }}>
+                        <Text style={{ ...WAT, fontSize: 5.4, color: WA.placeholder }}>Message</Text>
+                    </View>
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: WA.mic, alignItems: "center", justifyContent: "center" }}>
+                        <LucideIcon name="mic" size={7} color="#ffffff" />
+                    </View>
                 </View>
             </View>
-            <Text style={{ fontSize: 7, color: WA.link, marginTop: 5 }}>View the summary and decision →</Text>
-            <Text style={{ fontSize: 5.5, color: WA.muted, textAlign: "right", marginTop: 1 }}>21:14</Text>
         </View>
     );
 }
@@ -167,8 +204,7 @@ function ChaniaMap({ chania, width }: { chania: ExpoData["chania"]; width: numbe
     const h = (chania.height / chania.width) * width;
     const k = width / chania.width;
     const pinX = chania.pin.x * k;
-    const pinY = chania.pin.y * k;
-    const bubbleW = 138;
+    const phoneW = 138;
     return (
         <View style={{ width, height: h, borderRadius: 8, backgroundColor: "#f5f5f4", borderWidth: 0.5, borderColor: C.line, overflow: "hidden" }}>
             <Svg width={width} height={h} viewBox={`0 0 ${chania.width} ${chania.height}`}>
@@ -184,8 +220,8 @@ function ChaniaMap({ chania, width }: { chania: ExpoData["chania"]; width: numbe
                     {label.text.toUpperCase()}
                 </Text>
             ))}
-            <View style={{ position: "absolute", left: pinX + 14, top: pinY - 8, width: bubbleW }}>
-                <NotisBubble pin={chania.pin} width={bubbleW} />
+            <View style={{ position: "absolute", left: pinX + 16, top: 54, width: phoneW }}>
+                <WhatsAppWindow pin={chania.pin} width={phoneW} />
             </View>
         </View>
     );
