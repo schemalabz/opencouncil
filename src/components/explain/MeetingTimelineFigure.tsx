@@ -225,8 +225,9 @@ export function MeetingTimelineFigure() {
     const [step, setStep] = useState(0);
     /** The reader has not asked for a phase yet, and has not pressed pause. */
     const [playing, setPlaying] = useState(true);
-    /** The pointer or the keyboard focus is on the figure: hold still while they read. */
-    const [held, setHeld] = useState(false);
+    /** The pointer, or the keyboard focus, is on the figure: hold still while they read. Tracked apart, so one leaving does not end the other's hold. */
+    const [hovered, setHovered] = useState(false);
+    const [focused, setFocused] = useState(false);
     const [reduced, setReduced] = useState(false);
     const [pulseKey, setPulseKey] = useState(0);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -248,7 +249,7 @@ export function MeetingTimelineFigure() {
         return () => mq.removeEventListener('change', onChange);
     }, []);
 
-    const autoplay = playing && !held && !reduced;
+    const autoplay = playing && !hovered && !focused && !reduced;
 
     // Advance on its own until the reader touches it, and only while on screen.
     useEffect(() => {
@@ -310,11 +311,11 @@ export function MeetingTimelineFigure() {
             ref={rootRef}
             className="oc-tl not-prose mt-6 rounded-2xl bg-[#14110D] p-4 text-white sm:p-6"
             onKeyDown={onKey}
-            onPointerEnter={() => setHeld(true)}
-            onPointerLeave={() => setHeld(false)}
-            onFocus={() => setHeld(true)}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
+            onFocus={() => setFocused(true)}
             onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHeld(false);
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
             }}
         >
             <style>{STYLE}</style>
