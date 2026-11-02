@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "@/lib/apiTypes";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
@@ -17,8 +17,7 @@ import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 
 import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
 import { isCustomer } from "@/lib/cityStatus";
-import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
-export { getDecisionForSubject };
+import { upsertDecision, deleteDecision, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { getPeopleForMeeting } from "@/lib/db/people";
 import { deriveWindowDays } from "./decisionWindow";

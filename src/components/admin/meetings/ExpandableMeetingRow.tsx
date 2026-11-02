@@ -26,7 +26,7 @@ import { ExpandableTableRow } from "@/components/ui/expandable-table-row";
 import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
 import { MeetingTimeline } from "@/components/meetings/MeetingTimeline";
-import { getPollingHistoryForMeeting } from "@/lib/tasks/pollDecisions";
+import { getPollingHistoryForMeeting } from "@/lib/actions/decisions";
 import { DEFAULT_TIMEZONE, formatNumericDate } from '@/lib/formatters/time';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 

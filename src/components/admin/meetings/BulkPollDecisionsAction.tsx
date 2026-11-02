@@ -20,7 +20,7 @@ import { Link } from '@/i18n/routing';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { MeetingDecisionCounts } from '@/lib/db/decisions';
 import { partitionMeetingsForPolling, MeetingPollEligibility, type PollSkipReason } from '@/lib/tasks/pollableMeetings';
-import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
+import { requestPollDecisions } from '@/lib/actions/decisions';
 import { useSequentialDispatch } from '@/hooks/useSequentialDispatch';
 import { BatchProgressView } from '@/components/admin/BatchProgressView';
 import { meetingLabel } from '@/lib/meetingName';
