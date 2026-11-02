@@ -158,9 +158,13 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                         <span className="text-sm">{t('shortcuts.editing.saveAndNext')}</span>
                                         <ActionKey actionId={ACTIONS.EDIT_NEXT_UTTERANCE.id} />
                                     </div>
-                                    <div className="flex justify-between items-center py-2">
+                                    <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.editing.cancel')}</span>
                                         <Badge variant="secondary">Esc</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-sm">{t('shortcuts.editing.findReplace')}</span>
+                                        <Badge variant="secondary">⌘/Ctrl+F</Badge>
                                     </div>
                                 </div>
                             </CardContent>
