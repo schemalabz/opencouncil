@@ -1,6 +1,6 @@
 import type { GrantRole } from '@prisma/client';
 import {
-    RIGHTS, GRANT_ROLES, ROLE_RIGHTS, roleHasRight, resolve, canGrant, reachOf, emptyReach, scopeInCity,
+    RIGHTS, GRANT_ROLES, ROLE_RIGHTS, roleHasRight, resolve, canGrant, reachOf, emptyReach, scopeInCity, adminRealms,
     grantStatus, activeGrants, actorOf, PENDING_GRANT_DAYS, type Right, type Target,
 } from '../rights';
 import { actorWith, bodyGrant, cityGrant, grant, realmGrant, superadmin } from './fixtures';
@@ -178,6 +178,11 @@ describe('reachOf and scopeInCity', () => {
         expect(scopeInCity(actor, 'drafts.read', 'athens', 'france')).toEqual({ all: true });
         expect(scopeInCity(actorWith([cityGrant('athens')]), 'drafts.read', 'athens')).toEqual({ all: true });
         expect(scopeInCity(superadmin(), 'drafts.read', 'athens')).toEqual({ all: true });
+    });
+
+    it('lists the realms of the admin grants, each once', () => {
+        expect(adminRealms(actorWith([realmGrant('greece'), realmGrant('greece'), realmGrant('france', 'viewer'), cityGrant('athens')]))).toEqual(['greece']);
+        expect(adminRealms(superadmin())).toEqual([]);
     });
 
     it('reads the actor off a user row', () => {

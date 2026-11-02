@@ -40,6 +40,15 @@ export const grantSelect = {
 
 export type LoadedActor = Actor & { userId: string };
 
+/** Whether the user holds an active `admin` grant on a realm: the gate of the /admin tree. */
+export async function isRealmAdmin(userId: string): Promise<boolean> {
+    const grant = await prisma.administers.findFirst({
+        where: { userId, role: 'admin', realm: { not: null }, ...activeGrantWhere },
+        select: { id: true },
+    });
+    return grant !== null;
+}
+
 /** The user as an actor, or null for an id that no user has. */
 export async function loadActor(userId: string): Promise<LoadedActor | null> {
     const user = await prisma.user.findUnique({

@@ -1,12 +1,12 @@
 import "server-only";
-import type { City } from "@prisma/client";
+import type { City, Realm } from "@prisma/client";
 import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { notAuthorizedError } from "@/lib/api/errors";
 import { type UnreleasedScope, NO_UNRELEASED } from "@/lib/unreleased";
 import { publicAdministrativeBodyRelation } from "@/lib/db/types";
-import { actorOf, scopeInCity, type Right } from "@/lib/auth/rights";
+import { actorOf, adminRealms, scopeInCity, type Right } from "@/lib/auth/rights";
 import { activeGrantWhere, hasRightOn, realmFor, validateScope, type AuthorizationScope } from "@/lib/auth/grants.server";
 
 export { personIsOwnedByBodyAdmin } from "@/lib/auth/rights";
@@ -71,6 +71,20 @@ export async function isUserAuthorizedToEdit(scope: AuthorizationScope): Promise
 
 export async function withUserAuthorizedToEdit(scope: AuthorizationScope): Promise<true> {
     return withRight('admin', scope);
+}
+
+/**
+ * The realms the /admin tree shows the viewer: null for a superadmin, who
+ * sees every realm with no filter; the realms of their `admin` grants
+ * otherwise. Throws for a viewer who holds none: every page and route of
+ * the tree calls this first and passes the list to its queries.
+ */
+export async function getAdminRealms(): Promise<Realm[] | null> {
+    const user = await getCurrentUser();
+    if (user?.isSuperAdmin) return null;
+    const realms = user ? adminRealms(actorOf(user)) : [];
+    if (realms.length === 0) throw notAuthorizedError(Boolean(user));
+    return realms;
 }
 
 /**

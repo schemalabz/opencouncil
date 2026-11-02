@@ -772,7 +772,8 @@
         "adminCity": "Manage City",
         "adminParty": "Manage Party",
         "adminPerson": "Manage Member",
-        "adminBody": "Manage Body"
+        "adminBody": "Manage Body",
+        "adminRealm": "Manage Realm"
     },
     "ReportForm": {
         "title": "Create Progress Report",

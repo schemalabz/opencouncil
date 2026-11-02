@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, Building2, BarChart3, Bot } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Files, FileOutput, UserRound, UserCog, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText, Landmark, Tag, Building2, BarChart3, Bot, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { Link, usePathname } from "@/i18n/routing";
 import {
@@ -17,8 +17,13 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { SUPERADMIN_ADMIN_PAGES } from "@/lib/admin/superadminPages";
 
-const menuGroups = [
+type MenuItem = { title: string; icon: LucideIcon; url: string };
+
+// A realm admin (#875) sees the pages whose rows carry a city of their
+// realms. The menu hides the others, SUPERADMIN_ADMIN_PAGES.
+const menuGroups: { label: string; items: MenuItem[] }[] = [
     {
         label: "Overview",
         items: [
@@ -29,6 +34,7 @@ const menuGroups = [
         label: "Community",
         items: [
             { title: "Users", icon: Users, url: "/admin/users" },
+            { title: "Team", icon: UserCog, url: "/admin/team" },
             { title: "People", icon: UserRound, url: "/admin/people" },
             { title: "Signups", icon: BarChart3, url: "/admin/signups" },
             { title: "Notifications", icon: Bell, url: "/admin/notifications" },
@@ -61,9 +67,12 @@ const menuGroups = [
 
 const allUrls = menuGroups.flatMap(group => group.items.map(item => item.url));
 
-export function AdminSidebar() {
+export function AdminSidebar({ superadmin }: { superadmin: boolean }) {
     const { isMobile, setOpenMobile } = useSidebar();
     const pathname = usePathname();
+    const groups = menuGroups
+        .map(group => ({ ...group, items: group.items.filter(item => superadmin || !SUPERADMIN_ADMIN_PAGES.has(item.url)) }))
+        .filter(group => group.items.length > 0);
 
     // Longest matching prefix wins, so exactly one item is active ("/admin"
     // doesn't shadow its sub-pages, and nested routes keep their parent lit).
@@ -100,7 +109,7 @@ export function AdminSidebar() {
                 <div className="text-lg font-semibold">Admin Panel</div>
             </SidebarHeader>
             <SidebarContent className="flex-1 min-h-0">
-                {menuGroups.map(group => (
+                {groups.map(group => (
                     <SidebarGroup key={group.label}>
                         <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                         <SidebarGroupContent>

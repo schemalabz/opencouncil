@@ -1,4 +1,6 @@
-import { Building, ChevronRight, Flag, Landmark, ShieldCheck, User, type LucideIcon } from "lucide-react";
+import { Building, ChevronRight, Flag, Globe, Landmark, ShieldCheck, User, type LucideIcon } from "lucide-react";
+import type { Realm } from "@prisma/client";
+import { getRealmDomain } from "@/lib/realm";
 // The locale-aware Link: next/link would drop the locale prefix.
 import { Link } from "@/i18n/routing";
 import { RailCard } from "@/components/ui/rail-card";
@@ -8,6 +10,7 @@ type AdminSectionProps = {
         isSuperAdmin: boolean;
         administers: Array<{
             id: string;
+            realm?: Realm | null;
             city?: { id: string; name: string } | null;
             party?: { id: string; cityId: string; name: string } | null;
             person?: { id: string; cityId: string; name: string } | null;
@@ -37,7 +40,9 @@ export function AdminSection({ user, t }: AdminSectionProps) {
         entries.push({ key: "superadmin", href: "/admin", icon: ShieldCheck, label: t("superAdminAccess"), name: t("goToAdmin") });
     }
     for (const admin of user.administers) {
-        if (admin.city) {
+        if (admin.realm) {
+            entries.push({ key: admin.id, href: "/admin", icon: Globe, label: t("adminRealm"), name: getRealmDomain(admin.realm) });
+        } else if (admin.city) {
             entries.push({ key: admin.id, href: `/${admin.city.id}`, icon: Building, label: t("adminCity"), name: admin.city.name });
         } else if (admin.party) {
             entries.push({ key: admin.id, href: `/${admin.party.cityId}/parties/${admin.party.id}`, icon: Flag, label: t("adminParty"), name: admin.party.name });

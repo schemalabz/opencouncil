@@ -137,6 +137,11 @@ export function resolve(actor: Actor, right: Right, target: Target): boolean {
     }
 }
 
+/** The realms on which the actor holds the `admin` right, each once. */
+export function adminRealms(actor: Actor): Realm[] {
+    return [...new Set(holding(actor, 'admin').flatMap((grant) => grant.realm ? [grant.realm] : []))];
+}
+
 /**
  * Whether the actor may give a grant at the target: a superadmin may give
  * any; a realm grant, the global scope and a person are a superadmin's to

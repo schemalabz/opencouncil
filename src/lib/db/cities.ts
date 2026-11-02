@@ -444,7 +444,7 @@ export async function filterCityIdsByRealm(cityIds: string[], realm: Realm): Pro
  * The `includeUnlisted=true` query parameter on `GET /api/cities` keeps its name:
  * that one is a published contract.
  */
-export async function getCities({ includeNonPublic = false }: { includeNonPublic?: boolean } = {}, realm?: Realm): Promise<CityWithCounts[]> {
+export async function getCities({ includeNonPublic = false }: { includeNonPublic?: boolean } = {}, realm?: Realm | readonly Realm[] | null): Promise<CityWithCounts[]> {
     // Get current user for authorization
     const currentUser = includeNonPublic ? await getCurrentUser() : null;
 
@@ -482,11 +482,13 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
     }
     // Superadmin mode: show all cities (no additional filter needed)
 
-    // Tenant isolation: restrict to a single realm when one is supplied. Callers
-    // serving a public, host-scoped page pass the request realm; cross-realm admin
-    // views omit it to see every realm.
-    if (realm) {
-        whereClause.realm = realm;
+    // Tenant isolation: restrict to the realms supplied. Callers serving a
+    // public, host-scoped page pass the request realm; an admin page passes
+    // the list of getAdminRealms, which is null for a superadmin: every realm.
+    if (Array.isArray(realm)) {
+        whereClause.realm = { in: [...realm] };
+    } else if (realm) {
+        whereClause.realm = realm as Realm;
     }
 
     try {
