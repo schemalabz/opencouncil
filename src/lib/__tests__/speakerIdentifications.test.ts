@@ -1,4 +1,4 @@
-import { isReviewerAssignment, listSpeakerSuggestions, MethodIdentification, reconcileSpeakerIdentifications, speakerIdentificationsDisagree, speakerIdentificationsStatus } from '../speakerIdentifications';
+import { hasPendingSpeakerSuggestion, isReviewerAssignment, listSpeakerSuggestions, MethodIdentification, reconcileSpeakerIdentifications, speakerIdentificationsDisagree, speakerIdentificationsStatus } from '../speakerIdentifications';
 
 const voiceprint = (personId: string): MethodIdentification => ({ method: 'voiceprint', personId, actionable: true });
 /** A name the transcript task would act on by itself, unless said otherwise. */
@@ -68,6 +68,18 @@ describe('isReviewerAssignment', () => {
 });
 
 describe('listSpeakerSuggestions', () => {
+    it('keeps a held-back visitor label and its evidence available alongside a voiceprint person', () => {
+        const visitor = { method: 'transcript' as const, personId: null, name: 'Meeting secretary', actionable: false, evidence: '[01:20] The secretary will read the minutes' };
+        expect(listSpeakerSuggestions([voiceprint('anna'), visitor])).toEqual([
+            { personId: 'anna', source: 'voiceprint', evidence: null },
+            { personId: null, name: 'Meeting secretary', source: 'transcript', evidence: visitor.evidence },
+        ]);
+        expect(speakerIdentificationsStatus([voiceprint('anna'), visitor])).toBe('disagree');
+    });
+
+    it('does not offer a null-person opinion without a usable label', () => {
+        expect(listSpeakerSuggestions([{ method: 'transcript', personId: null, name: '  ', actionable: false }])).toEqual([]);
+    });
     it('lists one entry when the methods agree, with the transcript line it rests on', () => {
         expect(listSpeakerSuggestions([voiceprint('anna'), transcript('anna', true, '[00:01:14] τον λόγο έχει η κ. Άννα')]))
             .toEqual([{ personId: 'anna', source: 'both', evidence: '[00:01:14] τον λόγο έχει η κ. Άννα' }]);
@@ -83,6 +95,29 @@ describe('listSpeakerSuggestions', () => {
     it('lists the only opinion there is, or nothing', () => {
         expect(listSpeakerSuggestions([transcript('babis', TENTATIVE)])).toEqual([{ personId: 'babis', source: 'transcript', evidence: null }]);
         expect(listSpeakerSuggestions([])).toEqual([]);
+    });
+});
+
+describe('hasPendingSpeakerSuggestion', () => {
+    const visitor = { method: 'transcript' as const, personId: null, name: 'Meeting secretary', actionable: false };
+    const untouched = { personId: null, label: 'Speaker 1', personSetBy: null };
+
+    it('signals person and visitor alternatives regardless of actionability', () => {
+        expect(hasPendingSpeakerSuggestion([visitor], untouched)).toBe(true);
+        expect(hasPendingSpeakerSuggestion([transcript('anna', false)], untouched)).toBe(true);
+        expect(hasPendingSpeakerSuggestion([voiceprint('anna'), visitor], { ...untouched, personId: 'anna', personSetBy: 'voiceprint' })).toBe(true);
+    });
+
+    it('does not signal opinions that already match the displayed identity', () => {
+        expect(hasPendingSpeakerSuggestion([visitor], { ...untouched, label: visitor.name, personSetBy: 'transcript' })).toBe(false);
+        expect(hasPendingSpeakerSuggestion([voiceprint('anna')], { ...untouched, personId: 'anna', personSetBy: 'voiceprint' })).toBe(false);
+        expect(hasPendingSpeakerSuggestion([], untouched)).toBe(false);
+    });
+
+    it('stops signalling after a saved reviewer decision, including rejection of every suggestion', () => {
+        expect(hasPendingSpeakerSuggestion([visitor], { ...untouched, personSetBy: 'user' })).toBe(false);
+        expect(hasPendingSpeakerSuggestion([transcript('babis')], { ...untouched, personId: 'anna', personSetBy: 'user' })).toBe(false);
+        expect(hasPendingSpeakerSuggestion([visitor], { ...untouched, personId: 'anna', personSetBy: null })).toBe(false);
     });
 });
 

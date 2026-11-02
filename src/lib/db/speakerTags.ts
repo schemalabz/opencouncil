@@ -19,6 +19,7 @@ const speakerIdentificationSelect = {
     speakerTagId: true,
     method: true,
     personId: true,
+    name: true,
     actionable: true,
     confidence: true,
     evidence: true,
