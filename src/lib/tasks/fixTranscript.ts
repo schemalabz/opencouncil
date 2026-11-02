@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { withUserAuthorizedToEdit } from '../auth';
 import { taskScope } from './types';

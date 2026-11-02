@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { ProcessAgendaResult } from "../apiTypes";
 import prisma from "../db/prisma";

@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 import { TranscribeResult } from "../apiTypes";
 import { CouncilMeeting, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";

@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import prisma from "@/lib/db/prisma";
 import { getCouncilMeeting } from "@/lib/db/meetings";
