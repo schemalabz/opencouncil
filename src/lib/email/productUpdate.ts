@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { createHash } from 'crypto';
 import { sendEmail, sendEmailInBatches, type BatchEmailItem, type EmailTag } from '@/lib/email/resend';

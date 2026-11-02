@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import { render } from "@react-email/components";
 import { sendEmail } from "./resend";

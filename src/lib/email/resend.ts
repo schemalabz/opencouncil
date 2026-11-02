@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 import { Resend } from 'resend';
 import { env } from '@/env.mjs';
 import { emailFrom, type EmailSender } from '@/lib/email/senders';
