@@ -61,7 +61,7 @@ export function currentBaseUrl(): string {
  * one connection. Lists and searches stay on the request's realm.
  */
 export function reachesEveryRealm(): boolean {
-    return mcpRealmStore.getStore()?.adminAccess?.superadmin === true;
+    return mcpRealmStore.getStore()?.adminAccess?.isSuperAdmin === true;
 }
 
 /** Record the realm of a city that a guard let through. */

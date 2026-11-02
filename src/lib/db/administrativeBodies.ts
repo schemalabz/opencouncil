@@ -170,13 +170,18 @@ export async function editAdministrativeBodyContacts(
     return withParsedConventions(updatedBody);
 }
 
-export async function deleteAdministrativeBody(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+/**
+ * Removes the body with the meetings and the roles on it. The admin of the
+ * city may; the admin of the body alone may not. The city comes from the
+ * URL, so a body of another city is not found there.
+ */
+export async function deleteAdministrativeBody(id: string, cityId: string): Promise<void> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
-        select: { id: true },
+        select: { cityId: true },
     });
-    if (!existingBody) throw new NotFoundError('Administrative body not found');
+    if (!existingBody || existingBody.cityId !== cityId) throw new NotFoundError('Administrative body not found');
+    await withUserAuthorizedToEdit({ cityId });
 
     try {
         await prisma.administrativeBody.delete({

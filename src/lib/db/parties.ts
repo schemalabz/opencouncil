@@ -2,6 +2,7 @@
 import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { NotFoundError } from "@/lib/api/errors";
 import { getActiveRoleCondition } from "../utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
@@ -22,8 +23,16 @@ export type PersonWithRoles = PartyWithRoles['roles'][number]['person'] & {
     roles: RoleWithRelations[];
 };
 
-export async function deleteParty(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+/**
+ * Removes the party with the roles on it. The admin of the city may, as the
+ * party page offers; the admin of the party alone may not: the roles are
+ * the city's roster. The city comes from the URL, so a party of another
+ * city is not found there.
+ */
+export async function deleteParty(id: string, cityId: string): Promise<void> {
+    const party = await prisma.party.findUnique({ where: { id }, select: { cityId: true } });
+    if (!party || party.cityId !== cityId) throw new NotFoundError('Party not found');
+    await withUserAuthorizedToEdit({ cityId });
     try {
         await prisma.party.delete({
             where: { id },

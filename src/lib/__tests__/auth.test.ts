@@ -9,6 +9,7 @@ const mockMeetingFindUnique = jest.fn();
 const mockBodyFindUnique = jest.fn();
 const mockPersonFindUnique = jest.fn();
 const mockPartyFindUnique = jest.fn();
+const mockCityFindUnique = jest.fn();
 
 jest.mock('@/auth', () => ({ auth: (...args: unknown[]) => mockAuth(...args) }));
 jest.mock('@/lib/db/prisma', () => ({
@@ -19,13 +20,15 @@ jest.mock('@/lib/db/prisma', () => ({
         administrativeBody: { findUnique: (...args: unknown[]) => mockBodyFindUnique(...args) },
         person: { findUnique: (...args: unknown[]) => mockPersonFindUnique(...args) },
         party: { findUnique: (...args: unknown[]) => mockPartyFindUnique(...args) },
+        city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
     },
 }));
 
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, getAdminRealms, personIsOwnedByBodyAdmin } from '../auth';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
+import type { GrantRole, Realm } from '@prisma/client';
 
-type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
+type Row = { role?: GrantRole; realm?: Realm | null; cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
 
 function signIn(user: { isSuperAdmin?: boolean; administers: Row[] } | null) {
     mockAuth.mockResolvedValue(user ? { user: { email: 'u@test' } } : null);
@@ -34,6 +37,8 @@ function signIn(user: { isSuperAdmin?: boolean; administers: Row[] } | null) {
         isSuperAdmin: user.isSuperAdmin ?? false,
         administers: user.administers.map((row, i) => ({
             id: `a${i}`,
+            role: row.role ?? 'admin',
+            realm: row.realm ?? null,
             cityId: row.cityId ?? null,
             partyId: row.partyId ?? null,
             personId: row.personId ?? null,
@@ -227,5 +232,48 @@ describe('a superadmin', () => {
         expect(await isUserAuthorizedToEdit({})).toBe(true);
         expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'cm1' })).toBe(true);
         expect(await getRoleLimitForCity('athens')).toBeNull();
+        expect(await getAdminRealms()).toBeNull();
+    });
+});
+
+describe('a realm admin', () => {
+    // athens and argos are Greek; lyon is French.
+    const REALM_OF: Record<string, Realm> = { athens: 'greece', argos: 'greece', lyon: 'france' };
+    beforeEach(() => {
+        mockCityFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+            Promise.resolve(where.id in REALM_OF ? { realm: REALM_OF[where.id] } : null));
+    });
+
+    it('passes the realm, and every city, body and meeting of it', async () => {
+        signIn({ administers: [{ realm: 'greece' }] });
+        expect(await isUserAuthorizedToEdit({ realm: 'greece' })).toBe(true);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens' })).toBe(true);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens', administrativeBodyId: 'youth' })).toBe(true);
+        expect(await isUserAuthorizedToEdit({ cityId: 'argos', councilMeetingId: 'council1' })).toBe(true);
+        expect(await getUnreleasedScope('athens')).toEqual({ all: true });
+        expect(await getRoleLimitForCity('athens')).toBeNull();
+        expect(await getAdminRealms()).toEqual(['greece']);
+    });
+
+    it('passes nothing outside the realm, the bare scope included', async () => {
+        signIn({ administers: [{ realm: 'france' }] });
+        expect(await isUserAuthorizedToEdit({})).toBe(false);
+        expect(await isUserAuthorizedToEdit({ realm: 'greece' })).toBe(false);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens' })).toBe(false);
+        expect(await isUserAuthorizedToEdit({ cityId: 'lyon' })).toBe(true);
+        expect(await getUnreleasedScope('athens')).toEqual({ all: false, bodyIds: [] });
+    });
+
+    it('is a realm of the admin role only, and the realms are listed once', async () => {
+        signIn({ administers: [{ realm: 'greece', role: 'viewer' }, { realm: 'france' }, { realm: 'france' }] });
+        expect(await getAdminRealms()).toEqual(['france']);
+        expect(await isUserAuthorizedToEdit({ cityId: 'athens' })).toBe(false);
+    });
+
+    it('is refused as a realm admin when the grants name no realm', async () => {
+        signIn({ administers: [{ cityId: 'athens' }] });
+        await expect(getAdminRealms()).rejects.toThrow(ForbiddenError);
+        signIn(null);
+        await expect(getAdminRealms()).rejects.toThrow(UnauthorizedError);
     });
 });

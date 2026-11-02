@@ -11,9 +11,14 @@ export const peopleOnly = { isMachine: false } satisfies Prisma.UserWhereInput;
 /** Machine accounts only: the reads of src/lib/db/machineAccounts.ts. */
 export const machineAccountsOnly = { isMachine: true } satisfies Prisma.UserWhereInput;
 
-/** A user with what it administers, as the admin users tools show it. */
+/**
+ * A user with what it administers, as the admin users tools show it. A
+ * revoked row stays out: the users form sends back what it shows, and
+ * updateUser creates what it does not know.
+ */
 export const userWithAdministersInclude = {
     administers: {
+        where: { revokedAt: null },
         include: {
             city: true,
             party: {
@@ -30,7 +35,8 @@ export const userWithAdministersInclude = {
                 include: {
                     city: true
                 }
-            }
+            },
+            grantedBy: { select: { id: true, name: true, email: true } },
         }
     }
 } satisfies Prisma.UserInclude;

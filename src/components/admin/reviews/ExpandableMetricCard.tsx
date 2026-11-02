@@ -2,6 +2,8 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
+import { realmPageUrl } from '@/lib/utils/realmPageUrl';
 import { ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +24,7 @@ interface ExpandableMetricCardProps {
 }
 
 export function ExpandableMetricCard({ items, label, subtext, timeDisplay }: ExpandableMetricCardProps) {
+    const locale = useLocale();
     const [open, setOpen] = useState(false);
     const expandable = items.length > 0;
 
@@ -68,7 +71,7 @@ export function ExpandableMetricCard({ items, label, subtext, timeDisplay }: Exp
                                 <Fragment key={`${meeting.cityId}-${meeting.id}`}>
                                     {index > 0 && <ItemSeparator />}
                                     <Item size="sm" className="rounded-none px-6 py-2" asChild>
-                                        <Link href={`/${meeting.cityId}/${meeting.id}`} target="_blank" rel="noopener noreferrer">
+                                        <Link href={realmPageUrl(meeting.siteUrl, locale, `/${meeting.cityId}/${meeting.id}`)} target="_blank" rel="noopener noreferrer">
                                             <ItemContent className="min-w-0 gap-0">
                                                 <ItemTitle className="truncate">{`${meeting.cityId}/${meeting.id}`}</ItemTitle>
                                                 {meeting.administrativeBodyName && (

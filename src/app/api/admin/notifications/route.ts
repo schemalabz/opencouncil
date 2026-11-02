@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
 import { adminNotificationsQuerySchema } from '@/lib/zod-schemas/notification';
 import {
@@ -15,21 +15,22 @@ import {
  */
 export async function GET(request: NextRequest) {
     try {
-        await withUserAuthorizedToEdit({});
+        const realms = await getAdminRealms();
 
         const query = adminNotificationsQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
         const { meetingId, cityIdForMeeting, cityId, status, type, page, pageSize, startDate } = query;
 
         // Check if this is a request for a specific meeting's notifications
         if (meetingId && cityIdForMeeting) {
-            // Return notifications for a specific meeting (for expanded view)
+            // Return notifications for a specific meeting (for expanded view).
+            // getNotificationsForMeeting checks the `admin` right on the city.
             const notifications = await getNotificationsForMeeting(meetingId, cityIdForMeeting, type);
             return NextResponse.json({ notifications });
         }
 
         // Check if this is a request for cities list
         if (query.getCities) {
-            const cities = await getCitiesWithNotifications();
+            const cities = await getCitiesWithNotifications(realms);
             return NextResponse.json({ cities });
         }
 
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
             endDate,
             page,
             pageSize
-        });
+        }, realms);
 
         return NextResponse.json(result);
     } catch (error) {
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
 
         const body = await request.json();
         const { meetingKeys, type } = body as {
@@ -76,6 +77,7 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
+        // deleteNotificationsForMeetings checks the `admin` right on every city of the keys.
         const deletedCount = await deleteNotificationsForMeetings(meetingKeys, type);
 
         return NextResponse.json({

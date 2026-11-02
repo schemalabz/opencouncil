@@ -22,6 +22,7 @@ import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
 import type { McpIdentity } from '@/lib/mcp/auth';
 import type { McpAdminAccess } from '@/lib/mcp/adminAccess';
 import { connectInMemory, type ListedTool } from './inMemoryClient';
+import { actorWith, bodyGrant, cityGrant, realmGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 /**
  * tools/list as a client sees it, through the SDK, for every kind of caller
@@ -40,7 +41,8 @@ const PUBLIC_TOOLS = [
 ];
 const HIGHLIGHT_TOOLS = ['create_highlight', 'generate_highlight_video', 'list_highlights', 'set_highlight_showcase', 'get_highlight'];
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_upload_url', 'complete_upload', 'start_task'];
-const SUPERADMIN_TOOLS = ['list_realms', 'create_city', 'populate_city', 'publish_city_demo', 'set_city_boundary'];
+// The city tools: the admin of a realm onboards cities, as a superadmin does.
+const REALM_ADMIN_TOOLS = ['list_realms', 'create_city', 'populate_city', 'publish_city_demo', 'set_city_boundary'];
 
 const USER: McpIdentity = { userId: 'u1' };
 
@@ -50,20 +52,26 @@ const CALLERS: { caller: string; identity: McpIdentity; adminAccess: McpAdminAcc
     {
         caller: 'a city administrator',
         identity: USER,
-        adminAccess: { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set() },
+        adminAccess: actorWith([cityGrant('athens')]),
         tools: [...PUBLIC_TOOLS, ...HIGHLIGHT_TOOLS, ...MEETING_ADMIN_TOOLS],
     },
     {
         caller: 'a body administrator',
         identity: USER,
-        adminAccess: { superadmin: false, cityIds: new Set(), bodyIds: new Set(['athens-council']) },
+        adminAccess: actorWith([bodyGrant('athens-council', 'athens')]),
         tools: [...PUBLIC_TOOLS, ...HIGHLIGHT_TOOLS, ...MEETING_ADMIN_TOOLS],
+    },
+    {
+        caller: 'a realm administrator',
+        identity: USER,
+        adminAccess: actorWith([realmGrant(Realm.poland)]),
+        tools: [...PUBLIC_TOOLS, ...HIGHLIGHT_TOOLS, ...MEETING_ADMIN_TOOLS, ...REALM_ADMIN_TOOLS],
     },
     {
         caller: 'a superadmin',
         identity: USER,
-        adminAccess: { superadmin: true, cityIds: new Set(), bodyIds: new Set() },
-        tools: [...PUBLIC_TOOLS, ...HIGHLIGHT_TOOLS, ...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS],
+        adminAccess: superadmin(),
+        tools: [...PUBLIC_TOOLS, ...HIGHLIGHT_TOOLS, ...MEETING_ADMIN_TOOLS, ...REALM_ADMIN_TOOLS],
     },
 ];
 

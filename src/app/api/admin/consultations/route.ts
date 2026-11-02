@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms } from '@/lib/auth';
 import { getConsultationsForAdmin, createConsultation } from '@/lib/db/consultations';
 import { handleApiError } from '@/lib/api/errors';
 
 export async function GET() {
     try {
-        await withUserAuthorizedToEdit({});
-        const items = await getConsultationsForAdmin();
+        const realms = await getAdminRealms();
+        const items = await getConsultationsForAdmin(realms);
         return NextResponse.json(items);
     } catch (error) {
         return handleApiError(error, 'Failed to fetch consultations');
@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         const body = await req.json();
         const { name, jsonUrl, endDate, isActive, cityId } = body as {
             name: string;
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // createConsultation checks the `admin` right on the city.
         const created = await createConsultation({ name, jsonUrl, endDate, isActive, cityId });
         return NextResponse.json(created, { status: 201 });
     } catch (error) {

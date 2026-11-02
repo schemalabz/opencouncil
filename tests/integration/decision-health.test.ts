@@ -65,7 +65,7 @@ describe('getDecisionHealth', () => {
             },
         })
 
-        const rows = await getDecisionHealth('c1')
+        const rows = await getDecisionHealth(null, 'c1')
         expect(rows).toHaveLength(1)
         const c = rows[0]
         expect(c.inScope).toBe(true)
@@ -100,7 +100,7 @@ describe('getDecisionHealth', () => {
             type: 'pollDecisions', status: 'failed', createdAt: new Date('2025-01-12T00:00:00Z'),
         })
 
-        const rows = await getDecisionHealth('c2')
+        const rows = await getDecisionHealth(null, 'c2')
         expect(rows).toHaveLength(1)
         expect(rows[0].inScope).toBe(false)
         expect(rows[0].failedMeetings).toBe(1)
@@ -129,7 +129,7 @@ describe('coverage window', () => {
         })
         await createSubject(future.id, city.id, { name: 'F', agendaItemIndex: 1 })
 
-        const rows = await getDecisionHealth('c1')
+        const rows = await getDecisionHealth(null, 'c1')
         expect(rows[0].meetings).toBe(1)
         expect(rows[0].eligibleSubjects).toBe(1)
     })
@@ -143,7 +143,7 @@ describe('coverage window', () => {
             await createSubject(meeting.id, city.id, { name: scheduleStatus, agendaItemIndex: 1 })
         }
 
-        const rows = await getDecisionHealth('c1')
+        const rows = await getDecisionHealth(null, 'c1')
         expect(rows[0].meetings).toBe(1)
         expect(rows[0].eligibleSubjects).toBe(1)
         const detail = await getCityDecisionDetail('c1')
@@ -175,7 +175,7 @@ describe('queue visibility', () => {
             },
         })
 
-        const rows = await getDecisionHealth('c1', 30)
+        const rows = await getDecisionHealth(null, 'c1', 30)
         expect(rows).toHaveLength(1)
         expect(rows[0].eligibleSubjects).toBe(0)
         expect(rows[0].unplacedCandidates).toBe(1)
@@ -237,7 +237,7 @@ describe('conflict detection', () => {
         expect(byAda.get('ADA-Y')!.claimingSubject.id).toBe(c.id)
         expect(byAda.get('ADA-Y')!.existingDecision!.currentSubject.id).toBe(d.id)
 
-        const rows = await getDecisionHealth('c1')
+        const rows = await getDecisionHealth(null, 'c1')
         expect(rows[0].conflicts).toBe(2)
     })
 })
@@ -319,8 +319,8 @@ describe('city scope', () => {
             id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
         })
         await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
-        expect(await getDecisionHealth()).toEqual([])
-        expect(await getDecisionHealth(city.id)).toEqual([])
+        expect(await getDecisionHealth(null)).toEqual([])
+        expect(await getDecisionHealth(null, city.id)).toEqual([])
     })
 })
 
@@ -381,7 +381,7 @@ describe('per-body breakdown', () => {
 
     test('one row per body plus the no-body row, in type order, summing to the city', async () => {
         const city = await seedCityWithBodies()
-        const [row] = await getDecisionHealth(city.id)
+        const [row] = await getDecisionHealth(null, city.id)
 
         expect(row.diavgeiaUid).toBe('DIAV-1')
         expect(row.bodies.map(b => b.body?.id ?? null)).toEqual(['b-council', 'b-committee', 'b-community', null])
@@ -417,7 +417,7 @@ describe('per-body breakdown', () => {
                 meetingDate: new Date('2025-01-10T00:00:00Z'),
             },
         })
-        const [row] = await getDecisionHealth(city.id, 30)
+        const [row] = await getDecisionHealth(null, city.id, 30)
         expect(row.eligibleSubjects).toBe(0)
         expect(row.bodies).toHaveLength(4)
         expect(row.bodies.every(b => b.meetings === 0 && b.eligibleSubjects === 0)).toBe(true)
@@ -433,7 +433,7 @@ describe('per-body breakdown', () => {
         // A presentation: no agenda items, so nothing to poll and nothing to show.
         const talk = await createMeeting(city.id, { id: 'm-talk', dateTime: new Date('2025-01-12T10:00:00Z') })
         await createSubject(talk.id, city.id, { name: 'Slides', agendaItemIndex: null })
-        const [row] = await getDecisionHealth(city.id)
+        const [row] = await getDecisionHealth(null, city.id)
         expect(row.bodies.map(b => b.body?.id ?? null)).toEqual([body.id])
     })
 
@@ -444,7 +444,7 @@ describe('per-body breakdown', () => {
             id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
         })
         await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
-        const [row] = await getDecisionHealth(city.id)
+        const [row] = await getDecisionHealth(null, city.id)
         expect(row.bodies.map(b => b.body?.id ?? null)).toEqual([body.id])
     })
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { hasRight } from '@/lib/auth';
 import { getCity } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { IS_DEV } from '@/lib/utils';
@@ -13,10 +13,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             return NextResponse.json({ error: 'Reset functionality only available in development mode' }, { status: 403 });
         }
 
-        const user = await getCurrentUser();
-
-        if (!user?.isSuperAdmin) {
-            return NextResponse.json({ error: 'Unauthorized: Only superadmins can reset cities' }, { status: 401 });
+        if (!(await hasRight('admin', { cityId: params.cityId }))) {
+            return NextResponse.json({ error: 'Unauthorized: Only an admin of the city can reset it' }, { status: 401 });
         }
 
         const city = await getCity(params.cityId);

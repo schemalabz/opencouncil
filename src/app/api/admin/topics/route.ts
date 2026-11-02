@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
 import { createTopic, getAllTopicsWithSubjectCount } from "@/lib/db/topics";
 import { handleApiError } from "@/lib/api/errors";
 import { createTopicSchema } from "@/lib/zod-schemas/topic";
 
 export async function GET() {
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         const topics = await getAllTopicsWithSubjectCount();
         return NextResponse.json(topics);
     } catch (error) {
@@ -17,9 +17,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         const data = createTopicSchema.parse(await request.json());
 
+        // createTopic refuses a realm the viewer does not administer.
         const topic = await createTopic(data);
 
         revalidatePath("/admin/topics");

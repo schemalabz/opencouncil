@@ -1,10 +1,21 @@
 'use server'
-import { Prisma } from '@prisma/client';
+import { Prisma, Realm } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms, withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+
+/**
+ * The cities the review dashboard covers: customer cities of the realms the
+ * viewer administers (null: every realm). The dashboard functions are Server
+ * Actions, so each reads the viewer's realms itself through getAdminRealms.
+ */
+const reviewCityWhere = (realms: Realm[] | null): Prisma.CityWhereInput => ({
+  ...CUSTOMER_CITY_WHERE,
+  ...(realms ? { realm: { in: realms } } : {}),
+});
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -50,8 +61,8 @@ const selectPattern = {
   /** User info for reviewers */
   user: { id: true, name: true, email: true } as const,
 
-  /** City name */
-  cityName: { name: true, timezone: true } as const,
+  /** City name, and the realm whose domain the links to the meeting use */
+  cityName: { name: true, timezone: true, realm: true } as const,
 };
 
 /**
@@ -145,6 +156,8 @@ export interface ReviewListItem {
   meetingId: string;
   cityId: string;
   cityName: string;
+  /** The base URL of the city's realm domain, where the meeting pages live. */
+  siteUrl: string;
   administrativeBodyName: string | null;
   meetingName: string;
   meetingDate: Date;
@@ -711,7 +724,7 @@ async function getAggregatedMeetingStats(
 
 type AggregatedMeetingStats = Omit<
   ReviewListItem,
-  'meetingId' | 'cityId' | 'cityName' | 'administrativeBodyName' | 'meetingName' | 'meetingDate' | 'status'
+  'meetingId' | 'cityId' | 'cityName' | 'siteUrl' | 'administrativeBodyName' | 'meetingName' | 'meetingDate' | 'status'
 >;
 
 function getMeetingMapKey(meeting: MeetingId): string {
@@ -930,14 +943,14 @@ async function getAggregatedMeetingStatsBatch(
  * Optimized for list views - uses aggregations, no session detection
  */
 export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewListItem[]> {
-  await withUserAuthorizedToEdit({});
+  const realms = await getAdminRealms();
   const { show = 'needsAttention', reviewerId, last30Days = false } = filters;
 
   // Build database filter conditions
   const conditions: Prisma.CouncilMeetingWhereInput[] = [];
 
-  // Only track reviews for officially supported cities
-  conditions.push({ city: CUSTOMER_CITY_WHERE });
+  // Only track reviews for officially supported cities of the viewer's realms
+  conditions.push({ city: reviewCityWhere(realms) });
 
   // Add status filter
   conditions.push(buildStatusWhereConditions(show));
@@ -997,6 +1010,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       meetingId: m.id,
       cityId: m.cityId,
       cityName: m.city.name,
+      siteUrl: realmBaseUrl(m.city.realm),
       administrativeBodyName: m.administrativeBody?.name ?? null,
       // The table shows the body and the date in their own lines.
       meetingName: meetingDisplayName(m, 'el', m.city.timezone),
@@ -1015,7 +1029,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
  * Get high-level review statistics
  */
 export async function getReviewStats(): Promise<ReviewStats> {
-  await withUserAuthorizedToEdit({});
+  const realms = await getAdminRealms();
   // Candidate-first (issue #560): pick the needs-attention meetings via the
   // small, indexed TaskStatus relation, then split them by presence of user
   // edits with an indexed probe per candidate. Expressing that split as
@@ -1029,7 +1043,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
   const candidates = await prisma.councilMeeting.findMany({
     where: {
       AND: [
-        { city: CUSTOMER_CITY_WHERE },
+        { city: reviewCityWhere(realms) },
         buildStatusWhereConditions('needsAttention'),
         buildDateFilter(false),
       ],
@@ -1052,7 +1066,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
     where: {
       type: 'humanReview',
       status: 'succeeded',
-      councilMeeting: { city: CUSTOMER_CITY_WHERE },
+      councilMeeting: { city: reviewCityWhere(realms) },
       createdAt: {
         gte: startOfWeek
       }
@@ -1140,6 +1154,7 @@ export async function getReviewProgressForMeeting(
     meetingId: meetingRecord.id,
     cityId: meetingRecord.cityId,
     cityName: meetingRecord.city.name,
+    siteUrl: realmBaseUrl(meetingRecord.city.realm),
     administrativeBodyName: meetingRecord.administrativeBody?.name ?? null,
     meetingName: meetingLabel(meetingRecord, 'el', meetingRecord.city.timezone),
     meetingDate: meetingRecord.dateTime,
@@ -1164,15 +1179,17 @@ export async function getReviewProgressForMeeting(
 
 /**
  * Get list of all reviewers who have worked on transcripts
- * Returns unique list of users who have made edits
+ * Returns unique list of users who have made edits to a meeting of the
+ * viewer's realms: a reviewer of another realm is not theirs to see.
  */
 export async function getReviewers(): Promise<Array<{ id: string; name: string | null; email: string }>> {
-  await withUserAuthorizedToEdit({});
+  const realms = await getAdminRealms();
   const users = await prisma.user.findMany({
     where: {
       utteranceEdits: {
         some: {
-          editedBy: 'user'
+          editedBy: 'user',
+          ...(realms ? { utterance: { speakerSegment: { meeting: { city: { realm: { in: realms } } } } } } : {}),
         }
       }
     },

@@ -12,13 +12,15 @@ import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 import { mcpListCities } from '../data';
 import { mcpRealmStore, requestContext } from '../realm-context';
+import { actorWith, cityGrant, realmGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const city = (id: string, status: string, language: string) => ({
     id, name: id, name_en: id, name_municipality: id, authorityType: 'municipality', status, language,
     _count: { councilMeetings: 0, persons: 0, parties: 0 },
 });
-const SUPERADMIN = { superadmin: true, cityIds: new Set<string>(), bodyIds: new Set<string>() };
-const CITY_ADMIN = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set<string>() };
+const SUPERADMIN = superadmin();
+const CITY_ADMIN = actorWith([cityGrant('athens')]);
+const POLAND_ADMIN = actorWith([realmGrant('poland')]);
 const USER = { userId: 'u1' };
 
 const onGr = <T>(fn: () => Promise<T>, adminAccess: typeof SUPERADMIN | null = null, identity: typeof USER | null = USER) =>
@@ -38,10 +40,21 @@ describe('list_cities', () => {
         expect(result.cities[0].url).toBe('https://opencouncil.gr/athens');
     });
 
-    it('refuses another realm or the pending cities to anyone but a superadmin', async () => {
+    it('refuses another realm or the pending cities to anyone but an admin of that realm', async () => {
         await expect(onGr(() => mcpListCities(null, { realm: 'poland' }), null, null)).rejects.toThrow(UnauthorizedError);
         await expect(onGr(() => mcpListCities(USER, { includePending: true }), CITY_ADMIN)).rejects.toThrow(ForbiddenError);
+        // The admin of poland, on a connection to greece, sees the pending cities of poland only.
+        await expect(onGr(() => mcpListCities(USER, { includePending: true }), POLAND_ADMIN)).rejects.toThrow(ForbiddenError);
         expect(listCitiesWithCounts).not.toHaveBeenCalled();
+    });
+
+    it('lists the pending cities of their realm for an admin of that realm', async () => {
+        (listCitiesWithCounts as jest.Mock).mockResolvedValue([city('krakow', 'pending', 'pl')]);
+
+        const result = await onGr(() => mcpListCities(USER, { realm: 'poland', includePending: true }), POLAND_ADMIN);
+
+        expect(listCitiesWithCounts).toHaveBeenCalledWith({ realm: 'poland' });
+        expect(result.cities[0]).toMatchObject({ id: 'krakow', status: 'pending' });
     });
 
     // Adding a city starts by checking that it does not exist, pending ones included.

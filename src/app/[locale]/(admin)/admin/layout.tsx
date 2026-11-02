@@ -1,7 +1,7 @@
 import { AdminSidebar } from "@/components/admin/sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import Header from "@/components/layout/Header"
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth"
+import { getAdminRealms, getCurrentUser } from "@/lib/auth"
 import { redirect } from "next/navigation";
 import React from "react"
 import { Metadata } from "next"
@@ -14,14 +14,14 @@ export const metadata: Metadata = {
 export default async function Layout({ children }: { children: React.ReactNode }) {
     const user = await getCurrentUser();
     if (!user) redirect("/sign-in");
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
 
     return (
         <SidebarProvider>
             {/* The nav owns the left column top to bottom, so its edge is the
                 page's one vertical rule and the header sits beside it. */}
             <div className="h-screen w-full flex overflow-hidden">
-                <AdminSidebar />
+                <AdminSidebar superadmin={realms === null} />
                 <div className="flex min-w-0 flex-1 flex-col">
                     <Header
                         path={[{ name: "Admin", link: "/admin" }]}

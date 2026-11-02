@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { startOfWeek, subWeeks, format } from 'date-fns';
@@ -14,8 +14,8 @@ interface WeekData {
 
 export async function GET() {
   try {
-    // Check authentication - admin routes require authorization
-    await withUserAuthorizedToEdit({});
+    // The chart covers the customer cities of the realms the viewer administers.
+    const realms = await getAdminRealms();
 
     const now = new Date();
     const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
@@ -27,7 +27,7 @@ export async function GET() {
         dateTime: {
           gte: twelveWeeksAgo
         },
-        city: CUSTOMER_CITY_WHERE
+        city: { ...CUSTOMER_CITY_WHERE, ...(realms ? { realm: { in: realms } } : {}) }
       },
       include: {
         taskStatuses: {

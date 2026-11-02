@@ -1,0 +1,67 @@
+{
+    "title": "Team",
+    "lead": "The people who hold a role on your realms, cities and administrative bodies.",
+    "invite": "Invite",
+    "showRevoked": "Show revoked grants",
+    "empty": "Nobody holds a grant here yet.",
+    "noName": "No name",
+    "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "scope": "Scope",
+        "since": "Since",
+        "grantedBy": "Granted by",
+        "status": "Status"
+    },
+    "role": {
+        "admin": "Admin",
+        "records": "Records",
+        "meetings": "Meetings",
+        "highlights": "Highlights",
+        "viewer": "Viewer"
+    },
+    "status": {
+        "active": "Active",
+        "pending": "Pending",
+        "expired": "Expired",
+        "revoked": "Revoked"
+    },
+    "scopeKind": {
+        "realm": "Realm",
+        "city": "City",
+        "body": "Administrative body",
+        "party": "Party",
+        "person": "Person"
+    },
+    "revoke": {
+        "action": "Revoke",
+        "title": "Revoke grant",
+        "description": "The account keeps every other grant it holds. The grant stays on the list as revoked.",
+        "failed": "The grant could not be revoked."
+    },
+    "dialog": {
+        "title": "Invite to the team",
+        "description": "A new email gets an account and an invite email. An existing account only gets the role.",
+        "email": "Email",
+        "name": "Name (optional)",
+        "role": "Role",
+        "scopeKind": "Scope",
+        "realm": "Realm",
+        "city": "City",
+        "body": "Administrative body",
+        "pick": "Select…",
+        "submit": "Send invite",
+        "sending": "Sending…",
+        "cancel": "Cancel",
+        "emailFailed": "The role was given, but the invite email could not be sent. Ask the person to sign in with their email."
+    },
+    "errors": {
+        "last-admin": "This is the last admin of the scope. Only an admin of the scope above can revoke it.",
+        "cap": "The scope has reached its limit of admins.",
+        "machine-address": "This address is reserved for machine accounts.",
+        "claimed": "The person claimed this grant. Only a superadmin can remove it, on the users page.",
+        "duplicate": "The account already holds this role on this scope."
+    },
+    "errorGeneric": "Something went wrong. Try again."
+}

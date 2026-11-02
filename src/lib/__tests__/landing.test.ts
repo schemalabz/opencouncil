@@ -1,6 +1,7 @@
 import { getCities, filterCityIdsByRealm } from '../db/cities';
 import prisma from '../db/prisma';
 import * as auth from '../auth';
+import { grant } from '@/lib/auth/__tests__/fixtures';
 
 // Mock '../api/errors' to avoid loading 'next/server' (which references the Fetch API
 // `Request` global) in the jest environment. Mirrors the workaround in users.test.ts.
@@ -110,8 +111,8 @@ describe('getCities', () => {
             id: 'user1',
             isSuperAdmin: false,
             administers: [
-                { cityId: 'city2', partyId: null, personId: null },
-                { cityId: 'city3', partyId: null, personId: null }
+                grant({ cityId: 'city2', partyId: null, personId: null }),
+                grant({ cityId: 'city3', partyId: null, personId: null })
             ]
         });
 
@@ -165,8 +166,8 @@ describe('getCities', () => {
             id: 'user1',
             isSuperAdmin: false,
             administers: [
-                { cityId: null, partyId: 'party1', personId: null },
-                { cityId: null, partyId: null, personId: 'person1' }
+                grant({ cityId: null, partyId: 'party1', personId: null }),
+                grant({ cityId: null, partyId: null, personId: 'person1' })
             ]
         });
 

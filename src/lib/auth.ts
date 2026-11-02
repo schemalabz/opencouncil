@@ -1,14 +1,26 @@
 import "server-only";
-import { type City, type Party, type Person, type CouncilMeeting, type AdministrativeBody } from "@prisma/client";
+import type { City, Realm } from "@prisma/client";
 import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { notAuthorizedError } from "@/lib/api/errors";
-import { type UnreleasedScope, NO_UNRELEASED, ALL_UNRELEASED } from "@/lib/unreleased";
+import { type UnreleasedScope, NO_UNRELEASED } from "@/lib/unreleased";
 import { publicAdministrativeBodyRelation } from "@/lib/db/types";
+import { actorOf, adminRealms, scopeInCity, type Right } from "@/lib/auth/rights";
+import { activeGrantWhere, hasRightOn, realmFor, validateScope, type AuthorizationScope } from "@/lib/auth/grants.server";
+
+export { personIsOwnedByBodyAdmin } from "@/lib/auth/rights";
+export type { AuthorizationScope } from "@/lib/auth/grants.server";
+
+/**
+ * The session's answer to the rights model (#875): who the viewer is, and
+ * which rights they hold (src/lib/auth/rights.ts). A caller with an explicit
+ * identity and no session (the MCP server) uses src/lib/auth/grants.server.ts.
+ */
 
 // Request-scoped so the many call sites that each need the viewer — a page and
 // the queries it calls — resolve the session and the user row once per request.
+// The grants are the active rows only: a pending or a revoked grant is no right.
 const currentUser = cache(async () => {
     const session = await auth();
     if (!session?.user?.email) return null;
@@ -17,6 +29,7 @@ const currentUser = cache(async () => {
         where: { email: session.user.email },
         include: {
             administers: {
+                where: activeGrantWhere,
                 include: {
                     city: true,
                     party: true,
@@ -32,188 +45,63 @@ export async function getCurrentUser() {
     return currentUser();
 }
 
-/**
- * What a check is about. The shapes that the check accepts:
- *
- * - `{}`: superadmin only.
- * - `{ cityId }`: an admin of the city. A body admin never passes this one,
- *   so a mutation that nobody converts to a narrower shape stays closed to them.
- * - `{ cityId, councilMeetingId }`: an admin of the city, or an admin of the
- *   body that holds the meeting.
- * - `{ cityId, administrativeBodyId }`: an admin of the city, or an admin of
- *   that body.
- * - `{ partyId }`: an admin of the party, or of its city.
- * - `{ personId }`: an admin of the person, of its city, or of the bodies it
- *   sits on (see personIsOwnedByBodyAdmin).
- */
-export type AuthorizationScope = {
-    cityId?: City["id"],
-    partyId?: Party["id"],
-    personId?: Person["id"],
-    councilMeetingId?: CouncilMeeting["id"],
-    administrativeBodyId?: AdministrativeBody["id"],
-};
-
-type CurrentUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
-
-/** The bodies of one city that an account administers directly, sorted. */
-function heldBodyIdsInCity(user: CurrentUser, cityId: string): string[] {
-    return user.administers
-        .flatMap(a => a.administrativeBody?.cityId === cityId ? [a.administrativeBody.id] : [])
-        .sort();
-}
-
-function administersCity(user: CurrentUser, cityId: string): boolean {
-    return user.administers.some(a => a.cityId === cityId);
-}
-
-function administersBody(user: CurrentUser, bodyId: string): boolean {
-    return user.administers.some(a => a.administrativeBodyId === bodyId);
-}
-
-// Request-scoped: a meeting page asks about the same meeting many times.
-const meetingBody = cache(async (cityId: string, meetingId: string) => {
-    return prisma.councilMeeting.findUnique({
-        where: { cityId_id: { cityId, id: meetingId } },
-        select: { administrativeBodyId: true },
-    });
-});
-
-const bodyCity = cache(async (bodyId: string) => {
-    return prisma.administrativeBody.findUnique({
-        where: { id: bodyId },
-        select: { cityId: true },
-    });
-});
-
-const personRoles = cache(async (personId: string) => {
-    return prisma.person.findUnique({
-        where: { id: personId },
-        select: { cityId: true, roles: { select: { administrativeBodyId: true } } },
-    });
-});
-
-/**
- * A body admin owns a person when the person has at least one role and every
- * role, past or present, is on a body they hold. A person with no role goes
- * on every council roster, and a person with a seat elsewhere (a party, the
- * council, a city-level office) is a superadmin's or city admin's to edit.
- */
-export function personIsOwnedByBodyAdmin(
-    roles: { administrativeBodyId?: string | null }[],
-    heldBodyIds: ReadonlySet<string>,
-): boolean {
-    return roles.length > 0 && roles.every(role => !!role.administrativeBodyId && heldBodyIds.has(role.administrativeBodyId));
-}
-
-async function checkUserAuthorization({
-    cityId,
-    partyId,
-    personId,
-    councilMeetingId,
-    administrativeBodyId,
-}: AuthorizationScope) {
-    const definedParams = [partyId, personId].filter(Boolean);
-    const hasCityId = Boolean(cityId);
-    const hasCouncilMeetingId = Boolean(councilMeetingId);
-    const hasBodyId = Boolean(administrativeBodyId);
-
-    // Validate parameter combinations
-    if (definedParams.length > 1) {
-        throw new Error("Only one of partyId or personId should be defined");
-    }
-
-    if (definedParams.length > 0 && (hasCityId || hasCouncilMeetingId || hasBodyId)) {
-        throw new Error("cityId/councilMeetingId/administrativeBodyId cannot be combined with partyId or personId");
-    }
-
-    if ((hasCouncilMeetingId || hasBodyId) && !hasCityId) {
-        throw new Error("cityId is required when councilMeetingId or administrativeBodyId is provided");
-    }
-
-    if (hasCouncilMeetingId && hasBodyId) {
-        throw new Error("Only one of councilMeetingId or administrativeBodyId should be defined");
-    }
-
+/** Whether the viewer holds the right on the scope; false with no session. */
+export async function hasRight(right: Right, scope: AuthorizationScope): Promise<boolean> {
+    validateScope(scope);
     const user = await getCurrentUser();
     if (!user) return false;
-
-    // Superadmins can edit everything
-    if (user.isSuperAdmin) return true;
-
-    if (!cityId && !partyId && !personId) {
-        return false; // Only superadmins can edit anything
-    }
-
-    if (cityId) {
-        // A body of another city never passes, for a city admin either: the
-        // routes take the city and the body from two URL segments.
-        if (administrativeBodyId) {
-            const body = await bodyCity(administrativeBodyId);
-            if (body?.cityId !== cityId) return false;
-        }
-
-        if (administersCity(user, cityId)) return true;
-
-        // A body admin: through the meeting or the body, never through the city alone.
-        if (councilMeetingId) {
-            // `false`, not a throw: the meeting layout asks this on every render,
-            // and an unknown meeting must 404 there, not 500.
-            const meeting = await meetingBody(cityId, councilMeetingId);
-            return !!meeting?.administrativeBodyId && administersBody(user, meeting.administrativeBodyId);
-        }
-        if (administrativeBodyId) {
-            return administersBody(user, administrativeBodyId);
-        }
-        return false;
-    }
-
-    if (partyId) {
-        if (user.administers.some(a => a.partyId === partyId)) return true;
-        const party = await prisma.party.findUnique({ where: { id: partyId }, select: { cityId: true } });
-        return !!party && administersCity(user, party.cityId);
-    }
-
-    if (personId) {
-        if (user.administers.some(a => a.personId === personId)) return true;
-        const person = await personRoles(personId);
-        if (!person) return false;
-        if (administersCity(user, person.cityId)) return true;
-        const held = new Set(heldBodyIdsInCity(user, person.cityId));
-        return held.size > 0 && personIsOwnedByBodyAdmin(person.roles, held);
-    }
-
-    return false;
+    return hasRightOn(actorOf(user), right, scope);
 }
 
-export async function withUserAuthorizedToEdit(scope: AuthorizationScope) {
-    const isAuthorized = await checkUserAuthorization(scope);
-
-    if (!isAuthorized) {
+/** Like hasRight, and throws when the viewer does not hold the right. */
+export async function withRight(right: Right, scope: AuthorizationScope): Promise<true> {
+    if (!(await hasRight(right, scope))) {
         // An ApiError, so a route that answers through handleApiError says 401
         // without a session and 403 without the right. getCurrentUser is
         // cached per request, so this reads no row again.
         throw notAuthorizedError(Boolean(await getCurrentUser()));
     }
-
     return true;
 }
 
-export async function isUserAuthorizedToEdit(scope: AuthorizationScope) {
-    return checkUserAuthorization(scope);
+/** The `admin` right on the scope: what "may edit" meant before the roles. */
+export async function isUserAuthorizedToEdit(scope: AuthorizationScope): Promise<boolean> {
+    return hasRight('admin', scope);
+}
+
+export async function withUserAuthorizedToEdit(scope: AuthorizationScope): Promise<true> {
+    return withRight('admin', scope);
 }
 
 /**
- * Which unreleased meetings of a city the viewer may see (see
- * src/lib/unreleased.ts): all of them for a superadmin or a city admin, the
- * meetings of the bodies they administer in the city otherwise, which is none
- * for a reader.
+ * The realms the /admin tree shows the viewer: null for a superadmin, who
+ * sees every realm with no filter; the realms of their `admin` grants
+ * otherwise. Throws for a viewer who holds none: every page and route of
+ * the tree calls this first and passes the list to its queries.
  */
-export async function getUnreleasedScope(cityId: City["id"]): Promise<UnreleasedScope> {
+export async function getAdminRealms(): Promise<Realm[] | null> {
+    const user = await getCurrentUser();
+    if (user?.isSuperAdmin) return null;
+    const realms = user ? adminRealms(actorOf(user)) : [];
+    if (realms.length === 0) throw notAuthorizedError(Boolean(user));
+    return realms;
+}
+
+/**
+ * How far the viewer's right reaches inside one city: every meeting and
+ * body of the city, or the bodies they hold directly, which is none for a
+ * reader.
+ */
+export async function heldScope(right: Right, cityId: City["id"]): Promise<UnreleasedScope> {
     const user = await getCurrentUser();
     if (!user) return NO_UNRELEASED;
-    if (user.isSuperAdmin || administersCity(user, cityId)) return ALL_UNRELEASED;
-    return { all: false, bodyIds: heldBodyIdsInCity(user, cityId) };
+    const actor = actorOf(user);
+    return scopeInCity(actor, right, cityId, await realmFor(actor, cityId));
+}
+
+/** Which unreleased meetings of a city the viewer may see (see src/lib/unreleased.ts). */
+export async function getUnreleasedScope(cityId: City["id"]): Promise<UnreleasedScope> {
+    return heldScope('drafts.read', cityId);
 }
 
 /**
@@ -223,8 +111,6 @@ export async function getUnreleasedScope(cityId: City["id"]): Promise<Unreleased
  * validateRolesForBodyAdmin). An empty set means the viewer manages nobody.
  */
 export async function getRoleLimitForCity(cityId: City["id"]): Promise<ReadonlySet<string> | null> {
-    const user = await getCurrentUser();
-    if (!user) return new Set();
-    if (user.isSuperAdmin || administersCity(user, cityId)) return null;
-    return new Set(heldBodyIdsInCity(user, cityId));
+    const scope = await heldScope('admin', cityId);
+    return scope.all ? null : new Set(scope.bodyIds);
 }

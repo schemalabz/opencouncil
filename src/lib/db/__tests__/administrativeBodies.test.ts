@@ -271,7 +271,7 @@ describe('a write to a body that does not exist', () => {
     });
 
     it('delete throws a NotFoundError', async () => {
-        await expect(deleteAdministrativeBody('missing')).rejects.toBeInstanceOf(NotFoundError);
+        await expect(deleteAdministrativeBody('missing', 'zografou')).rejects.toBeInstanceOf(NotFoundError);
     });
 });
 

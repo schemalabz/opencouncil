@@ -1,4 +1,4 @@
-import type { City, CityMessage as CityMessageType } from '@prisma/client';
+import type { City, CityMessage as CityMessageType, Realm } from '@prisma/client';
 import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { CityAdminTools } from '@/components/cities/CityAdminTools';
@@ -12,6 +12,8 @@ interface CityRailProps {
     cityMessage: CityMessageType | null;
     canEdit: boolean;
     isSuperAdmin: boolean;
+    /** The realms for the city form: see CityForm's `realms`. */
+    formRealms?: Realm[];
     notificationPreference: CityNotificationPreference | null;
     /** The reader's WhatsApp channel as Notis has it, still being asked; resolves false when nobody is signed in. */
     phoneChannel: Promise<boolean | null>;
@@ -38,6 +40,7 @@ export function CityRail({
     cityMessage,
     canEdit,
     isSuperAdmin,
+    formRealms,
     notificationPreference,
     phoneChannel,
     petitionBucket,
@@ -70,6 +73,7 @@ export function CityRail({
                     cityMessage={canEdit ? cityMessage : null}
                     canEdit={canEdit}
                     isSuperAdmin={isSuperAdmin}
+                    formRealms={formRealms}
                 />
                 <CityMeetingsModule
                     all={allMeetings}

@@ -12,6 +12,10 @@ export const TEST_USER_EMAILS = {
   PARTY_ADMIN: 'party@test.com',
   PERSON_ADMIN: 'person@test.com',
   BODY_ADMIN: 'body@test.com',
+  REALM_ADMIN: 'realmadmin@test.com',
+  RECORDS: 'records@test.com',
+  COMMS: 'comms@test.com',
+  VIEWER: 'viewer@test.com',
   READ_ONLY: 'readonly@test.com'
 } as const
 
@@ -63,6 +67,38 @@ export const TEST_USERS = [
     description: `Admin of one administrative body in city`
   },
   {
+    email: TEST_USER_EMAILS.REALM_ADMIN,
+    phone: '+306990000007',
+    name: 'Realm Admin', // Will be updated with the realm during seeding
+    isSuperAdmin: false,
+    adminType: 'realmadmin' as const,
+    description: 'Admin of every city of one realm'
+  },
+  {
+    email: TEST_USER_EMAILS.RECORDS,
+    phone: '+306990000008',
+    name: 'Records Keeper',
+    isSuperAdmin: false,
+    adminType: 'records' as const,
+    description: 'Decisions, attendance and minutes of one administrative body'
+  },
+  {
+    email: TEST_USER_EMAILS.COMMS,
+    phone: '+306990000009',
+    name: 'Communications',
+    isSuperAdmin: false,
+    adminType: 'comms' as const,
+    description: 'Highlights and notifications of a city'
+  },
+  {
+    email: TEST_USER_EMAILS.VIEWER,
+    phone: '+306990000010',
+    name: 'Viewer',
+    isSuperAdmin: false,
+    adminType: 'viewer' as const,
+    description: 'Reads drafts and decisions of a city, edits nothing'
+  },
+  {
     email: TEST_USER_EMAILS.READ_ONLY,
     phone: '+306990000005',
     name: 'Read Only User',
@@ -97,6 +133,10 @@ function getTestUserIcon(adminType: TestUserAdminType): string {
     case 'party': return '🎭'
     case 'person': return '👤'
     case 'body': return '🏢'
+    case 'realmadmin': return '🌍'
+    case 'records': return '📜'
+    case 'comms': return '📣'
+    case 'viewer': return '🔍'
     case 'readonly': return '👁️'
     default: return '❓'
   }

@@ -4,9 +4,11 @@ import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
-import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
-import { UnauthorizedError } from "../api/errors";
+import { withUserAuthorizedToEdit, getCurrentUser, getAdminRealms } from "@/lib/auth";
+import { actorOf, emptyReach, reachOf } from "@/lib/auth/rights";
+import { ForbiddenError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
+import { getCityRealm } from "./cityRealm";
 import { createCityDirect, updateCityGeometryDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
@@ -40,7 +42,11 @@ export type CityWithCounts = City & {
 
 
 export async function deleteCity(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+    // The realm's admin, not the city's: the delete cascades to every
+    // meeting, person and transcript of the city, and cannot be undone. An
+    // unknown city falls to a superadmin, and then to the delete's error.
+    const realm = await getCityRealm(id);
+    await withUserAuthorizedToEdit(realm ? { realm } : {});
     try {
         await prisma.city.delete({
             where: { id },
@@ -51,8 +57,12 @@ export async function deleteCity(id: string): Promise<void> {
     }
 }
 
+/** A superadmin creates a city in any realm; a realm admin in a realm they administer. */
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
+    if (realms && !realms.includes(cityData.realm)) {
+        throw new ForbiddenError(`You do not administer the realm ${cityData.realm}`);
+    }
     try {
         return await createCityDirect(cityData);
     } catch (error) {
@@ -443,7 +453,7 @@ export async function filterCityIdsByRealm(cityIds: string[], realm: Realm): Pro
  * The `includeUnlisted=true` query parameter on `GET /api/cities` keeps its name:
  * that one is a published contract.
  */
-export async function getCities({ includeNonPublic = false }: { includeNonPublic?: boolean } = {}, realm?: Realm): Promise<CityWithCounts[]> {
+export async function getCities({ includeNonPublic = false }: { includeNonPublic?: boolean } = {}, realm?: Realm | readonly Realm[] | null): Promise<CityWithCounts[]> {
     // Get current user for authorization
     const currentUser = includeNonPublic ? await getCurrentUser() : null;
 
@@ -460,10 +470,10 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
     }
 
     if (includeNonPublic && !currentUser?.isSuperAdmin) {
-        // Authenticated user mode: public cities + cities they can administer
-        const administerableCityIds = currentUser?.administers
-            .map(a => a.cityId)
-            .filter((id): id is string => id !== null) ?? [];
+        // Authenticated user mode: public cities, plus the pending cities
+        // whose drafts the user may read: their cities, the cities of their
+        // bodies, and every city of their realms.
+        const reach = currentUser ? reachOf(actorOf(currentUser), 'drafts.read') : emptyReach();
 
         whereClause = {
             ...whereClause,
@@ -471,18 +481,23 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
                 { ...PUBLIC_CITY_WHERE },
                 {
                     ...OUT_OF_NETWORK_CITY_WHERE,
-                    id: { in: administerableCityIds }
-                }
+                    id: { in: [...new Set([...reach.cityIds, ...reach.bodies.values()])] }
+                },
+                ...(reach.realms.size > 0
+                    ? [{ ...OUT_OF_NETWORK_CITY_WHERE, realm: { in: [...reach.realms] } }]
+                    : []),
             ]
         };
     }
     // Superadmin mode: show all cities (no additional filter needed)
 
-    // Tenant isolation: restrict to a single realm when one is supplied. Callers
-    // serving a public, host-scoped page pass the request realm; cross-realm admin
-    // views omit it to see every realm.
-    if (realm) {
-        whereClause.realm = realm;
+    // Tenant isolation: restrict to the realms supplied. Callers serving a
+    // public, host-scoped page pass the request realm; an admin page passes
+    // the list of getAdminRealms, which is null for a superadmin: every realm.
+    if (Array.isArray(realm)) {
+        whereClause.realm = { in: [...realm] };
+    } else if (realm) {
+        whereClause.realm = realm as Realm;
     }
 
     try {

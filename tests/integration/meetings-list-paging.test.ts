@@ -4,7 +4,7 @@ import { countCouncilMeetings, findMeetingIdsMatching, getCouncilMeetingsWithSub
 import { getCouncilMeetingPreviewsByIds } from '@/lib/cache/queries'
 import { __setSessionEmail } from '../mocks/auth'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createUser, signInAsSuperAdmin } from '../helpers/factories'
+import { createGrant, createUser, signInAsSuperAdmin } from '../helpers/factories'
 import { buildMeetingArchive, MeetingArchive } from '../helpers/meetingArchive'
 
 const PAGE_SIZE = 12
@@ -178,7 +178,7 @@ describe('meetings list paging - integration', () => {
             const ownDraft = archive.unreleasedIds.find(id => id.startsWith('committee-'))!
             const otherDraft = archive.unreleasedIds.find(id => id.startsWith('council-'))!
             const admin = await createUser('body-admin@integration.test')
-            await prisma.administers.create({ data: { userId: admin.id, administrativeBodyId: archive.bodies.committee } })
+            await createGrant(admin.id, { administrativeBodyId: archive.bodies.committee })
             __setSessionEmail(admin.email)
             try {
                 const rows = await getCouncilMeetingPreviewsByIds(archive.cityId, [ownDraft, otherDraft])

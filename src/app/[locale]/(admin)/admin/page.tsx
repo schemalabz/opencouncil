@@ -5,10 +5,13 @@ import { Suspense } from 'react';
 import { ReviewsOverviewWidget, ReviewsOverviewSkeleton } from '@/components/admin/reviews/ReviewsOverviewWidget';
 import AdminWidgetErrorBoundary from '@/components/admin/AdminWidgetErrorBoundary';
 import { getAdminDashboardStats } from '@/lib/db/adminStats';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms } from '@/lib/auth';
+import { redirect } from '@/i18n/routing';
+import { getLocale } from 'next-intl/server';
 
 export default async function Page() {
-    await withUserAuthorizedToEdit({});
+    // The dashboard counts users, searches and petitions across every realm: a superadmin's.
+    if (await getAdminRealms() !== null) redirect({ href: '/admin/cities', locale: await getLocale() });
     const stats = await getAdminDashboardStats();
 
     const round1 = (n: number) => Math.round(n * 10) / 10;

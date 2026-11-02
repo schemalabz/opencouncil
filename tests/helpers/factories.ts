@@ -68,6 +68,20 @@ export async function createUser(email: string, data?: Partial<Prisma.UserCreate
     })
 }
 
+/**
+ * An accepted grant. `scope` is exactly one of realm, cityId, partyId,
+ * personId and administrativeBodyId, as the check constraint demands.
+ */
+export async function createGrant(
+    userId: string,
+    scope: Pick<Prisma.AdministersUncheckedCreateInput, 'realm' | 'cityId' | 'partyId' | 'personId' | 'administrativeBodyId'>,
+    data?: Partial<Pick<Prisma.AdministersUncheckedCreateInput, 'role' | 'grantedById' | 'claimedAt' | 'acceptedAt'>>,
+) {
+    return prisma.administers.create({
+        data: { userId, ...scope, acceptedAt: new Date(), ...data },
+    })
+}
+
 export async function createMeeting(cityId: string, data?: Partial<Prisma.CouncilMeetingUncheckedCreateInput>) {
     return prisma.councilMeeting.create({
         data: {

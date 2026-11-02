@@ -23,7 +23,7 @@ jest.mock("@/components/admin/cities/CouncilQrStripsButton", () => ({
     CouncilQrStripsButton: () => null,
 }));
 
-type CityRow = City & { _count: { persons: number; parties: number; councilMeetings: number } };
+type CityRow = City & { _count: { persons: number; parties: number; councilMeetings: number }; siteUrl: string };
 
 function makeCity(overrides: Partial<CityRow> & Pick<CityRow, "id" | "name" | "name_en" | "realm">): CityRow {
     return {
@@ -44,6 +44,7 @@ function makeCity(overrides: Partial<CityRow> & Pick<CityRow, "id" | "name" | "n
         language: "el",
         population: null,
         _count: { persons: 0, parties: 0, councilMeetings: 0 },
+        siteUrl: "https://opencouncil.gr",
         ...overrides,
     };
 }
@@ -61,7 +62,7 @@ describe("CitiesAdminTable realm grouping", () => {
     );
 
     it("renders a group with a distinct label for every realm", () => {
-        render(<CitiesAdminTable cities={cities} />);
+        render(<CitiesAdminTable cities={cities} realms={[]} />);
         for (const realm of Object.values(Realm)) {
             expect(screen.getByText(`Πόλη ${realm}`)).toBeInTheDocument();
         }

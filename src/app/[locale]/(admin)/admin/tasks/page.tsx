@@ -5,7 +5,9 @@ import { TaskFilters } from "@/components/admin/tasks/TaskFilters";
 import { BatchRerunActions, type BatchMeeting } from "@/components/admin/tasks/BatchRerunActions";
 import { ActiveTasks } from "@/components/admin/tasks/ActiveTasks";
 import { MeetingTaskType } from "@/lib/tasks/types";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
+import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
+import { notFound } from "next/navigation";
 import { dayBounds } from "@/lib/dates/dayBounds";
 import { DEFAULT_TIMEZONE } from "@/lib/formatters/time";
 import { isCalendarDay } from "@/lib/zod-schemas/dates";
@@ -24,8 +26,11 @@ interface PageProps {
 }
 
 export default async function TasksPage(props: PageProps) {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
     const searchParams = await props.searchParams;
+    const availableCities = await getAvailableCities(realms);
+    // A city outside the viewer's realms is not theirs to see.
+    if (searchParams.cityId && !availableCities.some(city => city.id === searchParams.cityId)) notFound();
     // Parse date range — default dateFrom is Jan 1 of current year, "all" = no filter
     const currentYear = new Date().getFullYear();
     const defaultDateFrom = `${currentYear}-01-01`;
@@ -57,10 +62,9 @@ export default async function TasksPage(props: PageProps) {
     };
 
     // Fetch data and metadata in parallel
-    const [highestVersions, citiesData, availableCities] = await Promise.all([
-        getHighestVersionsForTasks(taskTypes),
-        getTaskVersionsGroupedByCity(filters),
-        getAvailableCities(),
+    const [highestVersions, citiesData] = await Promise.all([
+        getHighestVersionsForTasks(taskTypes, realms),
+        getTaskVersionsGroupedByCity(filters, realms),
     ]);
 
     // Derive max version across all task types for the version filter dropdowns
@@ -72,6 +76,7 @@ export default async function TasksPage(props: PageProps) {
             meetingId: meeting.meetingId,
             cityId: meeting.cityId,
             cityName: city.cityNameEn,
+            siteUrl: realmBaseUrl(city.realm),
             dateTime: meeting.dateTime,
             currentVersion: taskTypes.reduce((min: number | null, t: string) => {
                 const v = meeting[t] ?? null;

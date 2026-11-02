@@ -31,6 +31,7 @@ import type { McpIdentity } from '../auth';
 import type { McpAdminAccess } from '../adminAccess';
 import * as data from '../data';
 import * as adminData from '../adminData';
+import { actorWith, cityGrant, realmGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const HIGHLIGHT_TOOLS = [
     'create_highlight', 'generate_highlight_video', 'list_highlights',
@@ -41,9 +42,9 @@ const USER: McpIdentity = { userId: 'u1' };
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_upload_url', 'complete_upload', 'start_task'];
-const SUPERADMIN_TOOLS = ['publish_city_demo', 'set_city_boundary', 'list_realms', 'create_city', 'populate_city'];
-const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set() };
-const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
+const REALM_ADMIN_TOOLS = ['publish_city_demo', 'set_city_boundary', 'list_realms', 'create_city', 'populate_city'];
+const CITY_ADMIN: McpAdminAccess = actorWith([cityGrant('athens')]);
+const SUPERADMIN: McpAdminAccess = superadmin();
 
 type RecordedToolConfig = {
     annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
@@ -111,7 +112,7 @@ describe('highlight tools are advertised only on authenticated connections', () 
 describe('admin tools are advertised by admin access', () => {
 
     it('withholds the whole suite from a caller with no admin access', () => {
-        const admin = [...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS];
+        const admin = [...MEETING_ADMIN_TOOLS, ...REALM_ADMIN_TOOLS];
         expect(advertised(null).tools.filter(n => admin.includes(n))).toEqual([]);
         expect(advertised(USER).tools.filter(n => admin.includes(n))).toEqual([]);
         // The identity alone decides nothing: the route resolves the access.
@@ -124,10 +125,16 @@ describe('admin tools are advertised by admin access', () => {
         expect(cityAdmin.filter(n => !base.includes(n))).toEqual(MEETING_ADMIN_TOOLS);
     });
 
-    it('gives a superadmin the city and user tools as well', () => {
+    it('gives a superadmin the city tools as well', () => {
         const base = advertised(USER).tools;
         const superadmin = advertised(USER, { adminAccess: SUPERADMIN }).tools;
-        expect(superadmin.filter(n => !base.includes(n))).toEqual([...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS]);
+        expect(superadmin.filter(n => !base.includes(n))).toEqual([...MEETING_ADMIN_TOOLS, ...REALM_ADMIN_TOOLS]);
+    });
+
+    it('gives a realm administrator the city tools as well: they onboard cities', () => {
+        const base = advertised(USER).tools;
+        const realmAdmin = advertised(USER, { adminAccess: actorWith([realmGrant(Realm.poland)]) }).tools;
+        expect(realmAdmin.filter(n => !base.includes(n))).toEqual([...MEETING_ADMIN_TOOLS, ...REALM_ADMIN_TOOLS]);
     });
 
     it('offers no tool that deletes a meeting', () => {

@@ -719,17 +719,12 @@ export function extractUtteranceIdsFromContributions(
 }
 
 /**
- * Get all utterances tagged with a subject for debugging
- * Only accessible to superadmins
+ * Get all utterances tagged with a subject for debugging, with the city that
+ * the caller checks the admin right on. `null` when the subject does not exist.
  */
 export async function getUtterancesForSubject(subjectId: string) {
-    const { getCurrentUser } = await import('@/lib/auth');
-    const user = await getCurrentUser();
-
-    // Only superadmins can access debug data
-    if (!user?.isSuperAdmin) {
-        return null;
-    }
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { cityId: true } });
+    if (!subject) return null;
 
     const utterances = await prisma.utterance.findMany({
         where: {
@@ -764,7 +759,7 @@ export async function getUtterancesForSubject(subjectId: string) {
         }
     });
 
-    return utterances;
+    return { cityId: subject.cityId, utterances };
 }
 
 /** What the illustration prompt is built from: the text, and the city the scene is set in. `null` when the subject does not exist. */

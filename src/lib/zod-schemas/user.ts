@@ -1,5 +1,7 @@
 import * as z from 'zod';
+import { Realm } from '@prisma/client';
 import { PHONE_REJECTION_CODES, normalizeMobilePhone } from '@/lib/utils/phone';
+import { GRANT_ROLES } from '@/lib/auth/rights';
 import { machineAccountSlug } from '@/lib/auth/machineAccounts';
 import { vmsg } from '@/lib/zod-schemas/messages';
 
@@ -38,14 +40,17 @@ export const updateProfileSchema = z.object(profileFields).partial();
 
 // --- Admin user management (superadmin only) ---
 
+/** One grant: a role (admin when absent) at exactly one scope. */
 const administersEntrySchema = z.object({
+    role: z.enum(GRANT_ROLES).default('admin'),
+    realm: z.enum(Realm).nullable().optional(),
     cityId: z.string().nullable().optional(),
     partyId: z.string().nullable().optional(),
     personId: z.string().nullable().optional(),
     administrativeBodyId: z.string().nullable().optional(),
 }).refine(
-    data => [data.cityId, data.partyId, data.personId, data.administrativeBodyId].filter(Boolean).length === 1,
-    { error: "Exactly one of cityId, partyId, personId, or administrativeBodyId must be provided" }
+    data => [data.realm, data.cityId, data.partyId, data.personId, data.administrativeBodyId].filter(Boolean).length === 1,
+    { error: "Exactly one of realm, cityId, partyId, personId, or administrativeBodyId must be provided" }
 );
 
 const adminUserFields = {
@@ -98,15 +103,40 @@ export const createUserRequestSchema = z.discriminatedUnion('isMachine', [
 /** An id a Server Action receives: any JSON value until it is checked. */
 export const entityIdSchema = z.string().min(1);
 
-// --- Admins of an administrative body ---
+// --- Grants (#875) ---
 
-// JSON body of POST /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
-export const addBodyAdminRequestSchema = z.object({
+/**
+ * The scope of a grant: exactly one key, and no other. A strict object per
+ * branch, so a body with two keys fails instead of matching the first branch
+ * that ignores the extra key.
+ */
+const grantScopeSchema = z.union([
+    z.strictObject({ realm: z.enum(Realm) }),
+    z.strictObject({ cityId: z.string().min(1) }),
+    z.strictObject({ administrativeBodyId: z.string().min(1) }),
+    z.strictObject({ partyId: z.string().min(1) }),
+    z.strictObject({ personId: z.string().min(1) }),
+]);
+
+// JSON body of POST /api/admin/grants
+export const inviteGrantRequestSchema = z.object({
     email: adminUserFields.email,
     name: z.string().trim().min(1).nullable().optional(),
+    role: z.enum(GRANT_ROLES),
+    scope: grantScopeSchema,
+});
+export type InviteGrantRequest = z.infer<typeof inviteGrantRequestSchema>;
+
+// JSON body of DELETE /api/admin/grants
+export const revokeGrantRequestSchema = z.object({
+    grantId: z.string().min(1),
 });
 
-// JSON body of DELETE /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
-export const removeBodyAdminRequestSchema = z.object({
-    userId: z.string().min(1),
-});
+/**
+ * The refusals of the grants route, as the `error` of its 400 answer. Codes,
+ * not sentences: the team page maps each one to copy in its own language.
+ */
+export const GRANT_ERROR_CODES = ['last-admin', 'cap', 'machine-address', 'claimed', 'duplicate'] as const;
+export type GrantErrorCode = (typeof GRANT_ERROR_CODES)[number];
+export const isGrantErrorCode = (value: unknown): value is GrantErrorCode =>
+    typeof value === 'string' && (GRANT_ERROR_CODES as readonly string[]).includes(value);

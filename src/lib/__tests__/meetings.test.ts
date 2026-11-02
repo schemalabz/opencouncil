@@ -1,4 +1,5 @@
 // Mock auth before importing anything else
+jest.mock('@/lib/utils/realmBaseUrl', () => ({ realmBaseUrl: () => 'https://opencouncil.gr' }));
 jest.mock('../auth', () => ({
   isUserAuthorizedToEdit: jest.fn(),
   withUserAuthorizedToEdit: jest.fn()

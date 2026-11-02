@@ -1202,6 +1202,9 @@ model User {
   sessions      Session[]
   Authenticator Authenticator[]
   administers   Administers[]
+  /// The grants this account made and revoked (#875).
+  grantedGrants Administers[] @relation("GrantedGrants")
+  revokedGrants Administers[] @relation("RevokedGrants")
   voicePrintConsents VoicePrintConsent[]
   
   petitions Petition[]
@@ -1317,24 +1320,37 @@ model Authenticator {
   @@id([userId, credentialID])
 }
 
+/// What a grant lets its holder do (#875). `admin` holds every right at the
+/// scope of the grant: on a body, a city, a realm. The other roles hold the
+/// bundles that src/lib/auth/rights.ts lists.
+enum GrantRole {
+  admin
+  records
+  meetings
+  highlights
+  viewer
+}
+
+/// A grant: one account holds one role on one scope (#828, #875). The scope
+/// is exactly one of realm, cityId, partyId, personId and administrativeBodyId;
+/// the migration holds that as a check constraint, which this schema cannot
+/// state. One active row per user, role and scope: five partial unique
+/// indexes in the migration, one per scope column, over rows with
+/// revokedAt IS NULL.
 model Administers {
-  
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
+  role      GrantRole @default(admin)
+  /// A realm admin: every city of the realm and the realm pages of /admin.
+  realm     Realm?
   cityId    String?
   partyId   String?
   personId  String?
   /// An admin of one administrative body: its meetings, its members and its
   /// own contact settings, and nothing else in the city (#828).
-  /// The migration adds two rules that this schema cannot state: a check
-  /// constraint keeps exactly one of cityId, partyId, personId and
-  /// administrativeBodyId set, and the partial unique index
-  /// Administers_user_body_key allows one row per user and body. The
-  /// @@unique below never rejects a row, because its other columns are NULL
-  /// and Postgres treats NULLs as distinct.
   administrativeBodyId String?
-  
+
   city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
   party     Party?   @relation(fields: [partyId], references: [id], onDelete: Cascade)
   person    Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -1344,13 +1360,26 @@ model Administers {
   /// says "this account is this person", where a row without it says only
   /// "this account may edit this person" (a delegate a superadmin added).
   /// A partial unique index in the migration allows one claimed row per
-  /// person. Voiceprint consent needs any row for the person, claimed or not.
+  /// person, revoked rows aside. Voiceprint consent needs any row for the
+  /// person, claimed or not.
   claimedAt DateTime?
+
+  /// Who made the grant; null for a row older than #875 or a claim.
+  grantedById String?
+  grantedBy   User?   @relation("GrantedGrants", fields: [grantedById], references: [id], onDelete: SetNull)
+  /// When the holder took the grant up. Null is a pending invite: the holder
+  /// never signed in, and the resolver ignores the row. Every writer sets it
+  /// at once until the invite lifecycle lands.
+  acceptedAt  DateTime?
+  /// A revocation is a soft delete: the row stays as the trace.
+  revokedAt   DateTime?
+  revokedById String?
+  revokedBy   User?   @relation("RevokedGrants", fields: [revokedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, cityId, partyId, personId, administrativeBodyId])
+  @@index([userId, revokedAt])
 }
 
 // Personal access token for the MCP server. An MCP token acts as the owning

@@ -65,7 +65,7 @@ export default function CityMessageForm({ existingMessage, onMessageChange, call
         : t('noMessageSet');
 
     return (
-        <CityFormSection title={t('sectionTitle')} hint={status} restricted>
+        <CityFormSection title={t('sectionTitle')} hint={status}>
             <div className="space-y-4">
 
                 <div className="flex items-center space-x-2">

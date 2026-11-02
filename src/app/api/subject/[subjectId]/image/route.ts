@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import * as z from 'zod';
 import { UnreadableImageError, isSubjectImageId } from '@opencouncil/subject-images';
-import { subjectExists, subjectIsPublic } from '@/lib/db/subject';
+import { subjectIsPublic } from '@/lib/db/subject';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError, notAuthorizedError } from '@/lib/api/errors';
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser';
@@ -80,17 +80,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-    const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
-        return handleApiError(notAuthorizedError(Boolean(user)));
-    }
-
     const { subjectId } = await context.params;
     const invalid = invalidId(subjectId);
     if (invalid) return invalid;
-    // Either branch writes a permanent, public object under this id.
-    if (!(await subjectExists(subjectId))) {
+    // Either branch writes a permanent, public object under this id, so an
+    // admin of the city of the subject asks for it.
+    const subject = await subjectIsPublic(subjectId);
+    if (!subject) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+    }
+    if (!(await isUserAuthorizedToEdit({ cityId: subject.cityId }))) {
+        return handleApiError(notAuthorizedError(Boolean(await getCurrentUser())));
     }
     const contentType = request.headers.get('content-type') ?? '';
 

@@ -70,13 +70,13 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
         expect(deliveries).toHaveLength(0)
 
         // Admin stats must not report this as "sent" — nothing was dispatched.
-        const grouped = await getNotificationsGroupedByMeeting({ cityId: city.id })
+        const grouped = await getNotificationsGroupedByMeeting({ cityId: city.id }, null)
         expect(grouped.meetings).toHaveLength(1)
         expect(grouped.meetings[0].after?.skipped).toBe(1)
         expect(grouped.meetings[0].after?.sent).toBe(0)
 
         // The skipped FILTER finds it too, even with zero delivery rows.
-        const filtered = await getNotificationsGroupedByMeeting({ cityId: city.id, status: 'skipped' })
+        const filtered = await getNotificationsGroupedByMeeting({ cityId: city.id, status: 'skipped' }, null)
         expect(filtered.meetings).toHaveLength(1)
     })
 

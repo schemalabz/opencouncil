@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Realm } from '@prisma/client';
 import { localCalendarDate } from '../formatters/time';
 import { DECISION_KIND_SELECT, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
@@ -16,6 +16,7 @@ import {
 } from './decisionHealthDerive';
 import { meetingLabel } from '@/lib/meetingName';
 import { takesPlace } from '@/lib/meetingLifecycleRules';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 export { cityState, type CityState, type MissingSessionGroup } from './decisionHealthState';
 
 /**
@@ -45,6 +46,9 @@ export interface CityDecisionHealth extends CoverageMeasures, MeetingQueues {
     cityId: string;
     cityName: string;
     cityNameEn: string;
+    realm: Realm;
+    /** The base URL of the city's own pages: a city lives on its realm's domain, not on the admin host. */
+    siteUrl: string;
     /** False for cities outside the Diavgeia realm — they are out of scope, not failing. */
     inScope: boolean;
     diavgeiaUid: string | null;
@@ -66,7 +70,7 @@ export interface CityDecisionHealth extends CoverageMeasures, MeetingQueues {
 // --- Shared facts fetch (used here and in decisionHealthDetail) ---
 
 const cityFactsSelect = {
-    id: true, name: true, name_en: true, diavgeiaUid: true, timezone: true,
+    id: true, name: true, name_en: true, realm: true, diavgeiaUid: true, timezone: true,
     administrativeBodies: {
         select: { id: true, name: true, name_en: true, type: true, diavgeiaUnitIds: true },
     },
@@ -131,18 +135,19 @@ export interface DecisionFacts {
 
 /**
  * One slim fetch of everything the health rollups and the city detail derive
- * from. Customer cities of the Greek realm only: Diavgeia is a Greek register,
- * and a demo city's pipeline is nobody's work queue.
+ * from. Customer cities only: a demo city's pipeline is nobody's work queue.
+ * `realms` limits the cities to the realms the viewer administers (null:
+ * every realm). A city outside the Diavgeia register reports `inScope: false`.
  */
-export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts> {
-    const cityWhere = { realm: 'greece', ...CUSTOMER_CITY_WHERE } satisfies Prisma.CityWhereInput;
+export async function fetchDecisionFacts(realms: Realm[] | null, cityId?: string): Promise<DecisionFacts> {
+    const cityWhere = { ...(realms ? { realm: { in: realms } } : {}), ...CUSTOMER_CITY_WHERE } satisfies Prisma.CityWhereInput;
     const [cities, meetingRows, linkedRows, excerptRows, candidates, polls] = await Promise.all([
         prisma.city.findMany({
             where: { ...cityWhere, ...(cityId ? { id: cityId } : {}) },
             select: cityFactsSelect,
         }),
         prisma.councilMeeting.findMany({
-            where: cityId ? { cityId } : { city: cityWhere },
+            where: cityId ? { cityId, city: cityWhere } : { city: cityWhere },
             select: meetingFactsSelect,
         }),
         prisma.decision.findMany({
@@ -245,7 +250,7 @@ function measureMeeting(
  * group by decision number.
  */
 export async function getMissingSessionGroups(cityId: string): Promise<MissingSessionGroup[]> {
-    return deriveMissingSessionGroups(await fetchDecisionFacts(cityId));
+    return deriveMissingSessionGroups(await fetchDecisionFacts(null, cityId));
 }
 
 /**
@@ -279,8 +284,9 @@ function collectMeetingDatesByCity(meetings: MeetingFacts[]): Map<string, string
 
 /**
  * Health for every city with eligible subjects, or one city when `cityId` is given.
- * Cities outside the Diavgeia realm are returned with `inScope: false` so callers
- * can separate "out of scope" from "not started".
+ * `realms` limits the cities to the realms the viewer administers (null: every
+ * realm). Cities outside the Diavgeia register are returned with `inScope: false`
+ * so callers can separate "out of scope" from "not started".
  *
  * `sinceDays` limits the meeting-derived numbers to the last N days — the
  * overview's signal view. Meetings
@@ -290,10 +296,10 @@ function collectMeetingDatesByCity(meetings: MeetingFacts[]): Map<string, string
  * hidden by the window. A city with neither in-window eligible meetings nor
  * queue work drops out.
  */
-export async function getDecisionHealth(cityId?: string, sinceDays?: number): Promise<CityDecisionHealth[]> {
+export async function getDecisionHealth(realms: Realm[] | null, cityId?: string, sinceDays?: number): Promise<CityDecisionHealth[]> {
     const now = new Date();
     const [facts, conflictList] = await Promise.all([
-        fetchDecisionFacts(cityId),
+        fetchDecisionFacts(realms, cityId),
         // The exact conflict queue, shared with the detail view — the count is
         // the list's length, so the two can never drift apart.
         getConflictingCandidates(cityId ? { cityId } : undefined),
@@ -313,6 +319,8 @@ export async function getDecisionHealth(cityId?: string, sinceDays?: number): Pr
         cityId: city.id,
         cityName: city.name,
         cityNameEn: city.name_en,
+        realm: city.realm,
+        siteUrl: realmBaseUrl(city.realm),
         inScope: city.diavgeiaUid !== null,
         diavgeiaUid: city.diavgeiaUid,
         ...emptyCoverage(),

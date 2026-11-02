@@ -13,9 +13,11 @@ import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
+import type { GrantRole } from "@prisma/client"
 import type { UserWithAdministers } from "@/lib/db/types"
 import { machineAccountAddress, machineAccountSlug } from "@/lib/auth/machineAccounts"
-import { mapAdministersToEntities } from "@/components/admin/users/administers"
+import { GRANT_TYPE_ICON, grantKey, mapAdministersToGrants, type GrantEntry } from "@/components/admin/users/administers"
+import { GRANT_ROLES } from "@/lib/auth/rights"
 import type { AdminEntity } from "@/lib/db/adminEntities"
 import Combobox from "@/components/Combobox"
 import { toast } from "@/hooks/use-toast"
@@ -35,7 +37,7 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
     const validationMessage = useValidationMessage()
     const [loading, setLoading] = useState(false)
     const [entities, setEntities] = useState<AdminEntity[]>([])
-    const [selectedEntities, setSelectedEntities] = useState<AdminEntity[]>([])
+    const [selected, setSelected] = useState<GrantEntry[]>([])
     const [loadingEntities, setLoadingEntities] = useState(false)
     const [label, setLabel] = useState("")
     // A person's email is how they sign in: an edit keeps it locked until
@@ -55,7 +57,7 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
         if (!open) return
         setLabel("")
         setEmailUnlocked(false)
-        setSelectedEntities(user ? mapAdministersToEntities(user.administers) : [])
+        setSelected(user ? mapAdministersToGrants(user.administers) : [])
     }, [open, user])
 
     // The "Change email" link unmounts on click; the field it unlocks takes the focus.
@@ -95,7 +97,9 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
         const name = String(formData.get("name") ?? "")
         const rights = {
             isSuperAdmin: formData.get("isSuperAdmin") === "on",
-            administers: selectedEntities.map(entity => ({
+            administers: selected.map(({ entity, role }) => ({
+                role,
+                realm: entity.type === 'realm' ? entity.id : null,
                 cityId: entity.type === 'city' ? entity.id : null,
                 partyId: entity.type === 'party' ? entity.id : null,
                 personId: entity.type === 'person' ? entity.id : null,
@@ -153,22 +157,33 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
         }
     }
 
-    function addEntity(entityId: string) {
-        const entity = entities.find(e => e.id === entityId)
-        if (entity && !selectedEntities.some(e => e.id === entity.id)) {
-            setSelectedEntities([...selectedEntities, entity])
-        }
+    // A new grant starts as admin, and the badge changes its role. An account
+    // may hold two roles on one entity (the team page gives them), so a badge
+    // offers only the roles the entity's other badges do not hold: two badges
+    // with one key would be removed together.
+    const sameEntity = (a: AdminEntity, b: AdminEntity) => a.type === b.type && a.id === b.id
+    const isSelected = (entity: AdminEntity) => selected.some(grant => sameEntity(grant.entity, entity))
+    const rolesHeld = (entity: AdminEntity) => selected.filter(grant => sameEntity(grant.entity, entity)).map(grant => grant.role)
+
+    function addEntity(entity: AdminEntity) {
+        if (isSelected(entity)) return
+        setSelected([...selected, { key: grantKey(entity, 'admin'), role: 'admin', entity }])
     }
 
-    function removeEntity(entityId: string) {
-        setSelectedEntities(selectedEntities.filter(e => e.id !== entityId))
+    function setRole(key: string, role: GrantRole) {
+        const grant = selected.find(g => g.key === key)
+        if (!grant || rolesHeld(grant.entity).includes(role)) return
+        setSelected(selected.map(g => g.key === key ? { key: grantKey(g.entity, role), role, entity: g.entity } : g))
     }
 
-    const availableEntities = entities.filter(entity =>
-        !selectedEntities.some(selected => selected.id === entity.id)
-    )
+    function removeGrant(key: string) {
+        setSelected(selected.filter(grant => grant.key !== key))
+    }
+
+    const availableEntities = entities.filter(entity => !isSelected(entity))
 
     const groupedEntities = {
+        realms: availableEntities.filter(e => e.type === 'realm'),
         cities: availableEntities.filter(e => e.type === 'city'),
         parties: availableEntities.filter(e => e.type === 'party'),
         people: availableEntities.filter(e => e.type === 'person'),
@@ -268,13 +283,14 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
                                 items={availableEntities}
                                 value={null}
                                 onChange={(entity) => {
-                                    if (entity) addEntity((entity as AdminEntity).id)
+                                    if (entity) addEntity(entity as AdminEntity)
                                 }}
                                 placeholder={loadingEntities ? "Loading..." : "Add entity to administer..."}
                                 searchPlaceholder="Search entities..."
                                 getItemLabel={(entity) => (entity as AdminEntity).displayName}
                                 getItemValue={(entity) => `${(entity as AdminEntity).displayName} ${(entity as AdminEntity).type}`}
                                 groups={[
+                                    { key: 'realms', label: 'Realms', items: groupedEntities.realms },
                                     { key: 'cities', label: 'Cities', items: groupedEntities.cities },
                                     { key: 'parties', label: 'Parties', items: groupedEntities.parties },
                                     { key: 'people', label: 'People', items: groupedEntities.people },
@@ -283,17 +299,22 @@ export function UserDialog<U extends UserWithAdministers>({ open, onOpenChange, 
                                 disabled={loadingEntities}
                             />
                             <div className="flex flex-wrap gap-2 mt-2">
-                                {selectedEntities.map(entity => (
-                                    <Badge key={entity.id} variant="secondary">
-                                        {entity.type === 'city' && '🏛️'}
-                                        {entity.type === 'party' && '👥'}
-                                        {entity.type === 'person' && '👤'}
-                                        {entity.type === 'body' && '🏢'}
-                                        {' '}
-                                        {entity.displayName}
+                                {selected.map(({ key, role, entity }) => (
+                                    <Badge key={key} variant="secondary" className="gap-1">
+                                        {GRANT_TYPE_ICON[entity.type]} {entity.displayName}
+                                        <select
+                                            value={role}
+                                            onChange={(e) => setRole(key, e.target.value as GrantRole)}
+                                            aria-label={`Role on ${entity.displayName}`}
+                                            className="rounded border-0 bg-transparent text-xs"
+                                        >
+                                            {GRANT_ROLES.map(option => (
+                                                <option key={option} value={option} disabled={option !== role && rolesHeld(entity).includes(option)}>{option}</option>
+                                            ))}
+                                        </select>
                                         <button
                                             type="button"
-                                            onClick={() => removeEntity(entity.id)}
+                                            onClick={() => removeGrant(key)}
                                             aria-label={`Remove ${entity.displayName}`}
                                             className="ml-1 hover:text-destructive"
                                         >

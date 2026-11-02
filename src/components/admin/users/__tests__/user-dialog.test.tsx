@@ -8,7 +8,7 @@ jest.mock('@/hooks/useLocalizedValidation', () => ({ useValidationMessage: () =>
 
 const cityAdmin = {
     id: 'u1', email: 'city@example.com', name: 'City Admin', isSuperAdmin: false, isMachine: false,
-    administers: [{ id: 'adm1', city: { id: 'athens', name: 'Athens' }, party: null, person: null, administrativeBody: null }],
+    administers: [{ id: 'adm1', role: 'admin', realm: null, city: { id: 'athens', name: 'Athens' }, party: null, person: null, administrativeBody: null }],
 } as unknown as UserWithAdministers;
 
 const paola = {
@@ -37,6 +37,50 @@ describe('UserDialog grants', () => {
 
         await screen.findByText('New machine account');
         await waitFor(() => expect(screen.queryByText(/Athens/)).not.toBeInTheDocument());
+    });
+});
+
+describe('UserDialog roles', () => {
+    it('sends the grant with its role, and changes the role on the badge', async () => {
+        render(<UserDialog open user={cityAdmin} onOpenChange={() => {}} />);
+        const role = screen.getByRole('combobox', { name: 'Role on Athens' });
+        expect(role).toHaveValue('admin');
+        await userEvent.selectOptions(role, 'records');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(savedBody().method).toBe('PUT'));
+        expect(savedBody().body.administers).toEqual([
+            { role: 'records', realm: null, cityId: 'athens', partyId: null, personId: null, administrativeBodyId: null },
+        ]);
+    });
+
+    // The team page can give one account two roles on one city.
+    it('offers a badge only the roles that the other badges of its entity do not hold', async () => {
+        const twoRoles = { ...cityAdmin, administers: [
+            { id: 'adm1', role: 'records', realm: null, city: { id: 'athens', name: 'Athens' }, party: null, person: null, administrativeBody: null },
+            { id: 'adm3', role: 'meetings', realm: null, city: { id: 'athens', name: 'Athens' }, party: null, person: null, administrativeBody: null },
+        ] } as unknown as UserWithAdministers;
+        render(<UserDialog open user={twoRoles} onOpenChange={() => {}} />);
+        const [records, meetings] = screen.getAllByRole('combobox', { name: 'Role on Athens' });
+        expect(records).toHaveValue('records');
+        expect(screen.getAllByRole('option', { name: 'meetings' })[0]).toBeDisabled();
+        expect(screen.getAllByRole('option', { name: 'records' })[1]).toBeDisabled();
+
+        await userEvent.selectOptions(records, 'meetings');
+        expect(records).toHaveValue('records');
+        expect(meetings).toHaveValue('meetings');
+    });
+
+    it('shows a realm grant and sends it as a realm', async () => {
+        const realmAdmin = { ...cityAdmin, administers: [{ id: 'adm2', role: 'admin', realm: 'greece', city: null, party: null, person: null, administrativeBody: null }] } as unknown as UserWithAdministers;
+        render(<UserDialog open user={realmAdmin} onOpenChange={() => {}} />);
+        expect(screen.getByRole('combobox', { name: 'Role on opencouncil.gr' })).toHaveValue('admin');
+
+        await userEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(savedBody().method).toBe('PUT'));
+        expect(savedBody().body.administers).toEqual([
+            { role: 'admin', realm: 'greece', cityId: null, partyId: null, personId: null, administrativeBodyId: null },
+        ]);
     });
 });
 

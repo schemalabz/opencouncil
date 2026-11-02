@@ -94,12 +94,9 @@ export async function DELETE(
     props: { params: Promise<{ cityId: string, personId: string }> }
 ) {
     const params = await props.params;
-    const authorizedToDelete = await isUserAuthorizedToEdit({})
-    if (!authorizedToDelete) {
-        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
-    }
     try {
-        await deletePerson(params.personId)
+        // deletePerson checks the right of the admin of the city.
+        await deletePerson(params.personId, params.cityId)
         revalidateTag(`city:${params.cityId}:people`, 'max');
         revalidateTag(`city:${params.cityId}:parties`, 'max');
         // The city row carries the roster counts the overview reads to decide
@@ -110,7 +107,6 @@ export async function DELETE(
         revalidatePath(`/admin/people`);
         return NextResponse.json({ message: 'Person deleted successfully' })
     } catch (error) {
-        console.error('Error deleting person:', error)
-        return NextResponse.json({ error: 'Failed to delete person' }, { status: 500 })
+        return handleApiError(error, 'Failed to delete person')
     }
 }

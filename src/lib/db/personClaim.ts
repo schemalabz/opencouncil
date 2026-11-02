@@ -11,7 +11,7 @@ import { getActiveRoleCondition } from "@/lib/utils/roles";
  * and is not a claim. The one statement of that rule for every query here and
  * in users.ts.
  */
-export const claimedLink = { claimedAt: { not: null } } satisfies Prisma.AdministersWhereInput;
+export const claimedLink = { claimedAt: { not: null }, revokedAt: null } satisfies Prisma.AdministersWhereInput;
 
 export type PersonClaimResult =
     | { status: "linked"; cityId: string; cityName: string; personName: string }
@@ -26,8 +26,8 @@ export type PersonClaimStatus = PersonClaimResult["status"];
 /**
  * Make `userId` the account that is `personId`: an Administers row with
  * claimedAt set. A row without claimedAt is a delegate a superadmin added;
- * it does not block a claim, and the person's own scan turns it into the
- * claimed row.
+ * it does not block a claim, and the person's own scan turns their admin
+ * row into the claimed row.
  *
  * The claim also completes the account: the scanner confirmed the name in
  * the join flow, so an account without a name takes the person's, and the
@@ -52,18 +52,21 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
                     cityId: true,
                     name: true,
                     city: { select: { name: true } },
-                    administrators: { select: { id: true, userId: true, claimedAt: true } },
+                    administrators: { where: { revokedAt: null }, select: { id: true, userId: true, role: true, claimedAt: true, acceptedAt: true } },
                 },
             });
             if (!person) return { status: "not_found" };
             const claimed = person.administrators.find((a) => a.claimedAt);
             if (claimed) return { status: claimed.userId === userId ? "already_yours" : "already_linked" };
 
-            const own = person.administrators.find((a) => a.userId === userId);
+            // The claim is the person's own page, so it rides on an admin row:
+            // a narrower role the account holds on the person stays as it is.
+            const own = person.administrators.find((a) => a.userId === userId && a.role === "admin");
             if (own) {
-                await tx.administers.update({ where: { id: own.id }, data: { claimedAt: new Date() } });
+                const now = new Date();
+                await tx.administers.update({ where: { id: own.id }, data: { claimedAt: now, acceptedAt: own.acceptedAt ?? now } });
             } else {
-                await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
+                await tx.administers.create({ data: { userId, personId, claimedAt: new Date(), acceptedAt: new Date() } });
             }
             await closeAppConsent(tx, personId);
             const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });

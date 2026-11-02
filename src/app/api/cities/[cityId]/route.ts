@@ -4,7 +4,7 @@ import { uploadFile } from '@/lib/s3'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
-import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
+import { isUserAuthorizedToEdit, getCurrentUser, hasRight } from '@/lib/auth'
 import { updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { CityUpdateData } from '@/lib/db/types/city'
@@ -30,7 +30,15 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
 
-    // Check if user is superadmin (required for status changes)
+    const city = await getCity(params.cityId);
+    if (!city) {
+        return NextResponse.json({ error: 'City not found' }, { status: 404 });
+    }
+    // The status and the language are tenant-level: the admin of the realm
+    // sets them when they onboard a city, and a city admin must not make
+    // their city a customer. The realm itself names the tenant, so only a
+    // superadmin moves a city to another one.
+    const realmAdmin = await hasRight('admin', { realm: city.realm });
     const currentUser = await getCurrentUser()
     const isSuperAdmin = currentUser?.isSuperAdmin ?? false
 
@@ -81,19 +89,14 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             ...(data.diavgeiaUid !== undefined && { diavgeiaUid: data.diavgeiaUid || null }),
         }
 
-        // Only include admin-only fields if user is superadmin. Realm (tenant)
-        // and language are tenant-level like status, so a city-scoped admin must
-        // not be able to move a city to another realm — or make it a customer.
-        if (isSuperAdmin) {
-            if (data.status !== undefined) {
-                updateData.status = data.status
-            }
-            if (data.language !== undefined) {
-                updateData.language = data.language
-            }
-            if (data.realm !== undefined) {
-                updateData.realm = data.realm
-            }
+        if (realmAdmin && data.status !== undefined) {
+            updateData.status = data.status
+        }
+        if (realmAdmin && data.language !== undefined) {
+            updateData.language = data.language
+        }
+        if (isSuperAdmin && data.realm !== undefined) {
+            updateData.realm = data.realm
         }
 
         // Boundary paste: validate before touching anything so a bad polygon
@@ -112,9 +115,8 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             await updateCityGeometry(params.cityId, boundary.geometry);
         }
 
-        // The message editor is a superadmin tool, so only a superadmin's
-        // request writes the message. Any other request leaves it as it is.
-        if (isSuperAdmin && hasMessage !== undefined) {
+        // A request that says nothing about the message leaves it as it is.
+        if (hasMessage !== undefined) {
             try {
                 if (hasMessage && messageEmoji && messageTitle && messageDescription) {
                     // Upsert message (create or update - overwrites existing)
@@ -156,10 +158,11 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
 
 export async function DELETE(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
-    const authorizedToDelete = await isUserAuthorizedToEdit({})
-    if (!authorizedToDelete) {
-        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
+    try {
+        // deleteCity checks the right of the admin of the city's realm.
+        await deleteCity(params.cityId);
+        return NextResponse.json({ message: 'City deleted successfully' })
+    } catch (error) {
+        return handleApiError(error, 'Failed to delete city');
     }
-    await deleteCity(params.cityId);
-    return NextResponse.json({ message: 'City deleted successfully' })
 }

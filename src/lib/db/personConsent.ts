@@ -2,8 +2,9 @@ import "server-only";
 import { Prisma, VoicePrintConsentSource } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
-import { getCurrentUser } from "@/lib/auth";
-import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
+import { getCurrentUser, hasRight } from "@/lib/auth";
+import { activeGrantWhere } from "@/lib/auth/grants.server";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/api/errors";
 
 const openPeriod = (personId: string) => ({ personId, withdrawnAt: null });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
@@ -68,7 +69,7 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
 
     await writeConsent(async (tx) => {
         // Read inside the write: a permission removed meanwhile refuses it.
-        const row = await tx.administers.findFirst({ where: { userId: user.id, personId }, select: { id: true } });
+        const row = await tx.administers.findFirst({ where: { userId: user.id, personId, ...activeGrantWhere }, select: { id: true } });
         if (!row) throw refused();
 
         const open = await tx.voicePrintConsent.findFirst({ where: openPeriod(personId), select: openPeriodSelect });
@@ -85,18 +86,22 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
 }
 
 /**
- * Record, as a superadmin, a consent that the person gave on paper, or
- * withdraw the one in force on the person's request. The person does not
- * need an account. A grant replaces a consent given in the app with the
- * recorded one, so the box locks; a recorded one stays as it is, so the
- * original time stands. A withdrawal closes the open period, whoever
- * opened it.
+ * Record, as an admin of the person's city, a consent that the person gave
+ * on paper, or withdraw the one in force on the person's request. The
+ * person does not need an account. A grant replaces a consent given in the
+ * app with the recorded one, so the box locks; a recorded one stays as it
+ * is, so the original time stands. A withdrawal closes the open period,
+ * whoever opened it.
  */
 export async function recordVoicePrintConsent(personId: string, consent: boolean): Promise<void> {
     if (typeof consent !== "boolean") throw new BadRequestError("consent must be a boolean");
     const user = await getCurrentUser();
     if (!user) throw new UnauthorizedError("Not signed in");
-    if (!user.isSuperAdmin) throw new ForbiddenError("Only a superadmin can record a voiceprint consent");
+    const person = await prisma.person.findUnique({ where: { id: personId }, select: { cityId: true } });
+    if (!person) throw new NotFoundError("Person not found");
+    if (!(await hasRight("admin", { cityId: person.cityId }))) {
+        throw new ForbiddenError("Only an admin of the city can record a voiceprint consent");
+    }
 
     await writeRecordedConsent(async (tx) => {
         const open = await tx.voicePrintConsent.findFirst({ where: openPeriod(personId), select: openPeriodSelect });

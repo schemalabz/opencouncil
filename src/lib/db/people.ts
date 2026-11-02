@@ -3,6 +3,8 @@ import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleOutput } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
+import { NotFoundError } from "@/lib/api/errors";
+import { activeGrantWhere } from "@/lib/auth/grants.server";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
 import { RoleWithRelations, peopleOnly, roleWithRelationsInclude } from "./types";
@@ -19,8 +21,16 @@ export type PersonWithVoicePrints = PersonWithRelations & {
     _count: { administrators: number };
 };
 
-export async function deletePerson(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+/**
+ * Removes the person with the roles, the attendance, the votes and the
+ * voiceprints on them. The admin of the city may; the admin of the person
+ * or of a body alone may not. The city comes from the URL, so a person of
+ * another city is not found there.
+ */
+export async function deletePerson(id: string, cityId: string): Promise<void> {
+    const person = await prisma.person.findUnique({ where: { id }, select: { cityId: true } });
+    if (!person || person.cityId !== cityId) throw new NotFoundError('Person not found');
+    await withUserAuthorizedToEdit({ cityId });
     try {
         await prisma.person.delete({
             where: { id },
@@ -216,7 +226,7 @@ export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<P
                     },
                     take: 1 // Only get the most recent voiceprint
                 },
-                _count: { select: { administrators: { where: { user: peopleOnly } } } }
+                _count: { select: { administrators: { where: { ...activeGrantWhere, user: peopleOnly } } } }
             }
         });
         return people;

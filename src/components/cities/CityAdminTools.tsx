@@ -1,5 +1,5 @@
 "use client";
-import { City, CityMessage } from '@prisma/client';
+import { City, CityMessage, Realm } from '@prisma/client';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Code, Database } from 'lucide-react';
@@ -19,6 +19,8 @@ type CityAdminToolsProps = {
     /** Resolved on the server, so the controls are right on first paint. */
     canEdit: boolean;
     isSuperAdmin: boolean;
+    /** The realms for the city form: see CityForm's `realms`. */
+    formRealms?: Realm[];
 };
 
 /**
@@ -33,7 +35,7 @@ type CityAdminToolsProps = {
  * Faded on purpose: it has to be legible as a boundary without competing with
  * the city name beside it.
  */
-export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin }: CityAdminToolsProps) {
+export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, formRealms }: CityAdminToolsProps) {
     const t = useTranslations('City');
     const locale = useLocale();
     const { toast } = useToast();
@@ -80,7 +82,7 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin }: Cit
                 <>
                     <FormSheet
                         FormComponent={CityForm}
-                        formProps={{ city, cityMessage }}
+                        formProps={{ city, cityMessage, realms: formRealms }}
                         title={t('editCity')}
                         description={getLocalizedName(city, locale)}
                         type="edit"

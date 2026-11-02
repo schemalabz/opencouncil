@@ -35,6 +35,8 @@ interface TopicDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     topic?: Topic;
+    /** The realms the viewer may give a topic. */
+    realms: Realm[];
     /** Realm a newly-created topic defaults to (the admin's current host realm). */
     defaultRealm: Realm;
     existingColors: string[];
@@ -42,7 +44,7 @@ interface TopicDialogProps {
 }
 const NONE_ICON = "__none__";
 
-export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingColors, onSaved }: TopicDialogProps) {
+export function TopicDialog({ open, onOpenChange, topic, realms, defaultRealm, existingColors, onSaved }: TopicDialogProps) {
     const isEditing = !!topic;
     const locale = useLocale();
     const validationMessage = useValidationMessage();
@@ -249,7 +251,7 @@ export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingC
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {ALL_REALMS.map((r) => (
+                                {ALL_REALMS.filter((r) => realms.includes(r)).map((r) => (
                                     <SelectItem key={r} value={r}>
                                         {realmLabel(r)}
                                     </SelectItem>

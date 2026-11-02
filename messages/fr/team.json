@@ -1,0 +1,67 @@
+{
+    "title": "Équipe",
+    "lead": "Les personnes qui détiennent un rôle sur vos domaines, vos communes et vos organes administratifs.",
+    "invite": "Inviter",
+    "showRevoked": "Afficher les droits révoqués",
+    "empty": "Personne ne détient encore de droit ici.",
+    "noName": "Sans nom",
+    "columns": {
+        "name": "Nom",
+        "email": "E-mail",
+        "role": "Rôle",
+        "scope": "Périmètre",
+        "since": "Depuis",
+        "grantedBy": "Accordé par",
+        "status": "Statut"
+    },
+    "role": {
+        "admin": "Administrateur",
+        "records": "Procès-verbaux",
+        "meetings": "Séances",
+        "highlights": "Extraits",
+        "viewer": "Lecteur"
+    },
+    "status": {
+        "active": "Actif",
+        "pending": "En attente",
+        "expired": "Expiré",
+        "revoked": "Révoqué"
+    },
+    "scopeKind": {
+        "realm": "Domaine",
+        "city": "Commune",
+        "body": "Organe administratif",
+        "party": "Groupe",
+        "person": "Personne"
+    },
+    "revoke": {
+        "action": "Révoquer",
+        "title": "Révoquer le droit",
+        "description": "Le compte conserve tous ses autres droits. Le droit reste dans la liste comme révoqué.",
+        "failed": "Le droit n'a pas pu être révoqué."
+    },
+    "dialog": {
+        "title": "Inviter dans l'équipe",
+        "description": "Un nouvel e-mail reçoit un compte et un e-mail d'invitation. Un compte existant reçoit seulement le rôle.",
+        "email": "E-mail",
+        "name": "Nom (facultatif)",
+        "role": "Rôle",
+        "scopeKind": "Périmètre",
+        "realm": "Domaine",
+        "city": "Commune",
+        "body": "Organe administratif",
+        "pick": "Sélectionner…",
+        "submit": "Envoyer l'invitation",
+        "sending": "Envoi…",
+        "cancel": "Annuler",
+        "emailFailed": "Le rôle est attribué, mais l'e-mail d'invitation n'a pas pu être envoyé. Demandez à la personne de se connecter avec son e-mail."
+    },
+    "errors": {
+        "last-admin": "C'est le dernier administrateur du périmètre. Seul un administrateur du périmètre supérieur peut le révoquer.",
+        "cap": "Le périmètre a atteint sa limite d'administrateurs.",
+        "machine-address": "Cette adresse est réservée aux comptes machine.",
+        "claimed": "La personne a revendiqué ce droit. Seul un superadministrateur peut le retirer, sur la page des utilisateurs.",
+        "duplicate": "Le compte détient déjà ce rôle sur ce périmètre."
+    },
+    "errorGeneric": "Une erreur est survenue. Réessayez."
+}

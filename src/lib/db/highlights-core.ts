@@ -3,9 +3,11 @@
 // a Server Action. Only highlights.ts (session wrapper) and the MCP server may
 // import them.
 import "server-only";
-import { AdministrativeBody, City, CouncilMeeting, Highlight, Subject, User, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
+import { City, CouncilMeeting, Highlight, Subject, User, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
 import prisma from "./prisma";
 import { ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
+import { emptyReach, reachOf, type Reach, type Right } from "@/lib/auth/rights";
+import { hasRightOn, loadActor } from "@/lib/auth/grants.server";
 import { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT } from "../highlights/constants";
 
 export { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT };
@@ -121,97 +123,36 @@ export async function getHighlightStatistics(
 }
 
 /**
- * What a user may edit without a session. `all` is true for a superadmin.
- * `cityIds` are the cities the user administers. `bodies` maps each
- * administrative body the user administers to its city (#828): a body admin
- * edits the meetings of that body, and nothing else in the city.
+ * How far a user's right reaches, without a session (see reachOf in
+ * src/lib/auth/rights.ts): `all` for a superadmin, else the realms, the
+ * cities and the bodies (each with its city) whose grant carries the right.
  */
-export type UserCityRights = {
-    all: boolean;
-    cityIds: Set<City["id"]>;
-    bodies: Map<AdministrativeBody["id"], City["id"]>;
-};
+export type UserCityRights = Reach;
 
-const userRightsSelect = {
-    isSuperAdmin: true,
-    administers: {
-        select: {
-            cityId: true,
-            administrativeBodyId: true,
-            administrativeBody: { select: { cityId: true } },
-        },
-    },
-} satisfies Prisma.UserSelect;
-
-type UserRightsRow = Prisma.UserGetPayload<{ select: typeof userRightsSelect }>;
-
-/**
- * Session-free read of what a user may edit: a superadmin may edit every
- * city, any other user the cities and the bodies they directly administer.
- * Same semantics as the cityId branches of checkUserAuthorization in
- * src/lib/auth.ts.
- */
-export async function getUserCityRights(userId: string): Promise<UserCityRights> {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: userRightsSelect,
-    });
-
-    if (!user) return { all: false, cityIds: new Set(), bodies: new Map() };
-    return cityRightsOf(user);
+/** Session-free read of how far a user's right reaches. */
+export async function getUserCityRights(userId: string, right: Right): Promise<UserCityRights> {
+    const actor = await loadActor(userId);
+    return actor ? reachOf(actor, right) : emptyReach();
 }
 
-/** The rule itself, for a caller that already holds the user row. */
-export function cityRightsOf(user: UserRightsRow): UserCityRights {
-    if (user.isSuperAdmin) return { all: true, cityIds: new Set(), bodies: new Map() };
-    const bodies = new Map<string, string>();
-    for (const a of user.administers) {
-        if (a.administrativeBodyId && a.administrativeBody) {
-            bodies.set(a.administrativeBodyId, a.administrativeBody.cityId);
-        }
-    }
-    return {
-        all: false,
-        cityIds: new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id)),
-        bodies,
-    };
-}
-
-/** Session-free check of whether a user may edit one city. */
-export async function canUserEditCity(userId: string, cityId: City["id"]): Promise<boolean> {
-    const rights = await getUserCityRights(userId);
-    return rights.all || rights.cityIds.has(cityId);
+/** Session-free check of a right on one city. A body grant never passes this one. */
+export async function canUserEditCity(userId: string, cityId: City["id"], right: Right): Promise<boolean> {
+    const actor = await loadActor(userId);
+    return actor !== null && hasRightOn(actor, right, { cityId });
 }
 
 /**
- * Whether a meeting belongs to one of the given bodies. The MCP admin guards
- * ask this with the bodies they already resolved for the request.
- */
-export async function meetingHasBodyIn(
-    cityId: City["id"],
-    meetingId: CouncilMeeting["id"],
-    bodyIds: ReadonlySet<AdministrativeBody["id"]>
-): Promise<boolean> {
-    if (bodyIds.size === 0) return false;
-    const meeting = await prisma.councilMeeting.findUnique({
-        where: { cityId_id: { cityId, id: meetingId } },
-        select: { administrativeBodyId: true },
-    });
-    return !!meeting?.administrativeBodyId && bodyIds.has(meeting.administrativeBodyId);
-}
-
-/**
- * Session-free check of whether a user may edit one meeting: a superadmin, an
- * admin of the city, or an admin of the body that holds the meeting.
+ * Session-free check of a right on one meeting: a grant on the city or on
+ * the body that holds the meeting.
  */
 export async function canUserEditMeeting(
     userId: string,
     cityId: City["id"],
-    meetingId: CouncilMeeting["id"]
+    meetingId: CouncilMeeting["id"],
+    right: Right
 ): Promise<boolean> {
-    const rights = await getUserCityRights(userId);
-    if (rights.all || rights.cityIds.has(cityId)) return true;
-    return meetingHasBodyIn(cityId, meetingId, new Set(rights.bodies.keys()));
+    const actor = await loadActor(userId);
+    return actor !== null && hasRightOn(actor, right, { cityId, councilMeetingId: meetingId });
 }
 
 /**
@@ -224,7 +165,7 @@ export async function canActorManageHighlight(
     highlight: { cityId: City["id"]; meetingId: CouncilMeeting["id"]; createdById: string | null }
 ): Promise<boolean> {
     if (highlight.createdById === userId) return true;
-    return canUserEditMeeting(userId, highlight.cityId, highlight.meetingId);
+    return canUserEditMeeting(userId, highlight.cityId, highlight.meetingId, 'highlight.manage');
 }
 
 async function getCityHighlightPermission(cityId: City["id"]) {
@@ -261,7 +202,7 @@ export async function upsertHighlightCore(
 
     const [highlightPermission, canEdit, existingHighlight, utterances, subject] = await Promise.all([
         getCityHighlightPermission(cityId),
-        canUserEditMeeting(userId, cityId, meetingId),
+        canUserEditMeeting(userId, cityId, meetingId, 'highlight.manage'),
         id ? prisma.highlight.findUnique({
             where: { id },
             select: {

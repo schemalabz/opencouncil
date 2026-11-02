@@ -877,7 +877,8 @@
     "adminCity": "Gérer la ville",
     "adminParty": "Gérer le groupe",
     "adminPerson": "Gérer le membre",
-    "adminBody": "Gérer l'organe"
+    "adminBody": "Gérer l'organe",
+    "adminRealm": "Gérer le pays"
   },
   "ReportForm": {
     "title": "Créer un rapport d’avancement",

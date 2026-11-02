@@ -2,6 +2,7 @@
 import { City, CouncilMeeting, Highlight, HighlightCreationPermission, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { actorOf, reachOf } from "@/lib/auth/rights";
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
 import {
     highlightWithUtterancesInclude,
@@ -115,17 +116,18 @@ export async function getHighlightsForMeeting(
 /**
  * Whether to offer the signed-in user the personal highlights page.
  *
- * True when they can create a highlight somewhere: a superadmin and a city
- * administrator always can, anyone can in a city that opens creation to
- * everyone. Also true when they already hold a highlight, so that a city which
- * closes creation again does not strand the author of one. False for everyone
- * else, who would only ever reach an empty page with no way to fill it.
+ * True when they can create a highlight somewhere: a superadmin, and anyone
+ * who manages highlights of a realm, a city or a body, always can; anyone
+ * can in a city that opens creation to everyone. Also true when they already
+ * hold a highlight, so that a city which closes creation again does not
+ * strand the author of one. False for everyone else, who would only ever
+ * reach an empty page with no way to fill it.
  */
 export async function canAccessMyHighlights(): Promise<boolean> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return false;
-    if (currentUser.isSuperAdmin) return true;
-    if (currentUser.administers.some(administers => administers.cityId !== null || administers.administrativeBodyId !== null)) return true;
+    const reach = reachOf(actorOf(currentUser), 'highlight.manage');
+    if (reach.all || reach.realms.size > 0 || reach.cityIds.size > 0 || reach.bodies.size > 0) return true;
 
     const openCity = await prisma.city.findFirst({
         where: { highlightCreationPermission: HighlightCreationPermission.EVERYONE },
@@ -150,9 +152,9 @@ export async function canAccessMyHighlights(): Promise<boolean> {
  * highlights of any user.
  *
  * A highlight on an unreleased meeting stays hidden, the same rule
- * getCouncilMeeting applies: the meeting page 404s for anyone who cannot edit
- * the city, so listing the highlight would only show a dead link and the name
- * and date of a draft meeting.
+ * getCouncilMeeting applies: the meeting page 404s for anyone who may not
+ * read the drafts of the city, so listing the highlight would only show a
+ * dead link and the name and date of a draft meeting.
  */
 export async function getMyHighlights(): Promise<MyHighlights> {
     const currentUser = await getCurrentUser();
@@ -160,20 +162,15 @@ export async function getMyHighlights(): Promise<MyHighlights> {
         throw new UnauthorizedError("You must be signed in to list your highlights");
     }
 
-    const editableCityIds = currentUser.administers
-        .map(administers => administers.cityId)
-        .filter((cityId): cityId is string => cityId !== null);
-    const editableBodyIds = currentUser.administers
-        .map(administers => administers.administrativeBodyId)
-        .filter((bodyId): bodyId is string => !!bodyId);
-
-    const visibleMeetings: Prisma.HighlightWhereInput = currentUser.isSuperAdmin
+    const reach = reachOf(actorOf(currentUser), 'drafts.read');
+    const visibleMeetings: Prisma.HighlightWhereInput = reach.all
         ? {}
         : {
             OR: [
                 { meeting: { released: true } },
-                ...(editableCityIds.length > 0 ? [{ cityId: { in: editableCityIds } }] : []),
-                ...(editableBodyIds.length > 0 ? [{ meeting: { administrativeBodyId: { in: editableBodyIds } } }] : []),
+                ...(reach.realms.size > 0 ? [{ meeting: { city: { realm: { in: [...reach.realms] } } } }] : []),
+                ...(reach.cityIds.size > 0 ? [{ cityId: { in: [...reach.cityIds] } }] : []),
+                ...(reach.bodies.size > 0 ? [{ meeting: { administrativeBodyId: { in: [...reach.bodies.keys()] } } }] : []),
             ]
         };
 

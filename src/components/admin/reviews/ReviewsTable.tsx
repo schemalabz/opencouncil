@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
+import { realmPageUrl } from '@/lib/utils/realmPageUrl';
 import { formatDistanceToNow } from 'date-fns';
 import { formatDurationMs, formatNumericDate } from '@/lib/formatters/time';
 import { ExternalLink, AlertCircle, Clock, Info, Eye, CheckCircle, Loader2 } from 'lucide-react';
@@ -38,6 +40,7 @@ interface ReviewsTableProps {
 }
 
 export function ReviewsTable({ reviews }: ReviewsTableProps) {
+  const locale = useLocale();
   const [selectedReviewId, setSelectedReviewId] = useState<{cityId: string, meetingId: string} | null>(null);
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<ReviewDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -392,7 +395,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               onSuccess={handleCloseDetail}
             />
 
-            <Link href={`/${selectedReviewDetail.cityId}/${selectedReviewDetail.meetingId}/transcript`}>
+            <Link href={realmPageUrl(selectedReviewDetail.siteUrl, locale, `/${selectedReviewDetail.cityId}/${selectedReviewDetail.meetingId}/transcript`)}>
               <Button variant="outline" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Go to Transcript Review

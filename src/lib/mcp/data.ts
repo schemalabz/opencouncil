@@ -18,7 +18,7 @@ import {
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
 import { REALMS } from '@/lib/realm';
-import { requireSuperadmin } from './adminAccess';
+import { requireRealmRight } from './adminAccess';
 import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
 import { getTranscript } from '@/lib/db/transcript';
 import { getMeetingTaskStatus } from '@/lib/db/tasks';
@@ -29,6 +29,7 @@ import { getTaskNotificationOutcome } from '@/lib/notifications/meetingNotificat
 import { notificationOutcomeEn } from '@/lib/notifications/outcomeTextEn';
 import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
+import { emptyReach } from '@/lib/auth/rights';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
@@ -142,14 +143,15 @@ function mapRoles(person: PersonWithRelations) {
 // --- Cities ---------------------------------------------------------------
 
 /**
- * The public cities of the connection's realm. A superadmin may name another
- * realm and include the cities that are not public yet: adding a city starts
- * by checking that it does not exist already.
+ * The public cities of the connection's realm. An admin of a realm (a
+ * superadmin administers every one) may name it and include the cities that
+ * are not public yet: adding a city starts by checking that it does not
+ * exist already.
  */
 export async function mcpListCities(identity: McpIdentity, args: { realm?: Realm; includePending?: boolean } = {}) {
     const widened = args.realm !== undefined || args.includePending === true;
-    if (widened) await requireSuperadmin(identity);
     const realm = args.realm ?? currentRealm();
+    if (widened) await requireRealmRight(identity, 'admin', realm);
     const cities = args.includePending ? await listCitiesWithCounts({ realm }) : await getCities({}, realm);
     cities.forEach((city) => rememberCityRealm(city.id, realm));
     return {
@@ -1001,8 +1003,8 @@ export async function mcpSearch(
  * `search` does not: it returns released subjects only, for every identity.
  */
 async function editableCities(identity: McpIdentity): Promise<UserCityRights> {
-    if (!identity) return { all: false, cityIds: new Set(), bodies: new Map() };
-    return getUserCityRights(identity.userId);
+    if (!identity) return emptyReach();
+    return getUserCityRights(identity.userId, 'highlight.manage');
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------
@@ -1201,7 +1203,9 @@ export async function mcpListHighlights(
     const scope = await editableCities(identity);
     const ownership: Prisma.HighlightWhereInput[] = [
         { createdById: identity.userId },
+        ...(scope.realms.size > 0 ? [{ meeting: { city: { realm: { in: [...scope.realms] } } } }] : []),
         ...(scope.cityIds.size > 0 ? [{ cityId: { in: [...scope.cityIds] } }] : []),
+        ...(scope.bodies.size > 0 ? [{ meeting: { administrativeBodyId: { in: [...scope.bodies.keys()] } } }] : []),
     ];
 
     // A named city passed the realm guard; without one the list is the realm's.
@@ -1259,7 +1263,7 @@ export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId
     if (!highlight) throw new NotFoundError('Highlight not found');
     await requireRealmCity(highlight.cityId);
 
-    const canEdit = await canUserEditCity(identity.userId, highlight.cityId);
+    const canEdit = await canUserEditCity(identity.userId, highlight.cityId, 'highlight.manage');
     if (!canEdit) {
         throw new ForbiddenError('Only city administrators can showcase highlights');
     }

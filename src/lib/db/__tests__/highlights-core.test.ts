@@ -27,6 +27,8 @@ import {
     upsertHighlightCore, canUserEditCity, canUserEditMeeting, canActorManageHighlight, getUserCityRights,
 } from '../highlights-core';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../../api/errors';
+import type { ActiveGrant } from '@/lib/auth/rights';
+import { bodyGrant, cityGrant, grant } from '@/lib/auth/__tests__/fixtures';
 
 const DATA = {
     name: 'Test highlight',
@@ -42,17 +44,14 @@ function setCityPermission(permission: 'EVERYONE' | 'ADMINS_ONLY') {
     mockCityFindUnique.mockResolvedValue({ highlightCreationPermission: permission });
 }
 
-type Administers = { cityId: string | null; administrativeBodyId?: string; administrativeBody?: { cityId: string } };
-
-function setUser(user: { isSuperAdmin?: boolean; administers?: Administers[] } | null) {
+function setUser(user: { isSuperAdmin?: boolean; administers?: ActiveGrant[] } | null) {
     mockUserFindUnique.mockResolvedValue(
         user ? { isSuperAdmin: user.isSuperAdmin ?? false, administers: user.administers ?? [] } : null
     );
 }
 
 // An admin of one body of a city, and of nothing else.
-const bodyAdminOf = (bodyId: string, cityId: string): Administers =>
-    ({ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } });
+const bodyAdminOf = (bodyId: string, cityId: string) => bodyGrant(bodyId, cityId);
 
 function setMeetingBody(administrativeBodyId: string | null) {
     mockMeetingFindUnique.mockResolvedValue({ administrativeBodyId });
@@ -77,63 +76,78 @@ beforeEach(() => {
 describe('canUserEditCity', () => {
     it('is true for superadmins and city admins, false otherwise', async () => {
         setUser({ isSuperAdmin: true });
-        expect(await canUserEditCity('u1', 'athens')).toBe(true);
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(true);
 
-        setUser({ administers: [{ cityId: 'athens' }] });
-        expect(await canUserEditCity('u1', 'athens')).toBe(true);
+        setUser({ administers: [cityGrant('athens')] });
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(true);
 
-        setUser({ administers: [{ cityId: 'argos' }] });
-        expect(await canUserEditCity('u1', 'athens')).toBe(false);
+        setUser({ administers: [cityGrant('argos')] });
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(false);
 
         setUser(null);
-        expect(await canUserEditCity('u1', 'athens')).toBe(false);
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(false);
+    });
+
+    it('asks for the right, not for the grant: a viewer reads drafts and manages no highlight', async () => {
+        setUser({ administers: [cityGrant('athens', 'viewer')] });
+        expect(await canUserEditCity('u1', 'athens', 'drafts.read')).toBe(true);
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(false);
+        setUser({ administers: [cityGrant('athens', 'highlights')] });
+        expect(await canUserEditCity('u1', 'athens', 'highlight.manage')).toBe(true);
     });
 });
 
 describe('getUserCityRights', () => {
     it('maps each administered body to its city, and ignores party and person rights', async () => {
-        setUser({ administers: [{ cityId: 'argos' }, { cityId: null }, bodyAdminOf('council', 'athens')] });
-        expect(await getUserCityRights('u1')).toEqual({
-            all: false, cityIds: new Set(['argos']), bodies: new Map([['council', 'athens']]),
+        setUser({ administers: [cityGrant('argos'), grant({ partyId: 'p1' }), bodyAdminOf('council', 'athens')] });
+        expect(await getUserCityRights('u1', 'highlight.manage')).toEqual({
+            all: false, realms: new Set(), cityIds: new Set(['argos']), bodies: new Map([['council', 'athens']]),
+        });
+    });
+
+    it('lists the scopes whose role carries the right only', async () => {
+        setUser({ administers: [cityGrant('argos', 'viewer'), bodyAdminOf('council', 'athens')] });
+        expect(await getUserCityRights('u1', 'highlight.manage')).toEqual({
+            all: false, realms: new Set(), cityIds: new Set(), bodies: new Map([['council', 'athens']]),
         });
     });
 
     it('gives a superadmin everything and lists nothing', async () => {
         setUser({ isSuperAdmin: true, administers: [bodyAdminOf('council', 'athens')] });
-        expect(await getUserCityRights('u1')).toEqual({ all: true, cityIds: new Set(), bodies: new Map() });
+        expect(await getUserCityRights('u1', 'highlight.manage')).toEqual({ all: true, realms: new Set(), cityIds: new Set(), bodies: new Map() });
     });
 });
 
 describe('canUserEditMeeting', () => {
     it('is true for superadmins and city admins without reading the meeting', async () => {
         setUser({ isSuperAdmin: true });
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(true);
-        setUser({ administers: [{ cityId: 'athens' }] });
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(true);
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(true);
+        setUser({ administers: [cityGrant('athens')] });
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(true);
         expect(mockMeetingFindUnique).not.toHaveBeenCalled();
     });
 
     it('is true for the admin of the body that holds the meeting', async () => {
         setUser({ administers: [bodyAdminOf('council', 'athens')] });
         setMeetingBody('council');
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(true);
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(true);
         expect(mockMeetingFindUnique).toHaveBeenCalledWith(expect.objectContaining({
             where: { cityId_id: { cityId: 'athens', id: 'm1' } },
         }));
 
         setMeetingBody('committee');
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(false);
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(false);
         setMeetingBody(null);
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(false);
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(false);
         mockMeetingFindUnique.mockResolvedValue(null);
-        expect(await canUserEditMeeting('u1', 'athens', 'missing')).toBe(false);
+        expect(await canUserEditMeeting('u1', 'athens', 'missing', 'highlight.manage')).toBe(false);
     });
 
     it('is false for a user with no rights, without reading the meeting', async () => {
-        setUser({ administers: [{ cityId: 'argos' }] });
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(false);
+        setUser({ administers: [cityGrant('argos')] });
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(false);
         setUser(null);
-        expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(false);
+        expect(await canUserEditMeeting('u1', 'athens', 'm1', 'highlight.manage')).toBe(false);
         expect(mockMeetingFindUnique).not.toHaveBeenCalled();
     });
 });
@@ -147,7 +161,7 @@ describe('canActorManageHighlight', () => {
     });
 
     it('allows city editors and rejects unrelated users', async () => {
-        setUser({ administers: [{ cityId: 'athens' }] });
+        setUser({ administers: [cityGrant('athens')] });
         expect(await canActorManageHighlight(OTHER_USER, highlight)).toBe(true);
 
         setUser({ administers: [] });
@@ -173,10 +187,14 @@ describe('upsertHighlightCore authorization', () => {
         await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow(ForbiddenError);
     });
 
-    it('ADMINS_ONLY: allows city admins', async () => {
+    it('ADMINS_ONLY: allows city admins and the highlights role, and refuses a viewer', async () => {
         setCityPermission('ADMINS_ONLY');
-        setUser({ administers: [{ cityId: 'athens' }] });
+        setUser({ administers: [cityGrant('athens')] });
         await expect(upsertHighlightCore(USER, DATA)).resolves.toMatchObject({ id: 'h1' });
+        setUser({ administers: [cityGrant('athens', 'highlights')] });
+        await expect(upsertHighlightCore(USER, DATA)).resolves.toMatchObject({ id: 'h1' });
+        setUser({ administers: [cityGrant('athens', 'viewer')] });
+        await expect(upsertHighlightCore(USER, DATA)).rejects.toThrow(ForbiddenError);
     });
 
     it('ADMINS_ONLY: allows the admin of the body that holds the meeting, and no other body admin', async () => {

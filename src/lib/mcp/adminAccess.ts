@@ -1,32 +1,36 @@
 import "server-only";
-import prisma from '@/lib/db/prisma';
+import type { Realm } from '@prisma/client';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
-import { getUserCityRights, meetingHasBodyIn } from '@/lib/db/highlights-core';
+import { adminRealms, roleHasRight, type ActiveGrant, type Right } from '@/lib/auth/rights';
+import { hasRightOn, loadActor, type LoadedActor } from '@/lib/auth/grants.server';
 import type { McpIdentity } from './auth';
 import { mcpRealmStore } from './realm-context';
 
 /**
- * What the caller may administer through the MCP admin tools. `null` means no
- * admin tools at all.
+ * Who the caller is to the MCP admin tools: the owner of the token as an
+ * actor of the rights model (#875). `null` means no admin tools at all.
  *
  * A token carries the rights of its owner on the site, read from the
  * database at each request: the same account, the same rights, on the admin
  * pages and through an assistant.
- * `bodyIds` are the administrative bodies the owner administers directly
- * (#828): a body admin reaches the meetings of those bodies, and nothing
- * else in the city.
  */
-export type McpAdminAccess = {
-    superadmin: boolean;
-    cityIds: ReadonlySet<string>;
-    bodyIds: ReadonlySet<string>;
-};
+export type McpAdminAccess = LoadedActor;
+
+/** The rights the admin suite exercises. A grant with none of them gets no admin tool. */
+const ADMIN_SUITE_RIGHTS: Right[] = ['meeting.manage', 'tasks.run'];
+
+/** A grant on a realm, a city or a body whose role has a right of the suite. */
+function opensAdminSuite(grant: ActiveGrant): boolean {
+    const onCouncil = Boolean(grant.realm || grant.cityId || grant.administrativeBodyId);
+    return onCouncil && ADMIN_SUITE_RIGHTS.some((right) => roleHasRight(grant.role, right));
+}
 
 export async function resolveAdminAccess(identity: McpIdentity): Promise<McpAdminAccess | null> {
     if (!identity) return null;
-    const rights = await getUserCityRights(identity.userId);
-    if (!rights.all && rights.cityIds.size === 0 && rights.bodies.size === 0) return null;
-    return { superadmin: rights.all, cityIds: rights.cityIds, bodyIds: new Set(rights.bodies.keys()) };
+    const actor = await loadActor(identity.userId);
+    if (!actor) return null;
+    if (!actor.isSuperAdmin && !actor.grants.some(opensAdminSuite)) return null;
+    return actor;
 }
 
 /**
@@ -45,37 +49,52 @@ async function requireAdminAccess(identity: McpIdentity): Promise<McpAdminAccess
     return access;
 }
 
-function administersCity(access: McpAdminAccess, cityId: string): boolean {
-    return access.superadmin || access.cityIds.has(cityId);
-}
-
-/** A city admin. A body admin never passes this one. */
-export async function requireCityAdmin(identity: McpIdentity, cityId: string): Promise<void> {
+/** The right on a city. A body grant never passes this one. */
+export async function requireCityRight(identity: McpIdentity, right: Right, cityId: string): Promise<void> {
     const access = await requireAdminAccess(identity);
-    if (!administersCity(access, cityId)) {
+    if (!(await hasRightOn(access, right, { cityId }))) {
         throw new ForbiddenError(`You do not administer ${cityId}.`);
     }
 }
 
-/** A city admin, or an admin of the body that holds the meeting. */
-export async function requireMeetingAdmin(identity: McpIdentity, cityId: string, meetingId: string): Promise<void> {
+/** The right on a meeting: a grant on the city, or on the body that holds the meeting. */
+export async function requireMeetingRight(identity: McpIdentity, right: Right, cityId: string, meetingId: string): Promise<void> {
     const access = await requireAdminAccess(identity);
-    if (administersCity(access, cityId)) return;
-    if (await meetingHasBodyIn(cityId, meetingId, access.bodyIds)) return;
-    throw new ForbiddenError(`You do not administer meeting ${meetingId} of ${cityId}.`);
+    if (!(await hasRightOn(access, right, { cityId, councilMeetingId: meetingId }))) {
+        throw new ForbiddenError(`You do not administer meeting ${meetingId} of ${cityId}.`);
+    }
 }
 
-/** A city admin, or an admin of that body, for a body of that city. */
-export async function requireBodyAdmin(identity: McpIdentity, cityId: string, bodyId: string): Promise<void> {
+/** The right on a body of that city: a grant on the city, or on that body. */
+export async function requireBodyRight(identity: McpIdentity, right: Right, cityId: string, bodyId: string): Promise<void> {
     const access = await requireAdminAccess(identity);
-    if (administersCity(access, cityId) || access.bodyIds.has(bodyId)) {
-        const body = await prisma.administrativeBody.findUnique({ where: { id: bodyId }, select: { cityId: true } });
-        if (body?.cityId === cityId) return;
+    if (!(await hasRightOn(access, right, { cityId, administrativeBodyId: bodyId }))) {
+        throw new ForbiddenError(`You do not administer body ${bodyId} of ${cityId}.`);
     }
-    throw new ForbiddenError(`You do not administer body ${bodyId} of ${cityId}.`);
+}
+
+/** The right on a realm: a grant on that realm. A superadmin passes every realm. */
+export async function requireRealmRight(identity: McpIdentity, right: Right, realm: Realm): Promise<void> {
+    const access = await requireAdminAccess(identity);
+    if (!(await hasRightOn(access, right, { realm }))) {
+        throw new ForbiddenError(`You do not administer the ${realm} realm.`);
+    }
+}
+
+/**
+ * The realms the caller administers: null for a superadmin, who administers
+ * every realm; the realms of their `admin` grants otherwise. Throws for a
+ * caller who administers none.
+ */
+export async function requireAdminRealms(identity: McpIdentity): Promise<Realm[] | null> {
+    const access = await requireAdminAccess(identity);
+    if (access.isSuperAdmin) return null;
+    const realms = adminRealms(access);
+    if (realms.length === 0) throw new ForbiddenError('This operation needs the rights of a realm administrator.');
+    return realms;
 }
 
 export async function requireSuperadmin(identity: McpIdentity): Promise<void> {
     const access = await requireAdminAccess(identity);
-    if (!access.superadmin) throw new ForbiddenError('This operation needs superadmin rights.');
+    if (!access.isSuperAdmin) throw new ForbiddenError('This operation needs superadmin rights.');
 }

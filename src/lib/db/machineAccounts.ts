@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { machineAccountAddress, machineAccountSlug } from "@/lib/auth/machineAccounts";
+import { DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
 import type { CreateMachineAccountInput } from "@/lib/zod-schemas/user";
 import { machineAccountWithTokensInclude, machineAccountsOnly, type MachineAccountWithTokens } from "@/lib/db/types";
 
@@ -66,12 +67,15 @@ export async function createMachineAccount(data: CreateMachineAccountInput) {
                 allowFeedbackCalls: false,
                 notifyByPhone: false,
                 administers: {
-                    create: data.administers
+                    create: data.administers?.map((row) => ({ ...row, acceptedAt: new Date() }))
                 }
             },
             select: machineAccountSelect,
         });
     } catch (error) {
+        if (isDuplicateGrant(error)) {
+            throw new ConflictError(DUPLICATE_GRANT_MESSAGE);
+        }
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
             throw new ConflictError(`A machine account with the address ${machineAccountAddress(slug)} already exists.`);
         }

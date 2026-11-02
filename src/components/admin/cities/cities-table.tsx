@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { City, CityStatus, Realm } from "@prisma/client";
 import { useLocale, useTranslations } from "next-intl";
+import { realmPageUrl } from "@/lib/utils/realmPageUrl";
 import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
 import { getLanguageDisplayName } from "@/i18n/config";
@@ -21,10 +22,13 @@ import FormSheet from "@/components/FormSheet";
 import CityForm from "@/components/cities/CityForm";
 
 type CityCounts = { persons: number; parties: number; councilMeetings: number };
-type CityRow = City & { _count: CityCounts };
+/** `siteUrl` is the base URL of the city's realm domain, where its pages live. */
+type CityRow = City & { _count: CityCounts; siteUrl: string };
 
 interface CitiesAdminTableProps {
     cities: CityRow[];
+    /** The realms the viewer may add a city to. */
+    realms: Realm[];
 }
 
 const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = {
@@ -33,7 +37,7 @@ const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = 
     pending: "outline",
 };
 
-export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
+export function CitiesAdminTable({ cities, realms }: CitiesAdminTableProps) {
     const t = useTranslations("admin.cities");
     const locale = useLocale();
     const [searchTerm, setSearchTerm] = useState("");
@@ -68,7 +72,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                 </div>
                 <FormSheet
                     FormComponent={CityForm}
-                    formProps={{}}
+                    formProps={{ realms }}
                     title={t("addCity")}
                     type="add"
                     closeOnSuccess
@@ -116,7 +120,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                                             <TableCell className="font-medium">{city.name}</TableCell>
                                             <TableCell>
                                                 <a
-                                                    href={`/${city.id}`}
+                                                    href={realmPageUrl(city.siteUrl, locale, `/${city.id}`)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-primary hover:underline"
@@ -140,7 +144,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                                                     <CouncilQrStripsButton cityId={city.id} />
                                                     <FormSheet
                                                         FormComponent={CityForm}
-                                                        formProps={{ city }}
+                                                        formProps={{ city, realms }}
                                                         title={t("editCity")}
                                                         type="edit"
                                                         closeOnSuccess

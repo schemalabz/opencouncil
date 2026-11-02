@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { realmPageUrl } from '@/lib/utils/realmPageUrl';
 import { Button } from '@/components/ui/button';
 import {
     Collapsible,
@@ -28,6 +29,8 @@ export interface BatchMeeting {
     meetingId: string;
     cityId: string;
     cityName: string;
+    /** The base URL of the city's realm domain, where its pages live. */
+    siteUrl: string;
     dateTime: string | null;
     currentVersion: number | null;
 }
@@ -45,6 +48,7 @@ const TASK_LABELS: Record<TaskType, string> = {
 
 export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
     const t = useTranslations('admin.adminActions');
+    const locale = useLocale();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskType>('processAgenda');
     const [batchOpen, setBatchOpen] = useState(false);
@@ -160,7 +164,7 @@ export function BatchRerunActions({ meetings }: BatchRerunActionsProps) {
                                                 </td>
                                                 <td className="p-2">
                                                     <a
-                                                        href={`/${meeting.cityId}/${meeting.meetingId}`}
+                                                        href={realmPageUrl(meeting.siteUrl, locale, `/${meeting.cityId}/${meeting.meetingId}`)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="font-mono text-xs text-blue-600 hover:underline"

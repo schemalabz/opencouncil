@@ -1013,10 +1013,18 @@
       "none": "Χωρίς δικαιώματα"
     },
     "grantType": {
+      "realm": "Χώρα",
       "city": "Δήμος",
       "party": "Παράταξη",
       "person": "Πρόσωπο",
       "body": "Όργανο"
+    },
+    "grantRole": {
+      "admin": "Διαχειριστής",
+      "records": "Πρακτικά",
+      "meetings": "Συνεδριάσεις",
+      "highlights": "Στιγμιότυπα",
+      "viewer": "Αναγνώστης"
     },
     "editRights": "Επεξεργασία δικαιωμάτων",
     "newToken": "Νέο token",

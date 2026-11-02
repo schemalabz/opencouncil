@@ -1,8 +1,8 @@
 "use server";
 import { Prisma, Realm, Topic } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { ConflictError } from "../api/errors";
+import { getAdminRealms } from "../auth";
+import { ConflictError, ForbiddenError, NotFoundError } from "../api/errors";
 
 const topicWithSubjectCountInclude = {
     _count: {
@@ -36,10 +36,16 @@ export async function getTopics(realm: Realm): Promise<Topic[]> {
     }
 }
 
+/**
+ * Every topic of the realms the viewer administers, deprecated ones included.
+ * A "use server" export, so it reads the viewer's realms itself instead of
+ * taking them from the caller.
+ */
 export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCount[]> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
     try {
         const topics = await prisma.topic.findMany({
+            where: realms ? { realm: { in: realms } } : {},
             orderBy: { name: 'asc' },
             include: topicWithSubjectCountInclude,
         });
@@ -50,21 +56,42 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
     }
 }
 
-export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated' | 'realm'>;
+// The realm is required, not defaulted: createTopic checks it against the viewer's realms.
+export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated'> & { realm: Realm };
 
+
+/** Throws unless the viewer administers the realm; a superadmin administers every realm. */
+function assertRealmAdministered(realms: Realm[] | null, realm: Realm): void {
+    if (realms && !realms.includes(realm)) {
+        throw new ForbiddenError(`Not an administrator of the ${realm} realm`);
+    }
+}
+
+/** The realm of the topic, which must be one the viewer administers. */
+async function topicInAdministeredRealm(id: string, realms: Realm[] | null): Promise<Realm> {
+    const topic = await prisma.topic.findUnique({ where: { id }, select: { realm: true } });
+    if (!topic) throw new NotFoundError('Topic not found');
+    assertRealmAdministered(realms, topic.realm);
+    return topic.realm;
+}
 
 export async function createTopic(data: TopicInput): Promise<Topic> {
-    await withUserAuthorizedToEdit({});
+    assertRealmAdministered(await getAdminRealms(), data.realm);
     return prisma.topic.create({ data });
 }
 
 export async function updateTopic(id: string, data: Partial<TopicInput>): Promise<Topic> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
+    const realm = await topicInAdministeredRealm(id, realms);
+    // Only a superadmin moves a topic between realms: the target realm may be one the viewer does not hold.
+    if (realms && data.realm !== undefined && data.realm !== realm) {
+        throw new ForbiddenError('Only a superadmin can move a topic to another realm');
+    }
     return prisma.topic.update({ where: { id }, data });
 }
 
 export async function deleteTopic(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+    await topicInAdministeredRealm(id, await getAdminRealms());
 
     await prisma.$transaction(async (tx) => {
         const [subjectCount, labelCount, notificationCount] = await Promise.all([

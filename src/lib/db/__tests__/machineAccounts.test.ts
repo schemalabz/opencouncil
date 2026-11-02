@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('createMachineAccount', () => {
     it('creates the account from the label, with every consent off and no sign-in', async () => {
-        await createMachineAccount({ isMachine: true, label: '  Athens bot ', isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
+        await createMachineAccount({ isMachine: true, label: '  Athens bot ', isSuperAdmin: false, administers: [{ role: 'admin', cityId: 'athens' }] });
 
         expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
@@ -37,7 +37,7 @@ describe('createMachineAccount', () => {
                 allowPetitionUpdates: false,
                 allowFeedbackCalls: false,
                 notifyByPhone: false,
-                administers: { create: [{ cityId: 'athens' }] },
+                administers: { create: [{ role: 'admin', cityId: 'athens', acceptedAt: expect.any(Date) }] },
             }),
         }));
     });

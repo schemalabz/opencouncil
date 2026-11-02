@@ -10,6 +10,7 @@ import { pendingCommentQuote } from "@/lib/db/consultationComments"
 declare module "next-auth" {
     interface Session {
         user: {
+            id: string
             isSuperAdmin?: boolean
             phone?: string | null
         } & DefaultSession["user"]
@@ -69,6 +70,7 @@ export const authOptions = {
                 ...session,
                 user: {
                     ...session.user,
+                    id: user.id,
                     isSuperAdmin: user.isSuperAdmin,
                     name: user.name,
                     phone: user.phone

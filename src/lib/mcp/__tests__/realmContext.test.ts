@@ -1,8 +1,9 @@
 /** @jest-environment node */
 import { cityBaseUrl, mcpRealmStore, reachesEveryRealm, rememberCityRealm, requestContext } from '../realm-context';
+import { actorWith, cityGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
-const SUPERADMIN = { superadmin: true, cityIds: new Set<string>(), bodyIds: new Set<string>() };
-const CITY_ADMIN = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set<string>() };
+const SUPERADMIN = superadmin();
+const CITY_ADMIN = actorWith([cityGrant('athens')]);
 
 const on = <T>(host: string, fn: () => T) =>
     mcpRealmStore.run(requestContext('greece', host, { userId: 'u1' } as never, { adminAccess: SUPERADMIN }), fn);

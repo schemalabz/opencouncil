@@ -6,6 +6,7 @@ const txFindFirst = jest.fn();
 const txCreate = jest.fn();
 const txUpdate = jest.fn();
 const txAdministers = jest.fn();
+const mockPersonFindUnique = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
@@ -13,11 +14,16 @@ jest.mock('@/lib/db/prisma', () => ({
             findMany: (...args: unknown[]) => mockFindMany(...args),
             findFirst: (...args: unknown[]) => mockFindFirst(...args),
         },
+        person: { findUnique: (...args: unknown[]) => mockPersonFindUnique(...args) },
         $transaction: (...args: unknown[]) => mockTransaction(...args),
     },
 }));
 const mockGetCurrentUser = jest.fn();
-jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
+const mockHasRight = jest.fn();
+jest.mock('@/lib/auth', () => ({
+    getCurrentUser: () => mockGetCurrentUser(),
+    hasRight: (...args: unknown[]) => mockHasRight(...args),
+}));
 
 import {
     setVoicePrintConsent,
@@ -37,13 +43,21 @@ const owner = { id: 'user-1', isSuperAdmin: false, administers: [{ personId: 'pe
 // An account a superadmin gave the person to, without a claim.
 const delegate = { id: 'assistant', isSuperAdmin: false, administers: [{ personId: 'person-1', claimedAt: null }] };
 const superadmin = { id: 'admin-1', isSuperAdmin: true, administers: [] };
+// An admin of the person's city, and of nothing else.
+const cityAdmin = { id: 'clerk', isSuperAdmin: false, administers: [{ cityId: 'city-1' }] };
 const open = (source: 'PERSON' | 'ADMIN', givenAt = claimedAt) => ({ id: 'consent-1', source, givenAt });
 const closed = { where: { id: 'consent-1' }, data: { withdrawnAt: expect.any(Date) } };
 const created = (userId: string, source?: 'ADMIN') => ({ data: { personId: 'person-1', userId, ...(source ? { source } : {}) } });
 
 beforeEach(() => {
-    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, mockGetCurrentUser]) m.mockReset();
+    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, mockGetCurrentUser, mockPersonFindUnique, mockHasRight]) m.mockReset();
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
+    mockPersonFindUnique.mockResolvedValue({ cityId: 'city-1' });
+    // The `admin` right on city-1: a superadmin, or a grant on the city.
+    mockHasRight.mockImplementation(async (_right: string, scope: { cityId?: string }) => {
+        const user = await mockGetCurrentUser();
+        return user?.isSuperAdmin === true || user?.administers.some((g: { cityId?: string }) => g.cityId === scope.cityId) === true;
+    });
     txAdministers.mockResolvedValue({ id: 'row-1' });
     txFindFirst.mockResolvedValue(null);
 });
@@ -110,14 +124,17 @@ describe('setVoicePrintConsent', () => {
         expect(mockTransaction).toHaveBeenCalledTimes(2);
     });
 
-    it('checks the permission inside the write: a row removed meanwhile refuses it', async () => {
+    it('checks the permission inside the write: a row revoked meanwhile refuses it', async () => {
         mockGetCurrentUser.mockResolvedValue(owner);
         txAdministers.mockResolvedValue(null);
         await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/administers the person/);
         await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/administers the person/);
         expect(txCreate).not.toHaveBeenCalled();
         expect(txUpdate).not.toHaveBeenCalled();
-        expect(txAdministers).toHaveBeenCalledWith({ where: { userId: 'user-1', personId: 'person-1' }, select: { id: true } });
+        expect(txAdministers).toHaveBeenCalledWith({
+            where: { userId: 'user-1', personId: 'person-1', acceptedAt: { not: null }, revokedAt: null },
+            select: { id: true },
+        });
     });
 
     it('runs serializable, and retries once when a grant and a withdrawal collide', async () => {
@@ -196,11 +213,25 @@ describe('recordVoicePrintConsent', () => {
         expect(txUpdate).toHaveBeenCalledWith(closed);
     });
 
-    it('refuses anybody who is not a superadmin, the account of the person included', async () => {
+    it('opens an ADMIN period under an admin of the city of the person', async () => {
+        mockGetCurrentUser.mockResolvedValue(cityAdmin);
+        await recordVoicePrintConsent('person-1', true);
+        expect(mockHasRight).toHaveBeenCalledWith('admin', { cityId: 'city-1' });
+        expect(txCreate).toHaveBeenCalledWith(created('clerk', 'ADMIN'));
+    });
+
+    it('refuses anybody who does not administer the city, the account of the person included', async () => {
         mockGetCurrentUser.mockResolvedValue(owner);
-        await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/superadmin/);
+        await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/admin of the city/);
         mockGetCurrentUser.mockResolvedValue(null);
         await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/signed in/);
+        expect(mockTransaction).not.toHaveBeenCalled();
+    });
+
+    it('reports a person that does not exist', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        mockPersonFindUnique.mockResolvedValue(null);
+        await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/not found/);
         expect(mockTransaction).not.toHaveBeenCalled();
     });
 

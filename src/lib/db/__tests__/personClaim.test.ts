@@ -31,11 +31,12 @@ const tx = {
     user: { findUnique: mockUserFindUnique, update: mockUserUpdate },
 };
 const claimedAt = new Date('2026-09-16T10:00:00Z');
-const person = (administrators: { id: string; userId: string; claimedAt: Date | null }[]) => ({
+type Row = { id: string; userId: string; claimedAt: Date | null; role?: string; acceptedAt?: Date | null };
+const person = (administrators: Row[]) => ({
     cityId: 'chania',
     name: 'Α. Β.',
     city: { name: 'Χανιά' },
-    administrators,
+    administrators: administrators.map((row) => ({ role: 'admin', acceptedAt: new Date('2026-01-01'), ...row })),
 });
 
 beforeEach(() => {
@@ -51,7 +52,7 @@ describe('claimPerson', () => {
         const result = await claimPerson('user-1', 'person-1');
         expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         expect(mockCloseAppConsent).toHaveBeenCalledWith(tx, 'person-1');
-        expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
+        expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date), acceptedAt: expect.any(Date) } });
     });
 
     it('completes the account: the confirmed name when it has none, and onboarded', async () => {
@@ -76,8 +77,16 @@ describe('claimPerson', () => {
     it('turns the scanner\'s own delegate row into the claimed row instead of adding one', async () => {
         mockFindUnique.mockResolvedValue(person([{ id: 'row-1', userId: 'user-1', claimedAt: null }]));
         expect(await claimPerson('user-1', 'person-1')).toMatchObject({ status: 'linked' });
-        expect(mockUpdate).toHaveBeenCalledWith({ where: { id: 'row-1' }, data: { claimedAt: expect.any(Date) } });
+        expect(mockUpdate).toHaveBeenCalledWith({ where: { id: 'row-1' }, data: { claimedAt: expect.any(Date), acceptedAt: new Date('2026-01-01') } });
         expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    // The claim is the person's own page: a viewer row would give the person no admin right on it.
+    it('adds an admin row for the claim when the scanner holds only a narrower role on the person', async () => {
+        mockFindUnique.mockResolvedValue(person([{ id: 'row-1', userId: 'user-1', claimedAt: null, role: 'viewer' }]));
+        expect(await claimPerson('user-1', 'person-1')).toMatchObject({ status: 'linked' });
+        expect(mockUpdate).not.toHaveBeenCalled();
+        expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date), acceptedAt: expect.any(Date) } });
     });
 
     it('lets a person with a delegate be claimed by their own account', async () => {
@@ -122,7 +131,7 @@ describe('claimPerson', () => {
         mockAdministersFindFirst.mockResolvedValue({ userId: 'user-9' });
         expect(await claimPerson('user-1', 'person-1')).toEqual({ status: 'already_linked' });
         expect(mockAdministersFindFirst).toHaveBeenCalledWith({
-            where: { personId: 'person-1', claimedAt: { not: null } },
+            where: { personId: 'person-1', claimedAt: { not: null }, revokedAt: null },
             select: { userId: true },
         });
         mockTransaction.mockImplementationOnce(refused);
@@ -140,7 +149,7 @@ describe('getClaimablePersonStatus', () => {
     it('counts only claimed rows: a delegate does not spend the code', async () => {
         mockPersonFindUnique.mockResolvedValueOnce({ _count: { administrators: 0 } });
         expect(await getClaimablePersonStatus('person-1')).toBe('claimable');
-        expect(mockPersonFindUnique.mock.calls[0][0].select._count.select.administrators).toEqual({ where: { claimedAt: { not: null } } });
+        expect(mockPersonFindUnique.mock.calls[0][0].select._count.select.administrators).toEqual({ where: { claimedAt: { not: null }, revokedAt: null } });
         mockPersonFindUnique.mockResolvedValueOnce({ _count: { administrators: 1 } });
         expect(await getClaimablePersonStatus('person-1')).toBe('already_linked');
         mockPersonFindUnique.mockResolvedValueOnce(null);
@@ -153,7 +162,7 @@ describe('getClaimedPersonIds', () => {
         mockAdministersFindMany.mockResolvedValue([{ personId: 'person-1' }, { personId: null }]);
         expect(await getClaimedPersonIds('chania')).toEqual(new Set(['person-1']));
         expect(mockAdministersFindMany).toHaveBeenCalledWith({
-            where: { personId: { not: null }, claimedAt: { not: null }, person: { cityId: 'chania' } },
+            where: { personId: { not: null }, claimedAt: { not: null }, revokedAt: null, person: { cityId: 'chania' } },
             select: { personId: true },
         });
     });

@@ -85,11 +85,10 @@ A body admin can also do these things:
   on a body that they hold. `getRoleLimitForCity` and
   `validateRolesForBodyAdmin` apply this rule.
 - Change the YouTube channel and the contact emails of their body.
-- Invite and remove the admins of their body through
-  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 
-A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
-the last admin of a body.
+A body has a maximum of 20 admins. A superadmin or a realm admin invites and
+removes them on `/admin/team`, through `/api/admin/grants`. Only an admin of
+the city or of a higher scope can remove the last admin of a body.
 
 ### What stays with the city
 

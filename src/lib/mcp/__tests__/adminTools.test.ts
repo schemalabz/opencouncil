@@ -22,11 +22,12 @@ import {
     mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask, mcpUpdateMeeting,
 } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
+import { superadmin } from '@/lib/auth/__tests__/fixtures';
 
 /** A real McpServer with the tools of a superadmin. Only the handlers are stubs. */
 function connect() {
     const server = new McpServer({ name: 'test', version: '0.0.0' });
-    registerAdminTools(server, { superadmin: true, cityIds: new Set(), bodyIds: new Set() });
+    registerAdminTools(server, superadmin());
     return connectInMemory(server);
 }
 

@@ -21,11 +21,13 @@ interface MeetingsProps {
     meetings: CouncilMeetingWithAdminBodyAndSubjects[];
     currentCityName: string;
     selectedCityId: string;
+    /** The base URL of the city's realm domain, where the meeting pages live. */
+    citySiteUrl: string;
     decisionCounts: MeetingDecisionCounts;
     cityHasDiavgeiaUid: boolean;
 }
 
-export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts, cityHasDiavgeiaUid }: MeetingsProps) {
+export default function Meetings({ meetings, currentCityName, selectedCityId, citySiteUrl, decisionCounts, cityHasDiavgeiaUid }: MeetingsProps) {
     const tCommon = useTranslations('Common');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
@@ -226,6 +228,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                                         key={meeting.id}
                                         meeting={meeting}
                                         selectedCityId={selectedCityId}
+                                        citySiteUrl={citySiteUrl}
                                         isSelected={selectedMeetingIds.has(meeting.id)}
                                         onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
                                         decisionCounts={decisionCounts[meeting.id]}

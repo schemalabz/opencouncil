@@ -3,12 +3,13 @@
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn(), revalidateTag: jest.fn() }));
 jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
+    hasRight: jest.fn().mockResolvedValue(true),
     getCurrentUser: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
 }));
 jest.mock('@/lib/db/cities', () => ({
     deleteCity: jest.fn(),
     editCity: jest.fn().mockResolvedValue({ id: 'athens' }),
-    getCity: jest.fn(),
+    getCity: jest.fn().mockResolvedValue({ id: 'athens', realm: 'greece' }),
     updateCityGeometry: jest.fn(),
 }));
 jest.mock('@/lib/db/cityMessages', () => ({
@@ -18,7 +19,7 @@ jest.mock('@/lib/db/cityMessages', () => ({
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn().mockResolvedValue({ url: 'https://cdn.example.com/logo.png' }) }));
 
 import { PUT } from '@/app/api/cities/[cityId]/route';
-import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
 import { editCity } from '@/lib/db/cities';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
@@ -76,16 +77,35 @@ describe('PUT /api/cities/[cityId]', () => {
         expect(upsertCityMessage).not.toHaveBeenCalled();
     });
 
-    it('leaves the message as it is when the editor is not a superadmin', async () => {
+    it('writes the message, the status and the language for a realm admin who is not a superadmin', async () => {
         jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
-        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
-        const saved = await put({ name: 'Αθήνα' });
-        const sent = await put({ name: 'Αθήνα', ...MESSAGE });
-        expect(saved.status).toBe(200);
+        const sent = await put({ name: 'Αθήνα', status: 'demo', language: 'el', ...MESSAGE });
         expect(sent.status).toBe(200);
-        expect(editCity).toHaveBeenCalledTimes(2);
-        expect(deleteCityMessage).not.toHaveBeenCalled();
-        expect(upsertCityMessage).not.toHaveBeenCalled();
+        expect(hasRight).toHaveBeenCalledWith('admin', { realm: 'greece' });
+        expect(editCity).toHaveBeenCalledWith('athens', expect.objectContaining({ status: 'demo', language: 'el' }));
+        expect(upsertCityMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the status and the language for a city admin: they decide whether the city is a customer', async () => {
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        jest.mocked(hasRight).mockResolvedValueOnce(false);
+        const sent = await put({ name: 'Αθήνα', status: 'demo', language: 'el', ...MESSAGE });
+        expect(sent.status).toBe(200);
+        const written = jest.mocked(editCity).mock.calls[0][1];
+        expect(written).not.toHaveProperty('status');
+        expect(written).not.toHaveProperty('language');
+        expect(upsertCityMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the realm for a city admin who is not a superadmin: it decides whose city this is', async () => {
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        const sent = await put({ name: 'Αθήνα', realm: 'poland' });
+        expect(sent.status).toBe(200);
+        expect(jest.mocked(editCity).mock.calls[0][1]).not.toHaveProperty('realm');
+
+        // The default mock: a superadmin.
+        await put({ name: 'Αθήνα', realm: 'poland' });
+        expect(jest.mocked(editCity).mock.calls[1][1]).toMatchObject({ realm: 'poland' });
     });
 
     it.each(['https://example.org/a', 'http://δήμος.ελ/x', '/athens/meetings'])('stores the call-to-action link %s', async (link) => {

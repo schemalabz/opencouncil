@@ -9,6 +9,8 @@ import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
 import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
 import { applySessionMirror } from './lib/auth/sessionMirror';
+import { isRealmAdmin } from './lib/auth/grants.server';
+import { isSuperadminAdminSubpage } from './lib/admin/superadminPages';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
@@ -49,19 +51,27 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
         return new NextResponse(null, { status: 404 });
     }
 
-    // The (admin) tree is superadmin-only. Its layout guard
-    // (src/app/[locale]/(admin)/admin/layout.tsx) does not re-run on an RSC
-    // soft-navigation / prefetch request, so a single header can render a page
-    // segment without it. Enforce the gate here too — every request (full
-    // navigation, RSC, prefetch) passes through the proxy. The data-layer
-    // guards in src/lib/db remain the primary defense; this is the belt.
-    // Note: only the superadmin `/admin` tree — the city-admin
+    // The (admin) tree is for superadmins and realm admins (#875). Its
+    // layout guard (src/app/[locale]/(admin)/admin/layout.tsx) does not re-run
+    // on an RSC soft-navigation / prefetch request, so a single header can
+    // render a page segment without it. Enforce the gate here too — every
+    // request (full navigation, RSC, prefetch) passes through the proxy. The
+    // data-layer guards in src/lib/db remain the primary defense; this is the
+    // belt. Note: only the `/admin` tree — the city-admin
     // `/<cityId>/<meetingId>/admin` page is a different scope and must not match.
     const adminPath = req.nextUrl.pathname.replace(LOCALE_PREFIX_RE, '/');
     if (adminPath === '/admin' || adminPath.startsWith('/admin/')) {
         const session = await auth();
-        if (!session?.user?.isSuperAdmin) {
+        const admitted = session?.user?.isSuperAdmin || (session?.user?.id ? await isRealmAdmin(session.user.id) : false);
+        if (!admitted) {
             return NextResponse.redirect(new URL('/sign-in', req.url));
+        }
+        // A realm admin who types the address of a superadmin's page goes to
+        // the dashboard, which sends them on to their cities. The page itself
+        // would throw, and the error page answers 500.
+        if (!session?.user?.isSuperAdmin && isSuperadminAdminSubpage(adminPath)) {
+            const locale = req.nextUrl.pathname.match(LOCALE_PREFIX_RE)?.[1];
+            return NextResponse.redirect(new URL(locale ? `/${locale}/admin` : '/admin', req.url));
         }
     }
 

@@ -1,46 +1,44 @@
-import type { AdminEntity } from "@/lib/db/adminEntities"
+import type { GrantRole } from "@prisma/client"
+import type { AdminEntity, AdminEntityType } from "@/lib/db/adminEntities"
 import type { UserWithAdministers } from "@/lib/db/types"
+import { getRealmDomain } from "@/lib/realm"
 
-/** What an account administers, labelled as the admin user tools show it. */
-export function mapAdministersToEntities(administers: UserWithAdministers['administers']): AdminEntity[] {
-    if (!administers) return []
+/** A grant as the admin user tools show and edit it: a role on one entity. */
+export type GrantEntry = {
+    /** One per (entity, role): the key of a badge, and what a remove acts on. */
+    key: string
+    role: GrantRole
+    entity: AdminEntity
+}
 
-    const entities: AdminEntity[] = []
+export const grantKey = (entity: Pick<AdminEntity, 'type' | 'id'>, role: GrantRole): string => `${entity.type}:${entity.id}:${role}`
 
-    for (const a of administers) {
-        if (a.city) {
-            entities.push({
-                id: a.city.id,
-                name: a.city.name,
-                displayName: a.city.name,
-                type: 'city'
-            })
-        } else if (a.party?.city) {
-            entities.push({
-                id: a.party.id,
-                name: a.party.name,
-                displayName: `${a.party.city.name} / ${a.party.name}`,
-                type: 'party',
-                city: a.party.city
-            })
-        } else if (a.person?.city) {
-            entities.push({
-                id: a.person.id,
-                name: a.person.name,
-                displayName: `${a.person.city.name} / ${a.person.name}`,
-                type: 'person',
-                city: a.person.city
-            })
-        } else if (a.administrativeBody?.city) {
-            entities.push({
-                id: a.administrativeBody.id,
-                name: a.administrativeBody.name,
-                displayName: `${a.administrativeBody.city.name} / ${a.administrativeBody.name}`,
-                type: 'body',
-                city: a.administrativeBody.city
-            })
-        }
+export const GRANT_TYPE_ICON: Record<AdminEntityType, string> = {
+    realm: '🌍',
+    city: '🏛️',
+    party: '👥',
+    person: '👤',
+    body: '🏢',
+}
+
+const entityOf = (a: UserWithAdministers['administers'][number]): AdminEntity | null => {
+    if (a.realm) return { id: a.realm, name: a.realm, type: 'realm', displayName: getRealmDomain(a.realm) }
+    if (a.city) return { id: a.city.id, name: a.city.name, displayName: a.city.name, type: 'city' }
+    if (a.party?.city) return { id: a.party.id, name: a.party.name, displayName: `${a.party.city.name} / ${a.party.name}`, type: 'party', city: a.party.city }
+    if (a.person?.city) return { id: a.person.id, name: a.person.name, displayName: `${a.person.city.name} / ${a.person.name}`, type: 'person', city: a.person.city }
+    if (a.administrativeBody?.city) {
+        return { id: a.administrativeBody.id, name: a.administrativeBody.name, displayName: `${a.administrativeBody.city.name} / ${a.administrativeBody.name}`, type: 'body', city: a.administrativeBody.city }
     }
+    return null
+}
 
-    return entities
+/** What an account holds, labelled as the admin user tools show it. */
+export function mapAdministersToGrants(administers: UserWithAdministers['administers']): GrantEntry[] {
+    if (!administers) return []
+    const grants: GrantEntry[] = []
+    for (const a of administers) {
+        const entity = entityOf(a)
+        if (entity) grants.push({ key: grantKey(entity, a.role), role: a.role, entity })
+    }
+    return grants
 }

@@ -18,6 +18,7 @@ jest.mock('../../db/prisma', () => ({
 import { requirePublicTranscript, requireVisibleMeeting } from '../gate';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { ForbiddenError, NotFoundError } from '../../api/errors';
+import { actorWith, bodyGrant, cityGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const USER = { userId: 'u1' } as const;
 
@@ -70,7 +71,7 @@ describe('requireVisibleMeeting', () => {
 
     it('shows unreleased meetings to city editors and superadmins', async () => {
         mockMeetingFindFirst.mockResolvedValue(row(false));
-        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [cityGrant('athens')] });
         await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(false, true));
 
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: true, administers: [] });
@@ -79,14 +80,14 @@ describe('requireVisibleMeeting', () => {
 
     it('hides unreleased meetings from editors of other cities', async () => {
         mockMeetingFindFirst.mockResolvedValue(row(false));
-        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'argos' }] });
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [cityGrant('argos')] });
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
 
     it('shows a body administrator the unreleased meetings of their body, and no other', async () => {
         const asBodyAdmin = (bodyId: string, cityId: string) => mockUserFindUnique.mockResolvedValue({
             isSuperAdmin: false,
-            administers: [{ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } }],
+            administers: [bodyGrant(bodyId, cityId)],
         });
         const draft = { ...row(false), administrativeBodyId: 'council' };
         mockMeetingFindFirst.mockResolvedValue(draft);
@@ -157,7 +158,7 @@ describe('realm scoping', () => {
     });
 });
 describe('realm scoping for a superadmin', () => {
-    const access = (superadmin: boolean) => ({ superadmin, cityIds: new Set<string>(), bodyIds: new Set<string>() });
+    const access = (isSuperAdmin: boolean) => isSuperAdmin ? superadmin() : actorWith([]);
     const whereFor = async (superadmin: boolean) => {
         mockMeetingFindFirst.mockResolvedValue(row(true));
         await mcpRealmStore.run(requestContext('greece', null, USER, { adminAccess: access(superadmin) }), () =>
@@ -205,7 +206,7 @@ describe('requirePublicTranscript', () => {
     it('withholds a transcript that is not public from readers, not from editors', async () => {
         await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', null)).rejects.toThrow(ForbiddenError);
         await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', USER)).rejects.toThrow(ForbiddenError);
-        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [cityGrant('athens')] });
         await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', USER)).resolves.toBeUndefined();
     });
 
@@ -213,7 +214,7 @@ describe('requirePublicTranscript', () => {
         const unreviewed = { publicTranscript: false, administrativeBodyId: 'council' };
         mockUserFindUnique.mockResolvedValue({
             isSuperAdmin: false,
-            administers: [{ cityId: null, administrativeBodyId: 'council', administrativeBody: { cityId: 'athens' } }],
+            administers: [bodyGrant('council', 'athens')],
         });
         await expect(requirePublicTranscript(unreviewed, 'athens', USER)).resolves.toBeUndefined();
         await expect(requirePublicTranscript({ ...unreviewed, administrativeBodyId: 'committee' }, 'athens', USER))

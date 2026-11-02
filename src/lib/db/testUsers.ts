@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { GrantRole, Prisma, PrismaClient, Realm } from '@prisma/client';
 // No `server-only`: `npm run seed` imports this module through tsx, outside Next.js.
 import { TEST_USER_EMAILS, TEST_USERS, type TestUserAdminType } from '@/lib/dev/test-users';
 
@@ -13,6 +13,8 @@ export function testUserId(adminType: TestUserAdminType): string {
 const FALLBACK_CENTROID = { lng: 23.7275, lat: 37.9838 };
 
 const administersSelect = {
+    role: true,
+    realm: true,
     cityId: true,
     partyId: true,
     personId: true,
@@ -29,15 +31,16 @@ const testUserSelect = {
     name: true,
     isSuperAdmin: true,
     phone: true,
-    administers: { select: administersSelect, orderBy: [{ cityId: 'asc' }, { partyId: 'asc' }, { personId: 'asc' }, { administrativeBodyId: 'asc' }] },
+    administers: { select: administersSelect, where: { revokedAt: null }, orderBy: [{ role: 'asc' }, { realm: 'asc' }, { cityId: 'asc' }, { partyId: 'asc' }, { personId: 'asc' }, { administrativeBodyId: 'asc' }] },
     notificationPreferences: { select: { cityId: true }, orderBy: { cityId: 'asc' } },
 } satisfies Prisma.UserSelect;
 
 export type TestUserState = Prisma.UserGetPayload<{ select: typeof testUserSelect }> & { adminType: TestUserAdminType };
 
-type Grant = { cityId: string } | { partyId: string } | { personId: string; claimedAt: Date } | { administrativeBodyId: string };
+type Scope = { realm: Realm } | { cityId: string } | { partyId: string } | { personId: string; claimedAt: Date } | { administrativeBodyId: string };
+type Grant = Scope & { role?: GrantRole };
 
-type ScopedEntities = { cityIds: string[]; partyIds: string[]; personIds: string[]; bodyIds: string[] };
+type ScopedEntities = { realms: Realm[]; cityIds: string[]; partyIds: string[]; personIds: string[]; bodyIds: string[] };
 
 /**
  * The party with the most roles, the person with the most speaker segments, and
@@ -50,6 +53,7 @@ type ScopedEntities = { cityIds: string[]; partyIds: string[]; personIds: string
  * claim, or no body gives no entry.
  */
 async function busiestEntities(db: PrismaClient, cityIds: string[]): Promise<ScopedEntities> {
+    const realms = await db.city.findMany({ where: { id: { in: cityIds } }, select: { realm: true }, distinct: ['realm'], orderBy: { realm: 'asc' } });
     const parties = await db.party.findMany({
         where: { cityId: { in: cityIds } },
         select: { id: true, cityId: true },
@@ -64,7 +68,8 @@ async function busiestEntities(db: PrismaClient, cityIds: string[]): Promise<Sco
         WHERE p."cityId" = ANY(${cityIds})
           AND NOT EXISTS (
               SELECT 1 FROM "Administers" a JOIN "User" u ON u.id = a."userId"
-              WHERE a."personId" = p.id AND a."claimedAt" IS NOT NULL AND u.email <> ${TEST_USER_EMAILS.PERSON_ADMIN})
+              WHERE a."personId" = p.id AND a."claimedAt" IS NOT NULL AND a."revokedAt" IS NULL
+                AND u.email <> ${TEST_USER_EMAILS.PERSON_ADMIN})
         GROUP BY p.id, p."cityId"
         ORDER BY count(*) DESC, p.id`;
     const bodies = await db.administrativeBody.findMany({
@@ -78,7 +83,7 @@ async function busiestEntities(db: PrismaClient, cityIds: string[]): Promise<Sco
         return cityIds.flatMap((cityId) => seen.get(cityId) ?? []);
     };
     const councilsLast = [...bodies.filter((b) => b.type !== 'council'), ...bodies.filter((b) => b.type === 'council')];
-    return { cityIds, partyIds: firstPerCity(parties), personIds: firstPerCity(persons), bodyIds: firstPerCity(councilsLast) };
+    return { realms: realms.map((c) => c.realm), cityIds, partyIds: firstPerCity(parties), personIds: firstPerCity(persons), bodyIds: firstPerCity(councilsLast) };
 }
 
 function grantsFor(adminType: TestUserAdminType, scope: ScopedEntities): Grant[] {
@@ -92,6 +97,14 @@ function grantsFor(adminType: TestUserAdminType, scope: ScopedEntities): Grant[]
             return scope.personIds.map((personId) => ({ personId, claimedAt: new Date() }));
         case 'body':
             return scope.bodyIds.map((administrativeBodyId) => ({ administrativeBodyId }));
+        case 'realmadmin':
+            return scope.realms.map((realm) => ({ realm }));
+        case 'records':
+            return scope.bodyIds.map((administrativeBodyId) => ({ administrativeBodyId, role: 'records' as const }));
+        case 'comms':
+            return scope.cityIds.map((cityId) => ({ cityId, role: 'highlights' as const }));
+        case 'viewer':
+            return scope.cityIds.map((cityId) => ({ cityId, role: 'viewer' as const }));
         case 'superadmin':
         case 'readonly':
             return [];
@@ -99,19 +112,21 @@ function grantsFor(adminType: TestUserAdminType, scope: ScopedEntities): Grant[]
 }
 
 /**
- * Administers has a unique key over nullable columns, and Postgres treats NULLs as
- * distinct, so an upsert cannot find the existing row. Look it up first.
+ * The unique keys of Administers are partial indexes, which an upsert cannot
+ * target. Look the active row up first.
  */
 async function ensureGrant(db: PrismaClient, userId: string, grant: Grant) {
     const where = {
         userId,
+        role: grant.role ?? 'admin',
+        realm: 'realm' in grant ? grant.realm : null,
         cityId: 'cityId' in grant ? grant.cityId : null,
         partyId: 'partyId' in grant ? grant.partyId : null,
         personId: 'personId' in grant ? grant.personId : null,
         administrativeBodyId: 'administrativeBodyId' in grant ? grant.administrativeBodyId : null,
     };
-    const existing = await db.administers.findFirst({ where, select: { id: true } });
-    if (!existing) await db.administers.create({ data: { ...where, claimedAt: 'claimedAt' in grant ? grant.claimedAt : null } });
+    const existing = await db.administers.findFirst({ where: { ...where, revokedAt: null }, select: { id: true } });
+    if (!existing) await db.administers.create({ data: { ...where, acceptedAt: new Date(), claimedAt: 'claimedAt' in grant ? grant.claimedAt : null } });
 }
 
 /**
