@@ -2,6 +2,7 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import * as z from 'zod';
 import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
+import { adminRealms } from '@/lib/auth/rights';
 import {
     mcpCompleteUpload,
     mcpCreateCity,
@@ -30,14 +31,14 @@ import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 /**
  * The admin suite. The access decides what is registered, and so what is
  * advertised: meeting tools for anyone with admin access (a grant that
- * manages meetings or runs tasks), city tools for a superadmin only. The
- * access comes from the route handler and is a display decision — each
- * handler authorizes again in adminData.
+ * manages meetings or runs tasks), city tools for a superadmin or an admin
+ * of a realm, who onboards cities. The access comes from the route handler
+ * and is a display decision — each handler authorizes again in adminData.
  */
 export function registerAdminTools(server: McpServer, access: McpAdminAccess) {
     registerMeetingAdminTools(server);
     registerTaskAdminTools(server);
-    if (access.isSuperAdmin) {
+    if (access.isSuperAdmin || adminRealms(access).length > 0) {
         registerCityAdminTools(server);
     }
 }

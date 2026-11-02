@@ -1,6 +1,7 @@
 import "server-only";
+import type { Realm } from '@prisma/client';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
-import { roleHasRight, type ActiveGrant, type Right } from '@/lib/auth/rights';
+import { adminRealms, roleHasRight, type ActiveGrant, type Right } from '@/lib/auth/rights';
 import { hasRightOn, loadActor, type LoadedActor } from '@/lib/auth/grants.server';
 import type { McpIdentity } from './auth';
 import { mcpRealmStore } from './realm-context';
@@ -70,6 +71,27 @@ export async function requireBodyRight(identity: McpIdentity, right: Right, city
     if (!(await hasRightOn(access, right, { cityId, administrativeBodyId: bodyId }))) {
         throw new ForbiddenError(`You do not administer body ${bodyId} of ${cityId}.`);
     }
+}
+
+/** The right on a realm: a grant on that realm. A superadmin passes every realm. */
+export async function requireRealmRight(identity: McpIdentity, right: Right, realm: Realm): Promise<void> {
+    const access = await requireAdminAccess(identity);
+    if (!(await hasRightOn(access, right, { realm }))) {
+        throw new ForbiddenError(`You do not administer the ${realm} realm.`);
+    }
+}
+
+/**
+ * The realms the caller administers: null for a superadmin, who administers
+ * every realm; the realms of their `admin` grants otherwise. Throws for a
+ * caller who administers none.
+ */
+export async function requireAdminRealms(identity: McpIdentity): Promise<Realm[] | null> {
+    const access = await requireAdminAccess(identity);
+    if (access.isSuperAdmin) return null;
+    const realms = adminRealms(access);
+    if (realms.length === 0) throw new ForbiddenError('This operation needs the rights of a realm administrator.');
+    return realms;
 }
 
 export async function requireSuperadmin(identity: McpIdentity): Promise<void> {

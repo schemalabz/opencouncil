@@ -56,7 +56,7 @@ import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
 import { requireVisibleMeeting } from '../gate';
-import { bodyGrant, cityGrant, grant, superadmin } from '@/lib/auth/__tests__/fixtures';
+import { actorWith, bodyGrant, cityGrant, grant, realmGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
 import { completeUpload, startUpload } from '../../uploads';
 import * as cityPopulate from '../../db/cityPopulate';
@@ -70,6 +70,8 @@ const asCityAdmin = (...cityIds: string[]) =>
 // An admin of one body of a city, and of nothing else.
 const asBodyAdmin = (bodyId: string, cityId: string) =>
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [bodyGrant(bodyId, cityId)] });
+// The access the route resolves for an admin of one realm, and of nothing else.
+const realmAdmin = (realm: Realm): McpAdminAccess => actorWith([realmGrant(realm)]);
 
 const SUPERADMIN: McpAdminAccess = superadmin('bot');
 // Outside a request scope the guards read the rights from the database.
@@ -269,6 +271,17 @@ describe('create_city', () => {
         expect(createCityDirect).not.toHaveBeenCalled();
     });
 
+    it('lets an admin of a realm create a city in that realm, and not in another', async () => {
+        (createCityDirect as jest.Mock).mockResolvedValue({ id: 'lyon', name: 'Lyon', status: 'pending', realm: 'france', language: 'fr' });
+        await expect(inRealm(Realm.greece, () => mcpCreateCity(ADMIN_TOKEN, { ...CITY, realm: Realm.poland, language: 'pl' }), realmAdmin(Realm.france)))
+            .rejects.toThrow(ForbiddenError);
+        expect(createCityDirect).not.toHaveBeenCalled();
+
+        const result = await inRealm(Realm.france, () => mcpCreateCity(ADMIN_TOKEN, CITY), realmAdmin(Realm.france));
+        expect(createCityDirect).toHaveBeenCalledWith(expect.objectContaining({ id: 'lyon', realm: 'france' }));
+        expect(result).toMatchObject({ id: 'lyon', realm: 'france' });
+    });
+
     it('creates a pending city in the realm of the connector, in the language of that realm', async () => {
         (createCityDirect as jest.Mock).mockImplementation(async data => data);
         await inRealm(Realm.france, () => mcpCreateCity(SUPERADMIN_TOKEN, CITY));
@@ -326,9 +339,19 @@ describe('publish_city_demo', () => {
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:mannheim', 'realm:germany:landing-subjects'] });
     });
 
-    it.each([null, ADMIN_TOKEN])('refuses callers without superadmin rights before writing (%j)', async identity => {
+    // The status is the realm's: the city form keeps it from a city admin too.
+    it.each([null, ADMIN_TOKEN])('refuses callers without the admin right on the realm before writing (%j)', async identity => {
+        (requireRealmCity as jest.Mock).mockResolvedValue('germany');
+        asCityAdmin('mannheim');
         await expect(mcpPublishCityDemo(identity, { cityId: 'mannheim' })).rejects.toThrow();
         expect(publishCityDemoDirect).not.toHaveBeenCalled();
+    });
+
+    it('lets the admin of the realm publish a city of it', async () => {
+        (requireRealmCity as jest.Mock).mockResolvedValue('germany');
+        (publishCityDemoDirect as jest.Mock).mockResolvedValue({ id: 'mannheim', status: 'demo', realm: 'germany' });
+        await expect(inRealm(Realm.germany, () => mcpPublishCityDemo(ADMIN_TOKEN, { cityId: 'mannheim' }), realmAdmin(Realm.germany)))
+            .resolves.toMatchObject({ id: 'mannheim', status: 'demo' });
     });
 
     it('reports a missing or ineligible city instead of changing official support', async () => {
@@ -363,6 +386,16 @@ describe('set_city_boundary', () => {
         expect(updateCityGeometryDirect).not.toHaveBeenCalled();
     });
 
+    it('is the admin of the city\'s to set, and not another city admin\'s', async () => {
+        asCityAdmin('athens');
+        await expect(mcpSetCityBoundary(ADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).rejects.toThrow(ForbiddenError);
+        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
+
+        asCityAdmin('sarajevo');
+        await expect(mcpSetCityBoundary(ADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).resolves.toMatchObject({ cityId: 'sarajevo' });
+        expect(updateCityGeometryDirect).toHaveBeenCalledTimes(1);
+    });
+
     it('does not invalidate caches or report success when the database rejects the boundary', async () => {
         asSuperadmin();
         (updateCityGeometryDirect as jest.Mock).mockRejectedValueOnce(new Error('Invalid geometry'));
@@ -394,6 +427,12 @@ describe('list_realms', () => {
         asCityAdmin('athens');
         await expect(mcpListRealms(ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
     });
+
+    it('lists the realms of a realm administrator only', async () => {
+        (countCitiesByRealmAndStatus as jest.Mock).mockResolvedValue([]);
+        const { realms } = await inRealm(Realm.greece, () => mcpListRealms(ADMIN_TOKEN), realmAdmin(Realm.poland));
+        expect(realms.map((r) => r.realm)).toEqual(['poland']);
+    });
 });
 
 describe('populate_city', () => {
@@ -418,6 +457,18 @@ describe('populate_city', () => {
         ]);
         await expect(mcpPopulateCity(SUPERADMIN_TOKEN, data)).resolves.toMatchObject({ cityId: 'lyon', rolesCount: 2 });
         expect(populate).toHaveBeenCalledWith(data);
+    });
+
+    it('is the admin of the city\'s to call, and not another city admin\'s', async () => {
+        const populate = jest.spyOn(cityPopulate, 'populateCity')
+            .mockResolvedValue({ partiesCount: 1, peopleCount: 1, rolesCount: 0, adminBodiesCount: 1 });
+        const data = parsed([]);
+        asCityAdmin('athens');
+        await expect(mcpPopulateCity(ADMIN_TOKEN, data)).rejects.toThrow(ForbiddenError);
+        expect(populate).not.toHaveBeenCalled();
+
+        asCityAdmin('lyon');
+        await expect(mcpPopulateCity(ADMIN_TOKEN, data)).resolves.toMatchObject({ cityId: 'lyon' });
     });
 });
 
@@ -534,12 +585,13 @@ describe('permission matrix', () => {
         complete_upload: (id: McpIdentityArg) => mcpCompleteUpload(id, {
             cityId: 'argos', key: 'uploads/argos_x_recording_0a1b2c3d.mp4', uploadId: 'u1', token: 't', sizeBytes: 2e9,
         }),
-    };
-    const superadminOnly = {
-        create_city: (id: McpIdentityArg) => mcpCreateCity(id, CITY),
         populate_city: (id: McpIdentityArg) => mcpPopulateCity(id, COUNCIL),
         publish_city_demo: (id: McpIdentityArg) => mcpPublishCityDemo(id, { cityId: 'argos' }),
         set_city_boundary: (id: McpIdentityArg) => mcpSetCityBoundary(id, { cityId: 'argos', geojson: '{}' }),
+    };
+    // A city is created under a realm: the admin of a city holds nothing there.
+    const realmScoped = {
+        create_city: (id: McpIdentityArg) => mcpCreateCity(id, CITY),
     };
     type McpIdentityArg = Parameters<typeof mcpCreateMeeting>[0];
     const writes = () => [
@@ -547,7 +599,7 @@ describe('permission matrix', () => {
         completeUpload,
     ].map(fn => (fn as jest.Mock).mock.calls.length).reduce((a, b) => a + b, 0);
 
-    const all = { ...cityScoped, ...superadminOnly };
+    const all = { ...cityScoped, ...realmScoped };
 
     it.each(Object.keys(all))('%s refuses an anonymous caller', async name => {
         await expect(all[name as keyof typeof all](null)).rejects.toThrow(UnauthorizedError);
@@ -566,9 +618,9 @@ describe('permission matrix', () => {
         expect(writes()).toBe(0);
     });
 
-    it.each(Object.keys(superadminOnly))('%s refuses a city administrator', async name => {
+    it.each(Object.keys(realmScoped))('%s refuses a city administrator', async name => {
         asCityAdmin('argos');
-        await expect(superadminOnly[name as keyof typeof superadminOnly](ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
+        await expect(realmScoped[name as keyof typeof realmScoped](ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
         expect(writes()).toBe(0);
     });
 });

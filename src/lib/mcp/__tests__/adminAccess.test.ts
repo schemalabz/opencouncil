@@ -14,7 +14,7 @@ jest.mock('../../db/prisma', () => ({
 }));
 
 import { Realm } from '@prisma/client';
-import { resolveAdminAccess, requireBodyRight, requireCityRight, requireMeetingRight, requireSuperadmin } from '../adminAccess';
+import { resolveAdminAccess, requireAdminRealms, requireBodyRight, requireCityRight, requireMeetingRight, requireRealmRight, requireSuperadmin } from '../adminAccess';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { ForbiddenError, UnauthorizedError } from '../../api/errors';
 import type { ActiveGrant } from '@/lib/auth/rights';
@@ -181,6 +181,32 @@ describe('requireBodyAdmin', () => {
     it('lets a superadmin reach every body', async () => {
         asSuperadmin();
         await expect(requireBodyAdmin(USER, 'argos', 'argos-council')).resolves.toBeUndefined();
+    });
+});
+
+describe('requireRealmRight', () => {
+    it('passes the admin of that realm, and refuses the admin of another realm or of a city in it', async () => {
+        holding(realmGrant(Realm.poland));
+        await expect(requireRealmRight(USER, 'admin', Realm.poland)).resolves.toBeUndefined();
+        await expect(requireRealmRight(USER, 'admin', Realm.greece)).rejects.toThrow(ForbiddenError);
+        asCityAdmin('athens');
+        await expect(requireRealmRight(USER, 'admin', Realm.greece)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('passes a superadmin on every realm', async () => {
+        asSuperadmin();
+        await expect(requireRealmRight(USER, 'admin', Realm.poland)).resolves.toBeUndefined();
+    });
+});
+
+describe('requireAdminRealms', () => {
+    it('answers null for a superadmin, the realms of a realm admin, and refuses a city admin', async () => {
+        asSuperadmin();
+        await expect(requireAdminRealms(USER)).resolves.toBeNull();
+        holding(realmGrant(Realm.poland), realmGrant(Realm.france), cityGrant('athens'));
+        await expect(requireAdminRealms(USER)).resolves.toEqual([Realm.poland, Realm.france]);
+        asCityAdmin('athens');
+        await expect(requireAdminRealms(USER)).rejects.toThrow(ForbiddenError);
     });
 });
 

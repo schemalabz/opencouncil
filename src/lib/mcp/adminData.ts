@@ -24,7 +24,7 @@ import type {
     PublishCityDemoToolArgs,
     SetCityBoundaryToolArgs,
 } from './adminToolSchemas';
-import { requireBodyRight, requireCityRight, requireMeetingRight, requireSuperadmin } from './adminAccess';
+import { requireAdminRealms, requireBodyRight, requireCityRight, requireMeetingRight, requireRealmRight } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
@@ -224,7 +224,7 @@ function revalidateCityDiscovery(cityId: string, realm: City['realm']) {
 }
 
 export async function mcpSetCityBoundary(identity: McpIdentity, args: SetCityBoundaryToolArgs) {
-    await requireSuperadmin(identity);
+    await requireCityRight(identity, 'admin', args.cityId);
     const realm = await requireRealmCity(args.cityId);
     const boundary = parseBoundaryInput(args.geojson);
     if (!boundary.ok) throw new BadRequestError(`Invalid boundary GeoJSON: ${boundary.error}. Supply the municipality's WGS84 Polygon or MultiPolygon.`);
@@ -242,8 +242,9 @@ export async function mcpSetCityBoundary(identity: McpIdentity, args: SetCityBou
 }
 
 export async function mcpPublishCityDemo(identity: McpIdentity, args: PublishCityDemoToolArgs) {
-    await requireSuperadmin(identity);
-    await requireRealmCity(args.cityId);
+    // The status is the realm's, as on the city form: a city admin must not
+    // make their city a customer.
+    await requireRealmRight(identity, 'admin', await requireRealmCity(args.cityId));
     let city: City;
     try {
         city = await publishCityDemoDirect(args.cityId);
@@ -263,12 +264,12 @@ export async function mcpPublishCityDemo(identity: McpIdentity, args: PublishCit
 }
 
 export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolArgs) {
-    await requireSuperadmin(identity);
-
-    // The city goes to the connector's realm unless the superadmin names
-    // another. The fields a tool does not offer take the defaults of the
-    // site's form, and `pending` keeps the city off every public page.
+    // The city goes to the connector's realm unless the caller names
+    // another. A superadmin adds a city to any realm, a realm admin to their
+    // own. The fields a tool does not offer take the defaults of the site's
+    // form, and `pending` keeps the city off every public page.
     const realm = args.realm ?? currentRealm();
+    await requireRealmRight(identity, 'admin', realm);
     // English is also a fallback UI locale, so it cannot establish the
     // council's content language. Require it explicitly on English-UI realms.
     const uiLocale = REALMS[realm].defaultLocale;
@@ -314,16 +315,17 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
 }
 
 /**
- * Every realm, for a superadmin who adds a city: where each one is served,
- * which UI language it shows, and how many cities it has in each status.
+ * The realms the caller may add a city to, every one for a superadmin:
+ * where each one is served, which UI language it shows, and how many cities
+ * it has in each status.
  */
 export async function mcpListRealms(identity: McpIdentity) {
-    await requireSuperadmin(identity);
+    const administered = await requireAdminRealms(identity);
     const counts = await countCitiesByRealmAndStatus();
     const cityCount = (realm: string, status: string) =>
         counts.find((row) => row.realm === realm && row.status === status)?._count._all ?? 0;
     return {
-        realms: ALL_REALMS.map((realm) => ({
+        realms: ALL_REALMS.filter((realm) => administered === null || administered.includes(realm)).map((realm) => ({
             realm,
             country: REALMS[realm].country,
             countryName: getRealmDisplayName(realm, 'en'),
@@ -346,7 +348,7 @@ export async function mcpPopulateCity(
     identity: McpIdentity,
     data: CityPopulationData
 ) {
-    await requireSuperadmin(identity);
+    await requireCityRight(identity, 'admin', data.cityId);
     await requireRealmCity(data.cityId);
 
     const stats = await populateCity(data);
@@ -356,6 +358,6 @@ export async function mcpPopulateCity(
         cityId: data.cityId,
         ...stats,
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
-        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call publish_city_demo.',
+        next: 'The city stays pending. After checking the import and obtaining approval to publish, an admin of the city can call publish_city_demo.',
     };
 }
