@@ -18,7 +18,7 @@ import { sendInviteEmail } from '@/lib/auth/invite'
 import { mintMachineToken } from '@/lib/actions/machineAccounts'
 import { NotFoundError } from '@/lib/api/errors'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, createNotificationPreference, createPerson, createSubject, createTopic, createUser, signInAsSuperAdmin } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createGrant, createMeeting, createNotificationPreference, createPerson, createSubject, createTopic, createUser, signInAsSuperAdmin } from '../helpers/factories'
 const json = (url: string, body: unknown, method = 'POST') => new NextRequest(new URL(url, 'http://localhost'),
     { method, body: JSON.stringify(body), headers: { 'content-type': 'application/json' } })
 describe('a machine account is not a person', () => {
@@ -55,10 +55,8 @@ describe('a machine account is not a person', () => {
         await createCity({ id: 'athens' })
         const body = await createAdministrativeBody('athens')
         const person = await createUser('anna@example.com')
-        await prisma.administers.createMany({ data: [
-            { userId: person.id, administrativeBodyId: body.id },
-            { userId: machineId, administrativeBodyId: body.id },
-        ] })
+        await createGrant(person.id, { administrativeBodyId: body.id })
+        await createGrant(machineId, { administrativeBodyId: body.id })
         expect((await getUsers()).map(u => u.id)).not.toContain(machineId)
         expect((await listBodyAdmins('athens', body.id)).map(a => a.userId)).toEqual([person.id])
     })
@@ -79,10 +77,8 @@ describe('a machine account is not a person', () => {
         await createCity({ id: 'athens' })
         const councillor = await createPerson('athens')
         const person = await createUser('anna@example.com')
-        await prisma.administers.createMany({ data: [
-            { userId: person.id, personId: councillor.id },
-            { userId: machineId, personId: councillor.id },
-        ] })
+        await createGrant(person.id, { personId: councillor.id })
+        await createGrant(machineId, { personId: councillor.id })
         const [row] = await getPeopleWithVoicePrintsForCity('athens')
         expect(row._count.administrators).toBe(1)
     })
@@ -92,7 +88,7 @@ describe('a machine account is not a person', () => {
         const body = await createAdministrativeBody('athens')
         const people = await Promise.all(Array.from({ length: 19 }, (_, i) => createUser(`p${i}@example.com`)))
         const bots = await Promise.all(Array.from({ length: 3 }, (_, i) => createUser(`bot${i}@machines.opencouncil.invalid`, { isMachine: true })))
-        await prisma.administers.createMany({ data: [...people, ...bots].map(u => ({ userId: u.id, administrativeBodyId: body.id })) })
+        for (const u of [...people, ...bots]) await createGrant(u.id, { administrativeBodyId: body.id })
         await expect(addBodyAdmin('athens', body.id, { email: 'twentieth@example.com' })).resolves.toMatchObject({ created: true })
     })
     test("the machines page lists machine accounts only, so it never shows a person's tokens", async () => {

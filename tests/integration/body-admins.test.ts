@@ -11,7 +11,7 @@ import { editPerson } from '@/lib/db/people'
 import { GET as listMeetings } from '@/app/api/cities/[cityId]/meetings/route'
 import { NextRequest } from 'next/server'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, createUser } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createGrant, createMeeting, createUser } from '../helpers/factories'
 import { __setSessionEmail } from '../mocks/auth'
 
 jest.mock('@/lib/auth/invite', () => ({ sendInviteEmail: jest.fn().mockResolvedValue(true) }))
@@ -25,7 +25,7 @@ let admin: { id: string; email: string }
 
 async function signInAsBodyAdmin() {
     admin = await createUser('secretary@integration.test')
-    await prisma.administers.create({ data: { userId: admin.id, administrativeBodyId: bodyId } })
+    await createGrant(admin.id, { administrativeBodyId: bodyId })
     __setSessionEmail(admin.email)
     return admin
 }
@@ -34,7 +34,7 @@ async function fillBody(total: number) {
     const current = await prisma.administers.count({ where: { administrativeBodyId: bodyId } })
     for (let i = current; i < total; i++) {
         const user = await createUser(`filler${i}@integration.test`)
-        await prisma.administers.create({ data: { userId: user.id, administrativeBodyId: bodyId } })
+        await createGrant(user.id, { administrativeBodyId: bodyId })
     }
 }
 
@@ -97,7 +97,7 @@ describe('body admins', () => {
 
     it('does not let two admins who remove each other at once leave the body with none', async () => {
         const other = await createUser('colleague@integration.test')
-        await prisma.administers.create({ data: { userId: other.id, administrativeBodyId: bodyId } })
+        await createGrant(other.id, { administrativeBodyId: bodyId })
         const me = await prisma.user.findUniqueOrThrow({ where: { email: 'secretary@integration.test' } })
 
         const results = await Promise.allSettled([
@@ -125,7 +125,7 @@ describe('body admins', () => {
         // The role gate must still refuse a person with a role outside the body.
         it('does not let a body admin with a person row replace the roles of a councillor', async () => {
             const councillor = await personWithRoles([{ cityId: CITY, name: 'Mayor' }, { administrativeBodyId: bodyId }])
-            await prisma.administers.create({ data: { userId: admin.id, personId: councillor.id } })
+            await createGrant(admin.id, { personId: councillor.id })
             await expect(editPerson(councillor.id, { ...details, roles: [{ ...role, administrativeBodyId: bodyId }] }))
                 .rejects.toThrow('outside the bodies you administer')
             expect(await prisma.role.count({ where: { personId: councillor.id, name: 'Mayor' } })).toBe(1)

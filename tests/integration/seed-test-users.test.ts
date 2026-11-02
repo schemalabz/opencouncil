@@ -2,7 +2,7 @@
 import prisma from '@/lib/db/prisma'
 import { ensureTestUsers, testUserId } from '@/lib/db/testUsers'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, createPerson, createSpeakerSegment, createSpeakerTag, createTopic, createUser } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createGrant, createMeeting, createPerson, createSpeakerSegment, createSpeakerTag, createTopic, createUser } from '../helpers/factories'
 
 async function createParty(id: string, cityId: string, roleHolders: string[]) {
     await prisma.party.create({ data: { id, cityId, name: id, name_en: id, name_short: id, name_short_en: id, colorHex: '#123456' } })
@@ -15,7 +15,7 @@ async function giveSegments(personId: string, meetingId: string, cityId: string,
 }
 
 async function rightsOf(email: string) {
-    const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { administers: { select: { cityId: true, partyId: true, personId: true, claimedAt: true } } } })
+    const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { administers: { select: { role: true, realm: true, cityId: true, partyId: true, personId: true, claimedAt: true, acceptedAt: true } } } })
     return user.administers
 }
 
@@ -73,6 +73,10 @@ describe('ensureTestUsers', () => {
             ['party', testUserId('party')],
             ['person', testUserId('person')],
             ['body', testUserId('body')],
+            ['realmadmin', testUserId('realmadmin')],
+            ['records', testUserId('records')],
+            ['comms', testUserId('comms')],
+            ['viewer', testUserId('viewer')],
             ['readonly', testUserId('readonly')],
         ])
         const byType = Object.fromEntries(users.map((u) => [u.adminType, u]))
@@ -82,7 +86,13 @@ describe('ensureTestUsers', () => {
         expect(byType.person.administers.map((a) => a.personId).sort()).toEqual([busy.id, other.id].sort())
         expect((await rightsOf('person@test.com')).every((a) => a.claimedAt !== null)).toBe(true)
         expect(byType.body.administers.map((a) => a.administrativeBodyId)).toEqual(['alpha-committee', 'beta-council'])
+        expect(byType.realmadmin.administers.map((a) => [a.role, a.realm])).toEqual([['admin', 'greece']])
+        expect(byType.records.administers.map((a) => [a.role, a.administrativeBodyId])).toEqual([['records', 'alpha-committee'], ['records', 'beta-council']])
+        expect(byType.comms.administers.map((a) => [a.role, a.cityId])).toEqual([['highlights', 'alpha'], ['highlights', 'beta']])
+        expect(byType.viewer.administers.map((a) => [a.role, a.cityId])).toEqual([['viewer', 'alpha'], ['viewer', 'beta']])
         expect(byType.readonly.administers).toEqual([])
+        // Every seeded grant is active: accepted, with the default admin role unless the account says otherwise.
+        expect((await rightsOf('city@test.com')).every((a) => a.acceptedAt !== null && a.role === 'admin')).toBe(true)
         // The superadmin follows two cities; the others follow the first.
         expect(byType.superadmin.notificationPreferences.map((p) => p.cityId)).toEqual(['alpha', 'beta'])
         expect(byType.readonly.notificationPreferences.map((p) => p.cityId)).toEqual(['alpha'])
@@ -104,7 +114,7 @@ describe('ensureTestUsers', () => {
     // On staging, councillors claim their own pages, and a person has at most one claim.
     test('claims the busiest person that no other account has claimed, and keeps that claim', async () => {
         const councillor = await createUser('councillor@example.org')
-        await prisma.administers.create({ data: { userId: councillor.id, personId: busy.id, claimedAt: new Date() } })
+        await createGrant(councillor.id, { personId: busy.id }, { claimedAt: new Date() })
         await ensureTestUsers(prisma)
         expect((await rightsOf('person@test.com')).map((a) => a.personId).sort()).toEqual([quiet.id, other.id].sort())
         expect(await rightsOf('councillor@example.org')).toEqual([expect.objectContaining({ personId: busy.id })])
@@ -120,7 +130,7 @@ describe('ensureTestUsers', () => {
 
     test('keeps the id of an account that an earlier seed created, and a right added by hand', async () => {
         const earlier = await createUser('city@test.com', { name: 'Chania Admin (chania)' })
-        await prisma.administers.create({ data: { userId: earlier.id, cityId: 'pending-town' } })
+        await createGrant(earlier.id, { cityId: 'pending-town' })
         const users = await ensureTestUsers(prisma)
         const cityAdmin = users.find((u) => u.adminType === 'city')
         expect(cityAdmin?.id).toBe(earlier.id)

@@ -28,7 +28,7 @@ import prisma from '@/lib/db/prisma'
 import MeetingsPage from '@/app/[locale]/(city)/[cityId]/(other)/(tabs)/meetings/page'
 import { __setSessionEmail } from '../mocks/auth'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createUser, signInAsSuperAdmin } from '../helpers/factories'
+import { createGrant, createUser, signInAsSuperAdmin } from '../helpers/factories'
 import { buildMeetingArchive, MeetingArchive } from '../helpers/meetingArchive'
 import { countCouncilMeetingsCached } from '@/lib/cache'
 import type { MeetingListOptions } from '@/lib/db/meetingsList'
@@ -45,7 +45,7 @@ async function load(query: Record<string, string>, locale = 'el'): Promise<PageP
 
 async function signInAsAdminOf(email: string, grant: { administrativeBodyId: string } | { cityId: string }) {
     const admin = await createUser(email)
-    await prisma.administers.create({ data: { userId: admin.id, ...grant } })
+    await createGrant(admin.id, grant)
     __setSessionEmail(admin.email)
 }
 

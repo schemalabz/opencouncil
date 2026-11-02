@@ -94,7 +94,7 @@ export async function addBodyAdmin(
             select: { id: true },
         });
         const row = await tx.administers.create({
-            data: { userId: user.id, administrativeBodyId: bodyId },
+            data: { userId: user.id, administrativeBodyId: bodyId, acceptedAt: new Date() },
             select: bodyAdminSelect,
         });
         return { row, created: !existing };

@@ -237,7 +237,11 @@ describe('users db layer - normalization and duplicate handling', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             administers: {
-              create: [{ personId: 'person-1', claimedAt }, { personId: 'person-2' }, { cityId: 'city-1' }],
+              create: [
+                { personId: 'person-1', claimedAt, acceptedAt: expect.any(Date) },
+                { personId: 'person-2', acceptedAt: expect.any(Date) },
+                { cityId: 'city-1', acceptedAt: expect.any(Date) },
+              ],
             },
           }),
         })

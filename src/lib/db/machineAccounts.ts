@@ -66,7 +66,7 @@ export async function createMachineAccount(data: CreateMachineAccountInput) {
                 allowFeedbackCalls: false,
                 notifyByPhone: false,
                 administers: {
-                    create: data.administers
+                    create: data.administers?.map((row) => ({ ...row, acceptedAt: new Date() }))
                 }
             },
             select: machineAccountSelect,

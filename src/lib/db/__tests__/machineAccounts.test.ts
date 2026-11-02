@@ -37,7 +37,7 @@ describe('createMachineAccount', () => {
                 allowPetitionUpdates: false,
                 allowFeedbackCalls: false,
                 notifyByPhone: false,
-                administers: { create: [{ cityId: 'athens' }] },
+                administers: { create: [{ cityId: 'athens', acceptedAt: expect.any(Date) }] },
             }),
         }));
     });

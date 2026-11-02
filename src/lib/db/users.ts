@@ -104,7 +104,7 @@ export async function createUser(data: AdminUserData): Promise<UserWithAdministe
                 isSuperAdmin,
                 onboarded,
                 administers: {
-                    create: administers
+                    create: administers?.map((row) => ({ ...row, acceptedAt: new Date() }))
                 }
             },
             include: userWithAdministersInclude
@@ -156,11 +156,13 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
                     data: {
                         ...userData,
                         administers: {
-                            create: administers.map((row) =>
-                                row.personId && claimedAtByPerson.has(row.personId)
-                                    ? { ...row, claimedAt: claimedAtByPerson.get(row.personId) }
-                                    : row,
-                            ),
+                            create: administers.map((row) => ({
+                                ...row,
+                                acceptedAt: new Date(),
+                                ...(row.personId && claimedAtByPerson.has(row.personId)
+                                    ? { claimedAt: claimedAtByPerson.get(row.personId) }
+                                    : {}),
+                            })),
                         },
                     },
                     include: userWithAdministersInclude,
