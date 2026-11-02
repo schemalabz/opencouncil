@@ -10,7 +10,7 @@ import { POST as quickLogin } from '@/app/api/dev/quick-login/route'
 import { getProductUpdateRecipientCount, getProductUpdateRecipients } from '@/lib/db/productUpdates'
 import { getAdminDashboardStats } from '@/lib/db/adminStats'
 import { getUsers } from '@/lib/db/users'
-import { addBodyAdmin, listBodyAdmins } from '@/lib/db/bodyAdmins'
+import { inviteGrant, listGrants } from '@/lib/db/grants'
 import { countEmailRecipientsForMeeting, getNotificationImpactPreviewData } from '@/lib/db/notifications'
 import { getPeopleWithVoicePrintsForCity } from '@/lib/db/people'
 import { listMachineAccounts } from '@/lib/db/machineAccounts'
@@ -51,14 +51,14 @@ describe('a machine account is not a person', () => {
         expect(await getProductUpdateRecipientCount()).toEqual({ optedIn: 1, total: 1 })
         expect((await getAdminDashboardStats()).users).toMatchObject({ total: 1, newLast7Days: 1 })
     })
-    test('the users list and a body admin list hold people only', async () => {
+    test('the users list and the grants of a city hold people only', async () => {
         await createCity({ id: 'athens' })
         const body = await createAdministrativeBody('athens')
         const person = await createUser('anna@example.com')
         await createGrant(person.id, { administrativeBodyId: body.id })
         await createGrant(machineId, { administrativeBodyId: body.id })
         expect((await getUsers()).map(u => u.id)).not.toContain(machineId)
-        expect((await listBodyAdmins('athens', body.id)).map(a => a.userId)).toEqual([person.id])
+        expect((await listGrants({ realms: null, cityId: 'athens' })).map(g => g.user.id)).toEqual([person.id])
     })
     test('the recipients of a meeting and the impact preview hold people only', async () => {
         // A machine account never gets a preference through the app; one
@@ -89,7 +89,7 @@ describe('a machine account is not a person', () => {
         const people = await Promise.all(Array.from({ length: 19 }, (_, i) => createUser(`p${i}@example.com`)))
         const bots = await Promise.all(Array.from({ length: 3 }, (_, i) => createUser(`bot${i}@machines.opencouncil.invalid`, { isMachine: true })))
         for (const u of [...people, ...bots]) await createGrant(u.id, { administrativeBodyId: body.id })
-        await expect(addBodyAdmin('athens', body.id, { email: 'twentieth@example.com' })).resolves.toMatchObject({ created: true })
+        await expect(inviteGrant({ email: 'twentieth@example.com', role: 'admin', scope: { administrativeBodyId: body.id } })).resolves.toMatchObject({ status: 'active' })
     })
     test("the machines page lists machine accounts only, so it never shows a person's tokens", async () => {
         const person = await createUser('anna@example.com')

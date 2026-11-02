@@ -14,9 +14,8 @@ import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 //
 // The spec does not document every route. For example, it leaves out routes
 // that only the admin pages call: the /api/admin routes other than the ones
-// below, the notifications of a meeting, and the admins of an administrative
-// body (/api/cities/{cityId}/administrative-bodies/{bodyId}/admins), which
-// invite people by email.
+// below (/api/admin/grants, which invites people by email, among them), and
+// the notifications of a meeting.
 const EXPECTED_OPERATIONS = [
     'GET /api/cities',
     'POST /api/cities',

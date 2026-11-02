@@ -103,15 +103,40 @@ export const createUserRequestSchema = z.discriminatedUnion('isMachine', [
 /** An id a Server Action receives: any JSON value until it is checked. */
 export const entityIdSchema = z.string().min(1);
 
-// --- Admins of an administrative body ---
+// --- Grants (#875) ---
 
-// JSON body of POST /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
-export const addBodyAdminRequestSchema = z.object({
+/**
+ * The scope of a grant: exactly one key, and no other. A strict object per
+ * branch, so a body with two keys fails instead of matching the first branch
+ * that ignores the extra key.
+ */
+const grantScopeSchema = z.union([
+    z.strictObject({ realm: z.enum(Realm) }),
+    z.strictObject({ cityId: z.string().min(1) }),
+    z.strictObject({ administrativeBodyId: z.string().min(1) }),
+    z.strictObject({ partyId: z.string().min(1) }),
+    z.strictObject({ personId: z.string().min(1) }),
+]);
+
+// JSON body of POST /api/admin/grants
+export const inviteGrantRequestSchema = z.object({
     email: adminUserFields.email,
     name: z.string().trim().min(1).nullable().optional(),
+    role: z.enum(GRANT_ROLES),
+    scope: grantScopeSchema,
+});
+export type InviteGrantRequest = z.infer<typeof inviteGrantRequestSchema>;
+
+// JSON body of DELETE /api/admin/grants
+export const revokeGrantRequestSchema = z.object({
+    grantId: z.string().min(1),
 });
 
-// JSON body of DELETE /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
-export const removeBodyAdminRequestSchema = z.object({
-    userId: z.string().min(1),
-});
+/**
+ * The refusals of the grants route, as the `error` of its 400 answer. Codes,
+ * not sentences: the team page maps each one to copy in its own language.
+ */
+export const GRANT_ERROR_CODES = ['last-admin', 'cap', 'machine-address', 'claimed', 'duplicate'] as const;
+export type GrantErrorCode = (typeof GRANT_ERROR_CODES)[number];
+export const isGrantErrorCode = (value: unknown): value is GrantErrorCode =>
+    typeof value === 'string' && (GRANT_ERROR_CODES as readonly string[]).includes(value);
