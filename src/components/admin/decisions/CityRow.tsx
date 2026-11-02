@@ -14,7 +14,7 @@ import type { CityDecisionDetail } from '@/lib/db/decisionHealthDetail';
 import type { CandidateConflict } from '@/lib/db/decisionCandidates';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
-import { resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
+import { resolveCandidateConflict } from '@/lib/actions/decisions';
 import { fetchCityDecisionDetail } from './actions';
 import { buildDateGroups, type ListFilter } from './dateGroups';
 import { CoverageStrip } from './CoverageStrip';

@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 import { Prisma } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";

@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/lib/utils/html';
+
 /**
  * Allowlist used by both the editor preview and the server-side render so
  * that what the admin sees in Preview matches the HTML actually shipped to
@@ -37,7 +39,6 @@ export const DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN = `Γεια σου {{userN
 
 <a href="https://opencouncil.gr" style="display:inline-block;background-color:#fc550a;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;line-height:1.4;">Επισκεφθείτε το OpenCouncil</a>
 
-
 <br/>
 Με εκτίμηση, <br/>
 Η ομάδα του OpenCouncil
@@ -50,14 +51,6 @@ export const DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN = `Γεια σου {{userN
 Δεν θέλετε να λαμβάνετε τέτοιες ενημερώσεις; [Απεγγραφή]({{unsubscribeUrl}})
 `;
 
-
-function escapeHtml(s: string): string {
-    return s
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;');
-}
 
 /**
  * Per-recipient placeholder substitution on the editor's sanitized HTML.

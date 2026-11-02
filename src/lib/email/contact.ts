@@ -1,8 +1,9 @@
-"use server";
+import "server-only";
 import { isPhoneEmpty, toE164 } from '@/lib/utils/phone';
+import { escapeHtml } from '@/lib/utils/html';
 import { sendEmail } from './resend';
 
-interface ContactFormData {
+export interface ContactFormData {
   contactName: string;
   contactPosition: string;
   contactEmail: string;
@@ -11,6 +12,11 @@ interface ContactFormData {
   calculatedPrice?: number | null;
 }
 
+/**
+ * The confirmation email of the contact form, to the person who filled it in
+ * and in copy to the team. The browser reaches this through
+ * src/lib/actions/contact.ts, which validates and rate-limits the input.
+ */
 export async function sendContactEmail(data: ContactFormData) {
   const { contactName, contactPosition, contactEmail, contactMunicipality, contactPhone, calculatedPrice } = data;
 
@@ -28,16 +34,17 @@ export async function sendContactEmail(data: ContactFormData) {
     ? `\nΕκτιμώμενο ετήσιο κόστος: ${calculatedPrice}€ + ΦΠΑ`
     : '';
 
+  // Every field is typed by the sender. Escaped, it is text in the email and nothing more.
   const html = `
-    <p>Αγαπητέ/ή ${contactName},</p>
+    <p>Αγαπητέ/ή ${escapeHtml(contactName)},</p>
     <p>Ευχαριστούμε για το ενδιαφέρον σας στο OpenCouncil. Θα έρθουμε σε επικοινωνία μαζί σας σύντομα.</p>
     <p>Τα στοιχεία που μας δώσατε είναι:</p>
     <ul>
-      <li>Όνομα: ${contactName}</li>
-      <li>Θέση: ${contactPosition}</li>
-      <li>Email: ${contactEmail}</li>
-      <li>Δήμος: ${contactMunicipality}</li>
-      ${phone ? `<li>Τηλέφωνο: ${phone.e164}</li>` : ''}
+      <li>Όνομα: ${escapeHtml(contactName)}</li>
+      <li>Θέση: ${escapeHtml(contactPosition)}</li>
+      <li>Email: ${escapeHtml(contactEmail)}</li>
+      <li>Δήμος: ${escapeHtml(contactMunicipality)}</li>
+      ${phone ? `<li>Τηλέφωνο: ${escapeHtml(phone.e164)}</li>` : ''}
     </ul>
     ${priceInfo}
     <p>Με εκτίμηση,<br>Η ομάδα του OpenCouncil</p>

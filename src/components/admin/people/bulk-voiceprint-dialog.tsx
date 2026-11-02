@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, Volume2, AlertCircle, CheckCircle } from "lucide-react";
-import { findEligiblePeopleForVoiceprintGeneration, requestGenerateVoiceprintsForCity } from "@/lib/tasks/generateVoiceprint";
+import { findEligiblePeopleForVoiceprintGeneration, requestGenerateVoiceprintsForCity } from "@/lib/actions/tasks";
 import { useToast } from "@/hooks/use-toast";
 
 interface BulkVoiceprintDialogProps {

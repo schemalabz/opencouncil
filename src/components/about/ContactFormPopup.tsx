@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneField } from '@/components/ui/phone-field'
 import { Link } from '@/i18n/routing'
-import { sendContactEmail } from '@/lib/email/contact'
+import { submitContactForm } from '@/lib/actions/contact'
 import { getRealmDomain } from '@/lib/realm'
 import { formatCurrency } from '@/lib/utils'
 import { PillButton, recordFont } from './primitives'
@@ -82,7 +82,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
     const submit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setStatus('sending')
-        const result = await sendContactEmail({
+        const result = await submitContactForm({
             contactName: form.name,
             contactPosition: form.position,
             contactEmail: form.email,

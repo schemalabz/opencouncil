@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
-import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
+import { requestPollDecisions } from '@/lib/actions/decisions';
 import { readAdaLookup } from '@/lib/actions/adaLookups';
 import admin from '../../../../../messages/el/admin.json';
 import decisionsTable from '../../../../../messages/el/decisionsTable.json';
@@ -131,7 +131,7 @@ jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
 /** The poll the status watch reports as running; a test sets it to play another poll. */
 let mockPendingTaskId: string | null = null;
 
-jest.mock('@/lib/tasks/pollDecisions', () => ({
+jest.mock('@/lib/actions/decisions', () => ({
     getPollingHistoryForMeeting: jest.fn(async () => ({
         totalPolls: 0,
         firstPollAt: null,

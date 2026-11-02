@@ -29,7 +29,7 @@ import { VotingSection } from "./VotingSection";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
-import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
+import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/actions/decisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
 import { PendingNote } from "@/components/meetings/stage/PendingNote";

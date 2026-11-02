@@ -14,7 +14,7 @@ import { VoicePrint, TaskStatus } from "@prisma/client";
 import { useState, useEffect, useCallback } from "react";
 import { AudioLines, Loader2, Play, Trash } from "lucide-react";
 import { deleteVoicePrint } from "@/lib/db/voiceprints";
-import { requestGenerateVoiceprint } from "@/lib/tasks/generateVoiceprint";
+import { requestGenerateVoiceprint } from "@/lib/actions/tasks";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
