@@ -5,6 +5,7 @@ import { useTranscriptOptions } from './options/OptionsContext';
 import { ACTIONS, useKeyboardShortcut } from '@/contexts/KeyboardShortcutsContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { MAX_BULK_DELETE_IDS } from '@/lib/utils/utterance-deletion';
 import { calculateUtteranceRange } from '@/lib/selection-utils';
 import {
     Dialog,
@@ -177,9 +178,17 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             ? explicitIds
             : Array.from(selectedUtteranceIds);
         if (ids.length === 0) return;
+        if (ids.length > MAX_BULK_DELETE_IDS) {
+            toast({
+                title: t('selectionErrorTitle'),
+                description: t('deletionTooMany', { count: ids.length, max: MAX_BULK_DELETE_IDS }),
+                variant: 'destructive',
+            });
+            return;
+        }
         setPendingDeleteIds(ids);
         setIsDeleteDialogOpen(true);
-    }, [selectedUtteranceIds]);
+    }, [selectedUtteranceIds, toast, t]);
 
     const deleteSelectedUtterances = useCallback(async () => {
         if (pendingDeleteIds.length === 0) return;

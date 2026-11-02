@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 import { deleteUtterances } from '@/lib/db/utterance';
 import { getCurrentUser } from '@/lib/auth';
-
-// Caps a single bulk-delete request to keep the wrapping Prisma transaction
-// from timing out and to avoid an unconstrained deletion vector.
-const MAX_BULK_DELETE_IDS = 500;
+import { MAX_BULK_DELETE_IDS } from '@/lib/utils/utterance-deletion';
 
 const deleteUtterancesSchema = z.object({
     ids: z.array(z.string().min(1)).min(1).max(MAX_BULK_DELETE_IDS),

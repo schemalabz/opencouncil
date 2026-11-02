@@ -153,6 +153,7 @@
     "reviewCompleted": "Révision terminée",
     "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée.",
     "deletionSuccess": "{count, plural, one {# énoncé supprimé} other {# énoncés supprimés}}",
+    "deletionTooMany": "Vous avez sélectionné {count} énoncés. Vous pouvez en supprimer au plus {max} à la fois. Sélectionnez-en moins et réessayez.",
     "deletionError": "Échec de la suppression des énoncés sélectionnés",
     "bulkDeleteConfirmTitle": "Supprimer la sélection ?",
     "bulkDeleteConfirmDesc": "Voulez-vous vraiment supprimer {count, plural, one {# énoncé} other {# énoncés}} ? Cette action est irréversible.",

@@ -1,3 +1,8 @@
+// Caps a single bulk-delete request to keep the wrapping Prisma transaction
+// from timing out and to avoid an unconstrained deletion vector. The editor
+// checks it before it offers the deletion.
+export const MAX_BULK_DELETE_IDS = 500;
+
 type UtteranceWithTimestamps = {
     id: string;
     startTimestamp: number;

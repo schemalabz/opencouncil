@@ -5,7 +5,11 @@ import { CouncilMeetingDataProvider, useCouncilMeetingActions, useCouncilMeeting
 import type { MeetingData } from '@/lib/getMeetingData';
 
 jest.mock('@/lib/actions/speakerTags', () => ({ assignSpeaker: jest.fn() }));
-jest.mock('@/lib/db/speakerSegments', () => ({}));
+jest.mock('@/lib/db/speakerSegments', () => ({ addUtteranceToSegment: jest.fn(), updateSpeakerSegmentData: jest.fn() }));
+
+import { addUtteranceToSegment, updateSpeakerSegmentData } from '@/lib/db/speakerSegments';
+const mockAddUtterance = addUtteranceToSegment as jest.Mock;
+const mockUpdateSegment = updateSpeakerSegmentData as jest.Mock;
 
 const data = {
     meeting: { id: 'meeting-1', cityId: 'city-1' },
@@ -110,5 +114,99 @@ describe('deleteUtterances', () => {
         expect(utterances.map(u => u.text)).toEqual(['one', 'edited']);
         expect(transcript[0].startTimestamp).toBe(10);
         expect(transcript[0].endTimestamp).toBe(25);
+    });
+    it.each([
+        ['before the deletion finishes', true],
+        ['after the deletion finishes', false],
+    ])('keeps a deleted utterance out of a segment the server returns %s', async (_label, addFirst) => {
+        let resolveFetch: (value: { ok: boolean }) => void = () => {};
+        global.fetch = jest.fn(() => new Promise(resolve => { resolveFetch = resolve; })) as unknown as typeof fetch;
+        // The add request reached the server before the deletion committed, so
+        // its response still holds the deleted utterance.
+        let resolveAdd: (segment: unknown) => void = () => {};
+        mockAddUtterance.mockReturnValue(new Promise(resolve => { resolveAdd = resolve; }));
+        renderProvider();
+
+        let deletion: Promise<void> = Promise.resolve();
+        let adding: Promise<string> = Promise.resolve('');
+        act(() => {
+            deletion = actions.deleteUtterances(['u-1']);
+            adding = actions.addUtteranceToSegment('segment-a');
+        });
+        const staleSegment = {
+            ...data.transcript[0],
+            endTimestamp: 30,
+            utterances: [
+                ...data.transcript[0].utterances,
+                { id: 'u-3', text: '', startTimestamp: 25, endTimestamp: 30 },
+            ],
+        };
+        const finishAdd = async () => { resolveAdd(staleSegment); await adding; };
+        const finishDelete = async () => { resolveFetch({ ok: true }); await deletion; };
+
+        await act(async () => {
+            if (addFirst) { await finishAdd(); await finishDelete(); }
+            else { await finishDelete(); await finishAdd(); }
+        });
+
+        expect(utteranceIds()).toEqual(['u-2', 'u-3']);
+        expect(transcript[0].startTimestamp).toBe(20);
+    });
+    it('keeps a server edit of an utterance whose deletion then fails', async () => {
+        let resolveFetch: (value: { ok: boolean }) => void = () => {};
+        global.fetch = jest.fn(() => new Promise(resolve => { resolveFetch = resolve; })) as unknown as typeof fetch;
+        const editedSegment = {
+            ...data.transcript[0],
+            utterances: [
+                { ...data.transcript[0].utterances[0], text: 'one, edited' },
+                data.transcript[0].utterances[1],
+            ],
+        };
+        mockUpdateSegment.mockResolvedValue(editedSegment);
+        renderProvider();
+
+        let deletion: Promise<void> = Promise.resolve();
+        act(() => {
+            deletion = actions.deleteUtterances(['u-1']);
+        });
+        await act(async () => {
+            await actions.updateSpeakerSegmentData('segment-a', {} as never);
+        });
+        await act(async () => {
+            resolveFetch({ ok: false });
+            await expect(deletion).rejects.toThrow();
+        });
+
+        const utterances = transcript.flatMap(s => s.utterances);
+        expect(utterances.map(u => [u.id, u.text])).toEqual([['u-1', 'one, edited'], ['u-2', 'two']]);
+    });
+    it('does not bring back a confirmed deletion when a later deletion of it fails', async () => {
+        const fetches: Array<(value: { ok: boolean }) => void> = [];
+        global.fetch = jest.fn(() => new Promise(resolve => { fetches.push(resolve); })) as unknown as typeof fetch;
+        // The server returns the segment with u-1 while the first deletion runs.
+        mockUpdateSegment.mockResolvedValue(data.transcript[0]);
+        renderProvider();
+
+        let first: Promise<void> = Promise.resolve();
+        let second: Promise<void> = Promise.resolve();
+        act(() => {
+            first = actions.deleteUtterances(['u-1']);
+        });
+        await act(async () => {
+            await actions.updateSpeakerSegmentData('segment-a', {} as never);
+        });
+        act(() => {
+            second = actions.deleteUtterances(['u-1']);
+        });
+        await act(async () => {
+            fetches[0]({ ok: true });
+            await first;
+        });
+        await act(async () => {
+            fetches[1]({ ok: false });
+            await expect(second).rejects.toThrow();
+        });
+
+        expect(utteranceIds()).toEqual(['u-2']);
     });
 });

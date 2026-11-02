@@ -151,6 +151,7 @@
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "deletionSuccess": "Deleted {count, plural, one {# utterance} other {# utterances}}",
+    "deletionTooMany": "You selected {count} utterances. You can delete at most {max} at once. Select fewer and try again.",
     "deletionError": "Failed to delete selected utterances",
     "bulkDeleteConfirmTitle": "Delete selected?",
     "bulkDeleteConfirmDesc": "Are you sure you want to delete {count, plural, one {# utterance} other {# utterances}}? This action cannot be undone.",

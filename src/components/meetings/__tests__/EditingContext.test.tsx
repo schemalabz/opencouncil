@@ -44,8 +44,9 @@ jest.mock('../options/OptionsContext', () => ({
     useTranscriptOptions: () => ({ options: { editable: mockEditable } }),
 }));
 
+const mockToast = jest.fn();
 jest.mock('@/hooks/use-toast', () => ({
-    useToast: () => ({ toast: jest.fn() }),
+    useToast: () => ({ toast: mockToast }),
 }));
 
 jest.mock('next-intl', () => ({
@@ -76,10 +77,35 @@ function renderProvider() {
 beforeEach(() => {
     mockEditable = true;
     deleteUtterances.mockReset();
+    mockToast.mockReset();
     deleteUtterances.mockResolvedValue(undefined);
 });
 
 describe('EditingContext bulk delete', () => {
+    it('explains the size limit instead of offering to delete more than 500 utterances', () => {
+        renderProvider();
+        const ids = Array.from({ length: 501 }, (_, i) => `u-${i}`);
+
+        act(() => {
+            api.confirmDeleteSelected(ids);
+        });
+
+        expect(screen.queryByText('bulkDeleteConfirmDesc:501')).not.toBeInTheDocument();
+        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ description: 'deletionTooMany:501' }));
+        expect(deleteUtterances).not.toHaveBeenCalled();
+    });
+
+    it('still offers to delete exactly 500 utterances', () => {
+        renderProvider();
+        const ids = Array.from({ length: 500 }, (_, i) => `u-${i}`);
+
+        act(() => {
+            api.confirmDeleteSelected(ids);
+        });
+
+        expect(screen.getByText('bulkDeleteConfirmDesc:500')).toBeInTheDocument();
+    });
+
     it('right-click single → dialog shows count 1 and confirm deletes that id even after selection is cleared', async () => {
         renderProvider();
 
