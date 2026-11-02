@@ -242,7 +242,7 @@ describe('find and replace meeting authorization', () => {
 
     it('lets a body admin replace within their meeting', async () => {
         await expect(replaceAllInUtterances('athens', 'ym1', 'before', 'after', true))
-            .resolves.toEqual({ utteranceCount: 0, occurrenceCount: 0 });
+            .resolves.toEqual({ utteranceCount: 0, occurrenceCount: 0, updated: [] });
         expect(mockUtteranceFindMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({ speakerSegment: { cityId: 'athens', meetingId: 'ym1' } }),
         }));

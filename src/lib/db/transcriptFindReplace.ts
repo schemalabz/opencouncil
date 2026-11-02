@@ -10,7 +10,8 @@ import { literalReplaceAll } from '@/lib/utils/findReplace';
  *
  * Runs inside a single transaction so either every utterance and its audit
  * row commits, or none do. Returns the number of utterances changed and the
- * total number of occurrences replaced (for the toast confirmation).
+ * total number of occurrences replaced (for the toast confirmation), and the
+ * new text of each utterance it wrote, so the editor updates only those.
  */
 export async function replaceAllInUtterances(
     cityId: string,
@@ -18,7 +19,7 @@ export async function replaceAllInUtterances(
     searchTerm: string,
     replacement: string,
     caseSensitive: boolean,
-): Promise<{ utteranceCount: number; occurrenceCount: number }> {
+): Promise<{ utteranceCount: number; occurrenceCount: number; updated: Array<{ id: string; text: string }> }> {
     if (!searchTerm) {
         throw new Error('searchTerm must be non-empty');
     }
@@ -52,22 +53,33 @@ export async function replaceAllInUtterances(
     }
 
     if (changed.length === 0) {
-        return { utteranceCount: 0, occurrenceCount: 0 };
+        return { utteranceCount: 0, occurrenceCount: 0, updated: [] };
     }
 
     // One statement per chunk keeps a common term in a large meeting from
     // issuing thousands of sequential row updates inside the transaction, and
     // chunking bounds each statement's size. All chunks share one transaction
     // so a failure part-way rolls back every earlier chunk too.
+    //
+    // The matches were read outside the transaction. The UPDATE writes a row
+    // only if its text is still the text we read, so a save that another
+    // editor made in between is kept. Only the rows it wrote get an audit row
+    // and count in the result.
     const CHUNK_SIZE = 500;
-    await prisma.$transaction(async (tx) => {
+    const applied = await prisma.$transaction(async (tx) => {
+        const written: typeof changed = [];
         for (let i = 0; i < changed.length; i += CHUNK_SIZE) {
-            const slice = changed.slice(i, i + CHUNK_SIZE);
-            await tx.$executeRaw`
+            const chunk = changed.slice(i, i + CHUNK_SIZE);
+            const rows = await tx.$queryRaw<Array<{ id: string }>>`
                 UPDATE "Utterance" AS u
                 SET "text" = d.after, "lastModifiedBy" = 'user', "updatedAt" = NOW()
-                FROM unnest(${slice.map(c => c.id)}::text[], ${slice.map(c => c.after)}::text[]) AS d(id, after)
-                WHERE u.id = d.id`;
+                FROM unnest(${chunk.map(c => c.id)}::text[], ${chunk.map(c => c.before)}::text[], ${chunk.map(c => c.after)}::text[]) AS d(id, before, after)
+                WHERE u.id = d.id AND u."text" = d.before
+                RETURNING u.id`;
+            const writtenIds = new Set(rows.map(r => r.id));
+            const slice = chunk.filter(c => writtenIds.has(c.id));
+            written.push(...slice);
+            if (slice.length === 0) continue;
             await tx.utteranceEdit.createMany({
                 data: slice.map(c => ({
                     utteranceId: c.id,
@@ -78,11 +90,16 @@ export async function replaceAllInUtterances(
                 })),
             });
         }
+        return written;
     }, {
         maxWait: 10_000,
         timeout: 60_000,
     });
 
-    const occurrenceCount = changed.reduce((sum, c) => sum + c.count, 0);
-    return { utteranceCount: changed.length, occurrenceCount };
+    const occurrenceCount = applied.reduce((sum, c) => sum + c.count, 0);
+    return {
+        utteranceCount: applied.length,
+        occurrenceCount,
+        updated: applied.map(c => ({ id: c.id, text: c.after })),
+    };
 }

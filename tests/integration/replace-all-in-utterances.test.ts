@@ -50,7 +50,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'Μαυρογιώργης', 'Μαυρογεώργης', true)
 
-        expect(result).toEqual({ utteranceCount: 2, occurrenceCount: 2 })
+        expect(result).toMatchObject({ utteranceCount: 2, occurrenceCount: 2 })
         expect(withUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId, councilMeetingId: meetingId })
 
         const after = await prisma.utterance.findMany({
@@ -70,7 +70,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'foo', 'baz', true)
 
-        expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 4 })
+        expect(result).toMatchObject({ utteranceCount: 1, occurrenceCount: 4 })
         const after = await prisma.utterance.findFirst({ where: { speakerSegmentId: segmentId } })
         expect(after?.text).toBe('baz baz baz bar baz')
     })
@@ -80,7 +80,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'hello', 'world', true)
 
-        expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 1 })
+        expect(result).toMatchObject({ utteranceCount: 1, occurrenceCount: 1 })
         const after = await prisma.utterance.findFirst({ where: { speakerSegmentId: segmentId } })
         expect(after?.text).toBe('Hello world HELLO')
     })
@@ -90,7 +90,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'hello', 'world', false)
 
-        expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 3 })
+        expect(result).toMatchObject({ utteranceCount: 1, occurrenceCount: 3 })
         const after = await prisma.utterance.findFirst({ where: { speakerSegmentId: segmentId } })
         expect(after?.text).toBe('world world world')
     })
@@ -133,7 +133,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'xyz', 'abc', true)
 
-        expect(result).toEqual({ utteranceCount: 0, occurrenceCount: 0 })
+        expect(result).toMatchObject({ utteranceCount: 0, occurrenceCount: 0 })
         const edits = await prisma.utteranceEdit.findMany()
         expect(edits).toHaveLength(0)
     })
@@ -198,7 +198,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'foo', 'bar', true)
 
-        expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 1 })
+        expect(result).toMatchObject({ utteranceCount: 1, occurrenceCount: 1 })
         const otherText = await prisma.utterance.findFirst({ where: { speakerSegmentId: otherSeg.id } })
         expect(otherText?.text).toBe('foo in other city')
     })
@@ -217,7 +217,7 @@ describe('replaceAllInUtterances', () => {
 
         const result = await replaceAllInUtterances(cityId, meetingId, 'foo', 'bar', true)
 
-        expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 1 })
+        expect(result).toMatchObject({ utteranceCount: 1, occurrenceCount: 1 })
         const otherText = await prisma.utterance.findFirst({ where: { speakerSegmentId: otherSeg.id } })
         expect(otherText?.text).toBe('foo foo foo in other meeting')
     })
@@ -251,6 +251,31 @@ describe('replaceAllInUtterances', () => {
 
         expect(await prisma.utterance.count({ where: { text: { startsWith: 'bar' } } })).toBe(0)
         expect(await prisma.utteranceEdit.count()).toBe(0)
+    })
+
+    test('does not overwrite a save made after the matches were read', async () => {
+        const u1 = await createUtterance(segmentId, { text: 'foo one', startTimestamp: 0, endTimestamp: 10 })
+        const u2 = await createUtterance(segmentId, { text: 'foo two', startTimestamp: 10, endTimestamp: 20 })
+        // Another editor saves u1 after Replace All read the matches and
+        // before it writes them.
+        const findMany = prisma.utterance.findMany.bind(prisma.utterance)
+        const spy = jest.spyOn(prisma.utterance, 'findMany').mockImplementationOnce((async (args: Parameters<typeof findMany>[0]) => {
+            const rows = await findMany(args)
+            await prisma.utterance.update({ where: { id: u1.id }, data: { text: 'foo one, corrected' } })
+            return rows
+        }) as unknown as typeof prisma.utterance.findMany)
+
+        try {
+            const result = await replaceAllInUtterances(cityId, meetingId, 'foo', 'bar', true)
+            expect(result).toEqual({ utteranceCount: 1, occurrenceCount: 1, updated: [{ id: u2.id, text: 'bar two' }] })
+        } finally {
+            spy.mockRestore()
+        }
+
+        const texts = await prisma.utterance.findMany({ where: { id: { in: [u1.id, u2.id] } }, orderBy: { startTimestamp: 'asc' } })
+        expect(texts.map(u => u.text)).toEqual(['foo one, corrected', 'bar two'])
+        const edits = await prisma.utteranceEdit.findMany()
+        expect(edits.map(e => [e.utteranceId, e.beforeText])).toEqual([[u2.id, 'foo two']])
     })
 
     test('rejects an empty search term', async () => {

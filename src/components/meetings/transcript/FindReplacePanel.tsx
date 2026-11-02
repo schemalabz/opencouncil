@@ -11,7 +11,6 @@ import { useTranscriptOptions } from '../options/OptionsContext';
 import { editUtterance, replaceAllInUtterances } from '@/lib/actions/utterances';
 import { ChevronDown, ChevronUp, X, CaseSensitive } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { literalReplaceAll } from '@/lib/utils/findReplace';
 import {
     Dialog,
     DialogContent,
@@ -75,7 +74,9 @@ export function FindReplacePanel() {
             close();
             return;
         }
-        if (e.key === 'Enter') {
+        // Enter navigates only from the two inputs. A focused button keeps
+        // its own Enter, which activates it.
+        if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
             e.preventDefault();
             if (e.shiftKey) fr.prevMatch();
             else fr.nextMatch();
@@ -101,26 +102,23 @@ export function FindReplacePanel() {
         }
     }, [fr.matches, fr.currentMatchIndex, fr.replaceTerm, transcript, updateUtterance, toast, t]);
 
-    // Replace-all: server-side batch, then locally rewrite each affected
-    // utterance so the UI updates without a refetch.
+    // Replace-all: server-side batch, then locally write the text the server
+    // wrote, so the UI updates without a refetch. The server skips an
+    // utterance that another editor saved in between; it stays as it is here.
     const handleReplaceAll = useCallback(async () => {
         if (!fr.searchTerm) return;
         setIsReplacing(true);
         try {
-            const { utteranceCount, occurrenceCount } = await replaceAllInUtterances(
+            const { utteranceCount, occurrenceCount, updated } = await replaceAllInUtterances(
                 meeting.cityId, meeting.id, fr.searchTerm, fr.replaceTerm, fr.caseSensitive,
             );
 
-            if (occurrenceCount > 0) {
-                for (const segment of transcript) {
-                    for (const u of segment.utterances) {
-                        if (!u.text) continue;
-                        const { text: next, count } = literalReplaceAll(
-                            u.text, fr.searchTerm, fr.replaceTerm, fr.caseSensitive,
-                        );
-                        if (count > 0 && next !== u.text) {
-                            updateUtterance(segment.id, u.id, { text: next, lastModifiedBy: 'user' });
-                        }
+            const newTextById = new Map(updated.map(u => [u.id, u.text]));
+            for (const segment of transcript) {
+                for (const u of segment.utterances) {
+                    const next = newTextById.get(u.id);
+                    if (next !== undefined) {
+                        updateUtterance(segment.id, u.id, { text: next, lastModifiedBy: 'user' });
                     }
                 }
             }

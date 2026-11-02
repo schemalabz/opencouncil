@@ -23,6 +23,7 @@ import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { captureScrollAnchor, restoreScrollAnchor } from "@/lib/utils/scrollAnchor";
 import { useExcerptHighlighted } from '@/components/sharing/ExcerptRangeHighlight';
 import { useUtteranceMatches } from "./FindReplaceContext";
+import { displayMatchRange } from "@/lib/utils/findReplace";
 
 /**
  * Resolve the character offset of a click within a text span.
@@ -360,10 +361,18 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
                         // onKeyDown, so anything that moves focus onto a control
                         // in here — the timestamp buttons, the skip-interval
                         // dropdown — would otherwise leave Enter and Escape dead
-                        // until the user clicked back into the text.
+                        // until the user clicked back into the text. It does not
+                        // take focus from a text field outside the editor, such
+                        // as the Find & Replace inputs, whose matches re-render
+                        // this utterance.
                         ref={(el) => {
                             if (el) {
-                                el.focus();
+                                const active = document.activeElement;
+                                const typingElsewhere = active instanceof HTMLElement
+                                    && active !== el
+                                    && !rootRef.current?.contains(active)
+                                    && active.matches('input, textarea, [contenteditable="true"]');
+                                if (!typingElsewhere) el.focus();
                                 if (clickOffsetRef.current !== null) {
                                     el.selectionStart = el.selectionEnd = clickOffsetRef.current;
                                     clickOffsetRef.current = null;
@@ -490,11 +499,20 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
         if (findMatches.length === 0 || (options.editable && isEmptyUtterance)) {
             return displayText;
         }
-        const baseText = localUtterance.text;
+        // Transliterate the whole text: the script of a letter can depend on
+        // its neighbours (Љ before an upper-case letter, the digraph nj). The
+        // match offsets index the stored text; displayMatchRange maps them.
+        const storedText = localUtterance.text;
+        const baseText = localize(storedText);
         const parts: React.ReactNode[] = [];
         let cursor = 0;
         for (const m of findMatches) {
-            if (m.start > cursor) parts.push(baseText.slice(cursor, m.start));
+            // Two matches inside one digraph map to the same letter; never
+            // repeat text that an earlier mark already shows.
+            const [mappedStart, mappedEnd] = displayMatchRange(storedText, m.start, m.end, localize);
+            const start = Math.max(mappedStart, cursor);
+            const end = Math.max(mappedEnd, start);
+            if (start > cursor) parts.push(baseText.slice(cursor, start));
             const isActive = m.globalIndex === activeMatchIndex;
             parts.push(
                 <mark
@@ -504,10 +522,10 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
                         isActive ? 'bg-orange-400 text-black' : 'bg-yellow-200 text-black',
                     )}
                 >
-                    {baseText.slice(m.start, m.end)}
+                    {baseText.slice(start, end)}
                 </mark>,
             );
-            cursor = m.end;
+            cursor = end;
         }
         if (cursor < baseText.length) parts.push(baseText.slice(cursor));
         // trailing space (matches `displayText` semantics)

@@ -16,6 +16,6 @@ export async function replaceAllInUtterances(
     searchTerm: string,
     replacement: string,
     caseSensitive: boolean,
-): Promise<{ utteranceCount: number; occurrenceCount: number }> {
+): Promise<{ utteranceCount: number; occurrenceCount: number; updated: Array<{ id: string; text: string }> }> {
     return replaceAll(cityId, meetingId, searchTerm, replacement, caseSensitive);
 }
