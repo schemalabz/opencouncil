@@ -153,3 +153,45 @@ describe('the keys a guide shows', () => {
         expect(getActionKeyLabel('NOT_AN_ACTION')).toBeNull();
     });
 });
+
+describe('deleting the selection', () => {
+    function DeleteShortcut({ handler }: { handler: jest.Mock }) {
+        useKeyboardShortcut(ACTIONS.DELETE_SELECTION.id, handler, true);
+        return null;
+    }
+
+    function setupDelete() {
+        const handler = jest.fn();
+        const view = render(
+            <KeyboardShortcutsProvider>
+                <DeleteShortcut handler={handler} />
+                <p data-testid="transcript">an utterance</p>
+                <div role="dialog">
+                    <button data-testid="dialog-button">Cancel</button>
+                </div>
+                <div role="alertdialog">
+                    <p data-testid="alert-text">Delete 3 utterances?</p>
+                </div>
+            </KeyboardShortcutsProvider>
+        );
+        return { handler, view };
+    }
+
+    it('answers to Delete and Backspace on the transcript', () => {
+        const { handler, view } = setupDelete();
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'Delete' });
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'Backspace' });
+        expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves every key to an open dialog', () => {
+        const { handler, view } = setupDelete();
+        fireEvent.keyDown(view.getByTestId('dialog-button'), { key: 'Delete' });
+        fireEvent.keyDown(view.getByTestId('alert-text'), { key: 'Backspace' });
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('names both keys in the guide', () => {
+        expect(getActionKeyLabel(ACTIONS.DELETE_SELECTION.id)).toBe('Delete or Backspace');
+    });
+});
