@@ -56,6 +56,7 @@ import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
 import { requireVisibleMeeting } from '../gate';
+import { bodyGrant, cityGrant, grant, superadmin } from '@/lib/auth/__tests__/fixtures';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
 import { completeUpload, startUpload } from '../../uploads';
 import * as cityPopulate from '../../db/cityPopulate';
@@ -65,15 +66,12 @@ const ADMIN_TOKEN = { userId: 'u1' } as const;
 const SUPERADMIN_TOKEN = { userId: 'bot' } as const;
 
 const asCityAdmin = (...cityIds: string[]) =>
-    mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: cityIds.map(cityId => ({ cityId })) });
+    mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: cityIds.map(cityId => cityGrant(cityId)) });
 // An admin of one body of a city, and of nothing else.
 const asBodyAdmin = (bodyId: string, cityId: string) =>
-    mockUserFindUnique.mockResolvedValue({
-        isSuperAdmin: false,
-        administers: [{ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } }],
-    });
+    mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [bodyGrant(bodyId, cityId)] });
 
-const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
+const SUPERADMIN: McpAdminAccess = superadmin('bot');
 // Outside a request scope the guards read the rights from the database.
 const asSuperadmin = () => mockUserFindUnique.mockResolvedValue({ isSuperAdmin: true, administers: [] });
 
@@ -557,7 +555,7 @@ describe('permission matrix', () => {
     });
 
     it.each(Object.keys(all))('%s refuses a token whose owner administers nothing', async name => {
-        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: null }] });
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [grant({ partyId: 'p1' })] });
         await expect(all[name as keyof typeof all](ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
         expect(writes()).toBe(0);
     });
@@ -580,10 +578,7 @@ describe('an administrator of two bodies', () => {
     beforeEach(() => {
         mockUserFindUnique.mockResolvedValue({
             isSuperAdmin: false,
-            administers: [
-                { cityId: null, administrativeBodyId: 'council', administrativeBody: { cityId: 'argos' } },
-                { cityId: null, administrativeBodyId: 'committee', administrativeBody: { cityId: 'argos' } },
-            ],
+            administers: [bodyGrant('council', 'argos'), bodyGrant('committee', 'argos')],
         });
         (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
             id: 'm1', cityId: 'argos', name: 'n', name_en: 'n', dateTime: new Date(), youtubeUrl: null,

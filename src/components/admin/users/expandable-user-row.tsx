@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row"
+import { GRANT_TYPE_ICON, mapAdministersToGrants } from "@/components/admin/users/administers"
 
 interface ExpandableUserRowProps {
     user: UserWithRelations
@@ -36,6 +37,7 @@ export function ExpandableUserRow({
     const notificationCount = user.notificationPreferences.length
     const petitionCount = user.petitions.length
     const hasActivity = notificationCount > 0 || petitionCount > 0
+    const grants = mapAdministersToGrants(user.administers)
 
     // Expanded content
     const expandedContent = (
@@ -49,39 +51,13 @@ export function ExpandableUserRow({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2 text-xs">
-                                {user.administers.length > 0 ? (
+                                {grants.length > 0 ? (
                                     <div className="space-y-2">
-                                        {user.administers.map((admin) => {
-                                            if (admin.city) {
-                                                return (
-                                                    <Badge key={admin.id} variant="secondary" className="block w-fit">
-                                                        🏛️ {admin.city.name}
-                                                    </Badge>
-                                                )
-                                            }
-                                            if (admin.party) {
-                                                return (
-                                                    <Badge key={admin.id} variant="secondary" className="block w-fit">
-                                                        👥 {admin.party.city.name} / {admin.party.name}
-                                                    </Badge>
-                                                )
-                                            }
-                                            if (admin.person) {
-                                                return (
-                                                    <Badge key={admin.id} variant="secondary" className="block w-fit">
-                                                        👤 {admin.person.city.name} / {admin.person.name}
-                                                    </Badge>
-                                                )
-                                            }
-                                            if (admin.administrativeBody) {
-                                                return (
-                                                    <Badge key={admin.id} variant="secondary" className="block w-fit">
-                                                        🏢 {admin.administrativeBody.city.name} / {admin.administrativeBody.name}
-                                                    </Badge>
-                                                )
-                                            }
-                                            return null
-                                        })}
+                                        {grants.map(({ key, role, entity }) => (
+                                            <Badge key={key} variant="secondary" className="block w-fit">
+                                                {GRANT_TYPE_ICON[entity.type]} {entity.displayName} · {role}
+                                            </Badge>
+                                        ))}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No administrative roles</p>

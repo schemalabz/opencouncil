@@ -7,7 +7,7 @@
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('@/lib/db/mcpTokens', () => ({ validateUserMcpToken: jest.fn() }));
-jest.mock('@/lib/db/highlights-core', () => ({ getUserCityRights: jest.fn(), meetingHasBodyIn: jest.fn() }));
+jest.mock('@/lib/auth/grants.server', () => ({ loadActor: jest.fn(), hasRightOn: jest.fn() }));
 jest.mock('@/lib/mcp/analytics', () => ({ instrumentMcpAnalytics: jest.fn() }));
 jest.mock('@/lib/mcp/data', () => ({
     mcpListCities: jest.fn(), mcpGetCity: jest.fn(), mcpListPeople: jest.fn(), mcpGetPerson: jest.fn(),
@@ -25,17 +25,18 @@ jest.mock('@/lib/mcp/adminData', () => ({
 import { POST } from '../route';
 import { mcpListCities } from '@/lib/mcp/data';
 import { validateUserMcpToken } from '@/lib/db/mcpTokens';
-import { getUserCityRights } from '@/lib/db/highlights-core';
+import { loadActor } from '@/lib/auth/grants.server';
 import { currentMcpIdentity, currentRealm } from '@/lib/mcp/realm-context';
+import { actorWith, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const mockListCities = mcpListCities as jest.MockedFunction<typeof mcpListCities>;
 const mockToken = validateUserMcpToken as jest.MockedFunction<typeof validateUserMcpToken>;
-const mockRights = getUserCityRights as jest.MockedFunction<typeof getUserCityRights>;
+const mockLoadActor = loadActor as jest.MockedFunction<typeof loadActor>;
 
 const SUPERADMIN_TOKEN = { tokenId: 'tok0', userId: 'admin1', machineName: null };
 const PERSONAL_TOKEN = { tokenId: 'tok1', userId: 'u1', machineName: null };
-const NO_RIGHTS = { all: false, cityIds: new Set<string>(), bodies: new Map<string, string>() };
-const ALL_RIGHTS = { all: true, cityIds: new Set<string>(), bodies: new Map<string, string>() };
+const NO_RIGHTS = actorWith([], 'u1');
+const ALL_RIGHTS = superadmin('u1');
 
 // A 2025-era client: mcp-handler answers it with stateless Streamable HTTP.
 const PROTOCOL_VERSION = '2025-06-18';
@@ -127,7 +128,7 @@ describe('/api/mcp route (mcp-handler)', () => {
 
     it('takes the token from the URL path and passes the identity to the tools', async () => {
         mockToken.mockResolvedValue(SUPERADMIN_TOKEN);
-        mockRights.mockResolvedValue(ALL_RIGHTS);
+        mockLoadActor.mockResolvedValue(ALL_RIGHTS);
 
         const names = await toolNames({ path: '/api/mcp/mcp_test123' });
 
@@ -137,7 +138,7 @@ describe('/api/mcp route (mcp-handler)', () => {
 
     it('takes the token from the Authorization header', async () => {
         mockToken.mockResolvedValue(SUPERADMIN_TOKEN);
-        mockRights.mockResolvedValue(ALL_RIGHTS);
+        mockLoadActor.mockResolvedValue(ALL_RIGHTS);
 
         const names = await toolNames({ authorization: 'Bearer mcp_test123' });
 
@@ -146,7 +147,7 @@ describe('/api/mcp route (mcp-handler)', () => {
 
     it('gives a personal token the rights of its owner, not of a superadmin', async () => {
         mockToken.mockResolvedValue(PERSONAL_TOKEN);
-        mockRights.mockResolvedValue(NO_RIGHTS);
+        mockLoadActor.mockResolvedValue(NO_RIGHTS);
 
         const names = await toolNames({ authorization: 'Bearer mcp_personal' });
 

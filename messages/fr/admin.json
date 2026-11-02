@@ -1013,10 +1013,18 @@
       "none": "Aucun droit"
     },
     "grantType": {
+      "realm": "Pays",
       "city": "Commune",
       "party": "Groupe",
       "person": "Personne",
       "body": "Organe"
+    },
+    "grantRole": {
+      "admin": "Administrateur",
+      "records": "Procès-verbaux",
+      "meetings": "Séances",
+      "highlights": "Extraits",
+      "viewer": "Lecteur"
     },
     "editRights": "Modifier les droits",
     "newToken": "Nouveau jeton",

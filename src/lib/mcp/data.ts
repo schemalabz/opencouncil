@@ -29,6 +29,7 @@ import { getTaskNotificationOutcome } from '@/lib/notifications/meetingNotificat
 import { notificationOutcomeEn } from '@/lib/notifications/outcomeTextEn';
 import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
+import { emptyReach } from '@/lib/auth/rights';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
@@ -1001,8 +1002,8 @@ export async function mcpSearch(
  * `search` does not: it returns released subjects only, for every identity.
  */
 async function editableCities(identity: McpIdentity): Promise<UserCityRights> {
-    if (!identity) return { all: false, cityIds: new Set(), bodies: new Map() };
-    return getUserCityRights(identity.userId);
+    if (!identity) return emptyReach();
+    return getUserCityRights(identity.userId, 'highlight.manage');
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------
@@ -1259,7 +1260,7 @@ export async function mcpSetHighlightShowcase(identity: McpIdentity, highlightId
     if (!highlight) throw new NotFoundError('Highlight not found');
     await requireRealmCity(highlight.cityId);
 
-    const canEdit = await canUserEditCity(identity.userId, highlight.cityId);
+    const canEdit = await canUserEditCity(identity.userId, highlight.cityId, 'highlight.manage');
     if (!canEdit) {
         throw new ForbiddenError('Only city administrators can showcase highlights');
     }

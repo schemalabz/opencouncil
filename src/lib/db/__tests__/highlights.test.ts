@@ -30,6 +30,7 @@ jest.mock('../../auth', () => ({
 import { canAccessMyHighlights, getMyHighlights, getHighlightsForMeeting } from '../highlights';
 import { isUserAuthorizedToEdit } from '../../auth';
 import { MY_HIGHLIGHTS_LIMIT } from '../highlights-core';
+import { cityGrant, grant } from '@/lib/auth/__tests__/fixtures';
 
 const highlight = (id: string) => ({
     id,
@@ -71,7 +72,7 @@ describe('canAccessMyHighlights', () => {
         mockGetCurrentUser.mockResolvedValue({
             id: 'user-1',
             isSuperAdmin: false,
-            administers: [{ cityId: 'athens' }],
+            administers: [cityGrant('athens')],
         });
 
         expect(await canAccessMyHighlights()).toBe(true);
@@ -139,7 +140,7 @@ describe('getMyHighlights', () => {
             id: 'user-1',
             isSuperAdmin: false,
             // A party administrator carries a null cityId; it must not reach the filter.
-            administers: [{ cityId: 'athens' }, { cityId: null }],
+            administers: [cityGrant('athens'), grant({ partyId: 'p1' })],
         });
 
         await getMyHighlights();

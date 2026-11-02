@@ -18,13 +18,14 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { deletePerson } from '@/lib/db/people';
 import { deleteParty } from '@/lib/db/parties';
 import { deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { grant } from '@/lib/auth/__tests__/fixtures';
 
 const CITY = 'zografou';
 const PERSON = 'person-1';
 const PARTY = 'party-1';
 const BODY = 'body-1';
 
-type Administers = { cityId: string | null; partyId: string | null; personId: string | null };
+type Administers = ReturnType<typeof grant>;
 
 function signInAs(isSuperAdmin: boolean, administers: Administers[] = []) {
     mockAuth.mockResolvedValue({ user: { email: 'admin@example.com' } });
@@ -32,14 +33,14 @@ function signInAs(isSuperAdmin: boolean, administers: Administers[] = []) {
 }
 
 const admins: Array<[string, Administers]> = [
-    ['person admin', { cityId: null, partyId: null, personId: PERSON }],
-    ['party admin', { cityId: null, partyId: PARTY, personId: null }],
-    ['city admin', { cityId: CITY, partyId: null, personId: null }],
+    ['person admin', grant({ personId: PERSON })],
+    ['party admin', grant({ partyId: PARTY })],
+    ['city admin', grant({ cityId: CITY })],
 ];
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY });
+    mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY, roles: [] });
     mockPrisma.party.findUnique.mockResolvedValue({ cityId: CITY });
     mockPrisma.administrativeBody.findUnique.mockResolvedValue({ cityId: CITY });
 });

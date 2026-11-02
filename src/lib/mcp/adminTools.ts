@@ -29,14 +29,15 @@ import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 /**
  * The admin suite. The access decides what is registered, and so what is
- * advertised: meeting tools for anyone with admin access (a city or a body
- * administrator), city tools for a superadmin only. The access comes from the route handler and is a
- * display decision — each handler authorizes again in adminData.
+ * advertised: meeting tools for anyone with admin access (a grant that
+ * manages meetings or runs tasks), city tools for a superadmin only. The
+ * access comes from the route handler and is a display decision — each
+ * handler authorizes again in adminData.
  */
 export function registerAdminTools(server: McpServer, access: McpAdminAccess) {
     registerMeetingAdminTools(server);
     registerTaskAdminTools(server);
-    if (access.superadmin) {
+    if (access.isSuperAdmin) {
         registerCityAdminTools(server);
     }
 }

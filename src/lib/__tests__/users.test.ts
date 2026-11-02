@@ -40,12 +40,13 @@ jest.mock('../db/prisma', () => ({
     },
     administers: {
       findMany: jest.fn(),
-      deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
     $transaction: jest.fn(),
   },
 }));
 
+import { Prisma } from '@prisma/client';
 import prisma from '../db/prisma';
 import { withUserAuthorizedToEdit, getCurrentUser } from '../auth';
 import { createUser, updateUser, deleteUser, deleteCurrentUser } from '../db/users';
@@ -126,6 +127,16 @@ describe('users db layer - normalization and duplicate handling', () => {
           email: 'duplicate@example.com',
         })
       ).rejects.toThrow('A user with this email already exists.');
+    });
+
+    it('tells a duplicate grant apart from a duplicate email', async () => {
+      mockCreate.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002', clientVersion: 'test', meta: { modelName: 'User', target: ['userId', 'role', 'cityId'] },
+      }));
+
+      await expect(
+        createUser({ email: 'new@example.com', administers: [{ cityId: 'city-1' }, { cityId: 'city-1' }] })
+      ).rejects.toThrow('An account cannot hold the same role on the same scope two times.');
     });
 
     it('checks authorization even when a caller passes the retired skipAuthCheck option', async () => {
@@ -216,36 +227,101 @@ describe('users db layer - normalization and duplicate handling', () => {
       ).rejects.toThrow('User not found');
     });
 
-    it('keeps claimedAt on a person the form keeps, and never sets it on a new row', async () => {
-      const claimedAt = new Date('2026-09-16T10:00:00Z');
+    // The rows as the writer reads them back: a role at one scope.
+    const row = (id: string, scope: Partial<Record<'realm' | 'cityId' | 'partyId' | 'personId' | 'administrativeBodyId', string>>, role = 'admin') =>
+      ({ id, role, realm: null, cityId: null, partyId: null, personId: null, administrativeBodyId: null, ...scope });
+
+    const withGrants = (existing: (ReturnType<typeof row> & { claimedAt?: Date })[]) => {
       const tx = {
         administers: {
-          findMany: jest.fn().mockResolvedValue([{ personId: 'person-1', claimedAt }]),
-          deleteMany: jest.fn(),
+          findMany: jest.fn().mockResolvedValue(existing),
+          updateMany: jest.fn(),
+          update: jest.fn(),
         },
         user: { update: mockUpdate },
       };
       mockTransaction.mockImplementationOnce(async (fn: (client: typeof tx) => unknown) => fn(tx));
+      return tx;
+    };
+
+    it('keeps the grants the form keeps, revokes the ones it drops, and creates the new ones', async () => {
+      const tx = withGrants([row('g1', { personId: 'person-1' }), row('g2', { cityId: 'old-city' })]);
+      mockGetCurrentUser.mockResolvedValueOnce({ id: 'root' } as unknown as Awaited<ReturnType<typeof getCurrentUser>>);
 
       await updateUser('user-1', {
         email: 'user@example.com',
         administers: [{ personId: 'person-1' }, { personId: 'person-2' }, { cityId: 'city-1' }],
       });
 
-      expect(tx.administers.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+      expect(tx.administers.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1', revokedAt: null } }));
+      expect(tx.administers.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['g2'] } },
+        data: { revokedAt: expect.any(Date), revokedById: 'root' },
+      });
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             administers: {
               create: [
-                { personId: 'person-1', claimedAt, acceptedAt: expect.any(Date) },
-                { personId: 'person-2', acceptedAt: expect.any(Date) },
-                { cityId: 'city-1', acceptedAt: expect.any(Date) },
+                { personId: 'person-2', acceptedAt: expect.any(Date), grantedById: 'root' },
+                { cityId: 'city-1', acceptedAt: expect.any(Date), grantedById: 'root' },
               ],
             },
           }),
         })
       );
+    });
+
+    it('treats the role as part of the grant: a new role on the same scope is a new grant', async () => {
+      const tx = withGrants([row('g1', { cityId: 'city-1' })]);
+
+      await updateUser('user-1', { administers: [{ role: 'records', cityId: 'city-1' }] });
+
+      expect(tx.administers.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['g1'] } } }));
+      expect(mockUpdate.mock.calls[0][0].data.administers).toEqual({
+        create: [{ role: 'records', cityId: 'city-1', acceptedAt: expect.any(Date), grantedById: undefined }],
+      });
+    });
+
+    it('moves the claim to the new row when the role of a claimed person changes', async () => {
+      const claimedAt = new Date('2026-05-01');
+      const tx = withGrants([{ ...row('g1', { personId: 'person-1' }), claimedAt }]);
+
+      await updateUser('user-1', { administers: [{ role: 'records', personId: 'person-1' }] });
+
+      expect(tx.administers.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['g1'] } } }));
+      expect(mockUpdate.mock.calls[0][0].data.administers).toEqual({
+        create: [{ role: 'records', personId: 'person-1', acceptedAt: expect.any(Date), grantedById: undefined, claimedAt }],
+      });
+    });
+
+    it('moves the claim to a kept row when the form drops the claimed role and adds none', async () => {
+      const claimedAt = new Date('2026-05-01');
+      const tx = withGrants([{ ...row('g1', { personId: 'person-1' }), claimedAt }, row('g2', { personId: 'person-1' }, 'records')]);
+
+      await updateUser('user-1', { administers: [{ role: 'records', personId: 'person-1' }] });
+
+      expect(tx.administers.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['g1'] } } }));
+      expect(tx.administers.update).toHaveBeenCalledWith({ where: { id: 'g2' }, data: { claimedAt } });
+      expect(mockUpdate.mock.calls[0][0].data.administers).toEqual({ create: [] });
+    });
+
+    it('lets the claim go with the last row of the person', async () => {
+      const tx = withGrants([{ ...row('g1', { personId: 'person-1' }), claimedAt: new Date('2026-05-01') }]);
+
+      await updateUser('user-1', { administers: [] });
+
+      expect(tx.administers.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['g1'] } } }));
+      expect(tx.administers.update).not.toHaveBeenCalled();
+    });
+
+    it('revokes nothing and creates nothing when the form matches the rows', async () => {
+      const tx = withGrants([row('g1', { realm: 'greece' }), row('g2', { cityId: 'city-1' }, 'viewer')]);
+
+      await updateUser('user-1', { administers: [{ role: 'viewer', cityId: 'city-1' }, { role: 'admin', realm: 'greece' }] });
+
+      expect(tx.administers.updateMany).not.toHaveBeenCalled();
+      expect(mockUpdate.mock.calls[0][0].data.administers).toEqual({ create: [] });
     });
 
     it('maps P2002 error to ConflictError in transaction path', async () => {

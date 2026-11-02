@@ -60,6 +60,18 @@ describe('createAdminUserSchema', () => {
         expect(result.success).toBe(false);
     });
 
+    it('defaults the role to admin and accepts every other role', () => {
+        const parsed = createAdminUserSchema.parse({ ...validBase, administers: [{ cityId: 'abc' }, { role: 'viewer', cityId: 'abc' }] });
+        expect(parsed.administers).toEqual([{ role: 'admin', cityId: 'abc' }, { role: 'viewer', cityId: 'abc' }]);
+        expect(createAdminUserSchema.safeParse({ ...validBase, administers: [{ role: 'owner', cityId: 'abc' }] }).success).toBe(false);
+    });
+
+    it('accepts a realm as a scope of its own, and never beside another scope', () => {
+        expect(createAdminUserSchema.safeParse({ ...validBase, administers: [{ realm: 'greece' }] }).success).toBe(true);
+        expect(createAdminUserSchema.safeParse({ ...validBase, administers: [{ realm: 'atlantis' }] }).success).toBe(false);
+        expect(createAdminUserSchema.safeParse({ ...validBase, administers: [{ realm: 'greece', cityId: 'abc' }] }).success).toBe(false);
+    });
+
     it('should accept no administers field', () => {
         const result = createAdminUserSchema.safeParse(validBase);
         expect(result.success).toBe(true);

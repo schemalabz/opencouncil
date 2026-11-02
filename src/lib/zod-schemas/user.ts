@@ -1,5 +1,7 @@
 import * as z from 'zod';
+import { Realm } from '@prisma/client';
 import { PHONE_REJECTION_CODES, normalizeMobilePhone } from '@/lib/utils/phone';
+import { GRANT_ROLES } from '@/lib/auth/rights';
 import { machineAccountSlug } from '@/lib/auth/machineAccounts';
 import { vmsg } from '@/lib/zod-schemas/messages';
 
@@ -38,14 +40,17 @@ export const updateProfileSchema = z.object(profileFields).partial();
 
 // --- Admin user management (superadmin only) ---
 
+/** One grant: a role (admin when absent) at exactly one scope. */
 const administersEntrySchema = z.object({
+    role: z.enum(GRANT_ROLES).default('admin'),
+    realm: z.enum(Realm).nullable().optional(),
     cityId: z.string().nullable().optional(),
     partyId: z.string().nullable().optional(),
     personId: z.string().nullable().optional(),
     administrativeBodyId: z.string().nullable().optional(),
 }).refine(
-    data => [data.cityId, data.partyId, data.personId, data.administrativeBodyId].filter(Boolean).length === 1,
-    { error: "Exactly one of cityId, partyId, personId, or administrativeBodyId must be provided" }
+    data => [data.realm, data.cityId, data.partyId, data.personId, data.administrativeBodyId].filter(Boolean).length === 1,
+    { error: "Exactly one of realm, cityId, partyId, personId, or administrativeBodyId must be provided" }
 );
 
 const adminUserFields = {

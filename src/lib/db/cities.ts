@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
+import { actorOf, emptyReach, reachOf } from "@/lib/auth/rights";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, updateCityGeometryDirect } from "./citiesAdmin";
@@ -460,10 +461,10 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
     }
 
     if (includeNonPublic && !currentUser?.isSuperAdmin) {
-        // Authenticated user mode: public cities + cities they can administer
-        const administerableCityIds = currentUser?.administers
-            .map(a => a.cityId)
-            .filter((id): id is string => id !== null) ?? [];
+        // Authenticated user mode: public cities, plus the pending cities
+        // whose drafts the user may read: their cities, the cities of their
+        // bodies, and every city of their realms.
+        const reach = currentUser ? reachOf(actorOf(currentUser), 'drafts.read') : emptyReach();
 
         whereClause = {
             ...whereClause,
@@ -471,8 +472,11 @@ export async function getCities({ includeNonPublic = false }: { includeNonPublic
                 { ...PUBLIC_CITY_WHERE },
                 {
                     ...OUT_OF_NETWORK_CITY_WHERE,
-                    id: { in: administerableCityIds }
-                }
+                    id: { in: [...new Set([...reach.cityIds, ...reach.bodies.values()])] }
+                },
+                ...(reach.realms.size > 0
+                    ? [{ ...OUT_OF_NETWORK_CITY_WHERE, realm: { in: [...reach.realms] } }]
+                    : []),
             ]
         };
     }

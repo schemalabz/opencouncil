@@ -24,8 +24,9 @@ jest.mock('@/lib/db/prisma', () => ({
 
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
+import type { GrantRole, Realm } from '@prisma/client';
 
-type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
+type Row = { role?: GrantRole; realm?: Realm | null; cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
 
 function signIn(user: { isSuperAdmin?: boolean; administers: Row[] } | null) {
     mockAuth.mockResolvedValue(user ? { user: { email: 'u@test' } } : null);
@@ -34,6 +35,8 @@ function signIn(user: { isSuperAdmin?: boolean; administers: Row[] } | null) {
         isSuperAdmin: user.isSuperAdmin ?? false,
         administers: user.administers.map((row, i) => ({
             id: `a${i}`,
+            role: row.role ?? 'admin',
+            realm: row.realm ?? null,
             cityId: row.cityId ?? null,
             partyId: row.partyId ?? null,
             personId: row.personId ?? null,

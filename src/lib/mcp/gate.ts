@@ -1,6 +1,8 @@
 import prisma from '@/lib/db/prisma';
 import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
-import { canUserEditCity, getUserCityRights } from '@/lib/db/highlights-core';
+import { canUserEditCity } from '@/lib/db/highlights-core';
+import { resolve } from '@/lib/auth/rights';
+import { loadActor, realmFor } from '@/lib/auth/grants.server';
 import type { McpIdentity } from './auth';
 import { currentRealm, reachesEveryRealm, rememberCityRealm } from './realm-context';
 import { meetingLabelInCity } from '@/lib/meetingName';
@@ -10,18 +12,18 @@ import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publi
 
 /**
  * Whether the identity may see every unreleased (draft) meeting of a city:
- * when its account can edit the city — the same people who see all the
- * drafts of a city on the site. A body admin does not pass this one; see
+ * the `drafts.read` right on the city — the same people who see all the
+ * drafts of a city on the site. A body grant does not pass this one; see
  * canSeeUnreleasedMeeting.
  */
 export async function canSeeUnreleased(identity: McpIdentity, cityId: string): Promise<boolean> {
     if (!identity) return false;
-    return canUserEditCity(identity.userId, cityId);
+    return canUserEditCity(identity.userId, cityId, 'drafts.read');
 }
 
 /**
  * Whether the identity may see one unreleased meeting: everyone who passes
- * canSeeUnreleased, and an admin of the body that holds the meeting (#828).
+ * canSeeUnreleased, and a grant on the body that holds the meeting (#828).
  * The gate already read the meeting, so the body comes from the caller.
  */
 async function canSeeUnreleasedMeeting(
@@ -30,9 +32,12 @@ async function canSeeUnreleasedMeeting(
     administrativeBodyId: string | null
 ): Promise<boolean> {
     if (!identity) return false;
-    const rights = await getUserCityRights(identity.userId);
-    if (rights.all || rights.cityIds.has(cityId)) return true;
-    return administrativeBodyId !== null && rights.bodies.get(administrativeBodyId) === cityId;
+    const actor = await loadActor(identity.userId);
+    if (!actor) return false;
+    const realm = await realmFor(actor, cityId);
+    return resolve(actor, 'drafts.read', administrativeBodyId
+        ? { level: 'body', realm, cityId, bodyId: administrativeBodyId }
+        : { level: 'city', realm, cityId });
 }
 
 /**

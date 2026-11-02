@@ -31,6 +31,7 @@ import type { McpIdentity } from '../auth';
 import type { McpAdminAccess } from '../adminAccess';
 import * as data from '../data';
 import * as adminData from '../adminData';
+import { actorWith, cityGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const HIGHLIGHT_TOOLS = [
     'create_highlight', 'generate_highlight_video', 'list_highlights',
@@ -42,8 +43,8 @@ const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin']
 
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_upload_url', 'complete_upload', 'start_task'];
 const SUPERADMIN_TOOLS = ['publish_city_demo', 'set_city_boundary', 'list_realms', 'create_city', 'populate_city'];
-const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set() };
-const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
+const CITY_ADMIN: McpAdminAccess = actorWith([cityGrant('athens')]);
+const SUPERADMIN: McpAdminAccess = superadmin();
 
 type RecordedToolConfig = {
     annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };

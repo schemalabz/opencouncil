@@ -12,13 +12,14 @@ import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 import { mcpListCities } from '../data';
 import { mcpRealmStore, requestContext } from '../realm-context';
+import { actorWith, cityGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
 const city = (id: string, status: string, language: string) => ({
     id, name: id, name_en: id, name_municipality: id, authorityType: 'municipality', status, language,
     _count: { councilMeetings: 0, persons: 0, parties: 0 },
 });
-const SUPERADMIN = { superadmin: true, cityIds: new Set<string>(), bodyIds: new Set<string>() };
-const CITY_ADMIN = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set<string>() };
+const SUPERADMIN = superadmin();
+const CITY_ADMIN = actorWith([cityGrant('athens')]);
 const USER = { userId: 'u1' };
 
 const onGr = <T>(fn: () => Promise<T>, adminAccess: typeof SUPERADMIN | null = null, identity: typeof USER | null = USER) =>

@@ -24,7 +24,7 @@ import type {
     PublishCityDemoToolArgs,
     SetCityBoundaryToolArgs,
 } from './adminToolSchemas';
-import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
+import { requireBodyRight, requireCityRight, requireMeetingRight, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
@@ -51,9 +51,9 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
     // A body admin creates meetings of their body only; a meeting with no
     // body is the city admin's.
     if (args.administrativeBodyId) {
-        await requireBodyAdmin(identity, args.cityId, args.administrativeBodyId);
+        await requireBodyRight(identity, 'meeting.manage', args.cityId, args.administrativeBodyId);
     } else {
-        await requireCityAdmin(identity, args.cityId);
+        await requireCityRight(identity, 'meeting.manage', args.cityId);
     }
     const locale = REALMS[await requireRealmCity(args.cityId)].defaultLocale;
     if (args.administrativeBodyId) {
@@ -88,16 +88,16 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
 }
 
 export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetingToolArgs) {
-    await requireMeetingAdmin(identity, args.cityId, args.meetingId);
+    await requireMeetingRight(identity, 'meeting.manage', args.cityId, args.meetingId);
     // Realm-scoped, and an administrator of the meeting passes it for a draft.
     const current = await requireVisibleMeeting(args.cityId, args.meetingId, identity);
     // A body admin may not move a meeting away from their body, nor take the
     // meeting of another body: the new body needs its own right.
     if (args.administrativeBodyId !== undefined && args.administrativeBodyId !== current.administrativeBodyId) {
         if (args.administrativeBodyId === null) {
-            await requireCityAdmin(identity, args.cityId);
+            await requireCityRight(identity, 'meeting.manage', args.cityId);
         } else {
-            await requireBodyAdmin(identity, args.cityId, args.administrativeBodyId);
+            await requireBodyRight(identity, 'meeting.manage', args.cityId, args.administrativeBodyId);
         }
     }
     if (args.administrativeBodyId) {
@@ -138,7 +138,7 @@ const TASK_NOTIFICATIONS_NOTE = 'processAgenda and summarize email the subscribe
 
 export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArgs) {
     const { cityId, meetingId, ...request } = args;
-    await requireMeetingAdmin(identity, cityId, meetingId);
+    await requireMeetingRight(identity, 'tasks.run', cityId, meetingId);
     await requireVisibleMeeting(cityId, meetingId, identity);
 
     const task = await startMeetingTask(cityId, meetingId, request);
@@ -170,7 +170,7 @@ const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
  * limits as the upload of the meeting admin page (lib/uploads).
  */
 export async function mcpCreateUploadUrl(identity: McpIdentity, args: CreateUploadUrlToolArgs) {
-    await requireCityAdmin(identity, args.cityId);
+    await requireCityRight(identity, 'meeting.manage', args.cityId);
     await requireRealmCity(args.cityId);
 
     const plan = await startUpload(
@@ -187,7 +187,7 @@ export async function mcpCreateUploadUrl(identity: McpIdentity, args: CreateUplo
 }
 
 export async function mcpCompleteUpload(identity: McpIdentity, args: CompleteUploadToolArgs) {
-    await requireCityAdmin(identity, args.cityId);
+    await requireCityRight(identity, 'meeting.manage', args.cityId);
     await requireRealmCity(args.cityId);
     if (!args.key.startsWith(`uploads/${args.cityId}_`)) {
         throw new BadRequestError(`The key ${args.key} is not an upload of ${args.cityId}`);

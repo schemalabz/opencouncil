@@ -9,8 +9,9 @@ import { filterCityIdsByRealm } from '@/lib/db/cities';
 import { getCityRealms } from '@/lib/db/cityRealm';
 import { requireRealmCity } from '../realmGuards';
 import { cityBaseUrl, mcpRealmStore, requestContext } from '../realm-context';
+import { actorWith, cityGrant, superadmin } from '@/lib/auth/__tests__/fixtures';
 
-const access = (superadmin: boolean) => ({ superadmin, cityIds: new Set(['krakow']), bodyIds: new Set<string>() });
+const access = (isSuperAdmin: boolean) => isSuperAdmin ? superadmin() : actorWith([cityGrant('krakow')]);
 const onGr = <T>(superadmin: boolean, fn: () => Promise<T>) =>
     mcpRealmStore.run(requestContext('greece', 'opencouncil.gr', { userId: 'u1' }, { adminAccess: access(superadmin) }), fn);
 

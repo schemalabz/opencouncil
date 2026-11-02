@@ -11,7 +11,7 @@ import { CopyButton } from "@/components/mcp/CopyButton"
 import { toast } from "@/hooks/use-toast"
 import { formatNumericDate } from "@/lib/formatters/time"
 import { mintMachineToken, revokeMachineToken } from "@/lib/actions/machineAccounts"
-import { mapAdministersToEntities } from "@/components/admin/users/administers"
+import { mapAdministersToGrants } from "@/components/admin/users/administers"
 import type { MachineAccountWithTokens } from "@/lib/db/types"
 
 type Created = { id: string; rawToken: string }
@@ -52,7 +52,7 @@ export function MachineAccountSection({ account, mcpBaseUrl, onEdit }: {
     }, [created])
 
     const date = (value: Date) => formatNumericDate(new Date(value), undefined, locale)
-    const grants = mapAdministersToEntities(account.administers)
+    const grants = mapAdministersToGrants(account.administers)
     const activeCount = account.mcpTokens.filter(token => !token.revokedAt).length
 
     // A rejected action (network, an expired session) has no message a client
@@ -91,8 +91,8 @@ export function MachineAccountSection({ account, mcpBaseUrl, onEdit }: {
                     <div className="flex flex-wrap items-center gap-2">
                         <h2 id={`machine-${account.id}`} className="text-lg font-semibold">{account.name || account.email}</h2>
                         {account.isSuperAdmin && <Badge>{t("rights.superAdmin")}</Badge>}
-                        {grants.map(grant => (
-                            <Badge key={`${grant.type}-${grant.id}`} variant="outline">{t(`grantType.${grant.type}`)} · {grant.displayName}</Badge>
+                        {grants.map(({ key, role, entity }) => (
+                            <Badge key={key} variant="outline">{t(`grantType.${entity.type}`)} · {entity.displayName} · {t(`grantRole.${role}`)}</Badge>
                         ))}
                         {!account.isSuperAdmin && grants.length === 0 && (
                             <Badge variant="outline" className="text-muted-foreground">{t("rights.none")}</Badge>

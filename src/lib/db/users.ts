@@ -4,9 +4,9 @@ import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
-import { claimedLink } from "@/lib/db/personClaim";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { findMachineAccount } from "@/lib/db/machineAccounts";
+import { DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
 import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
@@ -28,9 +28,16 @@ const userWithRelationsInclude = {
 
 export type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userWithRelationsInclude }>;
 
+/** A grant the admin form asks for: a role (admin when absent) at one scope. */
+type GrantInput = Pick<Prisma.AdministersUncheckedCreateWithoutUserInput, 'role' | 'realm' | 'cityId' | 'partyId' | 'personId' | 'administrativeBodyId'>;
+
 export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin' | 'onboarded'>> & {
-    administers?: Prisma.AdministersUncheckedCreateWithoutUserInput[]
+    administers?: GrantInput[]
 }
+
+/** The identity of a grant: its role and its one scope. Two rows with the same key are the same grant. */
+const grantKey = (row: GrantInput): string =>
+    [row.role ?? 'admin', row.realm ?? '', row.cityId ?? '', row.partyId ?? '', row.personId ?? '', row.administrativeBodyId ?? ''].join('|');
 
 function normalizeEmail(email: string): string {
     const normalizedEmail = email.trim().toLowerCase();
@@ -95,6 +102,7 @@ export async function createUser(data: AdminUserData): Promise<UserWithAdministe
     }
 
     const { email, name, isSuperAdmin, administers, onboarded } = normalizedData;
+    const actor = await getCurrentUser();
 
     try {
         const newUser = await prisma.user.create({
@@ -104,13 +112,16 @@ export async function createUser(data: AdminUserData): Promise<UserWithAdministe
                 isSuperAdmin,
                 onboarded,
                 administers: {
-                    create: administers?.map((row) => ({ ...row, acceptedAt: new Date() }))
+                    create: administers?.map((row) => ({ ...row, acceptedAt: new Date(), grantedById: actor?.id }))
                 }
             },
             include: userWithAdministersInclude
         });
         return newUser;
     } catch (error) {
+        if (isDuplicateGrant(error)) {
+            throw new ConflictError(DUPLICATE_GRANT_MESSAGE);
+        }
         const errorWithCode = error as { code?: string };
         if (errorWithCode.code === "P2002") {
             throw new ConflictError("A user with this email already exists.");
@@ -141,30 +152,53 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
 
     try {
         if (administers) {
+            const actor = await getCurrentUser();
+            const now = new Date();
             const updatedUser = await prisma.$transaction(async (tx) => {
-                // The rows are recreated from the form, which knows nothing of
-                // claimedAt. A person the form keeps stays claimed; only the
-                // person's own scan can set it, so the form must not lose it.
-                const claimed = await tx.administers.findMany({
-                    where: { userId: id, ...claimedLink },
-                    select: { personId: true, claimedAt: true },
+                // A diff against the rows, not a rewrite: a grant the form keeps
+                // stays, with its claimedAt, its grantedBy and its dates; a grant
+                // the form drops is revoked, not deleted, so the history stays.
+                const existing = await tx.administers.findMany({
+                    where: { userId: id, revokedAt: null },
+                    select: { id: true, role: true, realm: true, cityId: true, partyId: true, personId: true, administrativeBodyId: true, claimedAt: true },
                 });
-                const claimedAtByPerson = new Map(claimed.map((row) => [row.personId, row.claimedAt]));
-                await tx.administers.deleteMany({ where: { userId: id } });
+                const wanted = new Map(administers.map((row) => [grantKey(row), row]));
+                const kept = new Set<string>();
+                const dropped: string[] = [];
+                // The role is part of the key, so a new role on a claimed person
+                // drops the claimed row: the claim moves to the new row, or the
+                // person could be claimed again by anyone with the QR code.
+                const droppedClaims = new Map<string, Date>();
+                for (const row of existing) {
+                    const key = grantKey(row);
+                    if (wanted.has(key)) kept.add(key);
+                    else {
+                        dropped.push(row.id);
+                        if (row.personId && row.claimedAt) droppedClaims.set(row.personId, row.claimedAt);
+                    }
+                }
+                if (dropped.length > 0) {
+                    await tx.administers.updateMany({
+                        where: { id: { in: dropped } },
+                        data: { revokedAt: now, revokedById: actor?.id },
+                    });
+                }
+                const added = [...wanted]
+                    .filter(([key]) => !kept.has(key))
+                    .map(([, row]) => {
+                        const claimedAt = row.personId ? droppedClaims.get(row.personId) : undefined;
+                        if (row.personId) droppedClaims.delete(row.personId);
+                        return { ...row, acceptedAt: now, grantedById: actor?.id, ...(claimedAt ? { claimedAt } : {}) };
+                    });
+                // No new row for the person: the claim moves to a row the form
+                // keeps. The index allows one active claimed row per person.
+                for (const [personId, claimedAt] of droppedClaims) {
+                    const keptRow = existing.find((row) => row.personId === personId && kept.has(grantKey(row)));
+                    if (keptRow) await tx.administers.update({ where: { id: keptRow.id }, data: { claimedAt } });
+                }
                 return tx.user.update({
                     where: { id },
-                    data: {
-                        ...userData,
-                        administers: {
-                            create: administers.map((row) => ({
-                                ...row,
-                                acceptedAt: new Date(),
-                                ...(row.personId && claimedAtByPerson.has(row.personId)
-                                    ? { claimedAt: claimedAtByPerson.get(row.personId) }
-                                    : {}),
-                            })),
-                        },
-                    },
+                    data: { ...userData, administers: { create: added } },
                     include: userWithAdministersInclude,
                 });
             });
@@ -178,6 +212,9 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
         });
         return updatedUser;
     } catch (error) {
+        if (isDuplicateGrant(error)) {
+            throw new ConflictError(DUPLICATE_GRANT_MESSAGE);
+        }
         const errorWithCode = error as { code?: string };
         if (errorWithCode.code === "P2002") {
             throw new ConflictError("A user with this email already exists.");

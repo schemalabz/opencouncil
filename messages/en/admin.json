@@ -1013,10 +1013,18 @@
       "none": "No rights"
     },
     "grantType": {
+      "realm": "Realm",
       "city": "City",
       "party": "Party",
       "person": "Person",
       "body": "Body"
+    },
+    "grantRole": {
+      "admin": "Admin",
+      "records": "Records",
+      "meetings": "Meetings",
+      "highlights": "Highlights",
+      "viewer": "Viewer"
     },
     "editRights": "Edit rights",
     "newToken": "New token",
