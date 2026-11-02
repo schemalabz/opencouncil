@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms, getCurrentUser, withRight } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
 import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsSentAdminAlert } from '@/lib/discord';
@@ -7,13 +7,22 @@ import prisma from '@/lib/db/prisma';
 import { meetingLabel } from '@/lib/meetingName';
 import { meetingNameSelect } from '@/lib/db/types';
 import { releaseNotificationsRequestSchema } from '@/lib/zod-schemas/notification';
+import { getNotificationCityIds } from '@/lib/db/notifications';
 
 export async function POST(request: NextRequest) {
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         const currentUser = (await getCurrentUser())!;
 
         const { notificationIds } = releaseNotificationsRequestSchema.parse(await request.json());
+
+        // The ids may span cities: the viewer must administer each of them. An
+        // unknown id names no city, so the check falls to a superadmin.
+        const cityIds = await getNotificationCityIds(notificationIds);
+        if (cityIds.length === 0) await withRight('admin', {});
+        for (const cityId of cityIds) {
+            await withRight('admin', { cityId });
+        }
 
         console.log(`Admin ${currentUser.email} releasing ${notificationIds.length} notifications`);
 

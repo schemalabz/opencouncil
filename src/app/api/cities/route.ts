@@ -3,10 +3,10 @@ import { revalidateTag } from 'next/cache'
 import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { uploadFile } from '@/lib/s3'
-import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
+import { getAdminRealms } from '@/lib/auth'
 import { citiesListQuerySchema, createCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
-import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
+import { ForbiddenError, handleApiError } from '@/lib/api/errors'
 
 export async function GET(req: NextRequest) {
     try {
@@ -27,14 +27,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(request: Request) {
-    const authorizedToEdit = await isUserAuthorizedToEdit({})
-    if (!authorizedToEdit) {
-        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
-    }
-
     try {
+        // A superadmin adds a city to any realm, a realm admin to their own.
+        // createCity checks again; this check runs before the logo upload.
+        const realms = await getAdminRealms();
         const formData = await readFormData(request);
         const data = parseFormData(formData, createCityFormDataSchema);
+        if (realms && !realms.includes(data.realm)) {
+            throw new ForbiddenError(`You do not administer the realm ${data.realm}`);
+        }
 
         // Boundary paste: validate before any side effects (logo upload, insert).
         let boundary: ReturnType<typeof parseBoundaryInput> | null = null;

@@ -1,7 +1,9 @@
 import { getCities } from "@/lib/db/cities";
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetingsList";
 import { getDecisionCountsForCity, MeetingDecisionCounts } from "@/lib/db/decisions";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
+import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
+import { notFound } from "next/navigation";
 import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
 
@@ -11,11 +13,13 @@ interface PageProps {
 
 export default async function AdminMeetingsPage(props: PageProps) {
     const searchParams = await props.searchParams;
-    // Ensure user is authorized as super admin
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
 
-    const cities = await getCities({ includeNonPublic: true });
+    const cities = await getCities({ includeNonPublic: true }, realms);
+    // A city outside the viewer's realms is not theirs to see.
+    if (searchParams.cityId && !cities.some(c => c.id === searchParams.cityId)) notFound();
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
+    const selectedCity = cities.find(c => c.id === selectedCityId);
 
     let meetings: CouncilMeetingWithAdminBodyAndSubjects[] = [];
     let decisionCounts: MeetingDecisionCounts = {};
@@ -25,10 +29,12 @@ export default async function AdminMeetingsPage(props: PageProps) {
             getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
             getDecisionCountsForCity(selectedCityId),
         ]);
-        cityHasDiavgeiaUid = !!cities.find(c => c.id === selectedCityId)?.diavgeiaUid;
+        cityHasDiavgeiaUid = !!selectedCity?.diavgeiaUid;
     }
 
-    const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
+    const currentCityName = selectedCity?.name || "Select City";
+    // The meeting pages live on the realm domain of the city, not on the admin host.
+    const citySiteUrl = realmBaseUrl(selectedCity?.realm);
 
     return (
         <div className='container mx-auto py-8'>
@@ -46,6 +52,7 @@ export default async function AdminMeetingsPage(props: PageProps) {
                 meetings={meetings}
                 currentCityName={currentCityName}
                 selectedCityId={selectedCityId}
+                citySiteUrl={citySiteUrl}
                 decisionCounts={decisionCounts}
                 cityHasDiavgeiaUid={cityHasDiavgeiaUid}
             />

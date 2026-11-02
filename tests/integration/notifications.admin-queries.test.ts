@@ -95,7 +95,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // Query with no date filters (should use defaults)
-            const result = await getNotificationsGroupedByMeeting({})
+            const result = await getNotificationsGroupedByMeeting({}, null)
 
             // Assert: future meeting should be included
             expect(result.meetings.length).toBe(1)
@@ -128,7 +128,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
                 deliveryStatus: 'sent',
             })
 
-            const result = await getNotificationsGroupedByMeeting({})
+            const result = await getNotificationsGroupedByMeeting({}, null)
 
             expect(result.meetings.length).toBe(1)
             expect(result.meetings[0].meetingId).toBe(recentPastMeeting.id)
@@ -164,7 +164,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
                 deliveryStatus: 'sent',
             })
 
-            const result = await getNotificationsGroupedByMeeting({})
+            const result = await getNotificationsGroupedByMeeting({}, null)
 
             expect(result.meetings).toHaveLength(1)
             expect(result.meetings[0].meetingId).toBe(oldMeeting.id)
@@ -172,7 +172,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             // An explicit window still excludes it.
             const windowed = await getNotificationsGroupedByMeeting({
                 startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-            })
+            }, null)
             expect(windowed.meetings).toHaveLength(0)
         })
 
@@ -204,14 +204,14 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             const includedResult = await getNotificationsGroupedByMeeting({
                 startDate: new Date('2024-06-01'),
                 endDate: new Date('2024-06-30'),
-            })
+            }, null)
             expect(includedResult.meetings.length).toBe(1)
 
             // Query with date range that excludes the meeting
             const excludedResult = await getNotificationsGroupedByMeeting({
                 startDate: new Date('2024-07-01'),
                 endDate: new Date('2024-07-31'),
-            })
+            }, null)
             expect(excludedResult.meetings.length).toBe(0)
         })
     })
@@ -250,17 +250,17 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // Filter by pending status
-            const pendingResult = await getNotificationsGroupedByMeeting({ status: 'pending' })
+            const pendingResult = await getNotificationsGroupedByMeeting({ status: 'pending' }, null)
             expect(pendingResult.meetings.length).toBe(1)
             expect(pendingResult.meetings[0].before?.pending).toBe(1)
 
             // Filter by sent status
-            const sentResult = await getNotificationsGroupedByMeeting({ status: 'sent' })
+            const sentResult = await getNotificationsGroupedByMeeting({ status: 'sent' }, null)
             expect(sentResult.meetings.length).toBe(1)
             expect(sentResult.meetings[0].before?.sent).toBe(1)
 
             // All statuses
-            const allResult = await getNotificationsGroupedByMeeting({})
+            const allResult = await getNotificationsGroupedByMeeting({}, null)
             expect(allResult.meetings.length).toBe(1)
             expect(allResult.meetings[0].before?.total).toBe(2)
         })
@@ -288,7 +288,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // Filter by pending (should return nothing)
-            const result = await getNotificationsGroupedByMeeting({ status: 'pending' })
+            const result = await getNotificationsGroupedByMeeting({ status: 'pending' }, null)
             expect(result.meetings.length).toBe(0)
         })
     })
@@ -334,17 +334,17 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // Filter by city1
-            const city1Result = await getNotificationsGroupedByMeeting({ cityId: city1.id })
+            const city1Result = await getNotificationsGroupedByMeeting({ cityId: city1.id }, null)
             expect(city1Result.meetings.length).toBe(1)
             expect(city1Result.meetings[0].cityId).toBe(city1.id)
 
             // Filter by city2
-            const city2Result = await getNotificationsGroupedByMeeting({ cityId: city2.id })
+            const city2Result = await getNotificationsGroupedByMeeting({ cityId: city2.id }, null)
             expect(city2Result.meetings.length).toBe(1)
             expect(city2Result.meetings[0].cityId).toBe(city2.id)
 
             // All cities
-            const allResult = await getNotificationsGroupedByMeeting({})
+            const allResult = await getNotificationsGroupedByMeeting({}, null)
             expect(allResult.meetings.length).toBe(2)
         })
     })
@@ -384,7 +384,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
                 deliveryStatus: 'sent',
             })
 
-            const result = await getNotificationsGroupedByMeeting({})
+            const result = await getNotificationsGroupedByMeeting({}, null)
 
             expect(result.meetings.length).toBe(1)
             expect(result.meetings[0].before).not.toBeNull()
@@ -415,11 +415,11 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // Filter by beforeMeeting type
-            const beforeResult = await getNotificationsGroupedByMeeting({ type: 'beforeMeeting' })
+            const beforeResult = await getNotificationsGroupedByMeeting({ type: 'beforeMeeting' }, null)
             expect(beforeResult.meetings.length).toBe(1)
 
             // Filter by afterMeeting type (should return nothing)
-            const afterResult = await getNotificationsGroupedByMeeting({ type: 'afterMeeting' })
+            const afterResult = await getNotificationsGroupedByMeeting({ type: 'afterMeeting' }, null)
             expect(afterResult.meetings.length).toBe(0)
         })
     })
@@ -453,7 +453,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             }
 
             // Get first page (2 items)
-            const page1 = await getNotificationsGroupedByMeeting({ page: 1, pageSize: 2 })
+            const page1 = await getNotificationsGroupedByMeeting({ page: 1, pageSize: 2 }, null)
             expect(page1.meetings.length).toBe(2)
             expect(page1.pagination.page).toBe(1)
             expect(page1.pagination.pageSize).toBe(2)
@@ -461,12 +461,12 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             expect(page1.pagination.totalPages).toBe(3)
 
             // Get second page
-            const page2 = await getNotificationsGroupedByMeeting({ page: 2, pageSize: 2 })
+            const page2 = await getNotificationsGroupedByMeeting({ page: 2, pageSize: 2 }, null)
             expect(page2.meetings.length).toBe(2)
             expect(page2.pagination.page).toBe(2)
 
             // Get third page (should have 1 item)
-            const page3 = await getNotificationsGroupedByMeeting({ page: 3, pageSize: 2 })
+            const page3 = await getNotificationsGroupedByMeeting({ page: 3, pageSize: 2 }, null)
             expect(page3.meetings.length).toBe(1)
         })
 
@@ -495,11 +495,11 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             })
 
             // First verify we can find the notification on page 1
-            const page1Result = await getNotificationsGroupedByMeeting({ page: 1, pageSize: 10 })
+            const page1Result = await getNotificationsGroupedByMeeting({ page: 1, pageSize: 10 }, null)
             expect(page1Result.pagination.total).toBe(1)
 
             // Now verify page 100 returns empty but shows correct total
-            const result = await getNotificationsGroupedByMeeting({ page: 100, pageSize: 10 })
+            const result = await getNotificationsGroupedByMeeting({ page: 100, pageSize: 10 }, null)
             expect(result.meetings.length).toBe(0)
             expect(result.pagination.total).toBe(1)
         })
@@ -551,7 +551,7 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             const city1Pending = await getNotificationsGroupedByMeeting({
                 cityId: city1.id,
                 status: 'pending',
-            })
+            }, null)
             expect(city1Pending.meetings.length).toBe(1)
             expect(city1Pending.meetings[0].cityId).toBe(city1.id)
 
@@ -559,21 +559,21 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             const city1Sent = await getNotificationsGroupedByMeeting({
                 cityId: city1.id,
                 status: 'sent',
-            })
+            }, null)
             expect(city1Sent.meetings.length).toBe(0)
 
             // city2 + pending: should find 0
             const city2Pending = await getNotificationsGroupedByMeeting({
                 cityId: city2.id,
                 status: 'pending',
-            })
+            }, null)
             expect(city2Pending.meetings.length).toBe(0)
 
             // city2 + sent: should find 1
             const city2Sent = await getNotificationsGroupedByMeeting({
                 cityId: city2.id,
                 status: 'sent',
-            })
+            }, null)
             expect(city2Sent.meetings.length).toBe(1)
         })
     })

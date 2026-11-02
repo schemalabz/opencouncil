@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUtterancesForSubject } from '@/lib/db/subject';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,18 +13,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // This function checks if user is superadmin internally
-        const utterances = await getUtterancesForSubject(subjectId);
-
-        // If not superadmin, returns null
-        if (utterances === null) {
+        // An unknown subject gets the same 403 as a refused one.
+        const found = await getUtterancesForSubject(subjectId);
+        if (!found || !(await isUserAuthorizedToEdit({ cityId: found.cityId }))) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 403 }
             );
         }
 
-        return NextResponse.json({ utterances });
+        return NextResponse.json({ utterances: found.utterances });
     } catch (error) {
         console.error('Error fetching debug utterances:', error);
         return NextResponse.json(

@@ -1,17 +1,22 @@
 /** @jest-environment node */
 import type { NextRequest } from 'next/server';
 
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), getCurrentUser: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ getAdminRealms: jest.fn(), withRight: jest.fn(), getCurrentUser: jest.fn() }));
 jest.mock('@/lib/notifications/deliver', () => ({
     releaseNotifications: jest.fn().mockResolvedValue({ success: true, emailsSent: 1, failed: 0, leftPending: 0 }),
 }));
 jest.mock('@/lib/discord', () => ({ sendNotificationsSentAdminAlert: jest.fn() }));
-jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { notification: { findFirst: jest.fn().mockResolvedValue(null) } } }));
+jest.mock('@/lib/db/prisma', () => ({
+    __esModule: true,
+    default: { notification: { findFirst: jest.fn().mockResolvedValue(null) } },
+}));
+jest.mock('@/lib/db/notifications', () => ({ getNotificationCityIds: jest.fn() }));
 
 import { POST } from '@/app/api/admin/notifications/release/route';
-import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms, getCurrentUser, withRight } from '@/lib/auth';
+import { getNotificationCityIds } from '@/lib/db/notifications';
 import { releaseNotifications } from '@/lib/notifications/deliver';
-import { validationErrorSchema } from '@/lib/api/errors';
+import { ForbiddenError, validationErrorSchema } from '@/lib/api/errors';
 
 const request = (body: unknown) => new Request('http://localhost/api/admin/notifications/release', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -19,8 +24,10 @@ const request = (body: unknown) => new Request('http://localhost/api/admin/notif
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    (getAdminRealms as jest.Mock).mockResolvedValue(null);
+    (withRight as jest.Mock).mockResolvedValue(true);
     (getCurrentUser as jest.Mock).mockResolvedValue({ id: 'u1', email: 'admin@example.org' });
+    (getNotificationCityIds as jest.Mock).mockResolvedValue([]);
 });
 
 describe('POST /api/admin/notifications/release', () => {
@@ -29,6 +36,28 @@ describe('POST /api/admin/notifications/release', () => {
 
         expect(response.status).toBe(200);
         expect(releaseNotifications).toHaveBeenCalledWith(['n1', 'n2']);
+    });
+
+    it('checks the admin right on every city the notifications belong to', async () => {
+        (getNotificationCityIds as jest.Mock).mockResolvedValue(['athens', 'krakow']);
+
+        await POST(request({ notificationIds: ['n1', 'n2'] }));
+
+        expect(withRight).toHaveBeenCalledWith('admin', { cityId: 'athens' });
+        expect(withRight).toHaveBeenCalledWith('admin', { cityId: 'krakow' });
+    });
+
+    it('releases nothing when the viewer does not administer one of the cities', async () => {
+        (getNotificationCityIds as jest.Mock).mockResolvedValue(['athens', 'krakow']);
+        (withRight as jest.Mock).mockImplementation(async (_right: string, scope: { cityId?: string }) => {
+            if (scope.cityId === 'krakow') throw new ForbiddenError('no');
+            return true;
+        });
+
+        const response = await POST(request({ notificationIds: ['n1', 'n2'] }));
+
+        expect(response.status).toBe(403);
+        expect(releaseNotifications).not.toHaveBeenCalled();
     });
 
     it.each([

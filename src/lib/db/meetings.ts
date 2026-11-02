@@ -20,6 +20,7 @@ import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
+import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
@@ -295,6 +296,8 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
 export interface MeetingListItem {
     id: string;
     cityId: string;
+    /** The base URL of the city's realm domain, where the meeting page lives. */
+    siteUrl: string;
     administrativeBodyName: string | null;
     dateTime: Date;
 }
@@ -309,22 +312,32 @@ const meetingListItemSelect = {
     cityId: true,
     dateTime: true,
     administrativeBody: { select: { name: true } },
+    city: { select: { realm: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 
 type MeetingListItemRow = Prisma.CouncilMeetingGetPayload<{ select: typeof meetingListItemSelect }>;
 
 function toMeetingListItem(m: MeetingListItemRow): MeetingListItem {
-    return { id: m.id, cityId: m.cityId, administrativeBodyName: m.administrativeBody?.name ?? null, dateTime: m.dateTime };
+    return {
+        id: m.id,
+        cityId: m.cityId,
+        siteUrl: realmBaseUrl(m.city.realm),
+        administrativeBodyName: m.administrativeBody?.name ?? null,
+        dateTime: m.dateTime,
+    };
 }
 
 /**
  * Get the meetings behind the upload dashboard cards: meetings needing upload
  * and scheduled future meetings, sorted by date ascending.
  * These metrics are not review-specific, so they belong in meetings.ts
+ *
+ * `realms` limits the cities to the realms the viewer administers (null:
+ * every realm). The /admin/reviews page is the guard: it calls
+ * getAdminRealms first and passes the list; this module is server-only.
  */
-export async function getMeetingUploadLists(last30Days: boolean = false): Promise<MeetingUploadLists> {
-    // Cross-city review dashboard data (superadmin-only /admin/reviews).
-    await withUserAuthorizedToEdit({});
+export async function getMeetingUploadLists(last30Days: boolean, realms: Realm[] | null): Promise<MeetingUploadLists> {
+    const cityWhere: Prisma.CityWhereInput = { ...CUSTOMER_CITY_WHERE, ...(realms ? { realm: { in: realms } } : {}) };
     const now = new Date();
 
     const [needsUpload, scheduled] = await Promise.all([
@@ -333,7 +346,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 AND: [
-                    { city: CUSTOMER_CITY_WHERE },
+                    { city: cityWhere },
                     // A postponed or cancelled meeting has nothing to upload, and
                     // a meeting by circulation takes no transcription.
                     TAKES_PLACE_WHERE,
@@ -358,7 +371,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 dateTime: { gt: now },
-                city: CUSTOMER_CITY_WHERE,
+                city: cityWhere,
                 ...TAKES_PLACE_WHERE,
             },
             select: meetingListItemSelect,

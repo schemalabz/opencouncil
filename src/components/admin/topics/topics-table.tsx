@@ -39,10 +39,12 @@ import { Badge } from "@/components/ui/badge";
 
 interface TopicsTableProps {
     initialTopics: TopicWithSubjectCount[];
+    /** The realms the viewer administers: the realm groups shown and the realms a topic may take. */
+    realms: Realm[];
     defaultRealm: Realm;
 }
 
-export function TopicsTable({ initialTopics: topics, defaultRealm }: TopicsTableProps) {
+export function TopicsTable({ initialTopics: topics, realms, defaultRealm }: TopicsTableProps) {
     const router = useRouter();
     const locale = useLocale();
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,11 +55,12 @@ export function TopicsTable({ initialTopics: topics, defaultRealm }: TopicsTable
     const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
 
     const groupedByRealm = useMemo(() => {
-        // Iterate every realm in config order and drop empty groups.
+        // Iterate the viewer's realms in config order and drop empty groups.
         return ALL_REALMS
+            .filter((realm) => realms.includes(realm))
             .map((realm) => ({ realm, topics: topics.filter((t) => t.realm === realm) }))
             .filter((group) => group.topics.length > 0);
-    }, [topics]);
+    }, [topics, realms]);
 
     function onCreate() {
         setSelectedTopic(undefined);
@@ -250,6 +253,7 @@ export function TopicsTable({ initialTopics: topics, defaultRealm }: TopicsTable
                     open={dialogOpen}
                     onOpenChange={setDialogOpen}
                     topic={selectedTopic}
+                    realms={realms}
                     defaultRealm={defaultRealm}
                     existingColors={topics
                         .filter((t) => t.id !== selectedTopic?.id)

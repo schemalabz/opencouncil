@@ -4,7 +4,8 @@ import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
 import People from "@/components/admin/people/people";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
+import { notFound } from "next/navigation";
 import { getQrEligiblePersonIds } from "@/lib/admin/councilQrStrips";
 
 interface PageProps {
@@ -12,11 +13,14 @@ interface PageProps {
 }
 
 export default async function PeoplePage(props: PageProps) {
-    // This page had no server guard of its own. The (admin) layout guard does
-    // not re-run on RSC navigation, so re-assert the superadmin gate here.
-    await withUserAuthorizedToEdit({});
+    // The (admin) layout guard does not re-run on RSC navigation, so the page
+    // reads the viewer's realms itself: every realm for a superadmin, their own
+    // for a realm admin.
+    const realms = await getAdminRealms();
     const searchParams = await props.searchParams;
-    const cities = await getCities({ includeNonPublic: true });
+    const cities = await getCities({ includeNonPublic: true }, realms);
+    // A city outside the viewer's realms is not theirs to see.
+    if (searchParams.cityId && !cities.some(c => c.id === searchParams.cityId)) notFound();
 
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 

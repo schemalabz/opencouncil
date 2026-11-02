@@ -59,7 +59,7 @@ describe('pipelines skip postponed and cancelled meetings', () => {
             await createMeeting(CITY, { id: `past-${status}`, dateTime: new Date(Date.now() - 2 * 86_400_000), administrativeBodyId, kind: 'ordinary', scheduleStatus: status })
             await createMeeting(CITY, { id: `future-${status}`, dateTime: new Date(Date.now() + 2 * 86_400_000), administrativeBodyId, kind: 'ordinary', scheduleStatus: status })
         }
-        const { needsUpload, scheduled } = await getMeetingUploadLists(true)
+        const { needsUpload, scheduled } = await getMeetingUploadLists(true, null)
         expect(needsUpload.map((m) => m.id)).toEqual(['past-scheduled'])
         expect(scheduled.map((m) => m.id)).toEqual(['future-scheduled'])
     })

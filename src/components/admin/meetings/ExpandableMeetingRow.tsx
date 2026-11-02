@@ -25,6 +25,8 @@ import { MeetingDataCore } from "@/lib/getMeetingData";
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row";
 import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
+import { useLocale } from "next-intl";
+import { realmPageUrl } from "@/lib/utils/realmPageUrl";
 import { MeetingTimeline } from "@/components/meetings/MeetingTimeline";
 import { getPollingHistoryForMeeting } from "@/lib/actions/decisions";
 import { DEFAULT_TIMEZONE, formatNumericDate } from '@/lib/formatters/time';
@@ -33,6 +35,8 @@ import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 interface ExpandableMeetingRowProps {
     meeting: CouncilMeetingWithAdminBodyAndSubjects;
     selectedCityId: string;
+    /** The base URL of the city's realm domain, where the meeting pages live. */
+    citySiteUrl: string;
     isSelected: boolean;
     onSelect: (checked: boolean) => void;
     decisionCounts?: { linked: number; eligible: number };
@@ -41,10 +45,12 @@ interface ExpandableMeetingRowProps {
 export function ExpandableMeetingRow({
     meeting,
     selectedCityId,
+    citySiteUrl,
     isSelected,
     onSelect,
     decisionCounts,
 }: ExpandableMeetingRowProps) {
+    const locale = useLocale();
     const [meetingStage, setMeetingStage] = React.useState<MeetingStage>('scheduled');
     const [meetingStatus, setMeetingStatus] = React.useState<MeetingStatus | null>(null);
     const [pollingStatus, setPollingStatus] = React.useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
@@ -112,7 +118,7 @@ export function ExpandableMeetingRow({
                             className="w-full"
                         >
                             <Link
-                                href={`/${selectedCityId}/${meeting.id}`}
+                                href={realmPageUrl(citySiteUrl, locale, `/${selectedCityId}/${meeting.id}`)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2"
@@ -206,7 +212,7 @@ export function ExpandableMeetingRow({
                             className="w-full"
                         >
                             <Link
-                                href={`/${selectedCityId}/${meeting.id}/decisions`}
+                                href={realmPageUrl(citySiteUrl, locale, `/${selectedCityId}/${meeting.id}/decisions`)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2"

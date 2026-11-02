@@ -15,7 +15,7 @@ import path from 'path';
 const ADMIN_DIR = path.join(process.cwd(), 'src', 'app', '[locale]', '(admin)', 'admin');
 const LAYOUT = path.join(ADMIN_DIR, 'layout.tsx');
 
-const GUARD = /withUserAuthorizedToEdit|isUserAuthorizedToEdit/;
+const GUARD = /withUserAuthorizedToEdit|isUserAuthorizedToEdit|getAdminRealms/;
 const USE_CLIENT = /^\s*['"]use client['"]/;
 
 function findPages(dir: string, out: string[] = []): string[] {
@@ -40,12 +40,12 @@ describe('/admin auth guard', () => {
         expect(findPages(ADMIN_DIR).length).toBeGreaterThan(5);
     });
 
-    it('keeps the superadmin guard on the (admin) layout', () => {
+    it('keeps the admin guard on the (admin) layout', () => {
         const source = fs.readFileSync(LAYOUT, 'utf8');
-        // getCurrentUser() + withUserAuthorizedToEdit({}) — the server-side twin
-        // of the proxy.ts middleware belt.
+        // getCurrentUser() + getAdminRealms() — the server-side twin of the
+        // proxy.ts middleware belt. A superadmin or a realm admin passes.
         expect(source).toMatch(/getCurrentUser/);
-        expect(source).toMatch(/withUserAuthorizedToEdit\(\s*\{\s*\}\s*\)/);
+        expect(source).toMatch(/getAdminRealms\(\s*\)/);
     });
 
     it('every admin page re-asserts a guard or is a client page', () => {

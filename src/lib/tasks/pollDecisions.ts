@@ -18,7 +18,7 @@ import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
 import { isCustomer } from "@/lib/cityStatus";
 import { upsertDecision, deleteDecision, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { getPeopleForMeeting } from "@/lib/db/people";
 import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
@@ -56,18 +56,10 @@ export async function requestPollDecisions(
     councilMeetingId: string,
     rawOptions?: { forceExtract?: boolean; lookupAdas?: string[] },
 ): Promise<PollStart> {
+    // The poll and the cache-busting re-extraction (forceExtract), which is
+    // billed, are both the city admin's, as on the decisions page.
     await withUserAuthorizedToEdit({ cityId });
     const options = pollOptionsSchema.parse(rawOptions);
-
-    // The plain poll stays city-admin: a manual link starts extraction
-    // automatically through this path. Cache-busting re-extraction is a
-    // superadmin cost operation, matching the decisions-page UI tiering.
-    if (options?.forceExtract) {
-        const user = await getCurrentUser();
-        if (!user?.isSuperAdmin) {
-            throw new Error('Superadmin required for forced re-extraction');
-        }
-    }
 
     // Two polls of one meeting race on the same candidates and bill twice;
     // the running one reads anything this one would.

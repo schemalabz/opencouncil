@@ -1,16 +1,17 @@
-import { getCurrentUser } from "@/lib/auth";
+import { hasRight } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 import { syncMeetingToCalendar } from "@/lib/google-calendar";
 import { peopleOnly } from "@/lib/db/types";
 
+// The operator is a city admin's to see and set, not a body admin's: the
+// check names the city, not the meeting, whose scope is the body's.
 export async function GET(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
+    if (!(await hasRight('admin', { cityId: params.cityId }))) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -36,8 +37,7 @@ export async function PUT(
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    const user = await getCurrentUser();
-    if (!user?.isSuperAdmin) {
+    if (!(await hasRight('admin', { cityId: params.cityId }))) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 

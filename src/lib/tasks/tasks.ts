@@ -13,7 +13,7 @@ import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
-import { Prisma, TaskStatus } from '@prisma/client';
+import { Prisma, Realm, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
 import { mintCallbackToken } from './callbackToken';
@@ -519,14 +519,24 @@ async function notifyIfNews(task: { type: string; cityId: string; councilMeeting
     if (isNewsPhase(task.type)) await notifySubscribersOfTask(task.cityId, task.councilMeetingId, task.type);
 }
 
-export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): Promise<Record<string, number | null>> => {
-    await withUserAuthorizedToEdit({});
+// --- The task versions page -------------------------------------------------
+// The /admin/tasks page is the guard of the four list functions below: it
+// calls getAdminRealms first and passes the realms down (null: every realm).
+// They are server-only, so no browser reaches them without the page.
+
+/** The cities whose tasks the viewer sees: live cities of the realms. */
+const taskCityWhere = (realms: Realm[] | null): Prisma.CityWhereInput => ({
+    status: { not: 'pending' },
+    ...(realms ? { realm: { in: realms } } : {}),
+});
+
+export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[], realms: Realm[] | null): Promise<Record<string, number | null>> => {
     const tasks = await prisma.taskStatus.findMany({
         select: {
             type: true,
             version: true
         },
-        where: { type: { in: taskTypes } },
+        where: { type: { in: taskTypes }, ...(realms ? { councilMeeting: { city: { realm: { in: realms } } } } : {}) },
         orderBy: { version: 'desc' },
     });
 
@@ -547,14 +557,10 @@ export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): 
     return highestVersions;
 }
 
-export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): Promise<Record<string, any>[]> => {
-    await withUserAuthorizedToEdit({});
-
+export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter, realms: Realm[] | null): Promise<Record<string, any>[]> => {
     // Build meeting where clause
     const meetingWhere: Prisma.CouncilMeetingWhereInput = {
-        city: {
-            status: { not: 'pending' }
-        }
+        city: taskCityWhere(realms),
     };
 
     if (filters.dateFrom || filters.dateTo) {
@@ -655,16 +661,12 @@ export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): P
         });
 };
 
-export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter): Promise<Record<string, any>> => {
-    await withUserAuthorizedToEdit({});
-
+export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter, realms: Realm[] | null): Promise<Record<string, any>> => {
     // Get all meetings with their task versions
-    const meetingsWithVersions = await getTaskVersionsForMeetings(filters);
+    const meetingsWithVersions = await getTaskVersionsForMeetings(filters, realms);
 
     // Build city where clause
-    const cityWhere: Prisma.CityWhereInput = {
-        status: { not: 'pending' }
-    };
+    const cityWhere: Prisma.CityWhereInput = taskCityWhere(realms);
 
     if (filters.cityIds && filters.cityIds.length > 0) {
         cityWhere.id = { in: filters.cityIds };
@@ -676,7 +678,8 @@ export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter):
         select: {
             id: true,
             name: true,
-            name_en: true
+            name_en: true,
+            realm: true,
         }
     });
 
@@ -689,6 +692,7 @@ export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter):
             cityId: city.id,
             cityName: city.name,
             cityNameEn: city.name_en,
+            realm: city.realm,
             meetings: [],
             meetingCount: 0
         };
@@ -706,10 +710,9 @@ export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter):
     return groupedByCity;
 };
 
-export const getAvailableCities = async (): Promise<{ id: string; name: string; name_en: string }[]> => {
-    await withUserAuthorizedToEdit({});
+export const getAvailableCities = async (realms: Realm[] | null): Promise<{ id: string; name: string; name_en: string }[]> => {
     return prisma.city.findMany({
-        where: { status: { not: 'pending' } },
+        where: taskCityWhere(realms),
         select: { id: true, name: true, name_en: true },
         orderBy: { name_en: 'asc' }
     });

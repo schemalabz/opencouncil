@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { NextRequest } from 'next/server';
 
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ getAdminRealms: jest.fn() }));
 jest.mock('@/lib/db/notifications', () => ({
     getNotificationsGroupedByMeeting: jest.fn().mockResolvedValue({ meetings: [] }),
     getNotificationsForMeeting: jest.fn().mockResolvedValue([]),
@@ -10,7 +10,7 @@ jest.mock('@/lib/db/notifications', () => ({
 }));
 
 import { GET } from '@/app/api/admin/notifications/route';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdminRealms } from '@/lib/auth';
 import { getNotificationsGroupedByMeeting } from '@/lib/db/notifications';
 import { validationErrorSchema } from '@/lib/api/errors';
 
@@ -19,7 +19,7 @@ const grouped = getNotificationsGroupedByMeeting as jest.Mock;
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    (getAdminRealms as jest.Mock).mockResolvedValue(null);
 });
 
 describe('GET /api/admin/notifications', () => {
@@ -35,13 +35,21 @@ describe('GET /api/admin/notifications', () => {
             endDate: new Date('2026-10-01T00:00:00.000Z'),
             page: 2,
             pageSize: 20,
-        });
+        }, null);
+    });
+
+    it('passes the realms of a realm admin to the query', async () => {
+        (getAdminRealms as jest.Mock).mockResolvedValue(['poland']);
+
+        await get('');
+
+        expect(grouped).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }), ['poland']);
     });
 
     it('reads the first page of 20 without a query, with no date range', async () => {
         await get('');
 
-        expect(grouped).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 20, startDate: undefined, endDate: undefined }));
+        expect(grouped).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 20, startDate: undefined, endDate: undefined }), null);
     });
 
     it('ends a range with a start date only 90 days ahead', async () => {

@@ -26,10 +26,8 @@ jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: (...args: unknown[]) => mockIsUserAuthorizedToEdit(...args),
 }));
 
-const mockSubjectExists = jest.fn();
 const mockSubjectIsPublic = jest.fn();
 jest.mock('@/lib/db/subject', () => ({
-    subjectExists: (...args: unknown[]) => mockSubjectExists(...args),
     subjectIsPublic: (...args: unknown[]) => mockSubjectIsPublic(...args),
 }));
 
@@ -171,21 +169,29 @@ describe('POST /api/subject/[subjectId]/image', () => {
         return new NextRequest(url, { method: 'POST', body: form });
     };
 
+    // The caller administers the city of the subject, unless a test says otherwise.
     beforeEach(() => {
-        mockSubjectExists.mockResolvedValue(true);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'athens', councilMeetingId: 'm1', public: true });
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true);
+    });
+    afterEach(() => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
     });
 
-    it('rejects a non-superadmin with 403', async () => {
+    it('rejects a signed-in user without the admin right on the city with 403', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: false } as never);
 
         const res = await POST(generateRequest(), context);
 
         expect(res.status).toBe(403);
         expect(await res.json()).toEqual({ error: 'Not authorized' });
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'athens' });
         expect(mockGenerate).not.toHaveBeenCalled();
     });
 
     it('rejects a request without a session with 401', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
         mockGetCurrentUser.mockResolvedValue(null);
 
         const res = await POST(generateRequest(), context);
@@ -304,7 +310,7 @@ describe('POST /api/subject/[subjectId]/image', () => {
 
     it('answers 404 for a subject that does not exist, so no orphan object is written', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
-        mockSubjectExists.mockResolvedValue(false);
+        mockSubjectIsPublic.mockResolvedValue(null);
 
         const upload = await POST(uploadRequest(new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' })), context);
         const generate = await POST(generateRequest(), context);

@@ -4,10 +4,11 @@ import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
-import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
+import { withUserAuthorizedToEdit, getCurrentUser, getAdminRealms } from "@/lib/auth";
 import { actorOf, emptyReach, reachOf } from "@/lib/auth/rights";
-import { UnauthorizedError } from "../api/errors";
+import { ForbiddenError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
+import { getCityRealm } from "./cityRealm";
 import { createCityDirect, updateCityGeometryDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
@@ -41,7 +42,11 @@ export type CityWithCounts = City & {
 
 
 export async function deleteCity(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+    // The realm's admin, not the city's: the delete cascades to every
+    // meeting, person and transcript of the city, and cannot be undone. An
+    // unknown city falls to a superadmin, and then to the delete's error.
+    const realm = await getCityRealm(id);
+    await withUserAuthorizedToEdit(realm ? { realm } : {});
     try {
         await prisma.city.delete({
             where: { id },
@@ -52,8 +57,12 @@ export async function deleteCity(id: string): Promise<void> {
     }
 }
 
+/** A superadmin creates a city in any realm; a realm admin in a realm they administer. */
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
+    if (realms && !realms.includes(cityData.realm)) {
+        throw new ForbiddenError(`You do not administer the realm ${cityData.realm}`);
+    }
     try {
         return await createCityDirect(cityData);
     } catch (error) {

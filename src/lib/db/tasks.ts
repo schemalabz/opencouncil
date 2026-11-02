@@ -1,7 +1,7 @@
 'use server'
-import { withUserAuthorizedToEdit } from "../auth";
+import { getAdminRealms, withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
-import { TaskStatus } from '@prisma/client';
+import { Prisma, Realm, TaskStatus } from '@prisma/client';
 import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
 
@@ -10,11 +10,19 @@ export type MeetingTaskStatus = {
     [K in MeetingTaskType]: boolean;
 };
 
+/** The tasks of the realms the viewer administers (null: every realm). A TaskStatus reaches its city through its meeting. */
+const tasksInRealms = (realms: Realm[] | null): Prisma.TaskStatusWhereInput =>
+    realms ? { councilMeeting: { city: { realm: { in: realms } } } } : {};
+
+// The two list functions are Server Actions of the /admin/tasks panel, so they
+// read the viewer's realms themselves instead of taking them from the caller.
+
 export async function getActiveTasks(): Promise<TaskStatus[]> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
     return prisma.taskStatus.findMany({
         where: {
             status: { notIn: ['succeeded', 'failed'] },
+            ...tasksInRealms(realms),
         },
         orderBy: { updatedAt: 'desc' },
     });
@@ -23,10 +31,11 @@ export async function getActiveTasks(): Promise<TaskStatus[]> {
 const RECENT_TASKS_PAGE_SIZE = 20;
 
 export async function getRecentTasks(offset: number = 0): Promise<{ tasks: TaskStatus[]; hasMore: boolean }> {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
     const tasks = await prisma.taskStatus.findMany({
         where: {
             status: { in: ['succeeded', 'failed'] },
+            ...tasksInRealms(realms),
         },
         orderBy: { updatedAt: 'desc' },
         skip: offset,

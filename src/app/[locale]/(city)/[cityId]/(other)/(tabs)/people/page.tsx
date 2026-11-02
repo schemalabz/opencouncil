@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCurrentUser, getRoleLimitForCity } from "@/lib/auth";
+import { getRoleLimitForCity } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
@@ -80,20 +80,18 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [city, partiesWithPersons, administrativeBodies, allPeople, roleLimit, currentUser] = await Promise.all([
+    const [city, partiesWithPersons, administrativeBodies, allPeople, roleLimit] = await Promise.all([
         getCityCached(cityId),
         getPartiesForCityCached(cityId),
         getPublicAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
         // null for a city admin; the bodies of a body admin; empty for a reader
         getRoleLimitForCity(cityId),
-        // Only a superadmin gets the elected order control, as on /admin/people
-        // before it moved here. This gates the control, not the write: the save
-        // route accepts anyone who may edit the city. Read from the user, the
-        // way the tabs layout above does, rather than through the edit check.
-        getCurrentUser()
     ]);
     const canEdit = roleLimit === null || roleLimit.size > 0;
+    // The elected order control and the QR strips are the city admin's, not
+    // a body admin's. The prop keeps its old name.
+    const isCityAdmin = roleLimit === null;
 
     if (!city || !partiesWithPersons) {
         notFound();
@@ -107,7 +105,7 @@ export default async function PeoplePage(
             cityId={cityId}
             cityLanguage={city.language}
             canEdit={canEdit}
-            isSuperAdmin={!!currentUser?.isSuperAdmin}
+            isSuperAdmin={isCityAdmin}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}
         />
     );

@@ -1,9 +1,9 @@
 import "server-only";
 
-import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
+import { NotificationPreference, Petition, City, Topic, User, Location, Prisma, Realm } from '@prisma/client';
 import * as z from 'zod';
 import { auth } from "@/auth";
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, withRight, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
@@ -1016,6 +1016,16 @@ export async function updateDeliveryStatus(
     });
 }
 
+/** The cities of the notifications, each once. An unknown id names none. */
+export async function getNotificationCityIds(notificationIds: string[]): Promise<string[]> {
+    const rows = await prisma.notification.findMany({
+        where: { id: { in: notificationIds } },
+        select: { cityId: true },
+        distinct: ['cityId'],
+    });
+    return rows.map((row) => row.cityId);
+}
+
 /**
  * Get pending deliveries for notifications
  */
@@ -1092,8 +1102,9 @@ export async function getNotificationsGroupedByMeeting(filters: {
     endDate?: Date;
     page?: number;
     pageSize?: number;
-}): Promise<MeetingNotificationsGrouped> {
-    await withUserAuthorizedToEdit({});
+}, realms: Realm[] | null): Promise<MeetingNotificationsGrouped> {
+    // The admin notifications route is the guard: it calls getAdminRealms
+    // first and passes the realms (null: every realm). This module is server-only.
     const {
         cityId,
         status,
@@ -1105,7 +1116,7 @@ export async function getNotificationsGroupedByMeeting(filters: {
     } = filters;
 
     // Build the where clause for notifications
-    const notificationWhere: Prisma.NotificationWhereInput = {};
+    const notificationWhere: Prisma.NotificationWhereInput = realms ? { city: { realm: { in: realms } } } : {};
 
     if (startDate || endDate) {
         const dateFilter: { gte?: Date; lte?: Date } = {};
@@ -1309,7 +1320,10 @@ export async function deleteNotificationsForMeetings(
     meetingKeys: Array<{ meetingId: string; cityId: string }>,
     type?: 'beforeMeeting' | 'afterMeeting'
 ): Promise<number> {
-    await withUserAuthorizedToEdit({});
+    // The keys may span cities: the viewer must administer each of them.
+    for (const cityId of new Set(meetingKeys.map(mk => mk.cityId))) {
+        await withRight('admin', { cityId });
+    }
     const result = await prisma.notification.deleteMany({
         where: {
             OR: meetingKeys.map(mk => ({
@@ -1326,9 +1340,10 @@ export async function deleteNotificationsForMeetings(
 /**
  * Get all cities that have notifications (for filter dropdown)
  */
-export async function getCitiesWithNotifications(): Promise<Array<{ id: string; name: string }>> {
-    await withUserAuthorizedToEdit({});
+export async function getCitiesWithNotifications(realms: Realm[] | null): Promise<Array<{ id: string; name: string }>> {
+    // The admin notifications route is the guard (see getNotificationsGroupedByMeeting).
     const cities = await prisma.notification.findMany({
+        where: realms ? { city: { realm: { in: realms } } } : {},
         select: {
             city: {
                 select: {
@@ -1708,7 +1723,9 @@ export async function getNotificationForView(id: string) {
  * Cascade deletes will handle related NotificationSubject and NotificationDelivery records
  */
 export async function deleteNotification(id: string): Promise<void> {
-    await withUserAuthorizedToEdit({});
+    const notification = await prisma.notification.findUnique({ where: { id }, select: { cityId: true } });
+    // An unknown id needs a superadmin, so a bare delete cannot probe any id.
+    await withRight('admin', notification ? { cityId: notification.cityId } : {});
     await prisma.notification.delete({
         where: { id }
     });

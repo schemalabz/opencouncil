@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
 import { deleteTopic, updateTopic } from "@/lib/db/topics";
 import { handleApiError } from "@/lib/api/errors";
 import { updateTopicSchema } from "@/lib/zod-schemas/topic";
 
+// updateTopic and deleteTopic refuse a topic of a realm the viewer does not administer.
+
 export async function PUT(request: Request, props: { params: Promise<{ topicId: string }> }) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         const data = updateTopicSchema.parse(await request.json());
 
         const topic = await updateTopic(params.topicId, data);
@@ -25,7 +27,7 @@ export async function PUT(request: Request, props: { params: Promise<{ topicId: 
 export async function DELETE(_request: Request, props: { params: Promise<{ topicId: string }> }) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({});
+        await getAdminRealms();
         await deleteTopic(params.topicId);
 
         revalidatePath("/admin/topics");

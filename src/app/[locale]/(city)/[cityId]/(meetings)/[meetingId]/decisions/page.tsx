@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { MeetingDecisionsPage } from '@/components/meetings/decisions/MeetingDecisionsPage';
 import { getMeetingBodySettings } from '@/lib/db/administrativeBodies';
 
@@ -9,6 +9,8 @@ export default async function DecisionsPage(props: { params: Promise<{ cityId: s
     const { cityId, meetingId } = await props.params;
     const editable = await isUserAuthorizedToEdit({ cityId });
     if (!editable) notFound();
-    const [user, bodySettings] = await Promise.all([getCurrentUser(), getMeetingBodySettings(cityId, meetingId)]);
-    return <MeetingDecisionsPage isSuperAdmin={user?.isSuperAdmin ?? false} bodySettings={bodySettings} />;
+    const bodySettings = await getMeetingBodySettings(cityId, meetingId);
+    // The destructive extraction actions follow the `admin` right on the
+    // city, which the gate above holds.
+    return <MeetingDecisionsPage isSuperAdmin={editable} bodySettings={bodySettings} />;
 }

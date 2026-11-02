@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
-import { City, CityMessage } from '@prisma/client'
+import { City, CityMessage, Realm } from '@prisma/client'
 import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
 import { Loader2, Trash2 } from "lucide-react"
 import Image from 'next/image'
@@ -52,10 +52,15 @@ type CityRequestFields = Omit<z.input<typeof createCityFormDataSchema>, 'logoIma
 interface CityFormProps {
     city?: City
     cityMessage?: CityMessage | null
+    /**
+     * The realms the viewer may put a city in: every realm for a superadmin,
+     * the realms a realm admin holds. Without it, the session decides.
+     */
+    realms?: Realm[]
     onSuccess?: () => void
 }
 
-export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps) {
+export default function CityForm({ city, cityMessage, realms, onSuccess }: CityFormProps) {
     const router = useRouter()
     const { data: session } = useSession()
     const [logoImage, setLogoImage] = useState<File | null>(null)
@@ -75,10 +80,16 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const [messageData, setMessageData] = useState<MessageFormState | null>(null);
     const [messageLinkError, setMessageLinkError] = useState<string | null>(null);
 
-    const isSuperAdmin = session?.user?.isSuperAdmin
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false
+    const currentRealm = useRealm()
+    // The tenant-level settings (status, language) are the realm admin's; the
+    // realm itself moves only by a superadmin's hand. The API refuses the
+    // rest, so the form shows each control to who may use it.
+    const allowedRealms = realms ?? (isSuperAdmin ? [...ALL_REALMS] : [])
+    const realmAdmin = isSuperAdmin || allowedRealms.length > 0
     // The slug is shown under the domain it will actually answer on: a city in
     // the France realm lives on the .fr host, not on opencouncil.gr.
-    const urlPrefix = `${getRealmBaseUrl(useRealm()).replace(/^https?:\/\//, '')}/`
+    const urlPrefix = `${getRealmBaseUrl(currentRealm).replace(/^https?:\/\//, '')}/`
 
     useEffect(() => {
         // Get all available timezones
@@ -121,7 +132,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
             diavgeiaUid: city?.diavgeiaUid || '',
             language: city?.language || CITY_DEFAULTS.language,
-            realm: city?.realm || CITY_DEFAULTS.realm,
+            // A new city goes to the realm of the host, when the viewer holds it.
+            realm: city?.realm || (allowedRealms.includes(currentRealm) ? currentRealm : allowedRealms[0] ?? CITY_DEFAULTS.realm),
         },
     })
 
@@ -140,8 +152,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'
         const method = city ? 'PUT' : 'POST'
-        // Only a superadmin edits the message. Without a message, only hasMessage is sent.
-        const message = isSuperAdmin ? messageData : null
+        // An admin of the city edits the message, as the save route allows.
+        // Without a message, only hasMessage is sent.
+        const message = city ? messageData : null
         const shownMessage = message?.hasMessage ? message : null
         // The server refuses the same link. Checked here, the error shows under
         // the link field, and not as a line with the name of the API field.
@@ -455,7 +468,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     </CityFormSection>
                 )}
 
-                {isSuperAdmin && city && (
+                {city && (
                     <CityMessageForm
                         existingMessage={cityMessage}
                         onMessageChange={(data) => {
@@ -466,7 +479,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     />
                 )}
 
-                {isSuperAdmin && (
+                {realmAdmin && (
                     <CityFormSection title={t('adminSettings')} hint={t('adminSettingsHint')} restricted>
                         <FormField
                             control={form.control}
@@ -517,31 +530,33 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                 </FormItem>
                             )}
                         />
-                        <FormField
-                            control={form.control}
-                            name="realm"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('realm')}</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t('selectRealm')} />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {ALL_REALMS.map((realm) => (
-                                                <SelectItem key={realm} value={realm}>{getRealmDisplayName(realm, locale)}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        {t('realmDescription')}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        {(isSuperAdmin || !city) && (
+                            <FormField
+                                control={form.control}
+                                name="realm"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('realm')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectRealm')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {allowedRealms.map((realm) => (
+                                                    <SelectItem key={realm} value={realm}>{getRealmDisplayName(realm, locale)}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('realmDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
                         <FormField
                             control={form.control}
                             name="language"

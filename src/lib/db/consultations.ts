@@ -2,7 +2,7 @@ import { Consultation, User, ConsultationComment, ConsultationCommentEntityType,
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { consultationCommentResponseSelect, type ConsultationCommentResponseView } from "./types/consultation";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { withRight } from "@/lib/auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
@@ -29,10 +29,13 @@ export type ConsultationForAdmin = Consultation & {
 };
 
 // ----- Admin CRUD functions -----
+// The /admin page and the api/admin routes are the guard of the list
+// functions: they call getAdminRealms first and pass the realms down (null:
+// every realm). The writes check the `admin` right on the city themselves.
 
-export async function getConsultationsForAdmin(): Promise<ConsultationForAdmin[]> {
-    await withUserAuthorizedToEdit({});
+export async function getConsultationsForAdmin(realms: Realm[] | null): Promise<ConsultationForAdmin[]> {
     return prisma.consultation.findMany({
+        where: realms ? { city: { realm: { in: realms } } } : {},
         orderBy: { createdAt: 'desc' },
         include: {
             city: { select: { id: true, name: true } },
@@ -48,7 +51,7 @@ export async function createConsultation(data: {
     isActive?: boolean;
     cityId: string;
 }) {
-    await withUserAuthorizedToEdit({});
+    await withRight('admin', { cityId: data.cityId });
     // Validate the city exists and has consultations enabled
     const city = await prisma.city.findUnique({
         where: { id: data.cityId },
@@ -77,11 +80,19 @@ export async function createConsultation(data: {
     });
 }
 
+/** The city of the consultation, after the check that the viewer administers it. */
+async function administeredConsultationCity(id: string): Promise<string> {
+    const consultation = await prisma.consultation.findUnique({ where: { id }, select: { cityId: true } });
+    if (!consultation) throw new NotFoundError('Consultation not found');
+    await withRight('admin', { cityId: consultation.cityId });
+    return consultation.cityId;
+}
+
 export async function updateConsultation(
     id: string,
     data: { name?: string; jsonUrl?: string; endDate?: string; isActive?: boolean }
 ) {
-    await withUserAuthorizedToEdit({});
+    await administeredConsultationCity(id);
     return prisma.consultation.update({
         where: { id },
         data: {
@@ -97,14 +108,13 @@ export async function updateConsultation(
 }
 
 export async function deleteConsultation(id: string) {
-    await withUserAuthorizedToEdit({});
+    await administeredConsultationCity(id);
     return prisma.consultation.delete({ where: { id } });
 }
 
-export async function getAdminCityOptions() {
-    await withUserAuthorizedToEdit({});
+export async function getAdminCityOptions(realms: Realm[] | null) {
     return prisma.city.findMany({
-        where: { consultationsEnabled: true },
+        where: { consultationsEnabled: true, ...(realms ? { realm: { in: realms } } : {}) },
         select: { id: true, name: true },
         orderBy: { name: 'asc' }
     });

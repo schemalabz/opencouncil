@@ -9,7 +9,7 @@ import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
 import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { isPetitionable } from "@/lib/cityStatus";
-import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 import { countOpenConsultationsForCity } from "@/lib/db/consultations";
@@ -104,8 +104,16 @@ export default async function TabsLayout(
         return { next: scheduled?.stage === 'upcoming' ? scheduled : null, latest: dated(latest) };
     };
 
-    const isSuperAdmin = !!currentUser?.isSuperAdmin;
-    // An inactive message is a draft: only superadmins see it, to preview it.
+    // The message editor follows the `admin` right on the city, as the save
+    // route does. The prop keeps its old name.
+    const isSuperAdmin = canEdit;
+    // The city form shows the status and the language to the admin of the
+    // city's realm, as the save route checks. A superadmin's form reads every
+    // realm from the session.
+    const formRealms = currentUser?.isSuperAdmin
+        ? undefined
+        : canEdit && await hasRight('admin', { realm: city.realm }) ? [city.realm] : [];
+    // An inactive message is a draft: only the admins of the city see it, to preview it.
     const showMessage = !!cityMessage && (cityMessage.isActive || isSuperAdmin);
 
     return (
@@ -137,6 +145,7 @@ export default async function TabsLayout(
                         cityMessage={cityMessage}
                         canEdit={canEdit}
                         isSuperAdmin={isSuperAdmin}
+                        formRealms={formRealms}
                         notificationPreference={notificationPreference}
                         phoneChannel={phoneChannel}
                         petitionBucket={petitionBucket}

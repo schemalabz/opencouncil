@@ -74,8 +74,7 @@ export async function DELETE(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({});
-        await deleteParty(params.partyId)
+        await deleteParty(params.partyId, params.cityId)
         revalidateTag(`city:${params.cityId}:parties`, 'max');
         // The city row carries the roster counts the overview reads to decide
         // whether it has data at all, so a new or deleted member ages it too.

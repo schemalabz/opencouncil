@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
 import { getApiSubject } from '@/lib/db/subjectsApi';
@@ -41,10 +41,8 @@ export async function PATCH(
 ) {
     const params = await props.params;
     try {
-        const user = await getCurrentUser();
-        if (!user?.isSuperAdmin) {
-            return NextResponse.json({ error: 'Superadmin access required' }, { status: 403 });
-        }
+        // The city's, not the meeting's: a meeting scope lets a body admin in.
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
 
         const body = await req.json();
         const parsed = subjectAgendaFlagsSchema.parse(body);

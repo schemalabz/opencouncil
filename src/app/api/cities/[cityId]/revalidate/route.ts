@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
-    const params = await props.params;
-    if (!(await isUserAuthorizedToEdit({}))) {
-        return NextResponse.json({ error: 'Unauthorized: Only super admins can revalidate city cache' }, { status: 401 });
+    const { cityId } = await props.params;
+    try {
+        await withRight('admin', { cityId });
+    } catch (error) {
+        return handleApiError(error, 'Not authorized to revalidate the city cache');
     }
 
-    const cityId = params.cityId;
     console.log('Revalidating cache for city', cityId);
 
     // Revalidate the main city tag - this will invalidate all cached entries for this city
@@ -20,4 +22,4 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         cityId,
         timestamp: new Date().toISOString() 
     });
-} 
+}

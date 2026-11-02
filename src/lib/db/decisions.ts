@@ -7,7 +7,7 @@ import "server-only";
 import prisma from './prisma';
 import { localCalendarDate } from '@/lib/formatters/time';
 import { rederiveMeetingQuietly, rederiveMeetingsOfSubjects } from '@/lib/derivation/rederive';
-import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
+import { AttendanceStatus, DataSource, Decision, Prisma, Realm, TaskStatus, User, VoteType } from '@prisma/client';
 
 /** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
  *  Shared between decision count queries and the polling pipeline. */
@@ -351,7 +351,7 @@ export interface DecisionReadIssueCount {
  * person. These are the issues a human can fix at the document — the
  * derivation's other issues follow from the facts and change with them.
  */
-export async function countDecisionReadIssuesByMeeting(cityId?: string): Promise<DecisionReadIssueCount[]> {
+export async function countDecisionReadIssuesByMeeting(realms: Realm[] | null, cityId?: string): Promise<DecisionReadIssueCount[]> {
     return prisma.$queryRaw<DecisionReadIssueCount[]>`
         SELECT s."cityId" AS "cityId",
                s."councilMeetingId" AS "councilMeetingId",
@@ -362,6 +362,7 @@ export async function countDecisionReadIssuesByMeeting(cityId?: string): Promise
         JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
         JOIN "City" c ON c.id = s."cityId"
         WHERE (d.incomplete OR cardinality(d."unmatchedNames") > 0)
+          ${realms ? Prisma.sql`AND c.realm = ANY(${realms}::"Realm"[])` : Prisma.empty}
           ${cityId ? Prisma.sql`AND s."cityId" = ${cityId}` : Prisma.empty}
         GROUP BY 1, 2, 3
     `;

@@ -1,12 +1,12 @@
 import Consultations from "@/components/admin/consultations/consultations";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getAdminRealms } from "@/lib/auth";
 import { getConsultationsForAdmin, getAdminCityOptions } from "@/lib/db/consultations";
 
 export default async function Page() {
-    await withUserAuthorizedToEdit({});
+    const realms = await getAdminRealms();
     const [consultations, cities] = await Promise.all([
-        getConsultationsForAdmin(),
-        getAdminCityOptions(),
+        getConsultationsForAdmin(realms),
+        getAdminCityOptions(realms),
     ]);
     return <Consultations initialConsultations={consultations} initialCities={cities} />;
 }

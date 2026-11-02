@@ -67,7 +67,7 @@ export interface CityDecisionDetail {
 
 export async function getCityDecisionDetail(cityId: string): Promise<CityDecisionDetail> {
     const [facts, conflicts] = await Promise.all([
-        fetchDecisionFacts(cityId),
+        fetchDecisionFacts(null, cityId),
         getConflictingCandidates({ cityId }),
     ]);
     const meetingById = new Map(facts.meetings.map(m => [m.id, m]));

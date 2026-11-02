@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, undismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import { deriveAndPersist, explainMeeting } from '@/lib/derivation/persist';
@@ -161,15 +161,8 @@ export async function POST(
 
         const body = decisionActionSchema.parse(await request.json().catch(() => null));
 
-        // Destructive extraction operations are superadmin-only; the city-admin
-        // tier only manages links (assign/dismiss, and PUT/DELETE above).
-        if (body.action === 'clearExtractedData' || body.action === 'resetExtraction') {
-            const user = await getCurrentUser();
-            if (!user?.isSuperAdmin) {
-                return NextResponse.json({ error: 'Superadmin required' }, { status: 403 });
-            }
-        }
-
+        // The destructive extraction actions, like the links, are the city
+        // admin's: the guard above holds the `admin` right on the city.
         if (body.action === 'clearExtractedData') {
             const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
             revalidateTag(`city:${params.cityId}:meetings`, 'max');

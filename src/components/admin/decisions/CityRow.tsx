@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { CalendarX2, ChevronDown, ChevronRight, ExternalLink, Inbox, Loader2, Swords } from 'lucide-react';
-import { Link } from '@/i18n/routing';
 import { useToast } from '@/hooks/use-toast';
+import { realmPageUrl } from '@/lib/utils/realmPageUrl';
 import { formatCalendarDate } from '@/lib/formatters/time';
 import { RelativeTime } from '@/components/RelativeTime';
 import type { CityDecisionHealth, CityState } from '@/lib/db/decisionHealth';
@@ -208,9 +208,9 @@ export function CityRow({ city, state, label, openRequest, readIssues = [] }: {
                             {[...readIssues].sort((a, b) => b.sessionDate.localeCompare(a.sessionDate)).map(r => (
                                 <li key={r.councilMeetingId} className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
                                     <span>{formatCalendarDate(r.sessionDate, locale)}{' · '}{t('readIssues', { count: r.count })}</span>
-                                    <Link className="shrink-0 text-[#fc550a] hover:underline" href={`/${city.cityId}/${r.councilMeetingId}/decisions`}>
+                                    <a className="shrink-0 text-[#fc550a] hover:underline" href={realmPageUrl(city.siteUrl, locale, `/${city.cityId}/${r.councilMeetingId}/decisions`)}>
                                         {t('openMeeting')} <ExternalLink className="inline h-3 w-3" />
-                                    </Link>
+                                    </a>
                                 </li>
                             ))}
                         </ul>
@@ -240,9 +240,9 @@ export function CityRow({ city, state, label, openRequest, readIssues = [] }: {
                                         {shown.failedMeetings.map((m, i) => (
                                             <span key={m.id}>
                                                 {i > 0 && ' · '}
-                                                <Link className="hover:underline" href={`/${city.cityId}/${m.id}`}>
+                                                <a className="hover:underline" href={realmPageUrl(city.siteUrl, locale, `/${city.cityId}/${m.id}`)}>
                                                     {formatCalendarDate(m.sessionDate, locale)}
-                                                </Link>
+                                                </a>
                                             </span>
                                         ))}
                                     </div>
@@ -340,16 +340,16 @@ export function CityRow({ city, state, label, openRequest, readIssues = [] }: {
                                         </button>
                                         {subjectsOpen && (
                                             <div className="mt-2 max-w-xl pl-4">
-                                                <TaxonomyList label={t('taxonomy.notProcessed')} cityId={city.cityId}
+                                                <TaxonomyList label={t('taxonomy.notProcessed')} cityId={city.cityId} siteUrl={city.siteUrl}
                                                     count={scope.unmatchedTaxonomy.notProcessed}
                                                     meetings={shown.unmatched.notProcessed} openLabel={t('openMeeting')} />
-                                                <TaxonomyList label={t('taxonomy.candidatesUnmatched')} cityId={city.cityId}
+                                                <TaxonomyList label={t('taxonomy.candidatesUnmatched')} cityId={city.cityId} siteUrl={city.siteUrl}
                                                     count={scope.unmatchedTaxonomy.candidatesUnmatched}
                                                     meetings={groupSubjectsByMeeting(shown.unmatched.candidatesUnmatched)} openLabel={t('openMeeting')} />
-                                                <TaxonomyList label={t('taxonomy.nothingFetched')} cityId={city.cityId}
+                                                <TaxonomyList label={t('taxonomy.nothingFetched')} cityId={city.cityId} siteUrl={city.siteUrl}
                                                     count={scope.unmatchedTaxonomy.nothingFetched}
                                                     meetings={groupSubjectsByMeeting(shown.unmatched.nothingFetched)} openLabel={t('openMeeting')} />
-                                                <TaxonomyList label={t('taxonomy.duplicateSubject')} cityId={city.cityId}
+                                                <TaxonomyList label={t('taxonomy.duplicateSubject')} cityId={city.cityId} siteUrl={city.siteUrl}
                                                     count={scope.unmatchedTaxonomy.duplicateSubject}
                                                     meetings={groupSubjectsByMeeting(shown.unmatched.duplicateSubject)} openLabel={t('openMeeting')} />
                                             </div>
@@ -379,18 +379,18 @@ export function CityRow({ city, state, label, openRequest, readIssues = [] }: {
                     meetingLink={(sheet.meetingId || sheet.holderMeetingId) ? (
                         <>
                             {sheet.meetingId && (
-                                <Link href={`/${city.cityId}/${sheet.meetingId}/decisions`}
+                                <a href={realmPageUrl(city.siteUrl, locale, `/${city.cityId}/${sheet.meetingId}/decisions`)}
                                     className="inline-flex items-center gap-1 text-xs text-[#fc550a] hover:underline">
                                     {t(sheet.action === 'reassign' ? 'conflict.claimantMeeting' : 'openMeeting')}
                                     <ExternalLink className="h-3 w-3" />
-                                </Link>
+                                </a>
                             )}
                             {sheet.holderMeetingId && sheet.holderMeetingId !== sheet.meetingId && (
-                                <Link href={`/${city.cityId}/${sheet.holderMeetingId}/decisions`}
+                                <a href={realmPageUrl(city.siteUrl, locale, `/${city.cityId}/${sheet.holderMeetingId}/decisions`)}
                                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline">
                                     {t('conflict.holderMeeting')}
                                     <ExternalLink className="h-3 w-3" />
-                                </Link>
+                                </a>
                             )}
                         </>
                     ) : undefined}
@@ -411,8 +411,8 @@ function groupSubjectsByMeeting(subjects: Array<{ councilMeetingId: string; sess
     return [...meetings.values()];
 }
 
-function TaxonomyList({ label, count, meetings, cityId, openLabel }: {
-    label: string; count: number; cityId: string;
+function TaxonomyList({ label, count, meetings, cityId, siteUrl, openLabel }: {
+    label: string; count: number; cityId: string; siteUrl: string;
     meetings: Array<{ councilMeetingId: string; sessionDate: string; subjects: number }>; openLabel: string;
 }) {
     const t = useTranslations('admin.decisionsOverview');
@@ -441,9 +441,9 @@ function TaxonomyList({ label, count, meetings, cityId, openLabel }: {
                                 {formatCalendarDate(m.sessionDate, locale)}
                                 {' · '}{t('taxonomy.subjectCount', { count: m.subjects })}
                             </span>
-                            <Link className="shrink-0 text-[#fc550a] hover:underline" href={`/${cityId}/${m.councilMeetingId}/decisions`}>
+                            <a className="shrink-0 text-[#fc550a] hover:underline" href={realmPageUrl(siteUrl, locale, `/${cityId}/${m.councilMeetingId}/decisions`)}>
                                 {openLabel} <ExternalLink className="inline h-3 w-3" />
-                            </Link>
+                            </a>
                         </li>
                     ))}
                 </ul>
