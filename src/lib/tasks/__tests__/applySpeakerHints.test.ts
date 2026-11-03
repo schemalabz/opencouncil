@@ -33,7 +33,7 @@ import { isReviewerAssignment } from '@/lib/speakerIdentifications';
 import type { SpeakerHint, UnlistedSpeakerHint } from '@/lib/apiTypes';
 
 type Identification = {
-  method: 'voiceprint' | 'transcript';
+  method: 'voiceprint' | 'transcript' | 'minutes';
   personId: string | null;
   name: string | null;
   actionable: boolean;
@@ -45,7 +45,7 @@ type Tag = {
   id: string;
   label: string | null;
   personId: string | null;
-  personSetBy: 'voiceprint' | 'transcript' | 'both' | 'user' | null;
+  personSetBy: 'voiceprint' | 'transcript' | 'minutes' | 'both' | 'user' | null;
   identifications: Identification[];
 };
 
@@ -563,5 +563,41 @@ describe('applySpeakerHints: speakers who are not on the roster', () => {
 
     expect(mockIdentificationUpsert).not.toHaveBeenCalled();
     expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('applySpeakerHints: the minutes method (#876)', () => {
+  const LABEL = 'Παπαδόπουλος Γιώργος - κάτοικος Χαλέπας';
+
+  it('stores the opinion under its own method, and assigns the person it names', async () => {
+    setup([tag('t1')]);
+    await applySpeakerHints('task-1', [hint('t1', 'anna')], [], 'minutes');
+
+    expect(mockIdentificationUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { speakerTagId_method: { speakerTagId: 't1', method: 'minutes' } },
+      create: expect.objectContaining({ method: 'minutes', personId: 'anna' }),
+    }));
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({ where: { id: 't1', ...AUTOMATIC }, data: { personId: 'anna', personSetBy: 'minutes' } });
+  });
+
+  it('keeps the label the transcript gave a speaker the minutes do not name', async () => {
+    const transcriptLabel = asStored(unlistedHint('t1', LABEL));
+    setup([tag('t1', { label: LABEL, personSetBy: 'transcript', identifications: [transcriptLabel] })]);
+    await applySpeakerHints('task-1', [], [], 'minutes');
+
+    expect(mockIdentificationDeleteMany).not.toHaveBeenCalled();
+    expect(mockTagUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('takes back its own person, and leaves the transcript identification alone', async () => {
+    const transcriptOpinion = asStored(tentative('t1', 'anna'));
+    setup([tag('t1', {
+      personId: 'anna', personSetBy: 'minutes',
+      identifications: [transcriptOpinion, { ...asStored(hint('t1', 'anna')), method: 'minutes' }],
+    })]);
+    await applySpeakerHints('task-1', [], [], 'minutes');
+
+    expect(mockIdentificationDeleteMany).toHaveBeenCalledWith({ where: { speakerTagId: 't1', method: 'minutes' } });
+    expect(mockTagUpdateMany).toHaveBeenCalledWith({ where: { id: 't1', ...AUTOMATIC }, data: { personId: null, personSetBy: null } });
   });
 });

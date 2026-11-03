@@ -1,5 +1,6 @@
 {
     "invalidAgendaUrl": "Invalid Agenda URL.",
+    "invalidMunicipalMinutesUrl": "Invalid municipal minutes URL.",
     "invalidMediaUrl": "Invalid media URL.",
     "meetingDateRequired": "Meeting date is required.",
     "meetingTimeRequired": "Meeting time is required.",

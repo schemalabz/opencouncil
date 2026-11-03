@@ -9,7 +9,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
-import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, Lightbulb, X, Edit2 } from "lucide-react";
+import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, Lightbulb, ScrollText, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,7 +18,7 @@ import { RoleDisplay } from './RoleDisplay';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
-import type { SpeakerSuggestion } from '@/lib/speakerIdentifications';
+import type { SpeakerSuggestion, SpeakerSuggestionSource } from '@/lib/speakerIdentifications';
 
 interface PersonDisplayProps {
     cityLanguage?: string;
@@ -46,7 +46,7 @@ export type SpeakerPickerSuggestion = ({ person: PersonWithRelations; label?: ne
     evidence?: SpeakerSuggestion['evidence'];
 };
 
-const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: CheckCheck };
+const SUGGESTION_ICONS: Record<SpeakerSuggestionSource, typeof AudioLines> = { voiceprint: AudioLines, transcript: FileText, minutes: ScrollText, both: CheckCheck };
 
 /** A selected value no picker item carries: cmdk selects the first item only while the value is empty. */
 const NO_PRESELECTION = 'no-preselection';

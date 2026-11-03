@@ -1,5 +1,6 @@
 {
     "invalidAgendaUrl": "URL de l'ordre du jour invalide.",
+    "invalidMunicipalMinutesUrl": "URL du procès-verbal de la municipalité invalide.",
     "invalidMediaUrl": "URL du média invalide.",
     "meetingDateRequired": "La date de la séance est obligatoire.",
     "meetingTimeRequired": "L'heure de la séance est obligatoire.",

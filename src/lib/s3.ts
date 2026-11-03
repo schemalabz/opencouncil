@@ -1,5 +1,5 @@
 import {
-    S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL,
+    S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL,
     CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand, CompleteMultipartUploadCommand,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -48,8 +48,13 @@ const keyPart = (part: string) => part.replace(/[^A-Za-z0-9_-]+/g, '-')
  * older file under the same name.
  */
 export function objectKey(prefix: string, parts: string[], extension: string): string {
-    const name = parts.length > 0 ? `${parts.map(keyPart).join('_')}_${crypto.randomUUID().slice(0, 8)}` : crypto.randomUUID()
-    return `${prefix}/${name}.${keyPart(extension).toLowerCase() || 'bin'}`
+    const name = parts.length > 0 ? `${objectKeyPrefix(prefix, parts)}${crypto.randomUUID().slice(0, 8)}` : `${prefix}/${crypto.randomUUID()}`
+    return `${name}.${keyPart(extension).toLowerCase() || 'bin'}`
+}
+
+/** The start of every key that objectKey makes from these parts: all but the random part and the extension. */
+export function objectKeyPrefix(prefix: string, parts: string[]): string {
+    return `${prefix}/${parts.map(keyPart).join('_')}_`
 }
 
 export function constructPublicUrl(bucket: string, key: string, useCdn: boolean = false): string {
@@ -123,34 +128,59 @@ export async function deleteFile(bucket: string, key: string): Promise<void> {
 
 /**
  * A signed PUT of a whole file of exactly `sizeBytes`: the length is a signed
- * header, so the bucket refuses a PUT of any other size. The ACL is signed in,
- * but Spaces ignores an ACL in the query string: the PUT must send the
- * `x-amz-acl: public-read` header, or the file stays private.
+ * header, so the bucket refuses a PUT of any other size. A public file has the
+ * ACL signed in, but Spaces ignores an ACL in the query string: the PUT must
+ * send the `x-amz-acl: public-read` header, or the file stays private.
  */
-export async function presignPut(key: string, contentType: string, sizeBytes: number, expiresIn: number): Promise<string> {
+export async function presignPut(
+    key: string, contentType: string, sizeBytes: number, expiresIn: number, { publicRead = true }: { publicRead?: boolean } = {},
+): Promise<string> {
     const command = new PutObjectCommand({
         Bucket: env.DO_SPACES_BUCKET,
         Key: key,
         ContentType: contentType,
         ContentLength: sizeBytes,
-        ACL: 'public-read',
+        ...(publicRead ? { ACL: 'public-read' } : {}),
     })
     return getSignedUrl(s3Client, command, { expiresIn })
 }
 
 /**
- * Opens a multipart upload and returns its id. The file is public and
- * carries the content type from the start, so the parts need no headers.
+ * Opens a multipart upload and returns its id. The file carries its ACL and
+ * its content type from the start, so the parts need no headers.
  */
-export async function startMultipartUpload(key: string, contentType: string): Promise<string> {
+export async function startMultipartUpload(
+    key: string, contentType: string, { publicRead = true }: { publicRead?: boolean } = {},
+): Promise<string> {
     const { UploadId } = await s3Client.send(new CreateMultipartUploadCommand({
         Bucket: env.DO_SPACES_BUCKET,
         Key: key,
         ContentType: contentType,
-        ACL: 'public-read',
+        ...(publicRead ? { ACL: 'public-read' } : {}),
     }))
     if (!UploadId) throw new Error(`The bucket opened no multipart upload for ${key}`)
     return UploadId
+}
+
+/** The key of a file in our bucket, read from its URL as constructPublicUrl builds it; null for any other URL. */
+export function bucketKeyOf(url: string): string | null {
+    const bucketUrl = new URL(constructPublicUrl(env.DO_SPACES_BUCKET, ''))
+    let parsed: URL
+    try {
+        parsed = new URL(url)
+    } catch {
+        return null
+    }
+    if (parsed.origin !== bucketUrl.origin || parsed.pathname.length <= 1) return null
+    return decodeURIComponent(parsed.pathname.slice(1))
+}
+
+/**
+ * A signed GET of a file in our bucket. It reads a private file too, so the
+ * caller must first check that whoever can see the URL may read the file.
+ */
+export async function presignGet(key: string, expiresIn: number): Promise<string> {
+    return getSignedUrl(s3Client, new GetObjectCommand({ Bucket: env.DO_SPACES_BUCKET, Key: key }), { expiresIn })
 }
 
 /** A signed PUT of one part of a multipart upload, of exactly `sizeBytes`, as presignPut. */

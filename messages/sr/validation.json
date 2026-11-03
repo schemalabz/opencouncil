@@ -1,5 +1,6 @@
 {
     "invalidAgendaUrl": "Неисправан URL дневног реда.",
+    "invalidMunicipalMinutesUrl": "Неисправан URL записника општине.",
     "invalidMediaUrl": "Неисправан URL медија.",
     "meetingDateRequired": "Датум седнице је обавезан.",
     "meetingTimeRequired": "Време седнице је обавезно.",

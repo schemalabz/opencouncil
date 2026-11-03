@@ -1,11 +1,12 @@
 /**
- * Applies the transcript speaker hints a fixTranscript result carries.
+ * Applies the speaker hints a fixTranscript result carries (method
+ * `transcript`), or a fixFromMinutes result (method `minutes`).
  *
  * NOT in a "use server" file: this writes speaker assignments, and must not be
  * callable as a Server Action. It runs on the task-server callback only.
  */
 import "server-only";
-import { Prisma, type Realm, type SpeakerAssignmentSource } from '@prisma/client';
+import { Prisma, type Realm, type SpeakerAssignmentSource, type SpeakerIdentificationMethod } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { SpeakerHint, UnlistedSpeakerHint } from '@/lib/apiTypes';
 import { AUTOMATIC_SOURCES, isReviewerAssignment, reconcileSpeakerIdentifications, MethodIdentification } from '@/lib/speakerIdentifications';
@@ -58,8 +59,8 @@ const identifiedTagSelect = {
 
 type IdentifiedTag = Prisma.SpeakerTagGetPayload<{ select: typeof identifiedTagSelect }>;
 
-/** What a hint stores as the tag's transcript identification. */
-function transcriptIdentification(hint: SpeakerHint | UnlistedSpeakerHint) {
+/** What a hint stores as the tag's identification for its method. */
+function hintIdentification(hint: SpeakerHint | UnlistedSpeakerHint) {
     return {
         personId: 'personId' in hint ? hint.personId : null,
         name: 'name' in hint ? hint.name : null,
@@ -73,10 +74,13 @@ function transcriptIdentification(hint: SpeakerHint | UnlistedSpeakerHint) {
 
 type TagAssignment = { personId: string | null; personSetBy: SpeakerAssignmentSource | null; label: string | null };
 
+/** The methods whose task sends speaker hints. */
+type HintMethod = Exclude<SpeakerIdentificationMethod, 'voiceprint'>;
+
 /**
  * What the tag should show once the hints are applied: the person the methods
  * add up to, or, for a speaker who is not on the roster, the label the
- * transcript gives them.
+ * method gives them.
  *
  * - An actionable unlisted label replaces a placeholder label, or the label an
  *   earlier run wrote. A label a reviewer typed never reaches here (see
@@ -88,8 +92,12 @@ type TagAssignment = { personId: string | null; personSetBy: SpeakerAssignmentSo
  *   person's name, so the label goes back once the person is taken back too.
  * - A tag that loses its person also loses the import's raw SPEAKER_<n> label,
  *   which only ever stood behind a person's name.
+ * - A label that another method wrote stays: only that method's next run takes
+ *   it back. fixFromMinutes runs after fixTranscript, and a speaker the minutes
+ *   do not name keeps the label the transcript gave them.
  */
 function targetAssignment(
+    method: HintMethod,
     tag: IdentifiedTag,
     assignment: { personId: string | null; personSetBy: SpeakerAssignmentSource | null },
     unlisted: UnlistedSpeakerHint | undefined,
@@ -97,11 +105,15 @@ function targetAssignment(
 ): TagAssignment {
     if (assignment.personId !== null) return { ...assignment, label: tag.label };
 
-    // A name on a tag the transcript decided is the transcript's: a reviewer's
-    // edit records 'user', whether it chose a person or typed a label.
-    const labelledByEarlierRun = tag.personSetBy === 'transcript' && !isPlaceholderLabel(tag.label);
+    const labelledByAnotherMethod = tag.personId === null && tag.personSetBy !== null && tag.personSetBy !== method
+        && !isPlaceholderLabel(tag.label);
+    if (labelledByAnotherMethod) return { personId: null, personSetBy: tag.personSetBy, label: tag.label };
+
+    // A name on a tag the method decided is the method's: a reviewer's edit
+    // records 'user', whether it chose a person or typed a label.
+    const labelledByEarlierRun = tag.personSetBy === method && !isPlaceholderLabel(tag.label);
     if (unlisted?.actionable === true && (labelledByEarlierRun || isPlaceholderLabel(tag.label))) {
-        return { personId: null, personSetBy: 'transcript', label: unlisted.name };
+        return { personId: null, personSetBy: method, label: unlisted.name };
     }
     const losesAssignment = tag.personId !== null || tag.personSetBy !== null;
     if (losesAssignment && (labelledByEarlierRun || RAW_SPEAKER_LABEL.test(tag.label ?? ''))) {
@@ -111,14 +123,14 @@ function targetAssignment(
 }
 
 /**
- * Stores the transcript identification of every speaker tag of the task's
+ * Stores the identification of `method` for every speaker tag of the task's
  * meeting, and assigns the person the identifications add up to (see
  * reconcileSpeakerIdentifications), or the label of a speaker who is not on
  * the roster (see targetAssignment).
  *
  * - The hints describe the whole meeting: a tag the result does not name loses
- *   the transcript identification an earlier run gave it.
- * - A tag gets one transcript opinion. When the result names a tag in both
+ *   the identification of this method that an earlier run gave it.
+ * - A tag gets one opinion per method. When the result names a tag in both
  *   arrays, the roster person wins: the unlisted hint is dropped.
  * - A superseded result never gets here: handleFixTranscriptResult ignores it
  *   whole, since its tag ids and opinions describe a transcript that is gone.
@@ -138,6 +150,7 @@ export async function applySpeakerHints(
     taskId: string,
     speakerHints: SpeakerHint[],
     unlistedSpeakerHints: UnlistedSpeakerHint[] = [],
+    method: HintMethod = 'transcript',
 ): Promise<void> {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -183,26 +196,26 @@ export async function applySpeakerHints(
     for (const tag of tags) {
         const hint = hintByTagId.get(tag.id);
         const unlisted = unlistedByTagId.get(tag.id);
-        const given = hint ? transcriptIdentification(hint) : unlisted ? transcriptIdentification(unlisted) : null;
-        const previous = tag.identifications.find(identification => identification.method === 'transcript') ?? null;
+        const given = hint ? hintIdentification(hint) : unlisted ? hintIdentification(unlisted) : null;
+        const previous = tag.identifications.find(identification => identification.method === method) ?? null;
         const otherMethods: MethodIdentification[] = tag.identifications
-            .filter(identification => identification.method !== 'transcript')
+            .filter(identification => identification.method !== method)
             .flatMap(({ method, personId, actionable }) => personId === null ? [] : [{ method, personId, actionable }]);
 
-        // The transcript's opinion is stored as given, whoever owns the tag.
+        // The method's opinion is stored as given, whoever owns the tag.
         if (given) {
             const unchanged = previous !== null
                 && (Object.keys(given) as (keyof typeof given)[]).every(key => given[key] === previous[key]);
             if (!unchanged) {
                 await prisma.speakerIdentification.upsert({
-                    where: { speakerTagId_method: { speakerTagId: tag.id, method: 'transcript' } },
-                    create: { speakerTagId: tag.id, method: 'transcript', ...given },
+                    where: { speakerTagId_method: { speakerTagId: tag.id, method } },
+                    create: { speakerTagId: tag.id, method, ...given },
                     update: given,
                 });
                 stored++;
             }
         } else if (previous) {
-            await prisma.speakerIdentification.deleteMany({ where: { speakerTagId: tag.id, method: 'transcript' } });
+            await prisma.speakerIdentification.deleteMany({ where: { speakerTagId: tag.id, method } });
             stored++;
         }
 
@@ -210,9 +223,9 @@ export async function applySpeakerHints(
 
         const assignment = reconcileSpeakerIdentifications([
             ...otherMethods,
-            ...(hint ? [{ method: 'transcript' as const, personId: hint.personId, actionable: hint.actionable === true }] : []),
+            ...(hint ? [{ method, personId: hint.personId, actionable: hint.actionable === true }] : []),
         ]);
-        const target = targetAssignment(tag, assignment, unlisted, unknownLabels);
+        const target = targetAssignment(method, tag, assignment, unlisted, unknownLabels);
         if (target.personId === tag.personId && target.personSetBy === tag.personSetBy && target.label === tag.label) continue;
 
         // Guarded: a reviewer who took the tag in the meantime keeps it.
@@ -230,7 +243,7 @@ export async function applySpeakerHints(
     const received = speakerHints.length + unlistedSpeakerHints.length;
     const dropped = received - tags.filter(tag => hintByTagId.has(tag.id) || unlistedByTagId.has(tag.id)).length;
     console.log(
-        `Speaker hints for ${cityId}/${meetingId}: ${speakerHints.length} received, ${unlistedSpeakerHints.length} unlisted, ` +
+        `${method} speaker hints for ${cityId}/${meetingId}: ${speakerHints.length} received, ${unlistedSpeakerHints.length} unlisted, ` +
         `${stored} identifications stored or removed, ` +
         `${assigned} assignments changed${reviewCompleted ? ' (none allowed: the review is complete)' : ''}` +
         `${dropped > 0 ? `, ${dropped} dropped (unknown tag or person, or an unlisted hint on a roster person's tag)` : ''}`

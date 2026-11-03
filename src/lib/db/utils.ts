@@ -10,7 +10,8 @@ import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
-import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { FixFromMinutesRequest, FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { localCalendarDate } from "@/lib/formatters/time";
 import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
@@ -21,7 +22,15 @@ import { agendaDescriptionsByRowId, categorizeSubjectsForUpsert } from "./subjec
 import { getLatestProcessAgendaSubjects } from "./tasksInternal";
 import { getRealmCountry } from "@/lib/realm";
 import { getCityRealm } from "./cityRealm";
+import { bucketKeyOf, presignGet } from "@/lib/s3";
+import { isMeetingUpload } from "@/lib/uploads";
 import { getRoleTitles } from "@/i18n/roleTitles";
+
+/**
+ * How long the task server can read the minutes. The URL is signed when the
+ * task is requested, and a queue on the task server can delay the start.
+ */
+const MINUTES_READ_SECONDS = 24 * 60 * 60;
 
 // discussionStatus arrives from the external task server, so it is validated before it
 // reaches Prisma. An unknown value is a PrismaClientValidationError, which would abort the
@@ -128,6 +137,48 @@ export async function getFixTranscriptRequestBody(councilMeetingId: string, city
     // Speaker hints judge each diarization speaker on its own, so two tags the
     // voiceprint matched to one person must not reach the task as one speaker.
     return getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true });
+}
+
+/**
+ * The fixFromMinutes request: the transcript as fixTranscript left it, the
+ * municipality's minutes, and what picks the meeting inside a document that
+ * holds several. The caller checks that the meeting has the minutes.
+ */
+export async function getFixFromMinutesRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixFromMinutesRequest, 'callbackUrl'>> {
+    const [base, meeting, city] = await Promise.all([
+        getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true }),
+        getCouncilMeetingDirect(cityId, councilMeetingId),
+        getCity(cityId),
+    ]);
+    if (!meeting?.municipalMinutesUrl) {
+        throw new Error('The meeting has no municipal minutes');
+    }
+    if (!city) {
+        throw new Error('City not found');
+    }
+    return {
+        ...base,
+        municipalMinutesUrl: await minutesUrlForTask(meeting.municipalMinutesUrl, meeting),
+        meetingDate: localCalendarDate(meeting.dateTime, city.timezone),
+        sessionNumber: meeting.sessionNumber,
+    };
+}
+
+/**
+ * The minutes URL that the task server reads. Uploaded minutes are private,
+ * so a file in our bucket gets a signed URL. The editors of the meeting can
+ * read the request of its task, so only the minutes uploaded for this meeting
+ * are signed: knowing the URL of another meeting's file grants no read.
+ */
+async function minutesUrlForTask(
+    url: string, meeting: { cityId: string; id: string },
+): Promise<string> {
+    const key = bucketKeyOf(url);
+    if (key === null) return url;
+    if (!isMeetingUpload(key, meeting, 'municipalMinutes')) {
+        throw new Error('The minutes file was not uploaded for this meeting. Upload it again for this meeting.');
+    }
+    return presignGet(key, MINUTES_READ_SECONDS);
 }
 
 let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {
