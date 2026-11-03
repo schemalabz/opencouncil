@@ -32,6 +32,13 @@ describe('POST /api/upload/start', () => {
         expect(await response.json()).toEqual({ key: 'k', completion: null });
     });
 
+    it('accepts an MP3 recording from the browser upload route', async () => {
+        const config = { cityId: 'chania', kind: 'recording', councilMeetingId: 'nov5_2026' };
+        const response = await post({ filename: 'sitting.MP3', sizeBytes: 60000, config });
+        expect(response.status).toBe(200);
+        expect(startUpload).toHaveBeenCalledWith(config, 'mp3', 60000);
+    });
+
     it('refuses a caller who may not edit the meeting, before it signs anything', async () => {
         guard.mockRejectedValue(new ForbiddenError('no'));
         expect((await post(AGENDA)).status).toBe(403);

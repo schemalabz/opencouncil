@@ -174,10 +174,10 @@ describe('create_upload_url through the SDK', () => {
         expect(mcpCreateUploadUrl).not.toHaveBeenCalled();
     });
 
-    it('hands a valid call to the handler', async () => {
-        const result = await mcp.call('create_upload_url', { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
+    it.each(['mp4', 'mp3'])('hands a valid %s recording call to the handler', async format => {
+        const result = await mcp.call('create_upload_url', { ...AGENDA, kind: 'recording', format, sizeBytes: 12300000000 });
         expect(result.isError).toBeFalsy();
-        expect(mcpCreateUploadUrl).toHaveBeenCalledWith(null, { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
+        expect(mcpCreateUploadUrl).toHaveBeenCalledWith(null, { ...AGENDA, kind: 'recording', format, sizeBytes: 12300000000 });
     });
 });
 

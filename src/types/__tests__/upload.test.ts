@@ -37,6 +37,8 @@ describe('uploadFormatOfFile', () => {
         expect(uploadFormatOfFile('agenda', 'Ημερήσια Διάταξη.PDF')).toBe('pdf');
         expect(uploadFormatOfFile('agenda', 'agenda.v2.docx')).toBe('docx');
         expect(uploadFormatOfFile('recording', 'sitting.MOV')).toBe('mov');
+        expect(uploadFormatOfFile('recording', 'sitting.MP3')).toBe('mp3');
+        expect(uploadFormatOfFile('agenda', 'sitting.mp3')).toBeNull();
     });
 
     it('refuses a format that the kind does not take', () => {
@@ -50,6 +52,6 @@ describe('uploadFormatOfFile', () => {
 describe('uploadAccept', () => {
     it('lists the extensions and the content types of the kind', () => {
         expect(uploadAccept('decision')).toBe('.pdf,application/pdf');
-        expect(uploadAccept('recording')).toBe('.mp4,video/mp4,.mov,video/quicktime');
+        expect(uploadAccept('recording')).toBe('.mp4,video/mp4,.mov,video/quicktime,.mp3,audio/mpeg');
     });
 });

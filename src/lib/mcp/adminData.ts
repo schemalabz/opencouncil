@@ -163,7 +163,7 @@ export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArg
 /** Where an uploaded file goes next, per kind. */
 const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
     agenda: 'pass publicUrl as agendaUrl to create_meeting or update_meeting.',
-    recording: 'pass publicUrl as youtubeUrl (the video of the meeting) to create_meeting or update_meeting, '
+    recording: 'pass publicUrl as youtubeUrl (the recording of the meeting) to create_meeting or update_meeting, '
         + 'or as videoUrl to start_task with type transcribe.',
 };
 

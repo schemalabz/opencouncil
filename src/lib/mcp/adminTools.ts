@@ -91,11 +91,11 @@ function registerMeetingAdminTools(server: McpServer) {
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
             _meta: category('admin'),
             description:
-                'Get short-lived URLs to upload the agenda or the recording (the video) of a meeting to the file '
+                'Get short-lived URLs to upload the agenda or the recording (video or audio) of a meeting to the file '
                 + 'storage of OpenCouncil, in a municipality that you administer. Use it when the file has no public '
                 + 'URL that the task server can read: an email attachment, a download link that expires, a video '
                 + 'joined from parts or downloaded from a player. An agenda is a PDF or a .docx, at most 20 MiB; '
-                + 'a recording is an mp4 or a .mov, at most 40 GiB. A file of up '
+                + 'a recording is an mp4, .mov or .mp3, at most 40 GiB. A file of up '
                 + 'to partSize bytes goes up in one PUT, and `completion` is null. A bigger file goes up in parts, '
                 + 'one PUT per part, and complete_upload then joins them. The answer\'s `next` gives the steps. The '
                 + 'file is then public at `publicUrl`.',

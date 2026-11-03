@@ -123,7 +123,7 @@ The app queues a task in the database and sends a request to the tasks server. T
 The app stores the files that people upload in the `townhalls-gr` Spaces bucket: agendas, recordings, decisions that are not on Diavgeia, logos and images. The preview server's environment also names `townhalls-gr`, so a test upload on a preview writes to the production bucket.
 
 A meeting file (an agenda, a recording or a decision) goes from the client straight to the bucket, with URLs that the app signs:
-- `UPLOAD_KINDS` in `src/types/upload.ts` lists the kinds, the formats that the task server reads for each, and their size limits. An agenda is a PDF or a .docx of at most 20 MiB. A decision is a PDF of at most 20 MiB. A recording is an mp4 or a .mov of at most 40 GiB.
+- `UPLOAD_KINDS` in `src/types/upload.ts` lists the kinds, the formats that the task server reads for each, and their size limits. An agenda is a PDF or a .docx of at most 20 MiB. A decision is a PDF of at most 20 MiB. A recording is an mp4, .mov or .mp3 of at most 40 GiB.
 - `startUpload()` in `src/lib/uploads.ts` names the file `uploads/{cityId}_{body}_{meeting}_{kind}_{random}.{ext}` and signs the upload. A file of at most 1 GiB goes up in one PUT. The PUT sends `x-amz-acl: public-read`, which makes the file public. A bigger file goes up in parts of 1 GiB, and `completeUpload()` joins them after the client sends every part. Each signed URL binds the size of its file or part, so the bucket refuses a PUT of another size (403).
 - The browser calls `POST /api/upload/start` and `POST /api/upload/complete` from the link-or-file field. An MCP client calls `create_upload_url` and `complete_upload`.
 
