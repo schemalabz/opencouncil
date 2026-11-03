@@ -3,13 +3,15 @@ import { useTranslations } from 'next-intl';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 import { ReactNode } from 'react';
-import { City } from '@prisma/client';
+import { ShieldCheck } from 'lucide-react';
 
 type CityNavigationProps = {
     cityId: string;
     city?: { consultationsEnabled: boolean };
     /** Consultations that take comments now; the tab shows the number in orange. */
     openConsultations?: number;
+    /** The Team tab (#875), for an admin of the city or of one of its bodies. */
+    showTeam?: boolean;
 };
 
 // Custom NavLink component to handle active state styling
@@ -43,7 +45,7 @@ function NavLink({
     );
 }
 
-export function CityNavigation({ cityId, city, openConsultations = 0 }: CityNavigationProps) {
+export function CityNavigation({ cityId, city, openConsultations = 0, showTeam = false }: CityNavigationProps) {
     const t = useTranslations('City');
     const segment = useSelectedLayoutSegment();
 
@@ -113,6 +115,20 @@ export function CityNavigation({ cityId, city, openConsultations = 0 }: CityNavi
                                     <span className="sr-only">{t('openConsultations', { count: openConsultations })}</span>
                                 </span>
                             )}
+                        </span>
+                    </NavLink>
+                )}
+                {showTeam && (
+                    // Last and marked with a shield: the one tab that is not
+                    // for the citizens the others serve.
+                    <NavLink
+                        href={`/${cityId}/team`}
+                        segment={currentSegment}
+                        matchSegment="team"
+                    >
+                        <span className="inline-flex items-center gap-1.5">
+                            <ShieldCheck className="h-3.5 w-3.5 text-[hsl(var(--orange-deep))]" aria-hidden="true" />
+                            {t('team')}
                         </span>
                     </NavLink>
                 )}

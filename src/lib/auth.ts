@@ -114,6 +114,15 @@ export async function heldScope(right: Right, cityId: City["id"]): Promise<Unrel
     return scopeInCity(actor, right, cityId, await realmFor(actor, cityId));
 }
 
+/**
+ * Whether the viewer opens the Team tab of a city (#875): an admin of the
+ * city, or of one of its bodies. The grants module narrows what each sees.
+ */
+export async function canManageTeam(cityId: City["id"]): Promise<boolean> {
+    const held = await heldScope('admin', cityId);
+    return held.all || held.bodyIds.length > 0;
+}
+
 /** Which unreleased meetings of a city the viewer may see (see src/lib/unreleased.ts). */
 export async function getUnreleasedScope(cityId: City["id"]): Promise<UnreleasedScope> {
     return heldScope('drafts.read', cityId);

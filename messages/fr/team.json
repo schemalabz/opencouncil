@@ -1,19 +1,29 @@
 {
     "title": "Équipe",
     "lead": "Les personnes qui détiennent un rôle sur vos domaines, vos communes et vos organes administratifs.",
+    "leadCity": "Les personnes qui détiennent un rôle à {city}.",
     "invite": "Inviter",
-    "showRevoked": "Afficher les droits révoqués",
-    "empty": "Personne ne détient encore de droit ici.",
-    "noName": "Sans nom",
+    "empty": "Personne ne détient encore de rôle ici.",
+    "emptyHint": "Invitez un collègue par e-mail. Il reçoit le rôle à sa première connexion.",
+    "members": "Membres",
+    "invitations": "Invitations",
+    "invitationsHint": "Une invitation reste ouverte {days} jours. Ensuite elle expire, et un renvoi la rouvre.",
+    "history": "Historique",
+    "showHistory": "Afficher l'historique",
+    "historyEmpty": "Aucun rôle n'a été révoqué et aucune invitation n'a été retirée ici.",
     "columns": {
-        "name": "Nom",
-        "email": "E-mail",
+        "person": "Personne",
         "role": "Rôle",
         "scope": "Périmètre",
         "since": "Depuis",
-        "grantedBy": "Accordé par",
-        "status": "Statut"
+        "invited": "Invité le",
+        "status": "Statut",
+        "ended": "Fin",
+        "actions": "Actions"
     },
+    "by": "par {name}",
+    "expires": "Expire le {date}",
+    "inviteWithdrawn": "Invitation retirée",
     "role": {
         "admin": "Administrateur",
         "records": "Procès-verbaux",
@@ -21,9 +31,14 @@
         "highlights": "Extraits",
         "viewer": "Lecteur"
     },
+    "roleHint": {
+        "admin": "Tout ce qui suit, et l'équipe : invite et révoque des rôles.",
+        "records": "Modifie les procès-verbaux : transcriptions, sujets, comptes rendus. Les exporte.",
+        "meetings": "Gère les séances : ajoute, publie, lance les tâches de traitement.",
+        "highlights": "Gère les extraits et envoie les notifications.",
+        "viewer": "Lit les procès-verbaux non publiés et exporte les transcriptions."
+    },
     "status": {
-        "active": "Actif",
-        "pending": "En attente",
         "expired": "Expiré",
         "revoked": "Révoqué"
     },
@@ -36,13 +51,30 @@
     },
     "revoke": {
         "action": "Révoquer",
-        "title": "Révoquer le droit",
-        "description": "Le compte conserve tous ses autres droits. Le droit reste dans la liste comme révoqué.",
-        "failed": "Le droit n'a pas pu être révoqué."
+        "title": "Révoquer le rôle",
+        "description": "Le compte conserve tous ses autres rôles. La ligne passe dans l'historique.",
+        "failed": "Le rôle n'a pas pu être révoqué.",
+        "done": "Rôle révoqué."
+    },
+    "withdraw": {
+        "action": "Retirer",
+        "title": "Retirer l'invitation",
+        "description": "Le lien d'invitation cesse de fonctionner. La ligne passe dans l'historique.",
+        "failed": "L'invitation n'a pas pu être retirée.",
+        "done": "Invitation retirée."
+    },
+    "resend": {
+        "action": "Renvoyer",
+        "failed": "L'invitation n'a pas pu être renvoyée.",
+        "done": "Invitation renvoyée à {email}."
+    },
+    "invited": {
+        "pending": "Invitation envoyée à {email}.",
+        "active": "{who} détient désormais le rôle {role} sur {scope}."
     },
     "dialog": {
         "title": "Inviter dans l'équipe",
-        "description": "Un nouvel e-mail reçoit un compte et un e-mail d'invitation. Un compte existant reçoit seulement le rôle.",
+        "description": "Une nouvelle adresse reçoit un e-mail d'invitation, et le rôle prend effet à la première connexion. Un compte qui s'est déjà connecté reçoit le rôle aussitôt, et un e-mail qui le dit.",
         "email": "E-mail",
         "name": "Nom (facultatif)",
         "role": "Rôle",
@@ -50,6 +82,8 @@
         "realm": "Domaine",
         "city": "Commune",
         "body": "Organe administratif",
+        "party": "Groupe",
+        "wholeCity": "Toute la commune : {city}.",
         "pick": "Sélectionner…",
         "submit": "Envoyer l'invitation",
         "sending": "Envoi…",
@@ -58,9 +92,9 @@
     },
     "errors": {
         "last-admin": "C'est le dernier administrateur du périmètre. Seul un administrateur du périmètre supérieur peut le révoquer.",
-        "cap": "Le périmètre a atteint sa limite d'administrateurs.",
+        "cap": "Le périmètre a atteint sa limite de rôles.",
         "machine-address": "Cette adresse est réservée aux comptes machine.",
-        "claimed": "La personne a revendiqué ce droit. Seul un superadministrateur peut le retirer, sur la page des utilisateurs.",
+        "claimed": "La personne a revendiqué ce rôle. Seul un superadministrateur peut le retirer, sur la page des utilisateurs.",
         "duplicate": "Le compte détient déjà ce rôle sur ce périmètre."
     },
     "errorGeneric": "Une erreur est survenue. Réessayez."

@@ -260,6 +260,7 @@
         "citySections": "City sections",
         "openConsultations": "{count, plural, one {# open consultation} other {# open consultations}}",
         "widget": "Widget",
+        "team": "Team",
         "supportBadgeOfficialAthens": "With the support of the municipality and DAEM S.A.",
         "supportBadgeOfficialMunicipality": "With the municipality's support",
         "supportBadgeOfficialRegion": "With the region's support",
@@ -768,12 +769,7 @@
         "superAdminAccess": "You have system administrator access",
         "goToAdmin": "Go to Administration",
         "noAdminAccess": "You do not have administration rights.",
-        "contactForAccess": "To gain administration access, contact us:",
-        "adminCity": "Manage City",
-        "adminParty": "Manage Party",
-        "adminPerson": "Manage Member",
-        "adminBody": "Manage Body",
-        "adminRealm": "Manage Realm"
+        "contactForAccess": "To gain administration access, contact us:"
     },
     "ReportForm": {
         "title": "Create Progress Report",
