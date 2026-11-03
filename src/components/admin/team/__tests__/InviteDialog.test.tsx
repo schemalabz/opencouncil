@@ -11,6 +11,7 @@ const scopes: GrantScopes = {
     realms: ['greece', 'france'],
     cities: [{ id: 'athens', name: 'Athens', realm: 'greece' }, { id: 'paris', name: 'Paris', realm: 'france' }],
     bodies: [{ id: 'b1', name: 'Council', cityId: 'athens' }, { id: 'b2', name: 'Conseil', cityId: 'paris' }],
+    parties: [],
 };
 
 let fetchMock: jest.Mock;

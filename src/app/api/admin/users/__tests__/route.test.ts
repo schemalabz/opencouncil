@@ -1,5 +1,8 @@
 /** @jest-environment node */
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({
+    withUserAuthorizedToEdit: jest.fn(),
+    getCurrentUser: jest.fn(async () => ({ id: 'root', name: 'Root', email: 'root@example.com' })),
+}));
 jest.mock('@/lib/db/users', () => ({
     createUser: jest.fn(),
     getUsers: jest.fn(),
@@ -72,12 +75,12 @@ describe('POST /api/admin/users', () => {
     });
 
     it('still invites a person', async () => {
-        mockCreateUser.mockResolvedValue({ id: 'u1', email: 'reader@example.com', name: null } as unknown as Awaited<ReturnType<typeof createUser>>);
+        mockCreateUser.mockResolvedValue({ id: 'u1', email: 'reader@example.com', name: null, administers: [] } as unknown as Awaited<ReturnType<typeof createUser>>);
 
         const response = await post({ email: 'reader@example.com', name: null, isSuperAdmin: false, administers: [] });
 
         expect(response.status).toBe(200);
-        expect(mockInvite).toHaveBeenCalledWith('reader@example.com', 'reader@example.com', expect.any(Request));
+        expect(mockInvite).toHaveBeenCalledWith({ email: 'reader@example.com', name: null, realm: null, invitedBy: 'Root', pending: true });
         expect(mockCreateMachine).not.toHaveBeenCalled();
     });
 });

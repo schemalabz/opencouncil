@@ -5,8 +5,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ForbiddenError, NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 import { sendInviteEmail } from "@/lib/auth/invite";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
-import { activeGrantWhere } from "@/lib/auth/grants.server";
-import { actorOf, adminRealms, canGrant, grantStatus, resolve, type Actor, type GrantStatus, type Target } from "@/lib/auth/rights";
+import { activeGrantWhere, countedGrantWhere, signedInBefore } from "@/lib/auth/grants.server";
+import { namedScope, scopeLabel } from "@/lib/auth/grantScope";
+import { actorOf, adminRealms, canGrant, grantStatus, reachOf, resolve, type Actor, type GrantStatus, type Target } from "@/lib/auth/rights";
 import { normalizeEmail } from "@/lib/personJoin/email";
 import { ALL_REALMS } from "@/lib/realm";
 import { peopleOnly } from "@/lib/db/types";
@@ -47,22 +48,27 @@ export const grantRowSelect = {
     grantedBy: { select: { id: true, name: true, email: true } },
     revokedBy: { select: { id: true, name: true } },
     city: { select: { id: true, name: true } },
-    administrativeBody: { select: { id: true, name: true, cityId: true } },
-    party: { select: { id: true, name: true, cityId: true } },
-    person: { select: { id: true, name: true, cityId: true } },
+    administrativeBody: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    party: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    person: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
 } satisfies Prisma.AdministersSelect;
 
 type GrantRowData = Prisma.AdministersGetPayload<{ select: typeof grantRowSelect }>;
 
 export type GrantRow = GrantRowData & { status: GrantStatus };
-/** `inviteEmailSent` is null when the account existed and no email was due. */
-export type InvitedGrant = GrantRow & { inviteEmailSent: boolean | null };
+/** `inviteEmailSent` says whether the invite (a pending row) or the notice (an active row) went out. */
+export type InvitedGrant = GrantRow & { inviteEmailSent: boolean };
 
-/** The scopes a viewer may invite on: the realms, and the cities and bodies of those realms. */
+/**
+ * The scopes a viewer may invite on. The admin page lists the realms, and
+ * the cities and bodies of those realms; the Team tab of a city lists that
+ * city (when the viewer administers it), its bodies and its parties.
+ */
 export type GrantScopes = {
     realms: Realm[];
     cities: { id: string; name: string; realm: Realm }[];
     bodies: { id: string; name: string; cityId: string }[];
+    parties: { id: string; name: string; cityId: string }[];
 };
 
 /**
@@ -182,7 +188,8 @@ function inCity(cityId: string): Prisma.AdministersWhereInput {
 /**
  * The grants in the viewer's reach: everything for a superadmin (`realms`
  * null), else the realms named, each of which the viewer must administer.
- * `cityId` narrows to one city, and opens the list to an admin of that city.
+ * `cityId` narrows to one city, and opens the list to an admin of that city
+ * or of one of its bodies; a body admin sees the rows of the bodies held.
  * Active rows first, then the revoked ones when asked, newest first. People
  * only: a machine account's grants change on the machine accounts page.
  */
@@ -190,8 +197,9 @@ export async function listGrants(filter: { realms: Realm[] | null; cityId?: stri
     const { actor } = await requireViewer();
     const { realms, cityId, includeRevoked = false } = filter;
 
+    let scopeWhere: Prisma.AdministersWhereInput = {};
     if (cityId) {
-        if (!resolve(actor, 'admin', await targetOf({ cityId }))) throw new ForbiddenError();
+        scopeWhere = await cityGrantsWhere(actor, cityId);
     } else if (!mayListRealms(actor, realms)) {
         throw new ForbiddenError();
     }
@@ -202,7 +210,7 @@ export async function listGrants(filter: { realms: Realm[] | null; cityId?: stri
                 { user: peopleOnly },
                 includeRevoked ? {} : { revokedAt: null },
                 realms === null ? {} : inRealms(realms),
-                cityId ? inCity(cityId) : {},
+                scopeWhere,
             ],
         },
         select: grantRowSelect,
@@ -213,7 +221,24 @@ export async function listGrants(filter: { realms: Realm[] | null; cityId?: stri
     return [...live, ...revoked].map(withStatus);
 }
 
-/** The scopes the viewer may pick in the invite dialog. */
+/**
+ * What the viewer sees of a city's grants: the whole city for its admin,
+ * the bodies held for a body admin. Throws for anyone else.
+ */
+async function cityGrantsWhere(actor: Actor, cityId: string): Promise<Prisma.AdministersWhereInput> {
+    if (resolve(actor, 'admin', await targetOf({ cityId }))) return inCity(cityId);
+    const bodyIds = heldBodyIdsIn(actor, cityId);
+    if (bodyIds.length === 0) throw new ForbiddenError();
+    return { administrativeBodyId: { in: bodyIds } };
+}
+
+/** The bodies of the city whose admin right the viewer holds directly. */
+function heldBodyIdsIn(actor: Actor, cityId: string): string[] {
+    const { bodies } = reachOf(actor, 'admin');
+    return [...bodies].filter(([, bodyCityId]) => bodyCityId === cityId).map(([bodyId]) => bodyId);
+}
+
+/** The scopes the viewer may pick in the invite dialog of the admin page. */
 export async function listGrantScopes(realms: Realm[] | null): Promise<GrantScopes> {
     const { actor } = await requireViewer();
     if (!mayListRealms(actor, realms)) throw new ForbiddenError();
@@ -224,22 +249,46 @@ export async function listGrantScopes(realms: Realm[] | null): Promise<GrantScop
         prisma.city.findMany({ where: cityWhere, select: { id: true, name: true, realm: true }, orderBy: byName }),
         prisma.administrativeBody.findMany({ where: { city: cityWhere }, select: { id: true, name: true, cityId: true }, orderBy: byName }),
     ]);
-    return { realms: realms ?? ALL_REALMS, cities, bodies };
+    return { realms: realms ?? ALL_REALMS, cities, bodies, parties: [] };
 }
 
 /**
- * Give an account a role on a scope. An unknown email gets a new account and
- * an invite email with a sign-in link; a known account only gets the row.
- * `request` repoints the link at the host the viewer invites from, as the
- * user tools do (see sendInviteEmail).
+ * The scopes the viewer may pick on the Team tab of a city: the city, its
+ * bodies and its parties for a city admin; the bodies held for a body admin.
+ * No people: a grant on a person is a superadmin's to give (see canGrant).
  */
-export async function inviteGrant(
-    input: { email: string; name?: string | null; role: GrantRole; scope: GrantScope },
-    request?: Request,
-): Promise<InvitedGrant> {
+export async function listCityGrantScopes(cityId: string): Promise<GrantScopes> {
+    const { actor } = await requireViewer();
+    const byName = { name: 'asc' } as const;
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { id: true, name: true, realm: true } });
+    if (!city) throw new NotFoundError('City not found');
+
+    if (!resolve(actor, 'admin', { level: 'city', realm: city.realm, cityId })) {
+        const bodyIds = heldBodyIdsIn(actor, cityId);
+        if (bodyIds.length === 0) throw new ForbiddenError();
+        const bodies = await prisma.administrativeBody.findMany({ where: { id: { in: bodyIds } }, select: { id: true, name: true, cityId: true }, orderBy: byName });
+        return { realms: [], cities: [], bodies, parties: [] };
+    }
+    const [bodies, parties] = await Promise.all([
+        prisma.administrativeBody.findMany({ where: { cityId }, select: { id: true, name: true, cityId: true }, orderBy: byName }),
+        prisma.party.findMany({ where: { cityId }, select: { id: true, name: true, cityId: true }, orderBy: byName }),
+    ]);
+    return { realms: [], cities: [city], bodies, parties };
+}
+
+/**
+ * Give an account a role on a scope. An account that signed in before holds
+ * the row at once and gets a notice; any other (a new email, or an account
+ * that never signed in) gets a pending row and an invite, and the row takes
+ * effect when the person signs in (acceptPendingGrants). A pending or
+ * expired row on the same role and scope is superseded: revoked, and
+ * written again with a fresh clock. That is what a resend does.
+ */
+export async function inviteGrant(input: { email: string; name?: string | null; role: GrantRole; scope: GrantScope }): Promise<InvitedGrant> {
     const { viewer, actor } = await requireViewer();
     const { role, scope } = input;
-    if (!canGrant(actor, await targetOf(scope))) throw new ForbiddenError();
+    const target = await targetOf(scope);
+    if (!canGrant(actor, target)) throw new ForbiddenError();
 
     const email = normalizeEmail(input.email);
     if (!email) throw new BadRequestError('Email cannot be empty');
@@ -253,35 +302,48 @@ export async function inviteGrant(
     // holds. An advisory lock, not a row lock: a realm has no row to lock.
     const grant = () => prisma.$transaction(async (tx) => {
         await lockKey(tx, lockOf(scope));
+        const now = new Date();
         const existing = await tx.user.findUnique({ where: { email }, select: { id: true } });
-        if (existing && await tx.administers.findFirst({ where: { userId: existing.id, role, ...scope, ...activeGrantWhere }, select: { id: true } })) {
-            throw refuse('duplicate');
+        if (existing) {
+            const open = await tx.administers.findFirst({ where: { userId: existing.id, role, ...scope, revokedAt: null }, select: { id: true, acceptedAt: true } });
+            if (open?.acceptedAt) throw refuse('duplicate');
+            // The index allows one open row per role and scope: the pending
+            // or expired one goes before the new one comes.
+            if (open) await tx.administers.update({ where: { id: open.id }, data: { revokedAt: now, revokedById: viewer.id } });
         }
         // The cap counts people, not rows: a second role of a holder is free.
         const holders = await tx.administers.findMany({
-            where: { ...scope, ...activeGrantWhere, user: peopleOnly },
+            where: { ...scope, ...countedGrantWhere(now), user: peopleOnly },
             select: { userId: true },
             distinct: ['userId'],
         });
         const holds = existing !== null && holders.some((holder) => holder.userId === existing.id);
         if (!holds && holders.length >= MAX_GRANTS_PER_SCOPE) throw refuse('cap');
+        const signedIn = existing ? await signedInBefore(tx, existing.id) : false;
         const user = existing ?? await tx.user.create({ data: { email, name }, select: { id: true } });
-        const row = await tx.administers.create({
-            data: { role, ...scope, userId: user.id, grantedById: viewer.id, acceptedAt: new Date() },
+        return tx.administers.create({
+            data: { role, ...scope, userId: user.id, grantedById: viewer.id, acceptedAt: signedIn ? now : null },
             select: grantRowSelect,
         });
-        return { row, created: !existing };
     });
 
     // The lock serializes invites to one scope only. The same new email invited
     // to two scopes at once fails one account create on the unique email,
     // which aborts that transaction; run it again, and it finds the account.
-    const { row, created } = await grant().catch((error: unknown) => {
+    const row = await grant().catch((error: unknown) => {
         if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
         return grant();
     });
 
-    const inviteEmailSent = created ? await sendInviteEmail(email, name, request) : null;
+    const named = namedScope(row);
+    const inviteEmailSent = await sendInviteEmail({
+        email,
+        name: row.user.name,
+        realm: target.level === 'global' ? null : target.realm ?? null,
+        invitedBy: viewer.name || viewer.email,
+        grant: { role, scopeName: scopeLabel(named), path: named.path },
+        pending: row.acceptedAt === null,
+    });
 
     return { ...withStatus(row), inviteEmailSent };
 }

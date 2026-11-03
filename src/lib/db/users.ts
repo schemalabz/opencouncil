@@ -6,7 +6,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors"
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { findMachineAccount } from "@/lib/db/machineAccounts";
-import { DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
+import { acceptedAtFor, DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
 import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
@@ -112,7 +112,7 @@ export async function createUser(data: AdminUserData): Promise<UserWithAdministe
                 isSuperAdmin,
                 onboarded,
                 administers: {
-                    create: administers?.map((row) => ({ ...row, acceptedAt: new Date(), grantedById: actor?.id }))
+                    create: administers?.map((row) => ({ ...row, acceptedAt: null, grantedById: actor?.id }))
                 }
             },
             include: userWithAdministersInclude
@@ -183,12 +183,15 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
                         data: { revokedAt: now, revokedById: actor?.id },
                     });
                 }
+                // A row takes effect at once for an account that signed in
+                // before; else it waits, pending, for the first sign-in.
+                const acceptedAt = await acceptedAtFor(tx, id, now);
                 const added = [...wanted]
                     .filter(([key]) => !kept.has(key))
                     .map(([, row]) => {
                         const claimedAt = row.personId ? droppedClaims.get(row.personId) : undefined;
                         if (row.personId) droppedClaims.delete(row.personId);
-                        return { ...row, acceptedAt: now, grantedById: actor?.id, ...(claimedAt ? { claimedAt } : {}) };
+                        return { ...row, acceptedAt, grantedById: actor?.id, ...(claimedAt ? { claimedAt } : {}) };
                     });
                 // No new row for the person: the claim moves to a row the form
                 // keeps. The index allows one active claimed row per person.
