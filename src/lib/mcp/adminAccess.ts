@@ -35,7 +35,7 @@ export async function resolveAdminAccess(identity: McpIdentity): Promise<McpAdmi
  * handler resolved the access from the database in this same request, so the
  * guards read it from the request context and query again only outside one.
  */
-async function requireAdminAccess(identity: McpIdentity): Promise<McpAdminAccess> {
+export async function requireAdminAccess(identity: McpIdentity): Promise<McpAdminAccess> {
     if (!identity) {
         throw new UnauthorizedError('Authentication required: connect with a personal MCP URL from the /mcp page of the site, or with the token of a machine account.');
     }

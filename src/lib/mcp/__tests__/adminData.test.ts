@@ -41,9 +41,11 @@ jest.mock('../../tasks/startMeetingTask', () => ({ startMeetingTask: jest.fn() }
 // The upload service signs against the bucket; its own tests cover it.
 jest.mock('../../uploads', () => ({ startUpload: jest.fn(), completeUpload: jest.fn() }));
 
+jest.mock('@/env.mjs', () => ({ env: { TASK_API_URL: 'https://tasks.test', TASK_API_KEY: 'secret' } }));
+
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask,
+    mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask,
     mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
@@ -598,4 +600,38 @@ describe('an administrator of two bodies', () => {
             .rejects.toThrow(ForbiddenError);
         expect(updateMeetingWithEffects).toHaveBeenCalledTimes(1);
     });
+});
+
+
+describe('inspect_media', () => {
+    const source = { kind: 'yt-dlp', title: 'Council' };
+    beforeEach(() => { global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ supported: true, source }) }); });
+    it.each(['city', 'body', 'superadmin'])('allows a %s admin without any meeting', async role => {
+        if (role === 'city') asCityAdmin('argos');
+        else if (role === 'body') asBodyAdmin('committee', 'argos');
+        else asSuperadmin();
+        await expect(mcpInspectMedia(ADMIN_TOKEN, { url: 'https://example.org/video' })).resolves.toEqual({ supported: true, source });
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(mockMeetingFindUnique).not.toHaveBeenCalled();
+    });
+    it('refuses anonymous and ordinary users before fetching', async () => {
+        await expect(mcpInspectMedia(null, { url: 'https://example.org/video' })).rejects.toThrow(UnauthorizedError);
+        await expect(mcpInspectMedia(ADMIN_TOKEN, { url: 'https://example.org/video' })).rejects.toThrow(ForbiddenError);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+    it.each(['bad-url', 'file:///etc/passwd', 'javascript:alert(1)'])('refuses %s without fetching', async url => {
+        asSuperadmin();
+        await expect(mcpInspectMedia(ADMIN_TOKEN, { url })).rejects.toThrow();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+
+it('start_task starts directly without an inspection preflight', async () => {
+    asCityAdmin('argos');
+    global.fetch = jest.fn();
+    (startMeetingTask as jest.Mock).mockResolvedValue({ id: 'accepted', type: 'transcribe', status: 'pending', stage: null, percentComplete: null, version: 6, createdAt: new Date(), updatedAt: new Date(), error: null });
+    await mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'transcribe', force: false });
+    expect(startMeetingTask).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
 });

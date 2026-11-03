@@ -9,7 +9,9 @@ import "server-only";
 import type { Prisma, TaskStatus } from '@prisma/client';
 import prisma from "./prisma";
 import { TASK_CONFIG } from '@/lib/tasks/types';
-import type { ProcessAgendaResult, Subject } from '@/lib/apiTypes';
+import { MEDIA_FAILURE_RESPONSE_PREFIX } from '@/lib/tasks/taskResponse';
+import { readMediaFailureResponse } from '@/lib/tasks/mediaMetadata';
+import type { MediaFailure, ProcessAgendaResult, Subject } from '@/lib/apiTypes';
 
 /** The meeting a task belongs to, as named by the callback route's path. */
 export type TaskStatusScope = Pick<TaskStatus, 'cityId' | 'councilMeetingId'>;
@@ -82,6 +84,7 @@ const meetingTaskSelect = {
 export type MeetingTaskRow = Prisma.TaskStatusGetPayload<{ select: typeof meetingTaskSelect }> & {
     /** The failure reason of a failed task; null otherwise. */
     error: string | null;
+    mediaFailure?: MediaFailure;
 };
 
 /**
@@ -95,8 +98,8 @@ const MEETING_TASK_TYPES = Object.keys(TASK_CONFIG);
 
 /**
  * The tasks of a meeting, newest first, capped per type, with the failure
- * reason of the failed ones. The bodies stay out of the first read for the
- * reason given above; the failed rows are read again for `failureReason` alone.
+ * reason of the failed ones. Success bodies are never read. Only failed transcribes
+ * with a canonical failure envelope add structured recovery guidance.
  *
  * No user gate: the MCP server authorizes with a token before it calls this.
  */
@@ -122,7 +125,17 @@ export async function getTasksForMeetingDirect(cityId: string, councilMeetingId:
         });
     const errorById = new Map(errors.map(row => [row.id, row.failureReason]));
 
-    return rows.map(row => ({ ...row, error: errorById.get(row.id) ?? null }));
+    const failedTranscribeIds = rows.filter(row => row.type === 'transcribe' && row.status === 'failed').map(row => row.id);
+    // Only compact, canonical failure envelopes cross the wire; never successful results or failed imports.
+    const failures = failedTranscribeIds.length === 0 ? [] : await prisma.taskStatus.findMany({
+        where: {
+            id: { in: failedTranscribeIds }, type: 'transcribe', status: 'failed',
+            responseBody: { startsWith: MEDIA_FAILURE_RESPONSE_PREFIX },
+        },
+        select: { id: true, responseBody: true },
+    });
+    const failureById = new Map(failures.map(row => [row.id, readMediaFailureResponse(row.responseBody)]));
+    return rows.map(row => ({ ...row, mediaFailure: failureById.get(row.id), error: errorById.get(row.id) ?? null }));
 }
 
 /**

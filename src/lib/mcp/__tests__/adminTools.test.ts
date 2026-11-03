@@ -5,6 +5,7 @@
 jest.mock('../adminData', () => ({
     mcpCompleteUpload: jest.fn().mockResolvedValue({}),
     mcpCreateUploadUrl: jest.fn().mockResolvedValue({}),
+    mcpInspectMedia: jest.fn().mockResolvedValue({ supported: true, source: { kind: 'file' } }),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
@@ -173,10 +174,10 @@ describe('create_upload_url through the SDK', () => {
         expect(mcpCreateUploadUrl).not.toHaveBeenCalled();
     });
 
-    it('hands a valid call to the handler', async () => {
-        const result = await mcp.call('create_upload_url', { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
+    it.each(['mp4', 'mp3'])('hands a valid %s recording call to the handler', async format => {
+        const result = await mcp.call('create_upload_url', { ...AGENDA, kind: 'recording', format, sizeBytes: 12300000000 });
         expect(result.isError).toBeFalsy();
-        expect(mcpCreateUploadUrl).toHaveBeenCalledWith(null, { ...AGENDA, kind: 'recording', format: 'mp4', sizeBytes: 12300000000 });
+        expect(mcpCreateUploadUrl).toHaveBeenCalledWith(null, { ...AGENDA, kind: 'recording', format, sizeBytes: 12300000000 });
     });
 });
 
@@ -218,4 +219,11 @@ describe('link inputs take http(s) only', () => {
         expect(result.isError).toBeFalsy();
         expect(handler).toHaveBeenCalledWith(null, expect.objectContaining({ [field]: 'https://example.com/file' }));
     });
+});
+
+
+it('advertises optional inspection to an admin and validates its URL through the SDK', async () => {
+    expect((await mcp.listTools()).map(t => t.name)).toContain('inspect_media');
+    const result = await mcp.call('inspect_media', { url: 'file:///secret' });
+    expect(result.isError).toBe(true);
 });

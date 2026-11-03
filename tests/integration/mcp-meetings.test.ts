@@ -1,3 +1,4 @@
+import { encodeMediaFailureResponse } from '@/lib/tasks/mediaMetadata';
 /** @jest-environment node */
 import { Realm } from '@prisma/client'
 import prisma from '@/lib/db/prisma'
@@ -366,3 +367,30 @@ describe('MCP transcript tools page the record - integration', () => {
         expect(result.utterances.map(u => u.text)).toEqual(['Θέμα 150'])
     })
 })
+
+
+describe('MCP task media privacy', () => {
+    test('keeps source URLs, failure hints and errors behind the existing editor gate', async () => {
+        await resetDatabase(prisma);
+        await createCity({ id: 'media-privacy', realm: Realm.greece });
+        await createMeeting('media-privacy', { id: 'm1', released: true });
+        const admin = { userId: (await createUser('media-admin@example.com', { isSuperAdmin: true })).id };
+        await prisma.taskStatus.create({ data: {
+            cityId: 'media-privacy', councilMeetingId: 'm1', type: 'transcribe', status: 'succeeded', requestBody: '{}',
+            responseBody: JSON.stringify({ source: { kind: 'file', webpageUrl: 'https://private.test/video?token=secret' } }),
+        } });
+        await prisma.taskStatus.create({ data: {
+            cityId: 'media-privacy', councilMeetingId: 'm1', type: 'transcribe', status: 'failed', requestBody: '{}',
+            failureReason: 'private error', responseBody: encodeMediaFailureResponse({ reason: 'error', retryable: true, hint: 'private hint' }),
+        } });
+        const publicMeeting = await asRequest(() => mcpGetMeeting('media-privacy', 'm1', ANON));
+        expect(publicMeeting).not.toHaveProperty('tasks');
+        expect(JSON.stringify(publicMeeting)).not.toMatch(/secret|private hint|private error/);
+        const adminMeeting = await mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', admin),
+            () => mcpGetMeeting('media-privacy', 'm1', admin));
+        expect(adminMeeting.tasks?.every(task => !('source' in task))).toBe(true);
+        expect(adminMeeting.tasks).toEqual(expect.arrayContaining([
+            expect.objectContaining({ mediaFailure: { reason: 'error', retryable: true, hint: 'private hint' }, error: 'private error' }),
+        ]));
+    });
+});

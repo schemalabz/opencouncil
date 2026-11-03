@@ -442,3 +442,55 @@ await startTask('myNewTask', requestBody, councilMeetingId, cityId);
 3. **Error Handling:** Let errors bubble up; the system handles logging and status updates
 4. **Transactions:** Use Prisma transactions for operations that create multiple related records
 5. **Consistent Signature:** Always follow the `TaskResultHandler` signature for compatibility with the registry
+
+
+## Media discovery and callback metadata
+
+Administrators can call the optional `inspect_media` MCP tool before a meeting exists.
+The server-only client calls `POST /inspectMedia` with the existing task API bearer key.
+It uses a 150-second HTTP timeout.
+Inspection creates no `TaskStatus` row and sends no callback.
+`start_task` continues to submit directly without inspection.
+
+A successful lookup returns `supported: true` and `source` metadata.
+An unsuccessful lookup returns `supported: false`, `reason`, `retryable`, `message` and an optional `hint`.
+Transport errors and HTTP errors remain errors, not unsupported verdicts.
+Use the reason and hint to select another URL.
+`retryable` permits a later bounded submission if the condition clears; it does not describe worker retry policy.
+Do not retry endlessly.
+Upload metadata does not establish the meeting date.
+
+Transcribe callbacks can include `mediaFailure` for source resolution or download failures.
+The error text stays in `failureReason`; URLs in transcribe errors retain only their provider origin.
+A successful transcribe result can include `source`.
+A success payload keeps its sanitized `source` in the existing `responseBody` field.
+A source failure stores a small versioned envelope in that field instead.
+Its discriminator is `$opencouncilTaskResponse: "media-source-failure-v1"`.
+It is not a result: the replay API and the replay button reject it.
+An atomic success claim can replace a failed source envelope, including after a concurrent error callback.
+Accepted success payloads remain protected from duplicate, late error and progress callbacks.
+No schema change, migration, request-body mutation or backfill is required.
+
+Administrator task summaries expose `mediaFailure` only for failed transcribes.
+Legacy failures omit it. Source stays available from inspection and in saved successful results, not status polls.
+The summary validates stored JSON and strips unknown fields.
+Source URLs omit credentials, fragments and known signature or authentication parameters.
+Public video identifiers remain available.
+Transcribe failure messages and hints retain error words but reduce URLs to provider origins.
+Inspection and callback persistence use the same sanitization, including replay payloads.
+Seed exports remove source metadata, request video URLs and failure text.
+They delete source-failure envelope rows rather than leaving a misleading replay payload.
+Status queries use Prisma to read canonical failure envelopes for at most five newest failed transcribes.
+Success bodies and failed-import transcript payloads are excluded; no raw JSON projection or transcript parsing is needed for polling.
+Public task GET responses expose progress fields only.
+Existing meeting, realm and administrator access checks still apply.
+
+Deploy the task server with `/inspectMedia` before using the new inspection tool.
+The callback fields are optional, so older tasks continue to work.
+
+Response-body consumers remain task-specific: agenda readers read processAgenda results;
+ADA lookups, polling statistics and decision batching read pollDecisions results.
+Pipeline exclusion already ignores failed rows, so a failure envelope cannot block a new task.
+Transcript supersession excludes source-failure envelopes explicitly.
+The generic replay API rejects envelopes and legacy non-JSON prose. Admin replay controls reject canonical failure envelopes without parsing the transcript.
+Seed measurement queries only count body sizes or JSON validity.

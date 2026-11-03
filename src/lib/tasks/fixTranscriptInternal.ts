@@ -9,6 +9,7 @@
  *     callback with no user session to authorize against
  */
 import "server-only";
+import { MEDIA_FAILURE_RESPONSE_PREFIX } from './taskResponse';
 import prisma from '@/lib/db/prisma';
 import { FixTranscriptResult } from '@/lib/apiTypes';
 import { getFixTranscriptRequestBody } from '@/lib/db/utils';
@@ -41,7 +42,7 @@ async function isSuperseded(taskId: string): Promise<boolean> {
         where: {
             cityId: task.cityId,
             councilMeetingId: task.councilMeetingId,
-            OR: [{ status: 'succeeded' }, { responseBody: { not: null } }],
+            OR: [{ status: 'succeeded' }, { responseBody: { not: null }, NOT: { responseBody: { startsWith: MEDIA_FAILURE_RESPONSE_PREFIX } } }],
             type: { in: ['transcribe', 'fixTranscript'] },
             createdAt: { gt: task.createdAt },
         },

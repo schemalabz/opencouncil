@@ -1,5 +1,6 @@
 /** @jest-environment node */
 
+import { encodeMediaFailureResponse, MEDIA_FAILURE_RESPONSE_PREFIX } from '../mediaMetadata';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import type { TaskUpdate } from '@/lib/apiTypes';
 import { sendTaskAdminAlert } from '@/lib/discord';
@@ -72,10 +73,10 @@ describe('handleTaskUpdate — failures', () => {
     await handleTaskUpdate(TASK_ID, update, processResult);
 
     // The claim stores the payload before the handler runs, and leaves the
-    // status alone: a task reads as succeeded only once its results are written.
+    // status pending: a task reads as succeeded only once its results are written.
     expect(mockUpdateMany).toHaveBeenCalledWith({
       where: { id: TASK_ID, status: { not: 'succeeded' }, responseBody: null },
-      data: { responseBody: JSON.stringify(result), stage: 'persisting results', failureReason: null, version: 7 },
+      data: { status: 'pending', responseBody: JSON.stringify(result), stage: 'persisting results', failureReason: null, version: 7 },
     });
     // The failure write leaves responseBody alone, so a replay can use it, and
     // the succeeded write never runs.
@@ -206,4 +207,57 @@ describe('handleTaskUpdate — failures', () => {
     });
     expect(processResult).not.toHaveBeenCalled();
   });
+});
+
+
+describe('media callback metadata', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindUnique.mockResolvedValue({ ...baseTask, type: 'transcribe' });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+  });
+  it('stores a source failure in the guarded error claim, without a result body', async () => {
+    const mediaFailure = { reason: 'login_required' as const, retryable: false, hint: 'Use a public recording.' };
+    await handleTaskUpdate(TASK_ID, { status: 'error', stage: '', progressPercent: 0, version: 6, error: 'Sign in required', mediaFailure }, jest.fn());
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: TASK_ID, status: { notIn: ['succeeded', 'failed'] }, responseBody: null },
+      data: { status: 'failed', failureReason: 'Sign in required', version: 6, responseBody: encodeMediaFailureResponse(mediaFailure) },
+    });
+  });
+  it('claims source metadata with the replayable success payload', async () => {
+    const result = { source: { kind: 'yt-dlp', title: 'Council' } };
+    await handleTaskUpdate(TASK_ID, { status: 'success', stage: '', progressPercent: 100, version: 6, result }, jest.fn());
+    expect(mockUpdateMany.mock.calls[0][0].data).toMatchObject({ responseBody: JSON.stringify(result) });
+  });
+  it('does not expose media data on other tasks or persist malformed metadata', async () => {
+    mockFindUnique.mockResolvedValue(baseTask);
+    await handleTaskUpdate(TASK_ID, { status: 'error', stage: '', progressPercent: 0, version: 6, mediaFailure: { reason: 'error', retryable: true } }, jest.fn());
+    expect(mockUpdateMany.mock.calls[0][0].data).not.toHaveProperty('mediaFailure');
+  });
+});
+
+it('sanitizes source URLs in both metadata and the replayable callback payload', async () => {
+    mockFindUnique.mockResolvedValue({ ...baseTask, type: 'transcribe' });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    const result = { transcript: 'kept', source: { kind: 'file', webpageUrl: 'https://u:p@video.test/watch?v=public&token=secret#fragment' } };
+    await handleTaskUpdate(TASK_ID, { status: 'success', stage: '', progressPercent: 100, version: 6, result }, jest.fn());
+    const claim = mockUpdateMany.mock.calls.at(-2)[0].data;
+    expect(JSON.parse(claim.responseBody)).toEqual({ transcript: 'kept', source: { kind: 'file', webpageUrl: 'https://video.test/watch?v=public' } });
+});
+
+it('admits a late transcribe success atomically even when its initial read preceded the source failure', async () => {
+    mockFindUnique.mockResolvedValue({ ...baseTask, type: 'transcribe', responseBody: null });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    await handleTaskUpdate(TASK_ID, { status: 'success', stage: '', progressPercent: 100, version: 6, result: { source: { kind: 'file' } } }, jest.fn());
+    expect(mockUpdateMany.mock.calls.at(-2)[0].where).toEqual({ id: TASK_ID, status: { not: 'succeeded' }, OR: [
+        { responseBody: null }, { status: 'failed', responseBody: { startsWith: MEDIA_FAILURE_RESPONSE_PREFIX } },
+    ] });
+});
+
+it('rejects a success payload that uses the reserved failure discriminator before claiming it', async () => {
+    mockFindUnique.mockResolvedValue({ ...baseTask, type: 'transcribe' });
+    mockUpdateMany.mockClear();
+    await expect(handleTaskUpdate(TASK_ID, { status: 'success', stage: '', progressPercent: 100, version: 6,
+        result: { $opencouncilTaskResponse: 'media-source-failure-v1', mediaFailure: { reason: 'error', retryable: true } } }, jest.fn())).rejects.toThrow('reserved');
+    expect(mockUpdateMany).not.toHaveBeenCalled();
 });

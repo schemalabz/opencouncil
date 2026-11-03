@@ -1,5 +1,6 @@
 import "server-only";
 import { CityLanguage, Prisma, type City } from '@prisma/client';
+import { inspectMedia } from '@/lib/tasks/inspectMedia';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
 import { createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '@/lib/db/citiesAdmin';
@@ -16,6 +17,7 @@ import { countCitiesByRealmAndStatus } from '@/lib/db/citiesAdmin';
 import type { McpIdentity } from './auth';
 import type {
     CompleteUploadToolArgs,
+    InspectMediaToolArgs,
     CreateCityToolArgs,
     CreateMeetingToolArgs,
     CreateUploadUrlToolArgs,
@@ -24,7 +26,7 @@ import type {
     PublishCityDemoToolArgs,
     SetCityBoundaryToolArgs,
 } from './adminToolSchemas';
-import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
+import { requireAdminAccess, requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
@@ -161,7 +163,7 @@ export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArg
 /** Where an uploaded file goes next, per kind. */
 const UPLOAD_NEXT_STEP: Record<CreateUploadUrlToolArgs['kind'], string> = {
     agenda: 'pass publicUrl as agendaUrl to create_meeting or update_meeting.',
-    recording: 'pass publicUrl as youtubeUrl (the video of the meeting) to create_meeting or update_meeting, '
+    recording: 'pass publicUrl as youtubeUrl (the recording of the meeting) to create_meeting or update_meeting, '
         + 'or as videoUrl to start_task with type transcribe.',
 };
 
@@ -358,4 +360,9 @@ export async function mcpPopulateCity(
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
         next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call publish_city_demo.',
     };
+}
+
+export async function mcpInspectMedia(identity: McpIdentity, args: InspectMediaToolArgs) {
+    await requireAdminAccess(identity);
+    return inspectMedia(args);
 }

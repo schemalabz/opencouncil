@@ -55,7 +55,7 @@ const TASK = {
     cityId: CITY,
     councilMeetingId: MEETING,
     requestBody: '{}',
-    responseBody: null,
+    responseBody: null as string | null,
     version: 1,
     createdAt: new Date(),
     updatedAt: new Date('2000-01-01'),
@@ -242,4 +242,17 @@ describe('progress polling (GET)', () => {
         expect(body.requestBody).toBe('{}');
         expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, councilMeetingId: TASK.councilMeetingId });
     });
+});
+
+
+it('redacts stored result bodies and failure text from a public task GET', async () => {
+    const privateTask = { ...TASK, failureReason: 'private error', responseBody: JSON.stringify({ source: { kind: 'file', webpageUrl: 'https://private.test/video?token=secret' } }) };
+    tableWith(privateTask);
+    const publicResponse = await GET({} as never, props);
+    const body = await publicResponse.json();
+    expect(Object.keys(body).sort()).toEqual(['id', 'type', 'status', 'stage', 'percentComplete', 'createdAt', 'updatedAt'].sort());
+    expect(JSON.stringify(body)).not.toMatch(/secret|private/);
+    mockIsUserAuthorizedToEdit.mockResolvedValue(true);
+    const adminResponse = await GET({} as never, props);
+    expect((await adminResponse.json()).responseBody).toBe(privateTask.responseBody);
 });

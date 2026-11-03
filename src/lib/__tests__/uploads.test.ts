@@ -45,6 +45,20 @@ describe('startUpload', () => {
         });
     });
 
+    it('signs an MP3 recording with its audio content type and extension', async () => {
+        const plan = await startUpload(RECORDING, 'mp3', 60000);
+        expect(plan.key).toMatch(/\.mp3$/);
+        expect(plan.headers['Content-Type']).toBe('audio/mpeg');
+        expect(presignPut).toHaveBeenCalledWith(plan.key, 'audio/mpeg', 60000, 300);
+        expect(plan.completion).toBeNull();
+    });
+
+    it('keeps the MP3 content type for multipart recordings', async () => {
+        const plan = await startUpload(RECORDING, 'mp3', PART + 1);
+        expect(startMultipartUpload).toHaveBeenCalledWith(plan.key, 'audio/mpeg');
+        expect(plan.parts).toHaveLength(2);
+    });
+
     it('opens a multipart upload with one URL per part for a bigger file', async () => {
         const plan = await startUpload(RECORDING, 'mp4', 12_300_000_000);
 
@@ -65,7 +79,7 @@ describe('startUpload', () => {
 
     it('refuses a format that the kind does not take', async () => {
         await expect(startUpload({ cityId: 'argos', kind: 'decision' }, 'docx', 1000)).rejects.toThrow(BadRequestError);
-        await expect(startUpload(RECORDING, 'pdf', 1000)).rejects.toThrow('An upload of kind recording takes mp4 or mov, not pdf');
+        await expect(startUpload(RECORDING, 'pdf', 1000)).rejects.toThrow('An upload of kind recording takes mp4 or mov or mp3, not pdf');
     });
 
     it('refuses a size over the limit of the kind, and an empty or broken size', async () => {

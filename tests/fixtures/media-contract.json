@@ -1,0 +1,40 @@
+{
+  "source": {
+    "kind": "yt-dlp",
+    "extractor": "VimeoEvent",
+    "id": "1234971994",
+    "title": "Fullmäktige",
+    "durationSeconds": 2392,
+    "liveStatus": "was_live",
+    "startedAt": "2026-10-12T15:00:00.000Z",
+    "uploader": "KEXTV",
+    "webpageUrl": "https://vimeo.com/event/6265464/embed?wmode=transparent"
+  },
+  "permanentUpdate": {
+    "status": "error",
+    "stage": "finished",
+    "progressPercent": 100,
+    "error": "ERROR: [vimeo:event] 6265464: Cannot download embed-only video without embedding URL.",
+    "mediaFailure": {
+      "reason": "embed_only",
+      "retryable": false,
+      "hint": "The video plays only where it is embedded: send the URL of the page that embeds it."
+    },
+    "version": 6
+  },
+  "retryableUpdate": {
+    "status": "error",
+    "stage": "finished",
+    "progressPercent": 100,
+    "error": "ERROR: HTTP Error 503: Service Unavailable",
+    "mediaFailure": { "reason": "error", "retryable": true },
+    "version": 6
+  },
+  "legacyErrorUpdate": {
+    "status": "error",
+    "stage": "finished",
+    "progressPercent": 100,
+    "error": "An older task failed without structured details",
+    "version": 5
+  }
+}
