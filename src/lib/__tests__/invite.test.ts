@@ -1,139 +1,88 @@
-jest.mock('../db/prisma', () => ({
-  __esModule: true,
-  default: {
-    verificationToken: {
-      create: jest.fn(),
-      deleteMany: jest.fn(),
-    },
-  },
-}));
-
-jest.mock('../email/resend', () => ({
-  sendEmail: jest.fn(),
-}));
-
-jest.mock('@react-email/render', () => ({
-  render: jest.fn(),
-}));
-
+/**
+ * The invite email (#875): the link it carries and what the send reports.
+ * NEXTAUTH_URL is a preview-like host here, so every link keeps it; the
+ * realm domains are the subject of `invite.host.test.ts`.
+ */
+jest.mock('../email/resend', () => ({ sendEmail: jest.fn() }));
+jest.mock('@react-email/render', () => ({ render: jest.fn() }));
 jest.mock('../email/templates/user-invite', () => ({
-  UserInviteEmail: jest.fn(() => null),
+    UserInviteEmail: jest.fn(() => ({ subject: 'Subject', element: null })),
 }));
+jest.mock('../../env.mjs', () => ({ env: { NEXTAUTH_URL: 'https://app.test' } }));
 
-jest.mock('../../env.mjs', () => ({
-  env: {
-    NEXTAUTH_URL: 'https://app.test',
-  },
-}));
-
-import prisma from '../db/prisma';
 import { sendEmail } from '../email/resend';
 import { render } from '@react-email/render';
-import { generateSignInLink, sendInviteEmail } from '../auth/invite';
+import { UserInviteEmail } from '../email/templates/user-invite';
+import { inviteEmailLink, inviteLink, sendInviteEmail, type InviteEmail } from '../auth/invite';
 
-const mockCreate = prisma.verificationToken.create as jest.MockedFunction<typeof prisma.verificationToken.create>;
-const mockDeleteMany = prisma.verificationToken.deleteMany as jest.MockedFunction<typeof prisma.verificationToken.deleteMany>;
 const mockSendEmail = sendEmail as jest.MockedFunction<typeof sendEmail>;
 const mockRender = render as jest.MockedFunction<typeof render>;
+const mockTemplate = UserInviteEmail as jest.MockedFunction<typeof UserInviteEmail>;
 
-describe('generateSignInLink', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockCreate.mockResolvedValue({} as never);
-  });
+const grant = { role: 'records' as const, scopeName: 'Youth Council, Chania', path: '/chania/meetings' };
+const invite: InviteEmail = { email: 'clerk@example.org', name: 'Clerk', realm: 'greece', invitedBy: 'Mayor', grant, pending: true };
 
-  it('persists a verificationToken with a 24-hour expiry', async () => {
-    const before = Date.now();
-    await generateSignInLink('user@example.com');
-    const after = Date.now();
+describe('inviteLink', () => {
+    it('opens the sign-in page with the address filled in, and the scope as the callback', () => {
+        const url = new URL(inviteLink('user+tag@example.com', 'greece', '/chania/meetings'));
+        expect(url.origin + url.pathname).toBe('https://app.test/sign-in');
+        expect(url.searchParams.get('email')).toBe('user+tag@example.com');
+        expect(url.searchParams.get('callbackUrl')).toBe('/chania/meetings');
+    });
 
-    expect(mockCreate).toHaveBeenCalledTimes(1);
-    const { data } = mockCreate.mock.calls[0][0] as { data: { identifier: string; token: string; expires: Date } };
-    expect(data.identifier).toBe('user@example.com');
-    expect(typeof data.token).toBe('string');
-    expect(data.token).toHaveLength(64); // randomBytes(32) hex
-    const expiresMs = data.expires.getTime();
-    expect(expiresMs).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000 - 100);
-    expect(expiresMs).toBeLessThanOrEqual(after + 24 * 60 * 60 * 1000 + 100);
-  });
+    it('carries no callback for the root', () => {
+        expect(inviteLink('a@b.c', null)).toBe('https://app.test/sign-in?email=a%40b.c');
+    });
+});
 
-  it('returns a sign-in URL containing the token and encoded email', async () => {
-    const { signInUrl, verificationTokenKey } = await generateSignInLink('user+tag@example.com');
+describe('inviteEmailLink', () => {
+    it('sends a pending invite to the sign-in page', () => {
+        expect(inviteEmailLink(invite)).toBe('https://app.test/sign-in?email=clerk%40example.org&callbackUrl=%2Fchania%2Fmeetings');
+    });
 
-    expect(signInUrl).toMatch(/^https:\/\/app\.test\/sign-in\?token=[a-f0-9]{64}&email=/);
-    expect(signInUrl).toContain(encodeURIComponent('user+tag@example.com'));
-    expect(verificationTokenKey.identifier).toBe('user+tag@example.com');
-    expect(verificationTokenKey.token).toMatch(/^[a-f0-9]{64}$/);
-  });
+    it('sends a notice straight to the scope', () => {
+        expect(inviteEmailLink({ ...invite, pending: false })).toBe('https://app.test/chania/meetings');
+    });
 
-  it('returns the same token in the URL and verificationTokenKey', async () => {
-    const { signInUrl, verificationTokenKey } = await generateSignInLink('user@example.com');
-    expect(signInUrl).toContain(verificationTokenKey.token);
-  });
+    it('sends an invite with no grant to the sign-in page, with no callback', () => {
+        expect(inviteEmailLink({ email: 'a@b.c', realm: null, pending: true })).toBe('https://app.test/sign-in?email=a%40b.c');
+    });
 });
 
 describe('sendInviteEmail', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockCreate.mockResolvedValue({} as never);
-    mockRender.mockResolvedValue('<html>invite</html>');
-    mockSendEmail.mockResolvedValue({ success: true, message: 'Email sent successfully' });
-    mockDeleteMany.mockResolvedValue({ count: 1 });
-  });
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRender.mockResolvedValue('<html>invite</html>');
+        mockSendEmail.mockResolvedValue({ success: true, message: 'Email sent successfully' });
+    });
 
-  it('returns true when the invite email is sent successfully', async () => {
-    const result = await sendInviteEmail('user@example.com', 'Alice');
-    expect(result).toBe(true);
-    expect(mockSendEmail).toHaveBeenCalledTimes(1);
-    const callArg = mockSendEmail.mock.calls[0][0];
-    expect(callArg.to).toBe('user@example.com');
-    expect(callArg.subject).toBe("Πρόσκληση: Συνδεθείτε στο OpenCouncil");
-  });
+    it('renders the template in the language of the realm and sends it to the address', async () => {
+        await expect(sendInviteEmail({ ...invite, realm: 'france' })).resolves.toBe(true);
+        expect(mockTemplate).toHaveBeenCalledWith({
+            locale: 'fr',
+            realm: 'france',
+            email: 'clerk@example.org',
+            name: 'Clerk',
+            invitedBy: 'Mayor',
+            grant,
+            pending: true,
+            url: 'https://app.test/sign-in?email=clerk%40example.org&callbackUrl=%2Fchania%2Fmeetings',
+        });
+        expect(mockSendEmail).toHaveBeenCalledWith({ from: 'auth', to: 'clerk@example.org', subject: 'Subject', html: '<html>invite</html>' });
+    });
 
-  it('falls back to email as name when name is empty', async () => {
-    const { UserInviteEmail } = require('../email/templates/user-invite');
-    await sendInviteEmail('user@example.com', '');
-    expect(UserInviteEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'user@example.com' })
-    );
-  });
+    it('falls back to Greek with no realm, and to the address with no name', async () => {
+        await sendInviteEmail({ ...invite, realm: null, name: null });
+        expect(mockTemplate).toHaveBeenCalledWith(expect.objectContaining({ locale: 'el', name: 'clerk@example.org' }));
+    });
 
-  it('returns false and cleans up the token when sendEmail fails', async () => {
-    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed' });
+    it('reports a send that failed', async () => {
+        mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed' });
+        await expect(sendInviteEmail(invite)).resolves.toBe(false);
+    });
 
-    const result = await sendInviteEmail('fail@example.com', 'Bob');
-
-    expect(result).toBe(false);
-    expect(mockDeleteMany).toHaveBeenCalledTimes(1);
-    const deleteArg = mockDeleteMany.mock.calls[0][0] as { where: { identifier: string; token: string } };
-    expect(deleteArg.where.identifier).toBe('fail@example.com');
-    expect(typeof deleteArg.where.token).toBe('string');
-  });
-
-  it('returns false and cleans up the token when sendEmail throws', async () => {
-    mockSendEmail.mockRejectedValueOnce(new Error('network error'));
-
-    const result = await sendInviteEmail('throw@example.com', 'Carol');
-
-    expect(result).toBe(false);
-    expect(mockDeleteMany).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns false when token creation fails (no cleanup needed)', async () => {
-    mockCreate.mockRejectedValueOnce(new Error('db error'));
-
-    const result = await sendInviteEmail('dberror@example.com', 'Dave');
-
-    expect(result).toBe(false);
-    expect(mockSendEmail).not.toHaveBeenCalled();
-    // No token was created, so cleanup should not be attempted
-    expect(mockDeleteMany).not.toHaveBeenCalled();
-  });
-
-  it('returns false gracefully when cleanup also fails', async () => {
-    mockSendEmail.mockResolvedValueOnce({ success: false, message: 'Failed' });
-    mockDeleteMany.mockRejectedValueOnce(new Error('cleanup error'));
-
-    await expect(sendInviteEmail('fail@example.com', 'Eve')).resolves.toBe(false);
-  });
+    it('reports a send that threw', async () => {
+        mockSendEmail.mockRejectedValueOnce(new Error('network error'));
+        await expect(sendInviteEmail(invite)).resolves.toBe(false);
+    });
 });

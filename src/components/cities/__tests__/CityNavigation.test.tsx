@@ -50,4 +50,13 @@ describe('CityNavigation', () => {
         renderNavigation({ city: { consultationsEnabled: false }, openConsultations: 3 });
         expect(screen.queryByRole('link', { name: /Διαβουλεύσεις/ })).toBeNull();
     });
+
+    it('shows the Team tab to a viewer who manages the team, and to nobody else', () => {
+        const { unmount } = renderNavigation({ openConsultations: 0, showTeam: true });
+        expect(screen.getByRole('link', { name: 'Ομάδα' })).toHaveAttribute('href', '/papagos-cholargos/team');
+        unmount();
+
+        renderNavigation({ openConsultations: 0 });
+        expect(screen.queryByRole('link', { name: 'Ομάδα' })).toBeNull();
+    });
 });

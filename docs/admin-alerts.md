@@ -9,6 +9,7 @@ OpenCouncil sends real-time admin alerts to Discord for key events:
 - ✨ **User onboarded** - Via notification preferences, petition, the profile form, or admin invite. When the user has signed in, the alert says whether a Google account is linked.
 - 📝 **New petition** - When submitted for a municipality
 - 🔔 **Citizen notification signup** - When users sign up for citizen notifications
+- 🗑️ **Account deleted** - An account that held roles deleted itself, or a superadmin deleted it. The alert lists each role and its scope. It names no person.
 - 📬 **Notifications created** - Summary when notifications are created for a meeting
 - 📤 **Notifications sent** - Summary of delivery results (emails, messages, failures)
 

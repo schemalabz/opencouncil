@@ -5,7 +5,7 @@
  * city's realm; the runtime-agnostic primitives live in `discord-core.ts`.
  */
 
-import type { Realm } from '@prisma/client';
+import type { GrantRole, Realm } from '@prisma/client';
 import { env } from '@/env.mjs';
 import { formatDate, formatDateTime, formatWeekday } from '@/lib/formatters/time';
 import { formatDurationMs } from '@/lib/formatters/time';
@@ -230,6 +230,33 @@ export async function sendPersonClaimedAdminAlert(data: {
         fields: [
             { name: 'Municipality', value: data.cityName, inline: true },
             { name: 'Person', value: data.personName, inline: true },
+        ],
+        footer: {
+            text: 'PII not transmitted for privacy',
+        },
+    });
+}
+
+/**
+ * An account that held a role is gone: it deleted itself, or a superadmin
+ * deleted it. The grant rows went with the account, so this alert is the
+ * trace of what it held (#875). The account stays out: the roles and their
+ * scopes say what the team lost, and the Team tab says who is left.
+ */
+export async function sendAccountDeletedAdminAlert(data: {
+    deletedBy: 'self' | 'superadmin';
+    /** Each active role the account held, with its scope as the Team tab names it. */
+    roles: { role: GrantRole; scope: string }[];
+}): Promise<void> {
+    await sendAdminAlert({
+        title: '🗑️ Account Deleted',
+        description: data.deletedBy === 'self'
+            ? 'An account that held roles deleted itself. Its roles went with it.'
+            : 'A superadmin deleted an account that held roles. Its roles went with it.',
+        color: 0x95a5a6, // Grey
+        fields: [
+            { name: 'Deleted by', value: data.deletedBy === 'self' ? 'The account itself' : 'A superadmin', inline: true },
+            { name: 'Roles', value: truncateField(data.roles.map((held) => `${held.role} · ${held.scope}`).join('\n')), inline: false },
         ],
         footer: {
             text: 'PII not transmitted for privacy',

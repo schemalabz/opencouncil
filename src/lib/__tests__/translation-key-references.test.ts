@@ -264,7 +264,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     },
     { group: 'admin.machineAccounts.grantRole.', members: { prismaEnum: 'GrantRole' } },
     { group: 'team.role.', members: { prismaEnum: 'GrantRole' } },
-    { group: 'team.status.', members: { file: 'src/lib/auth/rights.ts', type: 'GrantStatus' } },
+    { group: 'team.roleHint.', members: { prismaEnum: 'GrantRole' } },
     { group: 'team.scopeKind.', members: { file: 'src/lib/db/adminEntities.ts', type: 'AdminEntityType' } },
     { group: 'team.errors.', members: { file: 'src/lib/zod-schemas/user.ts', constArray: 'GRANT_ERROR_CODES' } },
     {

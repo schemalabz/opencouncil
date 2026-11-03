@@ -89,7 +89,7 @@ describe('a machine account is not a person', () => {
         const people = await Promise.all(Array.from({ length: 19 }, (_, i) => createUser(`p${i}@example.com`)))
         const bots = await Promise.all(Array.from({ length: 3 }, (_, i) => createUser(`bot${i}@machines.opencouncil.invalid`, { isMachine: true })))
         for (const u of [...people, ...bots]) await createGrant(u.id, { administrativeBodyId: body.id })
-        await expect(inviteGrant({ email: 'twentieth@example.com', role: 'admin', scope: { administrativeBodyId: body.id } })).resolves.toMatchObject({ status: 'active' })
+        await expect(inviteGrant({ email: 'twentieth@example.com', role: 'admin', scope: { administrativeBodyId: body.id } })).resolves.toMatchObject({ status: 'pending' })
     })
     test("the machines page lists machine accounts only, so it never shows a person's tokens", async () => {
         const person = await createUser('anna@example.com')

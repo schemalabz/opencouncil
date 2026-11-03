@@ -6,7 +6,9 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors"
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { findMachineAccount } from "@/lib/db/machineAccounts";
-import { DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
+import { acceptedAtFor, activeGrantWhere, DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
+import { namedScope, scopeLabel } from "@/lib/auth/grantScope";
+import { sendAccountDeletedAdminAlert } from "@/lib/discord";
 import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
@@ -112,7 +114,7 @@ export async function createUser(data: AdminUserData): Promise<UserWithAdministe
                 isSuperAdmin,
                 onboarded,
                 administers: {
-                    create: administers?.map((row) => ({ ...row, acceptedAt: new Date(), grantedById: actor?.id }))
+                    create: administers?.map((row) => ({ ...row, acceptedAt: null, grantedById: actor?.id }))
                 }
             },
             include: userWithAdministersInclude
@@ -183,12 +185,15 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
                         data: { revokedAt: now, revokedById: actor?.id },
                     });
                 }
+                // A row takes effect at once for an account that signed in
+                // before; else it waits, pending, for the first sign-in.
+                const acceptedAt = await acceptedAtFor(tx, id, now);
                 const added = [...wanted]
                     .filter(([key]) => !kept.has(key))
                     .map(([, row]) => {
                         const claimedAt = row.personId ? droppedClaims.get(row.personId) : undefined;
                         if (row.personId) droppedClaims.delete(row.personId);
-                        return { ...row, acceptedAt: now, grantedById: actor?.id, ...(claimedAt ? { claimedAt } : {}) };
+                        return { ...row, acceptedAt, grantedById: actor?.id, ...(claimedAt ? { claimedAt } : {}) };
                     });
                 // No new row for the person: the claim moves to a row the form
                 // keeps. The index allows one active claimed row per person.
@@ -227,15 +232,38 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
     }
 }
 
+const heldRoleSelect = {
+    role: true,
+    realm: true,
+    city: { select: { id: true, name: true } },
+    administrativeBody: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    party: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    person: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+} satisfies Prisma.AdministersSelect;
+
+/**
+ * Delete the account. Its grant rows go with it (the cascade on `userId`),
+ * and the account is personal data, so nothing of it stays: the alert is
+ * the trace of the roles it held. Read before the delete, posted after it,
+ * so the alert reports a deletion that happened.
+ */
+async function deleteAccount(id: string, deletedBy: 'self' | 'superadmin'): Promise<void> {
+    const held = await prisma.administers.findMany({ where: { userId: id, ...activeGrantWhere }, select: heldRoleSelect });
+    await prisma.user.delete({ where: { id } });
+    if (held.length === 0) return;
+    await sendAccountDeletedAdminAlert({
+        deletedBy,
+        roles: held.map((row) => ({ role: row.role, scope: scopeLabel(namedScope(row)) })),
+    });
+}
+
 export async function deleteUser(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
     // The account is the attribution of the highlights its tokens created
     // (Highlight.createdBy is SetNull on delete), so it stays.
     if (await findMachineAccount(id)) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     try {
-        await prisma.user.delete({
-            where: { id },
-        });
+        await deleteAccount(id, 'superadmin');
     } catch (error) {
         const errorWithCode = error as { code?: string };
         if (errorWithCode.code === "P2025") {
@@ -250,6 +278,6 @@ export async function deleteCurrentUser(): Promise<void> {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not authenticated');
     if (user.isMachine) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
-    await prisma.user.delete({ where: { id: user.id } });
+    await deleteAccount(user.id, 'self');
 }
 

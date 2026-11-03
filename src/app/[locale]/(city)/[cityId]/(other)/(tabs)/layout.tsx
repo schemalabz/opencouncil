@@ -9,7 +9,7 @@ import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
 import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { isPetitionable } from "@/lib/cityStatus";
-import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from "@/lib/auth";
+import { canManageTeam, getCurrentUser, hasRight, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 import { countOpenConsultationsForCity } from "@/lib/db/consultations";
@@ -47,11 +47,13 @@ export default async function TabsLayout(
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
     const currentUserPromise = getCurrentUser();
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference, openConsultations] = await Promise.all([
+    const [city, cityMessage, currentUser, canEdit, showTeam, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference, openConsultations] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         currentUserPromise,
         isUserAuthorizedToEdit({ cityId }),
+        // The Team tab, for the admins of the city and of its bodies (#875).
+        canManageTeam(cityId),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
@@ -156,7 +158,7 @@ export default async function TabsLayout(
                 </div>
 
                 <div className="min-w-0 space-y-8 max-lg:order-3 lg:col-start-1 lg:row-start-2">
-                    <CityNavigation cityId={cityId} city={city} openConsultations={openConsultations} />
+                    <CityNavigation cityId={cityId} city={city} openConsultations={openConsultations} showTeam={showTeam} />
 
                     <Suspense fallback={
                         <div className="flex justify-center items-center h-32">

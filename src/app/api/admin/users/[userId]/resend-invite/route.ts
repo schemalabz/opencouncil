@@ -2,9 +2,10 @@ import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { NextResponse } from "next/server"
 import { sendInviteEmail } from "@/lib/auth/invite"
-import { peopleOnly } from "@/lib/db/types"
+import { realmOfGrant } from "@/lib/auth/grantScope"
+import { peopleOnly, userWithAdministersInclude } from "@/lib/db/types"
 
-export async function POST(request: Request, props: { params: Promise<{ userId: string }> }) {
+export async function POST(_request: Request, props: { params: Promise<{ userId: string }> }) {
     const params = await props.params;
     const currentUser = await getCurrentUser()
     if (!currentUser?.isSuperAdmin) {
@@ -15,14 +16,21 @@ export async function POST(request: Request, props: { params: Promise<{ userId: 
         // People only: an invite link is a sign-in link, and nothing signs a
         // machine account in.
         const user = await prisma.user.findFirst({
-            where: { id: params.userId, ...peopleOnly }
+            where: { id: params.userId, ...peopleOnly },
+            include: userWithAdministersInclude,
         })
 
         if (!user) {
             return new NextResponse("User not found", { status: 404 })
         }
 
-        const sent = await sendInviteEmail(user.email, user.name, request)
+        const sent = await sendInviteEmail({
+            email: user.email,
+            name: user.name,
+            realm: user.administers[0] ? realmOfGrant(user.administers[0]) : null,
+            invitedBy: currentUser.name || currentUser.email,
+            pending: true,
+        })
 
         if (!sent) {
             return new NextResponse("Failed to send invite email", { status: 500 })

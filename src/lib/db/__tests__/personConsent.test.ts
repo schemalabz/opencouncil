@@ -70,22 +70,23 @@ describe('setVoicePrintConsent', () => {
         expect(txUpdate).not.toHaveBeenCalled();
     });
 
-    it('accepts a delegate account too: the consent follows the permission, not the claim', async () => {
+    it('refuses a delegate account: the consent follows the claim, not the permission', async () => {
         mockGetCurrentUser.mockResolvedValue(delegate);
-        await setVoicePrintConsent('person-1', true);
-        expect(txCreate).toHaveBeenCalledWith(created('assistant'));
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/claimed the person/);
+        await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/claimed the person/);
+        expect(mockTransaction).not.toHaveBeenCalled();
     });
 
-    it('keeps the open period on a repeat tick, whoever opened it, so the original time stands', async () => {
-        mockGetCurrentUser.mockResolvedValue(delegate);
+    it('keeps the open period on a repeat tick, so the original time stands', async () => {
+        mockGetCurrentUser.mockResolvedValue(owner);
         txFindFirst.mockResolvedValue(open('PERSON'));
         await setVoicePrintConsent('person-1', true);
         expect(txCreate).not.toHaveBeenCalled();
         expect(txUpdate).not.toHaveBeenCalled();
     });
 
-    it('closes the open period on withdrawal, whoever opened it, and deletes nothing', async () => {
-        mockGetCurrentUser.mockResolvedValue(delegate);
+    it('closes the open period on withdrawal and deletes nothing', async () => {
+        mockGetCurrentUser.mockResolvedValue(owner);
         txFindFirst.mockResolvedValue(open('PERSON'));
         await setVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
@@ -127,12 +128,12 @@ describe('setVoicePrintConsent', () => {
     it('checks the permission inside the write: a row revoked meanwhile refuses it', async () => {
         mockGetCurrentUser.mockResolvedValue(owner);
         txAdministers.mockResolvedValue(null);
-        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/administers the person/);
-        await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/administers the person/);
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/claimed the person/);
+        await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/claimed the person/);
         expect(txCreate).not.toHaveBeenCalled();
         expect(txUpdate).not.toHaveBeenCalled();
         expect(txAdministers).toHaveBeenCalledWith({
-            where: { userId: 'user-1', personId: 'person-1', acceptedAt: { not: null }, revokedAt: null },
+            where: { userId: 'user-1', personId: 'person-1', claimedAt: { not: null }, acceptedAt: { not: null }, revokedAt: null },
             select: { id: true },
         });
     });
@@ -149,13 +150,13 @@ describe('setVoicePrintConsent', () => {
 
     it('refuses an account that administers another person only', async () => {
         mockGetCurrentUser.mockResolvedValue({ ...owner, administers: [{ personId: 'person-2', claimedAt }] });
-        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/administers the person/);
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/claimed the person/);
         expect(mockTransaction).not.toHaveBeenCalled();
     });
 
     it('refuses a superadmin who was not given the person: this box is not theirs', async () => {
         mockGetCurrentUser.mockResolvedValue(superadmin);
-        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/administers the person/);
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/claimed the person/);
     });
 
     it('refuses when signed out', async () => {

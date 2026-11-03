@@ -6,6 +6,7 @@ import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
 import { signInAllowed } from "@/lib/auth/signInGuard"
 import { usesSecureCookies } from "@/lib/auth/sessionMirror"
 import { pendingCommentQuote } from "@/lib/db/consultationComments"
+import { acceptPendingGrants } from "@/lib/auth/grants.server"
 
 declare module "next-auth" {
     interface Session {
@@ -36,6 +37,12 @@ export const authOptions = {
     // on the request's own URL) would derive it from the forwarded protocol.
     // Said once here, both paths look for the same cookie names.
     useSecureCookies: usesSecureCookies(),
+    events: {
+        /** A sign-in takes up the invites that wait on the account (#875). */
+        async signIn({ user }) {
+            if (user.id) await acceptPendingGrants(prisma, user.id);
+        },
+    },
     callbacks: {
         signIn({ user, account, profile }) {
             return signInAllowed(account, profile, user);

@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { IS_DEV } from '@/lib/utils'
 import { DEV_TOOLS_ALLOWED } from '@/lib/deployment'
 import { peopleOnly } from '@/lib/db/types'
+import { acceptPendingGrants } from '@/lib/auth/grants.server'
 
 export async function POST(request: NextRequest) {
   // Only allow in development or on preview deployments — never on real production
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
         expires
       })
     }
+    // What the signIn event of src/auth.ts does for a real sign-in.
+    await acceptPendingGrants(prisma, user.id)
 
     // Set the session cookie with the same name Next-Auth uses.
     // In local dev, use a port-specific non-secure cookie to allow multiple instances.

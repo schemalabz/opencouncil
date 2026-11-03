@@ -46,6 +46,7 @@ jest.mock('@/lib/cache', () => ({
 
 jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn(),
+    canManageTeam: jest.fn(async () => false),
     hasRight: jest.fn(async () => false),
     rightsFor: jest.fn(async () => []),
     getRoleLimitForCity: jest.fn(),
