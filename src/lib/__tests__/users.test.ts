@@ -28,6 +28,10 @@ jest.mock('../auth', () => ({
   getCurrentUser: jest.fn(),
 }));
 
+jest.mock('@/lib/discord', () => ({
+  sendAccountDeletedAdminAlert: jest.fn(),
+}));
+
 jest.mock('../db/prisma', () => ({
   __esModule: true,
   default: {
@@ -49,6 +53,7 @@ jest.mock('../db/prisma', () => ({
 import { Prisma } from '@prisma/client';
 import prisma from '../db/prisma';
 import { withUserAuthorizedToEdit, getCurrentUser } from '../auth';
+import { sendAccountDeletedAdminAlert } from '@/lib/discord';
 import { createUser, updateUser, deleteUser, deleteCurrentUser } from '../db/users';
 
 const mockWithUserAuthorizedToEdit = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
@@ -57,6 +62,8 @@ const mockFindFirst = prisma.user.findFirst as jest.MockedFunction<typeof prisma
 const mockCreate = prisma.user.create as jest.MockedFunction<typeof prisma.user.create>;
 const mockUpdate = prisma.user.update as jest.MockedFunction<typeof prisma.user.update>;
 const mockDelete = prisma.user.delete as jest.MockedFunction<typeof prisma.user.delete>;
+const mockHeldRoles = prisma.administers.findMany as unknown as jest.Mock;
+const mockDeletedAlert = sendAccountDeletedAdminAlert as jest.MockedFunction<typeof sendAccountDeletedAdminAlert>;
 const mockTransaction = prisma.$transaction as unknown as jest.Mock;
 
 describe('users db layer - normalization and duplicate handling', () => {
@@ -67,6 +74,8 @@ describe('users db layer - normalization and duplicate handling', () => {
     mockWithUserAuthorizedToEdit.mockResolvedValue(true);
     // No machine account behind any id unless a test says so.
     mockFindFirst.mockResolvedValue(null);
+    // An account with no roles, unless a test gives it some.
+    mockHeldRoles.mockResolvedValue([]);
 
     const mockedUser = {
       id: 'user-1',
@@ -405,6 +414,50 @@ describe('users db layer - normalization and duplicate handling', () => {
       mockDelete.mockRejectedValueOnce(new Error('connection failed'));
 
       await expect(deleteUser('user-1')).rejects.toThrow('Failed to delete user');
+    });
+  });
+
+  describe('the alert on the deletion of an account that held roles', () => {
+    const city = { id: 'athens', name: 'Athens' };
+    const held = [
+      { role: 'admin', realm: null, city, administrativeBody: null, party: null, person: null },
+      { role: 'records', realm: null, city: null, administrativeBody: { id: 'b1', name: 'Finance', cityId: 'athens', city: { name: 'Athens' } }, party: null, person: null },
+    ];
+
+    it('names each role and its scope, with no personal data, when a superadmin deletes the account', async () => {
+      mockHeldRoles.mockResolvedValue(held);
+      await deleteUser('user-1');
+      expect(mockHeldRoles).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId: 'user-1', acceptedAt: { not: null }, revokedAt: null },
+      }));
+      expect(mockDeletedAlert).toHaveBeenCalledWith({
+        deletedBy: 'superadmin',
+        roles: [
+          { role: 'admin', scope: 'Athens' },
+          { role: 'records', scope: 'Finance, Athens' },
+        ],
+      });
+    });
+
+    it('says that the account deleted itself', async () => {
+      mockGetCurrentUser.mockResolvedValue({ id: 'user-1', isMachine: false } as unknown as Awaited<ReturnType<typeof getCurrentUser>>);
+      mockHeldRoles.mockResolvedValue(held);
+      await deleteCurrentUser();
+      expect(mockDelete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
+      expect(mockDeletedAlert).toHaveBeenCalledWith(expect.objectContaining({ deletedBy: 'self' }));
+    });
+
+    it('sends nothing for an account that held no role: a reader leaving is not an admin event', async () => {
+      await deleteUser('user-1');
+      expect(mockDelete).toHaveBeenCalled();
+      expect(mockDeletedAlert).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing when the delete fails: the alert reports a deletion that happened', async () => {
+      mockHeldRoles.mockResolvedValue(held);
+      mockDelete.mockRejectedValueOnce(new Error('connection failed'));
+      await expect(deleteUser('user-1')).rejects.toThrow('Failed to delete user');
+      expect(mockDeletedAlert).not.toHaveBeenCalled();
     });
   });
 });

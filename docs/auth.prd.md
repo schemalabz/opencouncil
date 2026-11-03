@@ -86,9 +86,10 @@ A body admin can also do these things:
   `validateRolesForBodyAdmin` apply this rule.
 - Change the YouTube channel and the contact emails of their body.
 
-A body has a maximum of 20 admins. A superadmin or a realm admin invites and
-removes them on `/admin/team`, through `/api/admin/grants`. Only an admin of
-the city or of a higher scope can remove the last admin of a body.
+A body has a maximum of 20 admins. The city Team tab and `/admin/team` invite
+and remove them, through `/api/admin/grants`. The section on granular
+permissions below says who can do that. Only an admin of the city or of a
+higher scope can remove the last admin of a body.
 
 ### What stays with the city
 
@@ -118,3 +119,76 @@ A service holds a machine account: a user that a superadmin creates on
 domain. A superadmin mints its MCP tokens on that page. A token acts with the
 rights of its account, the superadmin flag and the grants, like the token of a
 person. The REST routes accept a session only.
+
+## Granular permissions (#875)
+
+A grant is a row of `Administers`: one role, at one scope, for one account.
+The scope is a realm, a city, an administrative body, a party, or a person. The
+role says what the account can do there. `src/lib/auth/rights.ts` maps each
+role to its rights.
+
+| Role         | What the account can do at its scope                              |
+| ------------ | ----------------------------------------------------------------- |
+| `admin`      | Everything, including the invites and the roles of the Team tab.  |
+| `records`    | Meetings, transcripts, subjects, people, parties, decisions.      |
+| `meetings`   | Meetings and their tasks, and the release of a meeting.           |
+| `highlights` | Highlights, including the ones of an unreleased meeting.          |
+| `viewer`     | Read an unreleased meeting. No edit.                              |
+
+A right resolves on the scope of the target and on every scope above it. An
+`admin` of a city holds every right of every body, party and person of the
+city. A superadmin holds every right everywhere. `hasRight(right, target)`
+in `src/lib/auth.ts` answers the question on the server.
+
+### Who grants
+
+An account grants a role at a scope when it holds `admin` at that scope or
+above it. An `admin` of a body invites to that body only. An `admin` of a
+city invites to the city and to each of its bodies, parties and people. A
+superadmin invites anywhere. `canGrant` in `src/lib/auth/rights.ts` applies
+this rule, and `/api/admin/grants` refuses the rest.
+
+### The Team tab
+
+The city page has a Team tab for every account that holds `admin` on the
+city, on one of its bodies, or above. The tab lists the members of the city
+and of each body the account administers, with their role and their scope. It
+lists the open invites under them. The tab has one dialog: an email, a role,
+and a scope the account can grant. An account that administers one body only
+sees no scope control: the dialog invites to that body.
+
+The superadmin page `/admin/team` lists the same rows for every realm the
+account administers, and for every realm when it is a superadmin. The
+profile page lists what the signed-in account holds, one row per scope, with
+the kind of the scope and the role.
+
+### The lifecycle of an invite
+
+An invite is a grant row with `acceptedAt` null. It is not a right yet. The
+account holds the right after its first sign-in, which sets `acceptedAt`. An
+account that signed in before gets the right at once, and a notice email
+says so. An invite that nobody accepts expires `PENDING_GRANT_DAYS` days (14)
+after its creation. The Team tab shows the invite as open or expired, and
+offers to resend or to withdraw it. A resend creates a fresh row and revokes
+the old one. A scope holds 20 members at most. The cap counts people, not
+rows: a second role of a member is free, and an open invite counts.
+
+A withdrawal, and a removal of a member, set `revokedAt` on the row and keep
+it. The history of a grant stays: who gave it, when, and who revoked it. The
+users page `/admin/users` shows the date and the inviter of each row of an
+account.
+
+### What a deletion leaves
+
+An account is personal data. A deletion removes it, and the cascade removes
+its grant rows. When the account held a role, the app posts a Discord admin
+alert with each role and its scope, and nothing else. See
+`docs/admin-alerts.md`. The alert goes when the account deletes itself on the
+profile page and when a superadmin deletes it on `/admin/users`.
+
+### Voiceprint consent
+
+Only the account that claimed the person by its QR code sets the voiceprint
+consent of that person. An account that a superadmin gave the person to edits
+the page of the person, and has no consent box. The consent is a first-person
+statement, and the claim is what makes the account the person.

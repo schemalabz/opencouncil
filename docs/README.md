@@ -7,6 +7,7 @@ Start here to build a mental model of how OpenCouncil works.
 - **[infrastructure.md](./infrastructure.md)** — Deployment topology: which branch deploys where, how environments and databases connect and how they are backed up, known limitations. Includes a visual diagram of the full system.
 - **[task-architecture.md](./task-architecture.md)** — How the async task system works: the callback flow between this app and the opencouncil-tasks server, task lifecycle, handler registry pattern, and how to add new task types.
 - **[pricing-system.md](./pricing-system.md)** — Centralized pricing configuration, calculation logic, and immutability guarantees.
+- **[auth.prd.md](./auth.prd.md)** — Who can edit what: the roles and the scopes of a grant, who invites whom, the Team tab, the lifecycle of an invite, and what the deletion of an account leaves.
 
 ## Local Development
 

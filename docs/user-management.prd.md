@@ -12,5 +12,10 @@ src/lib/email/templates) telling them they've been invited. The invite email sho
 Importantly, super-admins can give _administrative rights_ to users through a UI by adding and removing rows on the
 Administers table (see db/schema.prisma). 
 
+Since #875, a row that a super-admin adds for an account that never signed in
+is an invite. It becomes a right at the first sign-in, and it expires after 14
+days. The section "Granular permissions" of docs/auth.prd.md describes the
+lifecycle.
+
 This functionality should be implemented nicely with good UX on /admin (see src/app/(main)/[locale]/admin), with shadcn
 components etc.
