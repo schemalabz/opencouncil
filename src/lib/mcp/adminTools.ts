@@ -10,8 +10,7 @@ import {
     mcpCreateUploadUrl,
     mcpListRealms,
     mcpPopulateCity,
-    mcpPublishCityDemo,
-    mcpSetCityBoundary,
+    mcpUpdateCity,
     mcpStartTask,
     mcpUpdateMeeting,
 } from './adminData';
@@ -23,8 +22,7 @@ import {
     createUploadUrlToolInput,
     startTaskToolInput,
     updateMeetingToolInput,
-    publishCityDemoToolInput,
-    setCityBoundaryToolInput,
+    updateCityToolInput,
 } from './adminToolSchemas';
 import { category, run } from './toolSupport';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
@@ -169,33 +167,21 @@ function registerTaskAdminTools(server: McpServer) {
 
 function registerCityAdminTools(server: McpServer) {
     server.registerTool(
-        'publish_city_demo',
+        'update_city',
         {
-            title: 'Publish city demo',
+            title: 'Update a city',
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
             _meta: category('admin'),
-            description: 'Superadmin only. Promote a pending city to a public demo, or leave an existing demo unchanged. '
-                + 'The city and its already released meetings become discoverable on its realm. Draft meetings stay unreleased. '
-                + 'This does not enable official support or notifications, and refuses supported cities. '
-                + 'Read get_city and confirm publication with the user before calling; an approved pending import is not approval to publish.',
-            inputSchema: publishCityDemoToolInput,
+            description: 'Superadmin only. Update a city boundary with geojson, or publish a pending city with status: "demo". '
+                + 'Send boundary and publication changes in separate calls; empty calls and unsupported fields are refused. '
+                + 'GeoJSON uses the same normalization and storage as the city edit form and replaces the existing boundary. '
+                + 'Confirm the source, municipal territorial unit and replacement before writing; never substitute a country outline or bounding box. '
+                + 'Demo publication makes the city and already released meetings discoverable on its realm; draft meetings stay unreleased. '
+                + 'It does not enable official support or notifications, and refuses supported cities. '
+                + 'Read get_city and obtain publication approval first; approval to import pending is not approval to publish.',
+            inputSchema: updateCityToolInput,
         },
-        (args, ctx: ServerContext) => run(() => mcpPublishCityDemo(identityFromContext(ctx), args)),
-    );
-
-    server.registerTool(
-        'set_city_boundary',
-        {
-            title: 'Set city boundary',
-            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-            _meta: category('admin'),
-            description: 'Superadmin only. Save or replace a city boundary using verified municipal GeoJSON in WGS84. '
-                + 'Uses the same normalization and storage as the city edit form. This replaces any existing boundary; '
-                + 'it does not publish the city or release meetings. Confirm the source, territorial unit and replacement with the user before calling. '
-                + 'Never substitute a country outline or a bounding box for the municipal boundary.',
-            inputSchema: setCityBoundaryToolInput,
-        },
-        (args, ctx: ServerContext) => run(() => mcpSetCityBoundary(identityFromContext(ctx), args)),
+        (args, ctx: ServerContext) => run(() => mcpUpdateCity(identityFromContext(ctx), args)),
     );
 
     server.registerTool(
@@ -223,7 +209,7 @@ function registerCityAdminTools(server: McpServer) {
                 'Superadmin only. Create a municipality or a region in the realm of this domain, or in the realm '
                 + 'you name. The city is saved as '
                 + 'pending, so it is not public, and it has no logo and no boundary. Add the logo on the site '
-                + 'and the verified boundary with set_city_boundary. Fill it with populate_city. The id is permanent and is part of every URL of '
+                + 'and the verified boundary with update_city using geojson. Fill it with populate_city. The id is permanent and is part of every URL of '
                 + 'the city. Confirm the id and the names with the user before you call.',
             inputSchema: createCityToolInput,
         },

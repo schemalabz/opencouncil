@@ -23,8 +23,7 @@ import type {
     CreateUploadUrlToolArgs,
     StartTaskToolArgs,
     UpdateMeetingToolArgs,
-    PublishCityDemoToolArgs,
-    SetCityBoundaryToolArgs,
+    UpdateCityToolArgs,
 } from './adminToolSchemas';
 import { requireAdminAccess, requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
@@ -251,27 +250,24 @@ function revalidateCityDiscovery(cityId: string, realm: City['realm']) {
     revalidateAfterResponse({ blockingTags: ['city', 'cities:all', `city:${cityId}`, landingSubjectsTag(realm)] });
 }
 
-export async function mcpSetCityBoundary(identity: McpIdentity, args: SetCityBoundaryToolArgs) {
+export async function mcpUpdateCity(identity: McpIdentity, args: UpdateCityToolArgs) {
     await requireSuperadmin(identity);
     const realm = await requireRealmCity(args.cityId);
-    const boundary = parseBoundaryInput(args.geojson);
-    if (!boundary.ok) throw new BadRequestError(`Invalid boundary GeoJSON: ${boundary.error}. Supply the municipality's WGS84 Polygon or MultiPolygon.`);
-    await updateCityGeometryDirect(args.cityId, boundary.geometry);
-    rememberCityRealm(args.cityId, realm);
-    revalidateCityDiscovery(args.cityId, realm);
-    revalidateAfterResponse({ blockingTags: [`city:${args.cityId}:geometry`] });
-    return {
-        cityId: args.cityId, realm,
-        geometryType: boundary.geometry.type,
-        polygonCount: boundary.geometry.type === 'Polygon' ? 1 : boundary.geometry.coordinates.length,
-        url: `${cityBaseUrl(args.cityId)}/${args.cityId}/map`,
-        next: 'The boundary is saved. Verify its outline on the city map. City status and meeting release flags are unchanged.',
-    };
-}
-
-export async function mcpPublishCityDemo(identity: McpIdentity, args: PublishCityDemoToolArgs) {
-    await requireSuperadmin(identity);
-    await requireRealmCity(args.cityId);
+    if (args.geojson !== undefined) {
+        const boundary = parseBoundaryInput(args.geojson);
+        if (!boundary.ok) throw new BadRequestError(`Invalid boundary GeoJSON: ${boundary.error}. Supply the municipality's WGS84 Polygon or MultiPolygon.`);
+        await updateCityGeometryDirect(args.cityId, boundary.geometry);
+        rememberCityRealm(args.cityId, realm);
+        revalidateCityDiscovery(args.cityId, realm);
+        revalidateAfterResponse({ blockingTags: [`city:${args.cityId}:geometry`] });
+        return {
+            cityId: args.cityId, realm,
+            geometryType: boundary.geometry.type,
+            polygonCount: boundary.geometry.type === 'Polygon' ? 1 : boundary.geometry.coordinates.length,
+            url: `${cityBaseUrl(args.cityId)}/${args.cityId}/map`,
+            next: 'The boundary is saved. Verify its outline on the city map. City status and meeting release flags are unchanged.',
+        };
+    }
     let city: City;
     try {
         city = await publishCityDemoDirect(args.cityId);
@@ -336,7 +332,7 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
         realm: city.realm,
         language: city.language,
         url: `${cityBaseUrl(city.id)}/${city.id}`,
-        next: 'The city is saved as pending, so it is not public. Fill it with populate_city and save its verified boundary with set_city_boundary. '
+        next: 'The city is saved as pending, so it is not public. Fill it with populate_city and save its verified boundary with update_city using geojson. '
             + `Add the logo on the site: ${currentBaseUrl()}/admin/cities.`,
     };
 }
@@ -384,7 +380,7 @@ export async function mcpPopulateCity(
         cityId: data.cityId,
         ...stats,
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
-        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call publish_city_demo.',
+        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call update_city with status: "demo".',
     };
 }
 

@@ -47,7 +47,7 @@ jest.mock('@/env.mjs', () => ({ env: { TASK_API_URL: 'https://tasks.test', TASK_
 
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask,
+    mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpUpdateCity, mcpStartTask,
     mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
@@ -325,39 +325,55 @@ describe('create_city', () => {
     });
 });
 
-describe('publish_city_demo', () => {
+describe('update_city realm guard', () => {
+    it.each([
+        { cityId: 'missing', status: 'demo' as const },
+        { cityId: 'missing', geojson: '{}' },
+    ])('refuses an unknown city before either write (%j)', async args => {
+        asSuperadmin();
+        (requireRealmCity as jest.Mock).mockRejectedValueOnce(new NotFoundError('Unknown municipality'));
+        await expect(mcpUpdateCity(SUPERADMIN_TOKEN, args)).rejects.toThrow(NotFoundError);
+        expect(publishCityDemoDirect).not.toHaveBeenCalled();
+        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
+        expect(revalidateAfterResponse).not.toHaveBeenCalled();
+    });
+});
+
+describe('update_city demo publication', () => {
     it('promotes across realms, invalidates discovery and returns the city realm URL', async () => {
         (publishCityDemoDirect as jest.Mock).mockResolvedValue({ id: 'mannheim', status: 'demo', realm: 'germany' });
-        const result = await inRealm(Realm.greece, () => mcpPublishCityDemo(SUPERADMIN_TOKEN, { cityId: 'mannheim' }));
+        const result = await inRealm(Realm.greece, () => mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'mannheim', status: 'demo' }));
         expect(requireRealmCity).toHaveBeenCalledWith('mannheim');
         expect(publishCityDemoDirect).toHaveBeenCalledWith('mannheim');
+        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
         expect(result).toMatchObject({ id: 'mannheim', status: 'demo', realm: 'germany', url: 'https://opencouncil.de/mannheim' });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:mannheim', 'realm:germany:landing-subjects'] });
     });
 
     it.each([null, ADMIN_TOKEN])('refuses callers without superadmin rights before writing (%j)', async identity => {
-        await expect(mcpPublishCityDemo(identity, { cityId: 'mannheim' })).rejects.toThrow();
+        await expect(mcpUpdateCity(identity, { cityId: 'mannheim', status: 'demo' })).rejects.toThrow();
         expect(publishCityDemoDirect).not.toHaveBeenCalled();
     });
 
     it('reports a missing or ineligible city instead of changing official support', async () => {
         asSuperadmin();
         (publishCityDemoDirect as jest.Mock).mockRejectedValue(new Prisma.PrismaClientKnownRequestError('no eligible city', { code: 'P2025', clientVersion: 'test' }));
-        await expect(mcpPublishCityDemo(SUPERADMIN_TOKEN, { cityId: 'mannheim' })).rejects.toThrow(ConflictError);
+        await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'mannheim', status: 'demo' })).rejects.toThrow(ConflictError);
     });
 });
 
-describe('set_city_boundary', () => {
+describe('update_city boundary', () => {
     const polygon = { type: 'Polygon', coordinates: [[[18.3, 43.8], [18.4, 43.8], [18.4, 43.9]]] };
 
     it('normalizes an exported collection through the existing parser and refreshes discovery', async () => {
         (requireRealmCity as jest.Mock).mockResolvedValue('bosnia');
-        const result = await inRealm(Realm.greece, () => mcpSetCityBoundary(SUPERADMIN_TOKEN, {
+        const result = await inRealm(Realm.greece, () => mcpUpdateCity(SUPERADMIN_TOKEN, {
             cityId: 'sarajevo', geojson: JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { source: 'official' }, geometry: polygon }] }),
         }));
         expect(updateCityGeometryDirect).toHaveBeenCalledWith('sarajevo', {
             ...polygon, coordinates: [[[18.3, 43.8], [18.4, 43.8], [18.4, 43.9], [18.3, 43.8]]],
         });
+        expect(publishCityDemoDirect).not.toHaveBeenCalled();
         expect(result).toMatchObject({ cityId: 'sarajevo', realm: 'bosnia', geometryType: 'Polygon', polygonCount: 1, url: 'https://ba.opencouncil.eu/sarajevo/map' });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:sarajevo', 'realm:bosnia:landing-subjects'] });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city:sarajevo:geometry'] });
@@ -368,14 +384,14 @@ describe('set_city_boundary', () => {
         JSON.stringify({ type: 'Polygon', coordinates: [[[500000, 4000000], [500100, 4000000], [500000, 4000100]]] }),
     ])('refuses malformed, non-polygonal or projected coordinates before writing', async geojson => {
         asSuperadmin();
-        await expect(mcpSetCityBoundary(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson })).rejects.toThrow(BadRequestError);
+        await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson })).rejects.toThrow(BadRequestError);
         expect(updateCityGeometryDirect).not.toHaveBeenCalled();
     });
 
     it('does not invalidate caches or report success when the database rejects the boundary', async () => {
         asSuperadmin();
         (updateCityGeometryDirect as jest.Mock).mockRejectedValueOnce(new Error('Invalid geometry'));
-        await expect(mcpSetCityBoundary(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).rejects.toThrow('Invalid geometry');
+        await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).rejects.toThrow('Invalid geometry');
         expect(revalidateAfterResponse).not.toHaveBeenCalled();
     });
 });
@@ -547,8 +563,8 @@ describe('permission matrix', () => {
     const superadminOnly = {
         create_city: (id: McpIdentityArg) => mcpCreateCity(id, CITY),
         populate_city: (id: McpIdentityArg) => mcpPopulateCity(id, COUNCIL),
-        publish_city_demo: (id: McpIdentityArg) => mcpPublishCityDemo(id, { cityId: 'argos' }),
-        set_city_boundary: (id: McpIdentityArg) => mcpSetCityBoundary(id, { cityId: 'argos', geojson: '{}' }),
+        update_city_demo: (id: McpIdentityArg) => mcpUpdateCity(id, { cityId: 'argos', status: 'demo' }),
+        update_city_boundary: (id: McpIdentityArg) => mcpUpdateCity(id, { cityId: 'argos', geojson: '{}' }),
     };
     type McpIdentityArg = Parameters<typeof mcpCreateMeeting>[0];
     const writes = () => [

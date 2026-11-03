@@ -9,8 +9,7 @@ jest.mock('../adminData', () => ({
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
-    mcpPublishCityDemo: jest.fn().mockResolvedValue({}),
-    mcpSetCityBoundary: jest.fn().mockResolvedValue({}),
+    mcpUpdateCity: jest.fn().mockResolvedValue({}),
     mcpStartTask: jest.fn(),
     mcpUpdateMeeting: jest.fn().mockResolvedValue({}),
 }));
@@ -20,7 +19,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
 import {
-    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpPublishCityDemo, mcpSetCityBoundary, mcpStartTask, mcpUpdateMeeting,
+    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpUpdateCity, mcpStartTask, mcpUpdateMeeting,
 } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
 
@@ -102,31 +101,39 @@ describe('populate_city through the SDK', () => {
     });
 });
 
-describe('set_city_boundary through the SDK', () => {
-    it('passes the GeoJSON text without introducing a separate geometry schema', async () => {
+describe('update_city through the SDK', () => {
+    it('accepts boundary GeoJSON without exposing arbitrary city edits', async () => {
         const geojson = JSON.stringify({ type: 'FeatureCollection', features: [] });
-        const result = await mcp.call('set_city_boundary', { cityId: 'sarajevo', geojson });
+        const result = await mcp.call('update_city', { cityId: 'sarajevo', geojson });
         expect(result.isError).not.toBe(true);
-        expect(mcpSetCityBoundary).toHaveBeenCalledWith(null, { cityId: 'sarajevo', geojson });
+        expect(mcpUpdateCity).toHaveBeenCalledWith(null, { cityId: 'sarajevo', geojson });
     });
 
-    it('refuses a missing boundary before invoking the handler', async () => {
-        const result = await mcp.call('set_city_boundary', { cityId: 'sarajevo' });
-        expect(result.isError).toBe(true);
-        expect(mcpSetCityBoundary).not.toHaveBeenCalled();
+    it('accepts demo publication', async () => {
+        const result = await mcp.call('update_city', { cityId: 'mannheim', status: 'demo' });
+        expect(result.isError).not.toBe(true);
+        expect(mcpUpdateCity).toHaveBeenCalledWith(null, { cityId: 'mannheim', status: 'demo' });
     });
-});
 
-describe('publish_city_demo through the SDK', () => {
-    it('accepts a city id without exposing arbitrary city or meeting edits', async () => {
-        const mcp = await connect();
-        try {
-            const result = await mcp.call('publish_city_demo', { cityId: 'mannheim', status: 'supported', released: true });
-            expect(result.isError).not.toBe(true);
-            expect(mcpPublishCityDemo).toHaveBeenCalledWith(null, { cityId: 'mannheim' });
-        } finally {
-            await mcp.close();
-        }
+    it.each([
+        { cityId: 'sarajevo' },
+        { cityId: 'sarajevo', geojson: '' },
+        { cityId: 'sarajevo', status: 'supported' },
+        { cityId: 'sarajevo', status: 'pending' },
+        { cityId: 'sarajevo', status: 'demo', released: true },
+        { cityId: 'sarajevo', geojson: '{}', status: 'demo' },
+        { cityId: 'sarajevo', geojson: '{}', name: 'Other city' },
+        { cityId: 'sarajevo', geojson: null },
+    ])('rejects empty, unsupported or mixed edits before the handler (%j)', async args => {
+        expect((await mcp.call('update_city', args)).isError).toBe(true);
+        expect(mcpUpdateCity).not.toHaveBeenCalled();
+    });
+
+    it('removes the two superseded tool names', async () => {
+        const names = (await mcp.listTools()).map(tool => tool.name);
+        expect(names).toContain('update_city');
+        expect(names).not.toContain('set_city_boundary');
+        expect(names).not.toContain('publish_city_demo');
     });
 });
 

@@ -59,16 +59,21 @@ const meetingRecordInput = {
     place: baseMeetingFields.place.nullable().optional(),
 } satisfies Record<(typeof MEETING_RECORD_INPUT_KEYS)[number], z.ZodType>;
 
-export const publishCityDemoToolInput = z.object({ cityId: cityIdSchema });
-export type PublishCityDemoToolArgs = z.output<typeof publishCityDemoToolInput>;
-
-export const setCityBoundaryToolInput = z.object({
+export const updateCityToolInput = z.object({
     cityId: cityIdSchema,
-    geojson: z.string().min(1).meta({ description: 'The complete boundary GeoJSON text, not a URL. '
+    status: z.literal('demo').optional().meta({ description: 'Publish a pending city as a public demo, or leave a demo unchanged. Supported cities are refused. Send separately from geojson.' }),
+    geojson: z.string().min(1).optional().meta({ description: 'The complete verified municipal boundary GeoJSON text, not a URL. '
         + 'Use WGS84 [longitude, latitude] coordinates. Accepts Polygon, MultiPolygon, Feature or FeatureCollection; '
-        + 'polygonal features are combined and non-polygonal features ignored. Replaces the existing boundary.' }),
+        + 'polygonal features are combined and non-polygonal features ignored. Replaces the existing boundary. Send separately from status.' }),
+}).strict().superRefine((args, ctx) => {
+    if (args.status === undefined && args.geojson === undefined) {
+        ctx.addIssue({ code: 'custom', message: 'Supply geojson or status: "demo".' });
+    }
+    if (args.status !== undefined && args.geojson !== undefined) {
+        ctx.addIssue({ code: 'custom', message: 'Send boundary and publication changes in separate calls.' });
+    }
 });
-export type SetCityBoundaryToolArgs = z.output<typeof setCityBoundaryToolInput>;
+export type UpdateCityToolArgs = z.output<typeof updateCityToolInput>;
 
 export const createMeetingToolInput = z.object({
     cityId: z.string().min(1),
