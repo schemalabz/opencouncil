@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Bell, Clapperboard, User, type LucideIcon } from "lucide-react";
-import { canAccessMyHighlights } from "@/lib/db/highlights";
+import { canAccessMyHighlights } from "@/lib/actions/highlights";
 
 /**
  * The account menu, shared by every surface that offers one: the header

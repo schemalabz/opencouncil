@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
+import { getCityRealm } from '@/lib/db/cityRealm';
 import { handleApiError } from '@/lib/api/errors';
 import { createNotificationsForMeeting } from '@/lib/db/notifications';
 import { releaseNotifications } from '@/lib/notifications/deliver';
@@ -15,9 +16,16 @@ export async function POST(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withRight('notification.send', { cityId: params.cityId, councilMeetingId: params.meetingId });
 
         const { type, subjectImportances, sendImmediately } = createMeetingNotificationsRequestSchema.parse(await request.json());
+
+        // A send without the approval queue skips the review of the realm's
+        // admins, so it is theirs. A missing realm names no scope that passes.
+        if (sendImmediately) {
+            const realm = await getCityRealm(params.cityId);
+            await withRight('admin', realm ? { realm } : {});
+        }
 
         console.log(`Creating ${type} notifications for meeting ${params.meetingId} with ${Object.keys(subjectImportances).length} subject overrides`);
 

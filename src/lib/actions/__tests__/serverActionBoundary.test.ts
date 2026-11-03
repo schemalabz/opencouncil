@@ -47,8 +47,6 @@ const LEGACY_CLIENT_IMPORTS = new Set([
     'src/components/cities/CityPeople.tsx -> db/people',
     'src/components/consultations/ConsultationMap.tsx -> db/cities',
     'src/components/consultations/LocationNavigator.tsx -> db/cities',
-    'src/components/highlights/HighlightActionsMenu.tsx -> db/highlights',
-    'src/components/layout/account-links.tsx -> db/highlights',
     'src/components/meetings/CouncilMeetingDataContext.tsx -> db/people',
     'src/components/meetings/CouncilMeetingDataContext.tsx -> db/speakerSegments',
     'src/components/meetings/CouncilMeetingDataContext.tsx -> db/utterance',
