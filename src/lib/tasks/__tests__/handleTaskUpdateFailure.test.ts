@@ -22,7 +22,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 jest.mock('@/lib/discord', () => ({ sendTaskAdminAlert: jest.fn() }));
 jest.mock('@/lib/tasks/registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
 

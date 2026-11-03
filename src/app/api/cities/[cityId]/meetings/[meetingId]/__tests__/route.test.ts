@@ -7,12 +7,12 @@
  * PUT of a meeting: an absent body leaves the meeting where it is, and a body
  * admin may move a meeting only to a body they administer (#828).
  */
-const mockWithUserAuthorizedToEdit = jest.fn();
+const mockWithRight = jest.fn();
 const mockGetCouncilMeetingDirect = jest.fn();
 const mockUpdateMeetingWithEffects = jest.fn();
 
 jest.mock('@/lib/auth', () => ({
-    withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
+    withRight: (...args: unknown[]) => mockWithRight(...args),
 }));
 jest.mock('@/lib/db/meetings', () => ({
     getCouncilMeetingDirect: (...args: unknown[]) => mockGetCouncilMeetingDirect(...args),
@@ -37,7 +37,7 @@ function request(body: unknown) {
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+    mockWithRight.mockResolvedValue(true);
     mockGetCouncilMeetingDirect.mockResolvedValue({ administrativeBodyId: 'youth' });
     mockUpdateMeetingWithEffects.mockResolvedValue({ id: MEETING });
 });
@@ -92,8 +92,8 @@ describe('PUT /api/cities/{cityId}/meetings/{meetingId}', () => {
         const res = await PUT(request(EDIT), props);
 
         expect(res.status).toBe(200);
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, councilMeetingId: MEETING });
+        expect(mockWithRight).toHaveBeenCalledTimes(1);
+        expect(mockWithRight).toHaveBeenCalledWith('meeting.manage', { cityId: CITY, councilMeetingId: MEETING });
         expect(mockUpdateMeetingWithEffects.mock.calls[0][2]).not.toHaveProperty('administrativeBodyId');
     });
 
@@ -101,26 +101,26 @@ describe('PUT /api/cities/{cityId}/meetings/{meetingId}', () => {
         const res = await PUT(request({ ...EDIT, administrativeBodyId: 'youth' }), props);
 
         expect(res.status).toBe(200);
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(mockWithRight).toHaveBeenCalledTimes(1);
         expect(mockUpdateMeetingWithEffects.mock.calls[0][2]).toMatchObject({ administrativeBodyId: 'youth' });
     });
 
     it('asks for the destination body on a move', async () => {
         await PUT(request({ ...EDIT, administrativeBodyId: 'culture' }), props);
 
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, administrativeBodyId: 'culture' });
+        expect(mockWithRight).toHaveBeenCalledWith('meeting.manage', { cityId: CITY, administrativeBodyId: 'culture' });
         expect(mockUpdateMeetingWithEffects.mock.calls[0][2]).toMatchObject({ administrativeBodyId: 'culture' });
     });
 
     it('asks for the city to clear the body, with null or an empty string', async () => {
         for (const administrativeBodyId of [null, '']) {
             jest.clearAllMocks();
-            mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+            mockWithRight.mockResolvedValue(true);
             mockGetCouncilMeetingDirect.mockResolvedValue({ administrativeBodyId: 'youth' });
 
             await PUT(request({ ...EDIT, administrativeBodyId }), props);
 
-            expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY });
+            expect(mockWithRight).toHaveBeenCalledWith('meeting.manage', { cityId: CITY });
             expect(mockUpdateMeetingWithEffects.mock.calls[0][2]).toMatchObject({ administrativeBodyId: null });
         }
     });
@@ -136,7 +136,7 @@ describe('PUT /api/cities/{cityId}/meetings/{meetingId}', () => {
     });
 
     it('writes nothing when the caller may not take the meeting to the destination', async () => {
-        mockWithUserAuthorizedToEdit
+        mockWithRight
             .mockResolvedValueOnce(true)
             .mockRejectedValueOnce(new ForbiddenError('Not authorized'));
 

@@ -27,7 +27,7 @@ describe('POST /api/upload/start', () => {
         const response = await post(AGENDA);
 
         expect(response.status).toBe(200);
-        expect(guard).toHaveBeenCalledWith('admin', { cityId: 'chania', councilMeetingId: 'nov5_2026' });
+        expect(guard).toHaveBeenCalledWith('meeting.manage', { cityId: 'chania', councilMeetingId: 'nov5_2026' });
         expect(startUpload).toHaveBeenCalledWith(AGENDA.config, 'pdf', 1000);
         expect(await response.json()).toEqual({ key: 'k', completion: null });
     });

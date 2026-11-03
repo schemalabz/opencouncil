@@ -3,6 +3,7 @@ jest.mock('@/lib/utils/realmBaseUrl', () => ({ realmBaseUrl: () => 'https://open
 jest.mock('../auth', () => ({
   isUserAuthorizedToEdit: jest.fn(),
   hasRight: jest.fn(),
+  withRight: jest.fn(),
   withUserAuthorizedToEdit: jest.fn()
 }));
 

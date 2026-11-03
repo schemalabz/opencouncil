@@ -101,7 +101,7 @@ export function uploadNameParts(config: UploadConfig): string[] {
 
 /** The right an upload of this kind needs: a decision is a record, the other files are the meeting's. */
 export function uploadRight(kind: UploadKind): Right {
-    return kind === 'decision' ? 'records.edit' : 'admin'
+    return kind === 'decision' ? 'records.edit' : 'meeting.manage'
 }
 
 /**

@@ -14,7 +14,7 @@ import { getStatisticsFor } from "../statistics";
  *
  * NOT in a "use server" file — this must not be callable as a Server Action.
  * Only called from:
- *   - requestTranscribe (after withUserAuthorizedToEdit), in ./transcribe
+ *   - requestTranscribe (after withRight), in ./transcribe
  *   - the poll-livestreams cron (unauthenticated background job)
  */
 

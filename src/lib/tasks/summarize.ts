@@ -9,7 +9,7 @@ import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
 import { requestSummarizeInternal } from "./summarizeInternal";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withRight } from "../auth";
 import { taskScope } from "./types";
 import { after } from "next/server";
 import * as z from "zod";
@@ -33,7 +33,7 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 }: {
     force?: boolean;
 } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
-    await withUserAuthorizedToEdit(taskScope({ type: 'summarize', cityId, councilMeetingId }));
+    await withRight('tasks.run', taskScope({ type: 'summarize', cityId, councilMeetingId }));
     const input = summarizeInputSchema.safeParse({ requestedSubjects, additionalInstructions });
     if (!input.success) {
         const issue = input.error.issues[0];

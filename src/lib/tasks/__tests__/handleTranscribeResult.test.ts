@@ -27,7 +27,7 @@ jest.mock('../../db/prisma', () => ({
       }),
   },
 }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 jest.mock('../transcribeInternal', () => ({
   requestTranscribeInternal: jest.fn(),
   deleteExistingSpeakerData: jest.fn(),

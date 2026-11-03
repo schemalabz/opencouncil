@@ -7,10 +7,10 @@ import "server-only";
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskRight, taskScope, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
-import { withUserAuthorizedToEdit } from '../auth';
+import { withRight } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { Prisma, Realm, TaskStatus } from '@prisma/client';
@@ -446,8 +446,9 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
     }
 
     // The caller supplies the task id, so the gate is what stops one city's
-    // admin from replaying a result onto another city's meeting.
-    await withUserAuthorizedToEdit(taskScope(task));
+    // operator from replaying a result onto another city's meeting. The right
+    // follows the stored type: a replay writes what the task wrote.
+    await withRight(taskRight(task.type), taskScope(task));
 
     // The gate checked the stored type, so the handler must be that type's.
     // A body admin could otherwise name a city-only type and run its handler

@@ -3,7 +3,7 @@ import { TranscribeResult } from "../apiTypes";
 import { CouncilMeeting, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withRight } from "../auth";
 import { buildUnknownSpeakerLabel } from "@/lib/utils/unknownSpeakerLabel";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
@@ -26,7 +26,7 @@ const round4 = (v: number | null | undefined) => (v == null ? null : Number(v.to
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, options: {
     force?: boolean;
 } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
-    await withUserAuthorizedToEdit(taskScope({ type: 'transcribe', cityId, councilMeetingId }));
+    await withRight('tasks.run', taskScope({ type: 'transcribe', cityId, councilMeetingId }));
 
     // The URL reaches yt-dlp on the task server and the public meeting page,
     // so the same rule as the REST and MCP paths applies: http(s) only.

@@ -4,7 +4,7 @@
  *
  * NOT in a "use server" file — this must not be callable as a Server Action.
  * Only called from:
- *   - requestFixTranscript (after withUserAuthorizedToEdit), in ./fixTranscript
+ *   - requestFixTranscript (after withRight), in ./fixTranscript
  *   - the transcribe result handler's auto-trigger, which runs on a task-server
  *     callback with no user session to authorize against
  */

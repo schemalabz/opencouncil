@@ -25,7 +25,7 @@ jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribers
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: prismaStub }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 // The exclusion rule has its own test; here every step is free to start.
 jest.mock('../pipelineRules', () => ({ findConflictingTask: jest.fn().mockResolvedValue(null) }));
 jest.mock('../../discord', () => ({

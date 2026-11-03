@@ -82,7 +82,7 @@ jest.mock('../tasks', () => ({
 }));
 
 jest.mock('../../auth', () => ({
-  withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
+  withRight: jest.fn().mockResolvedValue(undefined),
 }));
 
 const EMPTY_RESPONSE: SummarizeResult = {

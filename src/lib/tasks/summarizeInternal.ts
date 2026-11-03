@@ -3,7 +3,7 @@
  *
  * NOT in a "use server" file — this must not be callable as a Server Action.
  * Only called from:
- *   - requestSummarize (after withUserAuthorizedToEdit), in ./summarize
+ *   - requestSummarize (after withRight), in ./summarize
  *   - startMeetingTask, whose callers authorize with a token instead of a session
  */
 import "server-only";

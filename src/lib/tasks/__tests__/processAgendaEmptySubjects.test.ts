@@ -54,6 +54,7 @@ jest.mock('../../db/utils', () => ({
 
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
+  withRight: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
