@@ -103,6 +103,9 @@
         "jumpToCurrent": "Пређите на тренутно време"
     },
     "speakerPicker": {
+        "suggestion": "Предлог",
+        "suggestionHint": "Отворите избор говорника да бисте прегледали предложени идентитет",
+        "useSuggestedLabel": "Користи ову ознаку",
         "searchPlaceholder": "Претражите особе...",
         "setLabel": "Постави ознаку „{label}“",
         "removePerson": "Уклони особу",

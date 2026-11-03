@@ -229,6 +229,46 @@ describe('PersonBadge segment scope', () => {
 describe('PersonBadge speaker suggestions', () => {
     const suggestions = [{ person: people[1], source: 'transcript' as const, reason: 'Discussion text', evidence: '[00:01:14] τον λόγο έχει η κ. Σαλαμανή' }];
 
+    it('opens visitor evidence from the suggestion indicator and explicitly accepts the label', () => {
+        const onAssign = jest.fn();
+        renderBadge({ onAssign, suggestionAvailable: true, suggestions: [
+            { label: 'Meeting secretary', source: 'transcript', reason: 'Discussion text', evidence: '[01:20] The secretary will read the minutes' },
+        ] });
+        fireEvent.click(screen.getByText('Suggestion'));
+        expect(screen.getByText('[01:20] The secretary will read the minutes')).toBeInTheDocument();
+        expect(onAssign).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByText('Use this label'));
+        expect(onAssign).toHaveBeenCalledWith({ personId: null, label: 'Meeting secretary' }, 'allSegments');
+    });
+
+    it('applies a visitor suggestion with the same segment scope as a person', () => {
+        const onAssign = jest.fn();
+        renderBadge({ onAssign, segmentCount: 4, suggestions: [
+            { label: 'Meeting secretary', source: 'transcript', reason: 'Discussion text' },
+        ] });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByText('Use this label'));
+        expect(onAssign).toHaveBeenCalledWith({ personId: null, label: 'Meeting secretary' }, 'thisSegment');
+    });
+
+    it('shows only the disagreement warning when both cues apply, and neither outside editing', () => {
+        const { unmount } = renderBadge({ suggestionAvailable: true, warning: 'Methods disagree' });
+        expect(screen.getByText('Methods disagree')).toBeInTheDocument();
+        expect(screen.queryByText('Suggestion')).not.toBeInTheDocument();
+        unmount();
+        renderBadge({ editable: false, suggestionAvailable: true, warning: 'Methods disagree' });
+        expect(screen.queryByText('Suggestion')).not.toBeInTheDocument();
+        expect(screen.queryByText('Methods disagree')).not.toBeInTheDocument();
+    });
+
+    it('keeps the cue after merely inspecting evidence', () => {
+        renderBadge({ suggestionAvailable: true, suggestions });
+        fireEvent.click(screen.getByText('Suggestion'));
+        fireEvent.keyDown(screen.getByPlaceholderText('Search people...'), { key: 'Escape' });
+        expect(screen.getByText('Suggestion')).toBeInTheDocument();
+    });
+
     it('leads with the suggested people and why, then heads the full list', () => {
         renderBadge({ suggestions, suggestionsHeading: 'Suggested', allPeopleHeading: 'All people' });
         fireEvent.click(screen.getByText('Speaker 1'));

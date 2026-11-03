@@ -103,6 +103,9 @@
         "jumpToCurrent": "Jump to the current time"
     },
     "speakerPicker": {
+        "suggestion": "Suggestion",
+        "suggestionHint": "Open the speaker picker to review a suggested identity",
+        "useSuggestedLabel": "Use this label",
         "searchPlaceholder": "Search people...",
         "setLabel": "Set label to \"{label}\"",
         "removePerson": "Remove person",

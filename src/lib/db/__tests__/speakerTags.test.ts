@@ -41,5 +41,6 @@ describe('getSpeakerIdentificationsForMeeting', () => {
     expect(mockIdentificationFindMany.mock.calls[0][0].where).toEqual({
       speakerTag: { speakerSegments: { some: { cityId: 'city-1', meetingId: 'meeting-1' } } },
     });
+    expect(mockIdentificationFindMany.mock.calls[0][0].select).toMatchObject({ name: true, evidence: true });
   });
 });

@@ -4,7 +4,7 @@ import { useCouncilMeetingActions, useCouncilMeetingMeta } from "../CouncilMeeti
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import TopicBadge from './Topic';
-import { PersonBadge } from '@/components/persons/PersonBadge';
+import { PersonBadge, SpeakerSuggestionIndicator, type SpeakerPickerSuggestion } from '@/components/persons/PersonBadge';
 import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSpeakerIdentifications } from "../SpeakerIdentificationsContext";
@@ -185,7 +185,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
     const tCommon = useTranslations('Common');
     const tTranscript = useTranslations('transcript');
     const tHints = useTranslations('editing.speakerHints');
-    const { getIdentifications, needsReview } = useSpeakerIdentifications();
+    const { getIdentifications, needsReview, hasSuggestion } = useSpeakerIdentifications();
     const localize = useLocalizeText();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
@@ -234,7 +234,9 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
     // transcript-wide renders. `getPerson` reads through a ref, so `people` is
     // the dependency that follows the roster.
     const speakerSuggestions = useMemo(
-        () => listSpeakerSuggestions(identifications).flatMap(({ personId, source, evidence }) => {
+        () => listSpeakerSuggestions(identifications).flatMap((suggestion): SpeakerPickerSuggestion[] => {
+            const { personId, source, evidence } = suggestion;
+            if (personId === null) return [{ label: suggestion.name, source, reason: tHints(source), evidence }];
             const suggested = getPerson(personId);
             return suggested ? [{ person: suggested, source, reason: tHints(source), evidence }] : [];
         }),
@@ -244,6 +246,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
     // A confident disagreement nobody has settled yet: the badge says so, and the
     // picker's two suggestions show who each method points to.
     const speakerWarning = headerData.speakerTag && needsReview(headerData.speakerTag.id) ? tHints('needsReview') : undefined;
+    const suggestionAvailable = hasSuggestion(segment.speakerTagId);
 
     const utterances = segment.utterances;
     const isEmpty = utterances.length === 0;
@@ -294,6 +297,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                                 className="flex-1 min-w-0"
                                                 date={meetingDate}
                                             />
+                                            {options.editable && <SpeakerSuggestionIndicator warning={speakerWarning} suggestionAvailable={suggestionAvailable} />}
                                             <div className='flex items-center gap-1.5 shrink-0'>
                                                 <span className='text-[10px] text-muted-foreground font-medium'>
                                                     {formatTimestamp(segment.startTimestamp)}
@@ -323,6 +327,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                                     suggestionsHeading={hintsStatus ? tHints(`status.${hintsStatus}`) : undefined}
                                                     allPeopleHeading={tHints('allPeople')}
                                                     warning={speakerWarning}
+                                                    suggestionAvailable={suggestionAvailable}
                                                     size="sm"
                                                     date={meetingDate}
                                                 />

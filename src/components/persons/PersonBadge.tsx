@@ -9,7 +9,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
-import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, X, Edit2 } from "lucide-react";
+import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, Lightbulb, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,11 +18,13 @@ import { RoleDisplay } from './RoleDisplay';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
+import type { SpeakerSuggestion } from '@/lib/speakerIdentifications';
 
 interface PersonDisplayProps {
     cityLanguage?: string;
     person?: PersonWithRelations;
     speakerTag?: SpeakerTag;
+    label?: string;
     segmentCount?: number;
     short?: boolean;
     className?: string;
@@ -38,12 +40,10 @@ interface PersonDisplayProps {
 }
 
 /** Someone the speaker identifications suggest, and why (the reason arrives localized). */
-export type PersonSuggestion = {
-    person: PersonWithRelations;
-    source: 'voiceprint' | 'transcript' | 'both';
+export type SpeakerPickerSuggestion = ({ person: PersonWithRelations; label?: never } | { person?: never; label: string }) & Pick<SpeakerSuggestion, 'source'> & {
     reason: string;
     /** The transcript line(s) the name rests on, quoted as the task gave them, so a reviewer can check the name. */
-    evidence?: string | null;
+    evidence?: SpeakerSuggestion['evidence'];
 };
 
 const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: CheckCheck };
@@ -52,12 +52,13 @@ const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: C
 const NO_PRESELECTION = 'no-preselection';
 
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ cityLanguage, person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption }: PersonDisplayProps) {
+function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption }: PersonDisplayProps) {
     const localize = useLocalizeText();
     const t = useTranslations('transcript.speakerPicker');
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
     const party = person ? getPartyFromRoles(person.roles, date) : null;
     const partyColor = party?.colorHex || 'gray';
+    const displayLabel = label ?? speakerTag?.label;
 
     const imageSizes = {
         sm: 40,
@@ -111,7 +112,7 @@ function PersonDisplay({ cityLanguage, person, speakerTag, segmentCount, short =
                         {person ? (
                             localize(preferFullName ? person.name : formatSurnameFirst(person.name))
                         ) : (
-                            speakerTag?.label && localize(speakerTag.label)
+                            displayLabel && localize(displayLabel)
                         )}
                         {editable && segmentCount !== undefined && (
                             <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
@@ -167,19 +168,38 @@ function SegmentScopeFooter({ segmentCount, onlyThisSegment, onOnlyThisSegmentCh
     );
 }
 
+/** Shared by the full speaker badge and the collapsed transcript header. */
+export function SpeakerSuggestionIndicator({ warning, suggestionAvailable }: { warning?: string; suggestionAvailable?: boolean }) {
+    const t = useTranslations('transcript.speakerPicker');
+    if (!warning && !suggestionAvailable) return null;
+    const Icon = warning ? AlertTriangle : Lightbulb;
+    const text = warning ?? t('suggestion');
+    return (
+        <span title={warning ?? t('suggestionHint')} className={cn(
+            "shrink-0 ml-auto flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+            warning ? "border-amber-300 bg-amber-50 text-amber-800" : "border-border bg-muted/50 text-muted-foreground",
+        )}>
+            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="max-w-28 truncate">{text}</span>
+        </span>
+    );
+}
+
 interface PersonBadgeProps extends PersonDisplayProps {
     withBorder?: boolean;
     isSelected?: boolean;
     /** Applies the picked person or label. The picker offers the `thisSegment` scope when the tag has 2 or more segments. */
     onAssign?: (assignment: SpeakerEdit, scope: SpeakerAssignmentScope) => void;
     availablePeople?: PersonWithRelations[];
-    /** People to offer ahead of the full list, each with the reason. Headings arrive localized. */
-    suggestions?: PersonSuggestion[];
+    /** Person or visitor-label suggestions, ahead of the full list. */
+    suggestions?: SpeakerPickerSuggestion[];
     suggestionsHeading?: string;
     /** Heads the full list, so it reads apart from the suggestions above it. */
     allPeopleHeading?: string;
     /** When set, an editor sees this as an amber label on the badge (already localized, a few words). */
     warning?: string;
+    /** An unresolved alternative is available in the picker. Editing mode only. */
+    suggestionAvailable?: boolean;
     /** The label that the "unknown speaker" action gives. The action shows only when it is set. */
     nextUnknownLabel?: string;
     variant?: 'default' | 'inline';
@@ -206,6 +226,7 @@ const PersonBadge = memo(function PersonBadge({
     suggestionsHeading,
     allPeopleHeading,
     warning,
+    suggestionAvailable,
     nextUnknownLabel,
     preferFullName = false,
     size = 'md',
@@ -339,17 +360,12 @@ const PersonBadge = memo(function PersonBadge({
                 nonInteractive={disableNavigation && !editable}
                 date={date}
             />
-            {editable && warning && (
-                <span className="shrink-0 ml-auto flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    {warning}
-                </span>
-            )}
+            {editable && <SpeakerSuggestionIndicator warning={warning} suggestionAvailable={suggestionAvailable} />}
             {editable && (
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("shrink-0 h-6 w-6 sm:h-8 sm:w-8", !warning && "ml-auto")}
+                    className={cn("shrink-0 h-6 w-6 sm:h-8 sm:w-8", !warning && !suggestionAvailable && "ml-auto")}
                     onClick={(e) => {
                         e.stopPropagation();
                         handleOpenChange(!isOpen);
@@ -395,24 +411,26 @@ const PersonBadge = memo(function PersonBadge({
                                 {hasSuggestions && (
                                     <>
                                         <CommandGroup heading={suggestionsHeading}>
-                                            {shownSuggestions.map(({ person: suggested, source, reason, evidence }) => {
+                                            {shownSuggestions.map(({ person: suggested, label, source, reason, evidence }) => {
                                                 const SourceIcon = SUGGESTION_ICONS[source];
                                                 return (
                                                     <CommandItem
-                                                        key={suggested.id}
-                                                        value={`suggestion-${suggested.id}`}
-                                                        onSelect={() => applyAssignment(suggested.id)}
+                                                        key={suggested ? `person-${suggested.id}` : `label-${label}`}
+                                                        value={suggested ? `suggestion-${suggested.id}` : `suggestion-label-${label}`}
+                                                        onSelect={() => suggested ? applyAssignment(suggested.id) : handleSetLabel(label)}
                                                         className="flex items-center gap-2"
                                                     >
                                                         <Check
                                                             className={cn(
                                                                 "shrink-0 h-4 w-4",
-                                                                person?.id === suggested.id ? "opacity-100" : "opacity-0"
+                                                                (suggested ? person?.id === suggested.id : !person && speakerTag?.label === label) ? "opacity-100" : "opacity-0"
                                                             )}
                                                         />
                                                         <PersonDisplay
                                                             cityLanguage={cityLanguage}
                                                             person={suggested}
+                                                            label={label}
+                                                            nonInteractive
                                                             size="sm"
                                                             date={date}
                                                             caption={
@@ -425,6 +443,7 @@ const PersonBadge = memo(function PersonBadge({
                                                                     {evidence && (
                                                                         <q className="mt-1 block whitespace-normal break-words italic">{evidence}</q>
                                                                     )}
+                                                                    {!suggested && <span className="mt-1 block font-medium text-foreground">{t('useSuggestedLabel')}</span>}
                                                                 </>
                                                             }
                                                         />

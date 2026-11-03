@@ -2,21 +2,34 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getSpeakerIdentificationsForMeeting } from '@/lib/actions/speakerTags';
 import type { SpeakerTagIdentification } from '@/lib/db/speakerTags';
-import { speakerIdentificationsDisagree } from '@/lib/speakerIdentifications';
+import type { MethodIdentification } from '@/lib/speakerIdentifications';
+import { hasPendingSpeakerSuggestion, isReviewerAssignment, speakerIdentificationsDisagree } from '@/lib/speakerIdentifications';
 import { useCouncilMeetingMeta } from './CouncilMeetingDataContext';
 import { useTranscriptOptions } from './options/OptionsContext';
+
+/**
+ * Automatic person reconciliation compares people only. The picker retains
+ * visitor opinions too, including those held back from automatic application.
+ */
+type PersonIdentification = SpeakerTagIdentification & Pick<MethodIdentification, 'personId'>;
+
+const namesPerson = (identification: SpeakerTagIdentification): identification is PersonIdentification =>
+    identification.personId !== null;
 
 interface SpeakerIdentificationsContextType {
     /** What each method says about a speaker tag; empty when no method has an opinion, or outside editing mode. */
     getIdentifications: (speakerTagId: string) => SpeakerTagIdentification[];
     /** True while both methods would act, on different people, and no reviewer has decided. */
     needsReview: (speakerTagId: string) => boolean;
+    /** An unresolved alternative to what the tag currently displays. */
+    hasSuggestion: (speakerTagId: string) => boolean;
 }
 
 const NONE: SpeakerTagIdentification[] = [];
 const NO_IDENTIFICATIONS: SpeakerIdentificationsContextType = {
     getIdentifications: () => NONE,
     needsReview: () => false,
+    hasSuggestion: () => false,
 };
 
 const SpeakerIdentificationsContext = createContext<SpeakerIdentificationsContextType>(NO_IDENTIFICATIONS);
@@ -53,11 +66,16 @@ export function SpeakerIdentificationsProvider({ children }: { children: React.R
         if (!options.editable) return NO_IDENTIFICATIONS;
         // Whether a reviewer has decided comes from the meeting's own tags, which
         // follow the server after every saved edit: a failed edit decides nothing.
-        const decidedTagIds = new Set(speakerTags.filter(tag => tag.personSetBy === 'user').map(tag => tag.id));
+        const decidedTagIds = new Set(speakerTags.filter(isReviewerAssignment).map(tag => tag.id));
+        const tagsById = new Map(speakerTags.map(tag => [tag.id, tag]));
         return {
             getIdentifications: speakerTagId => byTagId.get(speakerTagId) ?? NONE,
             needsReview: speakerTagId =>
-                !decidedTagIds.has(speakerTagId) && speakerIdentificationsDisagree(byTagId.get(speakerTagId) ?? NONE),
+                !decidedTagIds.has(speakerTagId) && speakerIdentificationsDisagree((byTagId.get(speakerTagId) ?? NONE).filter(namesPerson)),
+            hasSuggestion: speakerTagId => {
+                const tag = tagsById.get(speakerTagId);
+                return tag ? hasPendingSpeakerSuggestion(byTagId.get(speakerTagId) ?? NONE, tag) : false;
+            },
         };
     }, [options.editable, byTagId, speakerTags]);
 

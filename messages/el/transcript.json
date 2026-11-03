@@ -103,6 +103,9 @@
         "jumpToCurrent": "Μεταφορά στον τρέχοντα χρόνο"
     },
     "speakerPicker": {
+        "suggestion": "Πρόταση",
+        "suggestionHint": "Ανοίξτε την επιλογή ομιλητή για να ελέγξετε μια πρόταση ταυτοποίησης",
+        "useSuggestedLabel": "Χρήση αυτής της ετικέτας",
         "searchPlaceholder": "Αναζήτηση προσώπων...",
         "setLabel": "Ορισμός ετικέτας «{label}»",
         "removePerson": "Αφαίρεση προσώπου",

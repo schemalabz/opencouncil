@@ -414,6 +414,17 @@ export interface SpeakerHint {
     evidence: string;
 }
 
+/**
+ * Who a diarization speaker is when they are not on the roster (a resident, an
+ * employee, a representative), judged from the transcript text alone. There is
+ * no person record to point at, so the hint carries a label for the speaker
+ * tag, in the form reviewers write there.
+ */
+export interface UnlistedSpeakerHint extends Omit<SpeakerHint, 'personId'> {
+    /** "Επώνυμο Όνομα - Ιδιότητα": the capacity only when it was spoken, and alone when no name was. */
+    name: string;
+}
+
 export type FixTranscriptRequest = RequestOnTranscript;
 
 export interface FixTranscriptResult {
@@ -422,8 +433,10 @@ export interface FixTranscriptResult {
         markUncertain: boolean;
         text: string;
     }[];
-    /** One entry per speaker the transcript identifies. Absent when the task did not run the identification. */
+    /** One entry per speaker the transcript identifies as a roster person. Absent when the task did not run the identification. */
     speakerHints?: SpeakerHint[];
+    /** One entry per speaker the transcript names who is not on the roster. Absent before task version 4, and whenever speakerHints is. */
+    unlistedSpeakerHints?: UnlistedSpeakerHint[];
 }
 
 /*

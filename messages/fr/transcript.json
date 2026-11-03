@@ -103,6 +103,9 @@
         "jumpToCurrent": "Aller au moment actuel"
     },
     "speakerPicker": {
+        "suggestion": "Suggestion",
+        "suggestionHint": "Ouvrir le sélecteur pour examiner une identité suggérée",
+        "useSuggestedLabel": "Utiliser ce libellé",
         "searchPlaceholder": "Rechercher des personnes...",
         "setLabel": "Définir le libellé « {label} »",
         "removePerson": "Retirer la personne",
