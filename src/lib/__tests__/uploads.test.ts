@@ -65,7 +65,7 @@ describe('startUpload', () => {
 
     it('refuses a format that the kind does not take', async () => {
         await expect(startUpload({ cityId: 'argos', kind: 'decision' }, 'docx', 1000)).rejects.toThrow(BadRequestError);
-        await expect(startUpload(RECORDING, 'pdf', 1000)).rejects.toThrow('An upload of kind recording takes mp4 or mov, not pdf');
+        await expect(startUpload(RECORDING, 'pdf', 1000)).rejects.toThrow('An upload of kind recording takes mp4 or mov or mp3, not pdf');
     });
 
     it('refuses a size over the limit of the kind, and an empty or broken size', async () => {

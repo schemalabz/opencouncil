@@ -106,12 +106,12 @@ export const MCP_UPLOAD_KINDS = ['agenda', 'recording'] as const satisfies reado
 export const createUploadUrlToolInput = z.object({
     cityId: z.string().min(1),
     kind: z.enum(MCP_UPLOAD_KINDS)
-        .meta({ description: 'What the file is: the agenda of a meeting, or the recording (the video) of a meeting' }),
+        .meta({ description: 'What the file is: the agenda of a meeting, or the recording (the video, or the audio only) of a meeting' }),
     identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
         .meta({ description: 'Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
             + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only' }),
     format: z.enum(UPLOAD_FORMAT_NAMES)
-        .meta({ description: 'The format of the file: pdf or docx for an agenda, mp4 or mov for a recording. '
+        .meta({ description: 'The format of the file: pdf or docx for an agenda, mp4, mov or mp3 for a recording. '
             + 'The answer carries the matching Content-Type' }),
     sizeBytes: uploadSizeBytes
         .meta({ description: 'The exact size of the file in bytes, e.g. from `wc -c < <file>`. It decides '

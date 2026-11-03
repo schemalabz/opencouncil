@@ -21,6 +21,7 @@ export const UPLOAD_FORMATS = {
     docx: { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', extension: 'docx' },
     mp4: { contentType: 'video/mp4', extension: 'mp4' },
     mov: { contentType: 'video/quicktime', extension: 'mov' },
+    mp3: { contentType: 'audio/mpeg', extension: 'mp3' },
 } as const;
 export type UploadFormat = keyof typeof UPLOAD_FORMATS;
 
@@ -31,7 +32,8 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
  *   opencouncil-tasks). It refuses a legacy .doc: convert one to PDF first.
  * - decision: the decision reading reads a PDF.
  * - recording: the task server remuxes the video into an mp4 with the video
- *   stream copied, which an mp4 or a QuickTime file allows.
+ *   stream copied, which an mp4 or a QuickTime file allows. A meeting with
+ *   no video has an mp3 recording, which the task server reads as audio only.
  * A PDF reaches Claude base64-encoded, in a request of at most 32 MB, so the
  * task server stops at 20 MiB (MAX_DOCUMENT_BYTES). A recording of a whole
  * day of sittings at 1080p stays well under 40 GiB.
@@ -39,7 +41,7 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
 export const UPLOAD_KINDS = {
     agenda: { formats: ['pdf', 'docx'], maxBytes: 20 * MiB },
     decision: { formats: ['pdf'], maxBytes: 20 * MiB },
-    recording: { formats: ['mp4', 'mov'], maxBytes: 40 * GiB },
+    recording: { formats: ['mp4', 'mov', 'mp3'], maxBytes: 40 * GiB },
 } as const satisfies Record<string, { formats: readonly UploadFormat[]; maxBytes: number }>;
 export type UploadKind = keyof typeof UPLOAD_KINDS;
 
