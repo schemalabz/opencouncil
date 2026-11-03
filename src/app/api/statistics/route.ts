@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStatisticsFor } from '@/lib/statistics';
-import { isUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
+import { hasRight, getUnreleasedScope } from '@/lib/auth';
 
 // This route uses dynamic data from request params and can't be statically optimized
 export const dynamic = 'force-dynamic';
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
         const subjectId = searchParams.get('subjectId');
         const administrativeBodyId = searchParams.get('administrativeBodyId');
 
-        // What the viewer may see of the city's drafts: a meeting's editors see
-        // that meeting, a body admin sees the meetings of their bodies.
-        const includeUnreleased = cityId && meetingId ? await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }) : false;
+        // What the viewer may see of the city's drafts: a role on the meeting
+        // or on its body opens that meeting, a role on the city every meeting.
+        const includeUnreleased = cityId && meetingId ? await hasRight('drafts.read', { cityId, councilMeetingId: meetingId }) : false;
         const unreleased = cityId && !includeUnreleased ? await getUnreleasedScope(cityId) : undefined;
 
         const params: any = {};

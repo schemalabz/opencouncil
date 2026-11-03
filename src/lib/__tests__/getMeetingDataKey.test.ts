@@ -6,10 +6,10 @@
  * that an editor's fetch returned. The access is the meeting's (#828): the
  * admin of the meeting's body is an editor of it, not of the city.
  */
-const mockIsUserAuthorizedToEdit = jest.fn();
+const mockHasRight = jest.fn();
 const mockGetAllCityIds = jest.fn();
 
-jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: (...args: unknown[]) => mockIsUserAuthorizedToEdit(...args) }));
+jest.mock('@/lib/auth', () => ({ hasRight: (...args: unknown[]) => mockHasRight(...args) }));
 jest.mock('@/lib/realm.server', () => ({ getRealm: async () => 'gr' }));
 jest.mock('@/lib/cache/queries', () => ({
     getAllCityIdsCached: (...args: unknown[]) => mockGetAllCityIds(...args),
@@ -36,19 +36,19 @@ beforeEach(() => {
 
 describe('getMeetingDataCore', () => {
     it("keys the fetch by the caller's access to the meeting, not to the city", async () => {
-        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
+        mockHasRight.mockResolvedValue(false);
         await expect(getMeetingDataCore('chania', 'nov14')).rejects.toThrow('Required data not found');
-        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'chania', councilMeetingId: 'nov14' });
+        expect(mockHasRight).toHaveBeenCalledWith('drafts.read', { cityId: 'chania', councilMeetingId: 'nov14' });
     });
 
     it('gives an editor and a reader of one meeting separate fetches', async () => {
-        mockIsUserAuthorizedToEdit.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+        mockHasRight.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
         await Promise.allSettled([getMeetingDataCore('chania', 'nov14'), getMeetingDataCore('chania', 'nov14')]);
         expect(mockGetAllCityIds).toHaveBeenCalledTimes(2);
     });
 
     it('coalesces two readers of one meeting', async () => {
-        mockIsUserAuthorizedToEdit.mockResolvedValue(false);
+        mockHasRight.mockResolvedValue(false);
         await Promise.allSettled([getMeetingDataCore('chania', 'nov14'), getMeetingDataCore('chania', 'nov14')]);
         expect(mockGetAllCityIds).toHaveBeenCalledTimes(1);
     });

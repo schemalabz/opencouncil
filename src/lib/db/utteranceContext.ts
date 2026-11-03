@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
-import { isUserAuthorizedToEdit } from '../auth';
+import { hasRight } from '../auth';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { meetingNameSelect } from '@/lib/db/types';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
@@ -69,10 +69,10 @@ export async function getUtteranceContext(
 
     const { meetingId, cityId, meeting } = target.speakerSegment;
 
-    // A reader gets the context of a public transcript only. An editor of the
-    // city also gets a draft or a closed one.
+    // A reader gets the context of a public transcript only. A role on the
+    // meeting also gets a draft or a closed one.
     if (!meeting.released || !transcriptIsPublic(meeting)) {
-        if (!(await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }))) {
+        if (!(await hasRight('drafts.read', { cityId, councilMeetingId: meetingId }))) {
             return null;
         }
     }

@@ -8,6 +8,7 @@ const mockUpdate = jest.fn();
 const mockFindMany = jest.fn();
 const mockMeetingFindUnique = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
+const mockWithRight = jest.fn();
 const mockGetCurrentUser = jest.fn();
 
 jest.mock('@/lib/db/prisma', () => ({
@@ -27,6 +28,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: (...a: unknown[]) => mockWithUserAuthorizedToEdit(...a),
+    withRight: (...a: unknown[]) => mockWithRight(...a),
     getCurrentUser: () => mockGetCurrentUser(),
 }));
 
@@ -63,7 +65,7 @@ describe('confirmDecisionConventions', () => {
         jest.clearAllMocks();
         mockFindUniqueOrThrow.mockResolvedValue({ cityId: 'zografou' });
         mockUpdate.mockImplementation(async ({ data }: { data: unknown }) => ({ id: 'body-1', ...(data as object) }));
-        mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+        mockWithRight.mockResolvedValue(true);
         mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
     });
 
@@ -91,13 +93,13 @@ describe('confirmDecisionConventions', () => {
         expect(written.notes).toBe('ΑΠΟΧΩΡΗΣΑΝΤΕΣ at the end');
     });
 
-    it('authorizes against the body\'s own city before writing', async () => {
+    it('authorizes records.edit on the body before writing', async () => {
         await confirmDecisionConventions('body-1', PROFILED);
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+        expect(mockWithRight).toHaveBeenCalledWith('records.edit', { cityId: 'zografou', administrativeBodyId: 'body-1' });
     });
 
-    it('does not write when the caller may not edit the city', async () => {
-        mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Not authorized'));
+    it('does not write when the caller may not edit the records of the body', async () => {
+        mockWithRight.mockRejectedValue(new Error('Not authorized'));
         await expect(confirmDecisionConventions('body-1', PROFILED)).rejects.toThrow('Not authorized');
         expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -177,30 +179,30 @@ describe('the public body reads select only the public fields', () => {
 /**
  * The meeting's admin page and decisions page read the settings of the body
  * apart from the public meeting. The read is the gate: it refuses a session
- * that does not edit the meeting before it touches the row.
+ * without drafts.read on the meeting before it touches the row.
  */
 describe('getMeetingBodySettings', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    it('reads nothing for a session that does not edit the meeting', async () => {
-        mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Unauthorized'));
+    it('reads nothing for a session without drafts.read on the meeting', async () => {
+        mockWithRight.mockRejectedValue(new Error('Unauthorized'));
 
         await expect(getMeetingBodySettings('zografou', 'm1')).rejects.toThrow('Unauthorized');
         expect(mockMeetingFindUnique).not.toHaveBeenCalled();
     });
 
-    it("gives an editor the settings of the meeting's body", async () => {
-        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+    it("gives a holder of drafts.read the settings of the meeting's body", async () => {
+        mockWithRight.mockResolvedValue(undefined);
         const settings = { id: 'b1', notificationBehavior: 'NOTIFICATIONS_AUTO', diavgeiaUnitIds: ['81689'], decisionConventions: null };
         mockMeetingFindUnique.mockResolvedValue({ administrativeBody: settings });
 
         await expect(getMeetingBodySettings('zografou', 'm1')).resolves.toEqual(settings);
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', councilMeetingId: 'm1' });
+        expect(mockWithRight).toHaveBeenCalledWith('drafts.read', { cityId: 'zografou', councilMeetingId: 'm1' });
         expect(mockMeetingFindUnique.mock.calls[0][0]).toMatchObject({ where: { cityId_id: { cityId: 'zografou', id: 'm1' } } });
     });
 
     it('answers stored conventions with the current anchor names', async () => {
-        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        mockWithRight.mockResolvedValue(undefined);
         const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
         mockMeetingFindUnique.mockResolvedValue({ administrativeBody: { id: 'b1', decisionConventions: legacy } });
 

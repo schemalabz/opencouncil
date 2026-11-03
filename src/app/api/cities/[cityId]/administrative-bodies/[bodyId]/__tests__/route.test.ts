@@ -8,8 +8,8 @@ jest.mock('next/cache', () => ({
 }));
 // An admin of the city: an admin of the body only takes the contacts branch.
 jest.mock('@/lib/auth', () => ({
-    isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
-    withUserAuthorizedToEdit: jest.fn(),
+    hasRight: jest.fn().mockResolvedValue(true),
+    withRight: jest.fn(),
 }));
 jest.mock('@/lib/db/administrativeBodies', () => ({
     editAdministrativeBody: jest.fn().mockResolvedValue({ id: 'b1' }),
@@ -22,7 +22,7 @@ jest.mock('@/lib/db/administrativeBodiesInternal', () => ({
 jest.mock('@/lib/derivation/rederive', () => ({ rederiveMeetingsOfBody: jest.fn() }));
 
 import { PUT } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route';
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight, withRight } from '@/lib/auth';
 import { editAdministrativeBody, editAdministrativeBodyContacts } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { ForbiddenError, UnauthorizedError, validationErrorSchema } from '@/lib/api/errors';
@@ -98,20 +98,20 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId]', () => {
 });
 
 describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of the body', () => {
-    const guard = withUserAuthorizedToEdit as jest.Mock;
+    const guard = withRight as jest.Mock;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(false);
+        (hasRight as jest.Mock).mockResolvedValue(false);
         guard.mockResolvedValue(undefined);
     });
-    afterAll(() => (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(true));
+    afterAll(() => (hasRight as jest.Mock).mockResolvedValue(true));
 
     it('writes the two contact fields and ignores the rest', async () => {
         const response = await put({ name: 'Renamed', type: 'committee', contactEmails: ['clerk@example.org'], youtubeChannelUrl: '' });
 
         expect(response.status).toBe(200);
-        expect(guard).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
+        expect(guard).toHaveBeenCalledWith('admin', { cityId: 'zografou', administrativeBodyId: 'b1' });
         expect(editAdministrativeBodyContacts).toHaveBeenCalledWith('b1', { youtubeChannelUrl: null, contactEmails: ['clerk@example.org'] });
         expect(editAdministrativeBody).not.toHaveBeenCalled();
     });

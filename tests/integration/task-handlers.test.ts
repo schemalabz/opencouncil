@@ -8,7 +8,9 @@ jest.mock('@/lib/tasks/generateHighlight', () => ({
 // Mock auth for resolveCandidateConflict tests
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
+    withRight: jest.fn(),
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
+    hasRight: jest.fn().mockResolvedValue(true),
 }))
 
 // The handlers schedule the meeting's illustrations with after(), which needs

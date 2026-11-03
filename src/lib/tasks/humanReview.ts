@@ -2,7 +2,7 @@
 
 import prisma from '@/lib/db/prisma';
 import { TaskStatus } from '@prisma/client';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { checkTaskIdempotency, type TaskIdempotencyResult } from './tasks';
 import { revalidateMeeting } from '@/lib/cache';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
@@ -71,7 +71,7 @@ export interface MarkHumanReviewCompleteOptions {
  * body, and whether summarize can still run for the meeting.
  */
 export async function getReviewCompletionState(cityId: string, meetingId: string): Promise<ReviewCompletionState> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withRight('admin', { cityId });
 
     const [meeting, summarizeIdempotency] = await Promise.all([
         prisma.councilMeeting.findUnique({
@@ -127,7 +127,7 @@ export async function markHumanReviewComplete(
     meetingId: string,
     { manualReviewTime, sendTranscript = false, runSummarize = false }: MarkHumanReviewCompleteOptions = {}
 ): Promise<MarkHumanReviewCompleteResult> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withRight('admin', { cityId });
 
     const idempotency = await checkTaskIdempotency('humanReview', cityId, meetingId);
     const existingReview = idempotency.proceed ? null : idempotency.existingTask;

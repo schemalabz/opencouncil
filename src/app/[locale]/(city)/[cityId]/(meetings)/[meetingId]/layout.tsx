@@ -1,7 +1,7 @@
 "use server";
 import { notFound } from 'next/navigation';
 import { PlaybackBar } from '@/components/meetings/bar/PlaybackBar';
-import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
@@ -142,6 +142,8 @@ export default async function CouncilMeetingPage(
 
     const currentUserPromise = getCurrentUser();
     const editablePromise = isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
+    // Every role on the meeting reads its draft; only `admin` edits it.
+    const draftsPromise = hasRight('drafts.read', { cityId, councilMeetingId: meetingId });
     const realmPromise = getRealm();
     const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,
@@ -151,13 +153,13 @@ export default async function CouncilMeetingPage(
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
         ),
         realmPromise,
-        // Editors step through unreleased meetings too. Behind the same
-        // known-city check as the meeting data (#358): this segment renders
-        // before the [cityId] layout 404s, and an unknown slug must not write
-        // a per-city cache entry.
-        Promise.all([realmPromise, editablePromise]).then(async ([currentRealm, canEdit]) =>
+        // Who reads the drafts steps through unreleased meetings too. Behind
+        // the same known-city check as the meeting data (#358): this segment
+        // renders before the [cityId] layout 404s, and an unknown slug must
+        // not write a per-city cache entry.
+        Promise.all([realmPromise, draftsPromise]).then(async ([currentRealm, canSeeDrafts]) =>
             (await getAllCityIdsCached(currentRealm)).includes(cityId)
-                ? getAdjacentMeetingsCached(cityId, meetingId, canEdit)
+                ? getAdjacentMeetingsCached(cityId, meetingId, canSeeDrafts)
                 : { previous: null, next: null }
         ),
         getTranslations({ locale, namespace: 'CouncilMeeting' }),

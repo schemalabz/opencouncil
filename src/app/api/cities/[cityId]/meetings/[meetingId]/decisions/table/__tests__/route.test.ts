@@ -1,15 +1,15 @@
 /** @jest-environment node */
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withRight: jest.fn() }));
 jest.mock('@/lib/decisionsTable/getDecisionsTableData', () => ({ getDecisionsTableData: jest.fn() }));
 jest.mock('@/components/meetings/docx/DecisionsTableDocx', () => ({ renderDecisionsTableDocx: jest.fn() }));
 
 import { GET } from '../route';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { getDecisionsTableData } from '@/lib/decisionsTable/getDecisionsTableData';
 import { renderDecisionsTableDocx } from '@/components/meetings/docx/DecisionsTableDocx';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from '@/lib/api/errors';
 
-const mockAuthorize = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
+const mockAuthorize = withRight as jest.MockedFunction<typeof withRight>;
 const mockData = getDecisionsTableData as jest.MockedFunction<typeof getDecisionsTableData>;
 const mockRender = renderDecisionsTableDocx as jest.MockedFunction<typeof renderDecisionsTableDocx>;
 
@@ -29,8 +29,8 @@ describe('GET decisions/table', () => {
 
         const response = await get();
 
-        // The meeting scope, so an admin of the meeting's body downloads as the layout lets them.
-        expect(mockAuthorize).toHaveBeenCalledWith({ cityId: 'zografou', councilMeetingId: 'jul21_2026' });
+        // The meeting scope, so a holder of minutes.export on the meeting's body downloads as the layout lets them.
+        expect(mockAuthorize).toHaveBeenCalledWith('minutes.export', { cityId: 'zografou', councilMeetingId: 'jul21_2026' });
         expect(mockData).toHaveBeenCalledWith('zografou', 'jul21_2026');
         expect(mockRender).toHaveBeenCalledWith(tableData);
         expect(response.headers.get('Content-Type')).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -40,7 +40,7 @@ describe('GET decisions/table', () => {
 
     it('answers 403 to a signed-in reader before it loads anything', async () => {
         jest.spyOn(console, 'error').mockImplementation(() => {});
-        // What withUserAuthorizedToEdit throws for a user without the right (notAuthorizedError).
+        // What withRight throws for a user without the right (notAuthorizedError).
         mockAuthorize.mockRejectedValue(new ForbiddenError());
         const response = await get();
         expect(response.status).toBe(403);

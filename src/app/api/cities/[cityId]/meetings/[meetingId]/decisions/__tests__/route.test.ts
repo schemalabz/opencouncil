@@ -2,7 +2,7 @@
 
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('@/auth', () => ({ auth: jest.fn().mockResolvedValue({ user: { id: 'u1' } }) }));
-jest.mock('@/lib/auth', () => ({ getCurrentUser: jest.fn(), withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ getCurrentUser: jest.fn(), withRight: jest.fn() }));
 jest.mock('@/lib/db/decisions', () => ({
     getDecisionsForMeeting: jest.fn(),
     getExtractedDataForMeeting: jest.fn(),

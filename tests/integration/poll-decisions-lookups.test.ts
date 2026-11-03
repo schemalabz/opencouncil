@@ -3,7 +3,9 @@
 jest.mock('@/lib/tasks/generateHighlight', () => ({ handleGenerateHighlightResult: jest.fn() }))
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
+    withRight: jest.fn(),
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
+    hasRight: jest.fn().mockResolvedValue(true),
     getCurrentUser: jest.fn().mockResolvedValue({ id: 'u1', isSuperAdmin: true }),
 }))
 const mockDeferred: Promise<unknown>[] = []

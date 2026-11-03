@@ -21,9 +21,11 @@ jest.mock('next/server', () => {
 });
 
 const mockIsUserAuthorizedToEdit = jest.fn().mockResolvedValue(false);
+const mockHasRight = jest.fn().mockResolvedValue(false);
 jest.mock('@/lib/auth', () => ({
     getCurrentUser: jest.fn(),
     isUserAuthorizedToEdit: (...args: unknown[]) => mockIsUserAuthorizedToEdit(...args),
+    hasRight: (...args: unknown[]) => mockHasRight(...args),
 }));
 
 const mockSubjectIsPublic = jest.fn();
@@ -133,20 +135,20 @@ describe('GET /api/subject/[subjectId]/image', () => {
 
     it('asks for no generation for a subject the requester may not see', async () => {
         mockResolve.mockResolvedValue(null);
-        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: false });
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', councilMeetingId: 'm1', public: false });
 
         const res = await GET(new NextRequest(url), context);
 
         expect(res.status).toBe(404);
         expect(res.headers.get('cache-control')).toBeNull();
         expect(mockAfter).not.toHaveBeenCalled();
-        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city' });
+        expect(mockHasRight).toHaveBeenCalledWith('drafts.read', { cityId: 'city', councilMeetingId: 'm1' });
     });
 
-    it('draws an unreleased subject for an editor of its city', async () => {
+    it('draws an unreleased subject for a holder of drafts.read on its meeting', async () => {
         mockResolve.mockResolvedValue(null);
-        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: false });
-        mockIsUserAuthorizedToEdit.mockResolvedValueOnce(true);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', councilMeetingId: 'm1', public: false });
+        mockHasRight.mockResolvedValueOnce(true);
 
         const res = await GET(new NextRequest(url), context);
 

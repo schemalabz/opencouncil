@@ -4,7 +4,7 @@
 import "server-only";
 import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withRight, withUserAuthorizedToEdit } from "../auth";
 import { NotFoundError } from "@/lib/api/errors";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
 import {
@@ -96,11 +96,11 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
 
 /**
  * The settings of the body that holds a meeting, for the meeting's admin page
- * and decisions page. Throws unless the session edits the meeting: an admin of
- * the city, or an admin of the meeting's body. Null when the meeting has no body.
+ * and decisions page. Throws unless the session holds a role on the meeting:
+ * every role reads the drafts. Null when the meeting has no body.
  */
 export async function getMeetingBodySettings(cityId: string, meetingId: string): Promise<AdministrativeBodySettings | null> {
-    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
+    await withRight('drafts.read', { cityId, councilMeetingId: meetingId });
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
         select: { administrativeBody: { select: administrativeBodySettingsSelect } },

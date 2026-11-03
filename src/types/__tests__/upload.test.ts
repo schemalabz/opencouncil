@@ -1,4 +1,12 @@
-import { uploadAccept, uploadAuthorizationScope, uploadFormatOfFile, uploadNameParts } from '../upload';
+import { uploadAccept, uploadAuthorizationScope, uploadFormatOfFile, uploadNameParts, uploadRight } from '../upload';
+
+describe('uploadRight', () => {
+    it('asks for records.edit for a decision and for admin for the files of the meeting', () => {
+        expect(uploadRight('decision')).toBe('records.edit');
+        expect(uploadRight('agenda')).toBe('admin');
+        expect(uploadRight('recording')).toBe('admin');
+    });
+});
 
 describe('uploadAuthorizationScope', () => {
     it('asks for the meeting when the file is for an existing meeting', () => {

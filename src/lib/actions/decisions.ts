@@ -1,6 +1,6 @@
 "use server";
 
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { withRight } from "@/lib/auth";
 import {
     requestPollDecisions as requestPoll,
     resolveCandidateConflict as resolveConflict,
@@ -18,7 +18,7 @@ import { getDecisionForSubject as getDecision } from "@/lib/db/decisions";
  * rights or is public by design.
  */
 
-/** requestPollDecisions gates on withUserAuthorizedToEdit for the city, and on superadmin for forceExtract. */
+/** requestPollDecisions gates on `records.edit` for the meeting, and on `admin` for the city for forceExtract. */
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
@@ -27,14 +27,14 @@ export async function requestPollDecisions(
     return requestPoll(cityId, councilMeetingId, options);
 }
 
-/** resolveCandidateConflict gates on withUserAuthorizedToEdit for the candidate's city. */
+/** resolveCandidateConflict gates on `records.edit` for the candidate's meeting, and for the holder's on a reassign. */
 export async function resolveCandidateConflict(candidateId: string, resolution: 'reassign' | 'dismiss') {
     return resolveConflict(candidateId, resolution);
 }
 
 /** The poll history of a meeting, for the people who administer it. */
 export async function getPollingHistoryForMeeting(cityId: string, councilMeetingId: string) {
-    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
+    await withRight('records.read', { cityId, councilMeetingId });
     return getPollingHistory(cityId, councilMeetingId);
 }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
@@ -10,7 +10,7 @@ export async function GET(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withRight('minutes.export', { cityId: params.cityId, councilMeetingId: params.meetingId });
 
         const data = await getMinutesData(params.cityId, params.meetingId);
 

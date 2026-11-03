@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { hasRight } from "@/lib/auth";
 import { getMeetingDataCached } from "@/lib/getMeetingData";
 import { categorizeSubjects } from "@/lib/utils/subjects";
 import { sortSubjectsByAgendaIndex } from "@/lib/utils";
@@ -33,8 +33,7 @@ export default async function PresentationPage(
         meetingId
     } = params;
 
-    const editable = await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
-    if (!editable) {
+    if (!(await hasRight('drafts.read', { cityId, councilMeetingId: meetingId }))) {
         notFound();
     }
 

@@ -1,5 +1,5 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
-import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
+import { hasRight, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
@@ -369,9 +369,8 @@ export async function getSubjectStatisticsCached(
   subjects: SubjectWithRelations[],
   meetingDateTime: Date | string,
 ): Promise<Record<string, Statistics>> {
-  // The subjects are this meeting's, so its editors (a body admin among them)
-  // see the statistics of a draft.
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
+  // The subjects are this meeting's, so who reads its draft sees its statistics.
+  const includeUnreleased = await hasRight('drafts.read', { cityId, councilMeetingId: meetingId });
 
   return createCache(
     async () => {

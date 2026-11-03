@@ -11,7 +11,7 @@ import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
+import { withUserAuthorizedToEdit, hasRight } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
@@ -91,7 +91,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     try {
         const meeting = await getCouncilMeetingDirect(cityId, id);
 
-        if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId, councilMeetingId: id }))) {
+        if (meeting && !meeting.released && !(await hasRight('drafts.read', { cityId, councilMeetingId: id }))) {
             return null;
         }
         return meeting;

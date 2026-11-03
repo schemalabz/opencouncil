@@ -11,7 +11,7 @@ import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
 import { getRealm } from '@/lib/realm.server';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight } from '@/lib/auth';
 import { Realm, SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
 import { originalScheduledDate } from '@/lib/db/meetingLifecycle';
@@ -82,12 +82,13 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     // deduped waiter reuses the leader's promise and skips it. Without realm in
     // the key, a concurrent .fr request for a French slug could coalesce with a
     // .gr request for the same ids and receive the other realm's payload.
-    // Key by edit access as well: getCouncilMeeting returns an unreleased
-    // meeting to an editor only, and a waiter takes the leader's result. The
-    // scope is the meeting's, as in getCouncilMeeting, so that the admin of
-    // its body is an editor here too and never shares a key with a reader.
-    const [realm, canEdit] = await Promise.all([getRealm(), isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId })]);
-    const key = `${realm}/${cityId}/${meetingId}/${canEdit ? 'editor' : 'reader'}`;
+    // Key by draft access as well: getCouncilMeeting returns an unreleased
+    // meeting to a holder of drafts.read only, and a waiter takes the leader's
+    // result. The scope is the meeting's, as in getCouncilMeeting, so that a
+    // role on its body opens the draft here too and never shares a key with
+    // a reader.
+    const [realm, canSeeDrafts] = await Promise.all([getRealm(), hasRight('drafts.read', { cityId, councilMeetingId: meetingId })]);
+    const key = `${realm}/${cityId}/${meetingId}/${canSeeDrafts ? 'editor' : 'reader'}`;
 
     const existing = coreInflight.get(key);
     if (existing) {
@@ -122,8 +123,8 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 
     const [meeting, transcript, city, people, parties, subjects, taskStatus, transcriptIsPublic] = await Promise.all([
-        // Meeting query is NOT cached — it calls isUserAuthorizedToEdit (uses headers())
-        // to allow admins to view unreleased meetings. It's a fast PK lookup anyway.
+        // Meeting query is NOT cached — it calls hasRight (uses headers())
+        // to allow drafts.read holders to view unreleased meetings. It's a fast PK lookup anyway.
         getCouncilMeeting(cityId, meetingId),
         // Transcript is NOT cached — too large for the 2MB unstable_cache limit
         getTranscript(meetingId, cityId),

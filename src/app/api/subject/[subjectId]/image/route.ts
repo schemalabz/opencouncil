@@ -2,7 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import * as z from 'zod';
 import { UnreadableImageError, isSubjectImageId } from '@opencouncil/subject-images';
 import { subjectIsPublic } from '@/lib/db/subject';
-import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError, notAuthorizedError } from '@/lib/api/errors';
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser';
 import { imageFile } from '@/lib/zod-schemas/primitives';
@@ -63,12 +63,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     // A generation is billed and its object is public, so only a subject the
     // requester may see asks for one: a released meeting of a public city, or
-    // any subject for an editor of that city.
+    // any subject for who reads the drafts of that meeting.
     const visible = await subjectIsPublic(subjectId);
     if (visible === null) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
-    if (!visible.public && !(await isUserAuthorizedToEdit({ cityId: visible.cityId, councilMeetingId: visible.councilMeetingId }))) {
+    if (!visible.public && !(await hasRight('drafts.read', { cityId: visible.cityId, councilMeetingId: visible.councilMeetingId }))) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
 
