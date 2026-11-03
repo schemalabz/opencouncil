@@ -81,11 +81,40 @@ The system divides editing into distinct categories and modes:
     *   Both would act, on different people: nobody. One of them is wrong, so the speaker shows as unknown and the editor alerts the reviewer, who decides.
     *   Only the voiceprint would act: the voiceprint's person. A name the transcript would not act on does not unseat a match.
     *   Only the transcript would act: the transcript's person.
-    *   The transcript names a speaker who is not on the roster, and would act on the name: the tag shows that name as its label, with `personSetBy` set to `transcript`. This replaces only a placeholder label (the import's `SPEAKER_<n>`, the editor's `New speaker segment`, an unknown speaker) or the label an earlier run wrote. A tag that has a person keeps it: a voiceprint match stands. A rerun that no longer names the speaker puts an unknown speaker label back. The editor does not show these identifications yet.
-    *   **A reviewer's tag is never reassigned.** Any edit of a tag, a typed label included, sets `personSetBy` to `user`, and so does a tag the reviewer creates by adding a segment or splitting utterances off. A meeting whose review is complete is final too: a reviewer who agrees with a name leaves the tag untouched, so once the review has completed, a run stores identifications and changes no assignment. An unfinished review freezes only the tags it touched. A review counts for the transcript it looked at: after a re-transcribe, the rules apply again. A result that a later transcribe or fixTranscript run has superseded is ignored whole, its text corrections included.
+    *   **Visitor labels.** The transcript can name a speaker who is not on the roster.
+        An actionable visitor label replaces a placeholder label or a label that an earlier run wrote.
+        Placeholder labels include `SPEAKER_<n>`, `New speaker segment`, and localized unknown speaker labels.
+        The tag records `personSetBy` as `transcript`.
+        An existing person assignment takes precedence over a visitor label, so a voiceprint match remains assigned.
+        If a later run withdraws an automatically assigned visitor label, the tag returns to an unknown speaker label.
+        The editor also offers visitor labels that the task does not apply automatically.
+    *   **A reviewer's tag is never reassigned.** Any saved person or label edit sets `personSetBy` to `user`.
+        Tags created by adding a segment or splitting utterances also record `user` ownership.
+        A completed meeting review protects every assignment, including untouched tags.
+        Later runs still store identification opinions, but they change no assignment.
+        An unfinished review protects only the tags it touched.
+        After re-transcription, these protections apply to the new transcript's review state.
+        The app ignores results that a later transcribe or fixTranscript run supersedes, including their text corrections.
     *   Voiceprint generation uses a tag that only the transcript named once the review of its meeting is complete, and never before.
 
-    Identifications are for reviewers only, and they live in their own table so that the `SpeakerTag`, which every reader loads, holds nothing private: `personSetBy` says how the visible name was decided and nothing about an opinion that lost. The one read of the table that leaves the server is `getSpeakerIdentificationsForMeeting`, which requires edit rights; `SpeakerIdentificationsProvider` calls it when editing mode turns on. The speaker picker then lists each method's suggestion, the transcript's with the line it rests on, and a speaker whose methods disagree carries a warning mark, on the segment and in the speakers overview. A single suggestion is selected when the picker opens, so `Enter` picks it; when the methods suggest different people, nothing is selected, and the reviewer chooses.
+    Evidence and unapplied identification opinions are visible only to reviewers.
+    The public `SpeakerTag` records the displayed person or label and the assignment source.
+    `getSpeakerIdentificationsForMeeting` requires edit rights.
+    `SpeakerIdentificationsProvider` loads these opinions only in editing mode.
+
+    The existing speaker picker offers both roster people and visitor labels.
+    Transcript suggestions include their supporting quote.
+    A subtle **Suggestion** cue marks an unresolved alternative to the displayed identity.
+    The cue remains after the reviewer opens the picker.
+    It disappears after a saved speaker decision.
+    An amber warning takes precedence when two actionable person opinions disagree.
+    The speakers overview also marks confident disagreements between person opinions.
+    Selecting **Use this label** records `personSetBy` as `user` through the existing assignment action.
+    The reviewer can apply the choice to one segment or all segments of that speaker.
+
+    A single suggestion is selected when the picker opens.
+    `Enter` accepts the selected suggestion.
+    When the suggestions differ, the picker opens without a selection.
 
 6.  **Interaction Enhancements**:
     *   **Keyboard Shortcuts**: `ACTION_DEFINITIONS` in `KeyboardShortcutsContext` states what each shortcut is bound to. The in-app `EditingGuideDialog` renders its keys from that list. The guide therefore cannot show a key that the dispatcher does not honour. Do not write the key list down a second time. The rules that the code does not state are:
