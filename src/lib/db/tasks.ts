@@ -1,5 +1,5 @@
 'use server'
-import { getAdminRealms, withUserAuthorizedToEdit } from "../auth";
+import { getAdminRealms, withRight, withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { Prisma, Realm, TaskStatus } from '@prisma/client';
 import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
@@ -46,7 +46,7 @@ export async function getRecentTasks(offset: number = 0): Promise<{ tasks: TaskS
 }
 
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
-    await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId: cityId })
+    await withRight('tasks.run', { councilMeetingId: meetingId, cityId: cityId })
     try {
         const tasks = await prisma.taskStatus.findMany({
             where: {

@@ -18,6 +18,7 @@ import {
     useSidebar,
 } from "@/components/ui/sidebar"
 import Link from "next/link"
+import { ADMIN_PAGE_RIGHTS } from "@/lib/auth/rights"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { usePathname } from "next/navigation"
@@ -37,8 +38,9 @@ export default function MeetingSidebar() {
     // State to track both actual path and anticipated path during navigation
     const [activeItem, setActiveItem] = useState(pathname)
     const { options } = useTranscriptOptions()
-    const canEdit = options.editsAllowed
     const canCreateHighlights = options.canCreateHighlights
+    const canReadRecords = options.can('records.read')
+    const canAdminister = ADMIN_PAGE_RIGHTS.some((right) => options.can(right))
 
     const { beforeAgenda, outOfAgenda, agenda } = useMemo(() => {
         const categorized = categorizeSubjects(subjects)
@@ -121,8 +123,8 @@ export default function MeetingSidebar() {
         { ...meetingPageSegments.map, url: `/${city.id}/${meeting.id}/map` },
         { ...meetingPageSegments.transcript, url: `/${city.id}/${meeting.id}/transcript` },
         ...(canCreateHighlights ? [{ ...meetingPageSegments.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
-        ...(canEdit ? [{ ...meetingPageSegments.decisions, url: `/${city.id}/${meeting.id}/decisions` }] : []),
-        ...(canEdit ? [{ ...meetingPageSegments.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
+        ...(canReadRecords ? [{ ...meetingPageSegments.decisions, url: `/${city.id}/${meeting.id}/decisions` }] : []),
+        ...(canAdminister ? [{ ...meetingPageSegments.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
     ]
 
     return (

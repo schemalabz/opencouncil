@@ -107,7 +107,7 @@ export default function HighlightsList() {
   const canCreateHighlights = options.canCreateHighlights;
   const t = useTranslations('highlights');
 
-  const isAdmin = options.editsAllowed;
+  const isAdmin = options.can('highlight.manage');
   const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const currentUserId = session?.user?.id;
 

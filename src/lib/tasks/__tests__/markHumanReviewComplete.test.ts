@@ -21,7 +21,7 @@ const mockCheckTaskIdempotency = jest.fn();
 const mockRequestSummarize = jest.fn();
 const mockSendTaskAdminAlert = jest.fn();
 const mockSendTranscriptToMunicipality = jest.fn();
-const mockWithUserAuthorizedToEdit = jest.fn();
+const mockWithRight = jest.fn();
 
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
@@ -53,7 +53,7 @@ jest.mock('../../discord', () => ({
 }));
 
 jest.mock('../../auth', () => ({
-  withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
+  withRight: (...args: unknown[]) => mockWithRight(...args),
 }));
 
 jest.mock('../../db/reviews', () => ({
@@ -78,7 +78,7 @@ describe('markHumanReviewComplete — summarize auto-run', () => {
     // clearAllMocks keeps queued mockResolvedValueOnce answers. A test that queues
     // more answers than the code consumes would hand the leftovers to the next test.
     mockCheckTaskIdempotency.mockReset();
-    mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+    mockWithRight.mockResolvedValue(undefined);
     allowBoth();
     mockTaskStatusCreate.mockResolvedValue({ id: REVIEW_TASK_ID });
     mockMeetingFindUnique.mockResolvedValue({
@@ -270,13 +270,13 @@ describe('getReviewCompletionState', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCheckTaskIdempotency.mockReset();
-    mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+    mockWithRight.mockResolvedValue(undefined);
     allowBoth();
     mockMeetingFindUnique.mockResolvedValue(meetingWithBody(true));
   });
 
   it('refuses a caller without edit rights before it reads the meeting', async () => {
-    mockWithUserAuthorizedToEdit.mockRejectedValueOnce(new Error('Not authorized'));
+    mockWithRight.mockRejectedValueOnce(new Error('Not authorized'));
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).rejects.toThrow('Not authorized');
     expect(mockMeetingFindUnique).not.toHaveBeenCalled();

@@ -1,7 +1,7 @@
 /** @jest-environment node */
-const mockWithUserAuthorizedToEdit = jest.fn();
+const mockWithRight = jest.fn();
 jest.mock('@/lib/auth', () => ({
-    withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
+    withRight: (...args: unknown[]) => mockWithRight(...args),
 }));
 const mockGetPollingHistory = jest.fn();
 jest.mock('@/lib/tasks/pollDecisions', () => ({
@@ -16,20 +16,20 @@ jest.mock('@/lib/db/decisions', () => ({ getDecisionForSubject: jest.fn() }));
 import { getPollingHistoryForMeeting } from '../decisions';
 
 beforeEach(() => {
-    mockWithUserAuthorizedToEdit.mockReset();
+    mockWithRight.mockReset();
     mockGetPollingHistory.mockReset();
     mockGetPollingHistory.mockResolvedValue({ totalPolls: 1 });
 });
 
 describe('getPollingHistoryForMeeting', () => {
     it('authorizes the caller for the meeting it was handed', async () => {
-        mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+        mockWithRight.mockResolvedValue(true);
         await expect(getPollingHistoryForMeeting('city-1', 'meeting-1')).resolves.toEqual({ totalPolls: 1 });
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1', councilMeetingId: 'meeting-1' });
+        expect(mockWithRight).toHaveBeenCalledWith('records.read', { cityId: 'city-1', councilMeetingId: 'meeting-1' });
     });
 
     it('reads nothing when the caller is not authorized', async () => {
-        mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Not authorized'));
+        mockWithRight.mockRejectedValue(new Error('Not authorized'));
         await expect(getPollingHistoryForMeeting('city-1', 'meeting-1')).rejects.toThrow('Not authorized');
         expect(mockGetPollingHistory).not.toHaveBeenCalled();
     });

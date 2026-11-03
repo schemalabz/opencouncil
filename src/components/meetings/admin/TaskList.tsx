@@ -7,7 +7,8 @@ import { useTranslations } from "next-intl";
 
 interface TaskListProps {
     tasks: TaskStatus[];
-    onDelete: (taskId: string) => void;
+    /** Absent for a reader who may not delete: the list then shows no delete control. */
+    onDelete?: (taskId: string) => void;
     isLoading: boolean;
     showMeetingInfo?: boolean;
 }

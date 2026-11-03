@@ -7,6 +7,7 @@
 import { LOGO_IMAGE_TYPES } from '@/lib/utils/imageUpload';
 import type * as z from 'zod';
 import type { AuthorizationScope } from '@/lib/auth';
+import type { Right } from '@/lib/auth/rights';
 import type { uploadConfigSchema } from '@/lib/zod-schemas/upload';
 
 /** Content types accepted for logo uploads (cities, parties); the reason for the set is with the list. */
@@ -98,10 +99,15 @@ export function uploadNameParts(config: UploadConfig): string[] {
     ].filter((part): part is string => Boolean(part));
 }
 
+/** The right an upload of this kind needs: a decision is a record, the other files are the meeting's. */
+export function uploadRight(kind: UploadKind): Right {
+    return kind === 'decision' ? 'records.edit' : 'meeting.manage'
+}
+
 /**
- * Who may upload under a config: a city admin, the editors of the meeting
- * when the config names one, and the admins of the body when it names a body
- * for a meeting not yet created.
+ * Who may upload under a config: who holds the right of the kind on the
+ * meeting when the config names one, on the body when it names a body for a
+ * meeting not yet created, and on the city otherwise.
  */
 export function uploadAuthorizationScope(config: UploadConfig): AuthorizationScope {
     if (config.councilMeetingId) return { cityId: config.cityId, councilMeetingId: config.councilMeetingId }

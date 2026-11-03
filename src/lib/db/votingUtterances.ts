@@ -1,6 +1,6 @@
 import 'server-only';
 import prisma from '@/lib/db/prisma';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight } from '@/lib/auth';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
 /**
@@ -17,7 +17,7 @@ export async function getVotingUtterances(subjectId: string) {
     if (!subject) return [];
     const { councilMeeting } = subject;
     if ((!councilMeeting.released || !transcriptIsPublic(councilMeeting))
-        && !(await isUserAuthorizedToEdit({ cityId: subject.cityId, councilMeetingId: subject.councilMeetingId }))) {
+        && !(await hasRight('drafts.read', { cityId: subject.cityId, councilMeetingId: subject.councilMeetingId }))) {
         return [];
     }
 

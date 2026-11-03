@@ -18,7 +18,8 @@ export interface DiavgeiaFooterProps {
     /** The last poll's date, already formatted, or null when none has run. */
     lastCheck: string | null;
     pollState: DiavgeiaFooterState;
-    onPoll: () => void;
+    /** Null for a reader, who may not start a poll: the footer then drops the button. */
+    onPoll: (() => void) | null;
     /** A manual check this page asked for is on its way to the task service.
      * Every run costs an extraction, so the button must not take a second click. */
     polling: boolean;
@@ -79,7 +80,7 @@ export function DiavgeiaFooter({
                 </span>
             ) : pollState.kind === 'noDecisions' ? (
                 <span className="w-full">{t('poll.noDecisions')}</span>
-            ) : pollState.kind === 'blocked' ? null : (
+            ) : pollState.kind === 'blocked' || !onPoll ? null : (
                 <Button variant="outline" size="sm" className="shrink-0" disabled={polling} onClick={onPoll}>
                     {polling
                         ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{t('poll.action')}</>

@@ -24,7 +24,8 @@ jest.mock('@/lib/db/prisma', () => ({
     },
 }));
 
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, getAdminRealms, personIsOwnedByBodyAdmin } from '../auth';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, getAdminRealms, personIsOwnedByBodyAdmin, rightsFor } from '../auth';
+import { RIGHTS, ROLE_RIGHTS } from '@/lib/auth/rights';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 import type { GrantRole, Realm } from '@prisma/client';
 
@@ -275,5 +276,26 @@ describe('a realm admin', () => {
         await expect(getAdminRealms()).rejects.toThrow(ForbiddenError);
         signIn(null);
         await expect(getAdminRealms()).rejects.toThrow(UnauthorizedError);
+    });
+});
+
+describe('rightsFor', () => {
+    it('lists the rights of the role on a meeting of the held body and nothing elsewhere', async () => {
+        signIn({ administers: [{ role: 'records', administrativeBodyId: 'youth' }] });
+        expect(await rightsFor({ cityId: 'athens', councilMeetingId: 'ym1' })).toEqual([...ROLE_RIGHTS.records]);
+        expect(await rightsFor({ cityId: 'athens', councilMeetingId: 'cm1' })).toEqual([]);
+        expect(await rightsFor({ cityId: 'athens' })).toEqual([]);
+    });
+
+    it('lists every right for a superadmin and none for a signed-out viewer', async () => {
+        signIn({ isSuperAdmin: true, administers: [] });
+        expect(await rightsFor({ cityId: 'argos' })).toEqual([...RIGHTS]);
+        signIn(null);
+        expect(await rightsFor({ cityId: 'athens', councilMeetingId: 'ym1' })).toEqual([]);
+    });
+
+    it('lists nothing for a meeting that does not exist', async () => {
+        signIn({ administers: [{ cityId: 'athens' }] });
+        expect(await rightsFor({ cityId: 'athens', councilMeetingId: 'nope' })).toEqual([]);
     });
 });

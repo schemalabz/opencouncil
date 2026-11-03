@@ -4,6 +4,7 @@
 // working for anonymous callers, and that every verb only reaches a task inside
 // the city and meeting named by the path.
 jest.mock('@/lib/auth', () => ({
+    hasRight: jest.fn(),
     isUserAuthorizedToEdit: jest.fn(),
     withUserAuthorizedToEdit: jest.fn().mockRejectedValue(new Error('Not authorized')),
 }));
@@ -34,12 +35,13 @@ import { revalidateTag } from 'next/cache';
 import prisma from '@/lib/db/prisma';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { mintCallbackToken } from '@/lib/tasks/callbackToken';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
 
 const mockFindFirst = prisma.taskStatus.findFirst as jest.MockedFunction<typeof prisma.taskStatus.findFirst>;
 const mockDeleteMany = prisma.taskStatus.deleteMany as jest.MockedFunction<typeof prisma.taskStatus.deleteMany>;
 const mockHandleTaskUpdate = handleTaskUpdate as jest.MockedFunction<typeof handleTaskUpdate>;
 const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
+const mockHasRight = hasRight as jest.MockedFunction<typeof hasRight>;
 const mockRevalidateTag = revalidateTag as jest.MockedFunction<typeof revalidateTag>;
 
 const CITY = 'chania';
@@ -92,6 +94,7 @@ beforeEach(() => {
     mockDeleteMany.mockResolvedValue({ count: 1 } as never);
     mockHandleTaskUpdate.mockResolvedValue(undefined as never);
     mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
+    mockHasRight.mockResolvedValue(false as never);
 });
 
 describe('tenant scoping', () => {
@@ -234,12 +237,12 @@ describe('progress polling (GET)', () => {
         expect(body.responseBody).toBeUndefined();
     });
 
-    it('returns the full row to an editor of the city', async () => {
-        mockIsUserAuthorizedToEdit.mockResolvedValue(true as never);
+    it('returns the full row to an operator of the meeting', async () => {
+        mockHasRight.mockResolvedValue(true as never);
 
         const body = await (await GET({} as never, props)).json();
 
         expect(body.requestBody).toBe('{}');
-        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY, councilMeetingId: TASK.councilMeetingId });
+        expect(mockHasRight).toHaveBeenCalledWith('tasks.run', { cityId: CITY, councilMeetingId: TASK.councilMeetingId });
     });
 });

@@ -41,6 +41,9 @@ export function roleHasRight(role: GrantRole, right: Right): boolean {
     return ROLE_RIGHTS[role].has(right);
 }
 
+/** The rights the admin page of a meeting has a section for: a holder of any of them opens it. */
+export const ADMIN_PAGE_RIGHTS = ['admin', 'meeting.manage', 'tasks.run', 'meeting.release', 'notification.send', 'transcript.export'] as const satisfies readonly Right[];
+
 /**
  * One active grant: a role at exactly one scope. The body of a body grant
  * rides along with its city, so a body named under the wrong city never

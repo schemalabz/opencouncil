@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withParsedConventions } from "@/lib/db/administrativeBodies";
 import type { AdministrativeBodyWithSettings } from "@/lib/db/types";
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, withRight } from "@/lib/auth";
 import type { DecisionConventions } from "@/lib/decisionConventions";
 import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 
@@ -26,7 +26,7 @@ export async function confirmDecisionConventions(id: string, conventions: Decisi
     if (!user) throw notAuthorizedError(false);
     const body = await prisma.administrativeBody.findUnique({ where: { id }, select: { cityId: true } });
     if (!body) throw new NotFoundError('Administrative body not found');
-    await withUserAuthorizedToEdit({ cityId: body.cityId });
+    await withRight('records.edit', { cityId: body.cityId, administrativeBodyId: id });
     const value: DecisionConventions = {
         ...conventions,
         provenance: { ...conventions.provenance, source: 'manual', confirmedBy: user.id, confirmedAt: new Date().toISOString() },

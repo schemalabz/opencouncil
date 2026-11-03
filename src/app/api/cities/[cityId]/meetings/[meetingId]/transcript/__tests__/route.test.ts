@@ -1,13 +1,13 @@
 /** @jest-environment node */
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withRight: jest.fn() }));
 jest.mock('@/lib/export/meetings-server', () => ({ generateMeetingDocxBuffer: jest.fn() }));
 
 import { GET } from '../route';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
 import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
 
-const mockAuthorize = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
+const mockAuthorize = withRight as jest.MockedFunction<typeof withRight>;
 const mockGenerate = generateMeetingDocxBuffer as jest.MockedFunction<typeof generateMeetingDocxBuffer>;
 
 const get = () => GET(
@@ -23,7 +23,7 @@ describe('GET transcript', () => {
 
         const response = await get();
 
-        expect(mockAuthorize).toHaveBeenCalledWith({ councilMeetingId: 'oct1_2026', cityId: 'chania' });
+        expect(mockAuthorize).toHaveBeenCalledWith('transcript.export', { councilMeetingId: 'oct1_2026', cityId: 'chania' });
         expect(mockGenerate).toHaveBeenCalledWith('chania', 'oct1_2026');
         expect(response.headers.get('Content-Type')).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         expect(response.headers.get('Content-Disposition')).toBe('attachment; filename="chania_council_meeting_oct1_2026.docx"');

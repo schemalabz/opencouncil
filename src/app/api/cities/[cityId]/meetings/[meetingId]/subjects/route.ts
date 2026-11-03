@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSubjects } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
 import { meetingSubjectListQuerySchema } from '@/lib/zod-schemas/subject';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
 
 export async function GET(
@@ -14,9 +14,9 @@ export async function GET(
         const query = Object.fromEntries(request.nextUrl.searchParams.entries());
         const { introducerId, limit, includeUnreleased } = meetingSubjectListQuerySchema.parse(query);
 
-        // includeUnreleased requires an editor of the city
+        // includeUnreleased requires drafts.read on the meeting
         if (includeUnreleased) {
-            await withUserAuthorizedToEdit({ cityId: params.cityId });
+            await withRight('drafts.read', { cityId: params.cityId, councilMeetingId: params.meetingId });
         }
 
         const subjects = await getApiSubjects(await getRealm(), params.cityId, {

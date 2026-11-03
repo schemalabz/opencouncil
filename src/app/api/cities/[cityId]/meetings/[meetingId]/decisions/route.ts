@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, undismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import { deriveAndPersist, explainMeeting } from '@/lib/derivation/persist';
@@ -16,7 +16,7 @@ export async function GET(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withRight('records.read', { cityId: params.cityId, councilMeetingId: params.meetingId });
 
         // The derivation is read-only and pure over rows already fetched for it, so
         // the page gets the issues and the per-row origins with the decisions
@@ -46,7 +46,7 @@ export async function PUT(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withRight('records.edit', { cityId: params.cityId, councilMeetingId: params.meetingId });
 
         const session = await auth();
         const userId = session?.user?.id;
@@ -108,7 +108,7 @@ export async function DELETE(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withRight('records.edit', { cityId: params.cityId, councilMeetingId: params.meetingId });
 
         const { searchParams } = new URL(request.url);
         const subjectId = searchParams.get('subjectId');
@@ -157,12 +157,16 @@ export async function POST(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
-
+        // Every action is at least the records keeper's, so the guard runs
+        // before the body is read. The destructive extraction actions stay
+        // the city admin's: they discard billed work.
+        await withRight('records.edit', { cityId: params.cityId, councilMeetingId: params.meetingId });
         const body = decisionActionSchema.parse(await request.json().catch(() => null));
+        const destructive = body.action === 'clearExtractedData' || body.action === 'rederive' || body.action === 'resetExtraction';
+        if (destructive) {
+            await withRight('admin', { cityId: params.cityId });
+        }
 
-        // The destructive extraction actions, like the links, are the city
-        // admin's: the guard above holds the `admin` right on the city.
         if (body.action === 'clearExtractedData') {
             const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
             revalidateTag(`city:${params.cityId}:meetings`, 'max');

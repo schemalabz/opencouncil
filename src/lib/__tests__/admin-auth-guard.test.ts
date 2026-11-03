@@ -15,7 +15,7 @@ import path from 'path';
 const ADMIN_DIR = path.join(process.cwd(), 'src', 'app', '[locale]', '(admin)', 'admin');
 const LAYOUT = path.join(ADMIN_DIR, 'layout.tsx');
 
-const GUARD = /withUserAuthorizedToEdit|isUserAuthorizedToEdit|getAdminRealms/;
+const GUARD = /withRight|hasRight|withUserAuthorizedToEdit|isUserAuthorizedToEdit|getAdminRealms/;
 const USE_CLIENT = /^\s*['"]use client['"]/;
 
 function findPages(dir: string, out: string[] = []): string[] {

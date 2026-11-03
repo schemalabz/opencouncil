@@ -34,7 +34,7 @@ describe('CouncilMeetingWrapper server rendering', () => {
         const html = renderToStaticMarkup(
             <CouncilMeetingWrapper
                 meetingData={meetingData}
-                editable={false}
+                rights={[]}
                 canCreateHighlights={false}
             >
                 <main>Existing meeting page</main>

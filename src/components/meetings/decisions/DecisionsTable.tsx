@@ -116,6 +116,9 @@ export interface TableRow {
 export type DecisionsFilter = 'all' | 'missing' | 'audit';
 
 export interface DecisionsTableProps {
+    /** The `records.edit` right. Without it the rows answer nothing: no link,
+     * no change, no yes or no to a proposal. */
+    canEdit: boolean;
     rows: TableRow[];
     beforeAgenda: { id: string; name: string }[];
     filter: DecisionsFilter;
@@ -357,6 +360,7 @@ function SubjectTitle({ name, index, muted }: { name: string; index: number | nu
  */
 function NumberCell({
     row,
+    canEdit,
     busy,
     onOpenPanel,
     onOpenDecision,
@@ -366,6 +370,7 @@ function NumberCell({
     t,
 }: {
     row: TableRow;
+    canEdit: boolean;
     busy: boolean;
     onOpenPanel: (subjectId: string, mode: 'link' | 'change') => void;
     onOpenDecision: (subjectId: string) => void;
@@ -392,13 +397,15 @@ function NumberCell({
     if (decision) {
         return (
             <div className="flex flex-col-reverse items-start md:flex-row md:items-center md:gap-2">
-                <QuietButton
-                    className={CHANGE_ACTION}
-                    disabled={busy}
-                    onClick={() => onOpenPanel(subject.id, 'change')}
-                >
-                    {t('table.change')}
-                </QuietButton>
+                {canEdit && (
+                    <QuietButton
+                        className={CHANGE_ACTION}
+                        disabled={busy}
+                        onClick={() => onOpenPanel(subject.id, 'change')}
+                    >
+                        {t('table.change')}
+                    </QuietButton>
+                )}
                 <button
                     type="button"
                     className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[13px] font-semibold tabular-nums"
@@ -410,6 +417,13 @@ function NumberCell({
                 </button>
             </div>
         );
+    }
+
+    // A reader sees the proposal on its line; the answer is not theirs to give.
+    if (!canEdit) {
+        return rejected
+            ? <span className="text-[13px] text-muted-foreground">{t('table.rejected', { number: rejected.number })}</span>
+            : <span className="hidden text-[13px] text-muted-foreground md:inline">{DASH}</span>;
     }
 
     if (proposal) {
@@ -483,6 +497,7 @@ function FilterChip({ active, children, onClick }: { active: boolean; children: 
  * about which rows are outstanding.
  */
 export function DecisionsTable({
+    canEdit,
     rows,
     beforeAgenda,
     filter,
@@ -652,6 +667,7 @@ export function DecisionsTable({
                                 <div role="cell" className="order-3 flex grow justify-start md:order-none md:justify-end">
                                     <NumberCell
                                         row={row}
+                                        canEdit={canEdit}
                                         busy={busy}
                                         onOpenPanel={onOpenPanel}
                                         onOpenDecision={onOpenDecision}

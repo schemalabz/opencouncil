@@ -3,7 +3,7 @@ import "server-only";
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma, Realm } from '@prisma/client';
 import * as z from 'zod';
 import { auth } from "@/auth";
-import { getCurrentUser, withRight, withUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, withRight } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
@@ -1262,7 +1262,7 @@ export async function getNotificationsForMeeting(
     cityId: string,
     type?: 'beforeMeeting' | 'afterMeeting'
 ) {
-    await withUserAuthorizedToEdit({ cityId });
+    await withRight('notification.send', { cityId, councilMeetingId: meetingId });
     const whereClause: Prisma.NotificationWhereInput = {
         meetingId,
         cityId
@@ -1750,7 +1750,7 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withRight('notification.send', { cityId, councilMeetingId: meetingId });
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
@@ -1845,7 +1845,8 @@ export async function getNotificationMapData(meetingId: string, cityId: string):
         coordinates: [number, number];
     }>;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    // The map plots the addresses of readers, so it stays with the city's admins.
+    await withRight('admin', { cityId });
     // Get ALL subjects for this meeting (not just matched ones)
     const allSubjects = await prisma.subject.findMany({
         where: {

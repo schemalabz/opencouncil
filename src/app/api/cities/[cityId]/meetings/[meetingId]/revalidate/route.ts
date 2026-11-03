@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight } from '@/lib/auth';
 
 export async function POST(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    // Check if user is authorized to edit this meeting
-    const hasPermission = await isUserAuthorizedToEdit({ cityId: params.cityId, councilMeetingId: params.meetingId });
+    const hasPermission = await hasRight('meeting.manage', { cityId: params.cityId, councilMeetingId: params.meetingId });
     if (!hasPermission) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -32,6 +32,7 @@ const withIssues = (over: Partial<TableRow> = {}) => row({
 });
 
 const props: DecisionsTableProps = {
+    canEdit: true,
     rows: [row()],
     beforeAgenda: [],
     filter: 'all',
@@ -154,6 +155,24 @@ describe('DecisionsTable', () => {
         renderTable({ rows: [row({ proposal: { candidateId: 'c1', number: '637/2026', title: null, likely: true } })] });
         expect(screen.getByText('Μάλλον ταιριάζει')).toBeInTheDocument();
         expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    });
+
+    it('offers a reader the documents and no answer', () => {
+        renderTable({
+            canEdit: false,
+            rows: [
+                row(),
+                row({ subject: subject({ id: 's2' }), decision: { number: '643/2026', manualBy: null }, result: 'unanimous' }),
+                row({ subject: subject({ id: 's3' }), proposal: { candidateId: 'c1', number: '637/2026', title: null, likely: true } }),
+                row({ subject: subject({ id: 's4' }), rejected: { candidateId: 'c2', number: '638/2026' } }),
+            ],
+        });
+        expect(screen.getByRole('button', { name: /643\/2026/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Άνοιγμα εγγράφου' })).toBeInTheDocument();
+        expect(screen.getByText(/638\/2026/)).toBeInTheDocument();
+        for (const name of ['Συμπλήρωση αριθμού', 'Αλλαγή', 'Ναι, είναι αυτή', 'Όχι', 'Αναίρεση']) {
+            expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+        }
     });
 
     it('takes a no back for a moment afterwards', async () => {

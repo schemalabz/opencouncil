@@ -5,7 +5,7 @@ const mockAfter = jest.fn((run: () => unknown) => run());
 jest.mock('server-only', () => ({}));
 jest.mock('@/env.mjs', () => ({ env: {} }));
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), isUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn(), isUserAuthorizedToEdit: jest.fn() }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn(), revalidatePath: jest.fn(), unstable_cache: (f: unknown) => f }));
 jest.mock('next/server', () => ({ after: (run: () => unknown) => mockAfter(run) }));
 jest.mock('@/lib/db/meetingLifecycle', () => ({ setMeetingReleased: (...a: unknown[]) => mockSetReleased(...a), deleteMeetingRecord: jest.fn() }));

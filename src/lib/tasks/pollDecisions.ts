@@ -18,7 +18,7 @@ import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
 import { isCustomer } from "@/lib/cityStatus";
 import { upsertDecision, deleteDecision, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { withRight } from "@/lib/auth";
 import { getPeopleForMeeting } from "@/lib/db/people";
 import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
@@ -49,17 +49,19 @@ const adaSchema = z.string().transform((value, ctx) => {
 const pollOptionsSchema = z.object({
     forceExtract: z.boolean().optional(),
     lookupAdas: z.array(adaSchema).max(50).optional(),
-}).optional();
+}).default({});
 
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
     rawOptions?: { forceExtract?: boolean; lookupAdas?: string[] },
 ): Promise<PollStart> {
-    // The poll and the cache-busting re-extraction (forceExtract), which is
-    // billed, are both the city admin's, as on the decisions page.
-    await withUserAuthorizedToEdit({ cityId });
+    // The poll is the records keeper's, as the links on the decisions page.
+    // The cache-busting re-extraction (forceExtract) is billed, so it stays
+    // the city admin's.
+    await withRight('records.edit', { cityId, councilMeetingId });
     const options = pollOptionsSchema.parse(rawOptions);
+    if (options.forceExtract) await withRight('admin', { cityId });
 
     // Two polls of one meeting race on the same candidates and bill twice;
     // the running one reads anything this one would.
@@ -569,12 +571,25 @@ export async function resolveCandidateConflict(
 ) {
     const candidate = await prisma.decisionCandidate.findUnique({
         where: { id: candidateId },
-        select: { cityId: true },
+        select: { cityId: true, councilMeetingId: true, ada: true },
     });
     if (!candidate) {
         throw new Error('Candidate not found');
     }
-    await withUserAuthorizedToEdit({ cityId: candidate.cityId });
+    // A candidate of no meeting is the city's: `records.edit` on the city resolves it.
+    await withRight('records.edit', candidate.councilMeetingId
+        ? { cityId: candidate.cityId, councilMeetingId: candidate.councilMeetingId }
+        : { cityId: candidate.cityId });
+    if (resolution === 'reassign') {
+        // The move deletes the decision that holds the ADA, with the derived
+        // facts of its subject. That subject may sit on a meeting of another
+        // body of the city, so the resolver needs the right there too.
+        const holding = await prisma.decision.findUnique({
+            where: { ada: candidate.ada },
+            select: { subject: { select: { cityId: true, councilMeetingId: true } } },
+        });
+        if (holding) await withRight('records.edit', holding.subject);
+    }
     return applyCandidateConflictResolution(candidateId, resolution);
 }
 

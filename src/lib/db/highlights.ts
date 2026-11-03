@@ -1,7 +1,7 @@
-"use server";
+import "server-only";
 import { City, CouncilMeeting, Highlight, HighlightCreationPermission, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { getCurrentUser, hasRight, withRight } from "../auth";
 import { actorOf, reachOf } from "@/lib/auth/rights";
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
 import {
@@ -40,8 +40,8 @@ export async function getHighlightPermissions(cityId: City["id"], meetingId?: Co
         return null;
     }
     
-    // With a meeting, an admin of the meeting's body is an editor too.
-    const canEdit = await isUserAuthorizedToEdit(meetingId ? { cityId, councilMeetingId: meetingId } : { cityId });
+    // With a meeting, a grant on the meeting's body manages its highlights too.
+    const canEdit = await hasRight('highlight.manage', meetingId ? { cityId, councilMeetingId: meetingId } : { cityId });
     
     return {
         userId: currentUser.id,
@@ -59,7 +59,7 @@ export async function canViewHighlight(highlight: { cityId: string; meetingId: s
     // Not logged in = can't see anything
     if (!permissions) return false;
     
-    // City editors (including super admins) see everything
+    // Whoever manages the highlights of the meeting sees everything
     if (permissions.canEdit) return true;
     
     // Regular users see only their own highlights
@@ -100,7 +100,7 @@ export async function getHighlightsForMeeting(
         meetingId
     };
 
-    // Editors of the meeting (a body admin among them) see all highlights
+    // Whoever manages the highlights of the meeting sees all of them
     // Regular users only see their own
     if (!permissions.canEdit) {
         where.createdById = permissions.userId;
@@ -147,9 +147,9 @@ export async function canAccessMyHighlights(): Promise<boolean> {
 
 /**
  * All highlights the signed-in user created, across every city and meeting.
- * The identity comes from the session, never from a parameter: this module
- * is "use server", so a userId argument would let any client read the
- * highlights of any user.
+ * The identity comes from the session, never from a parameter: the action
+ * wrapper exposes this read, so a userId argument would let any client read
+ * the highlights of any user.
  *
  * A highlight on an unreleased meeting stays hidden, the same rule
  * getCouncilMeeting applies: the meeting page 404s for anyone who may not
@@ -253,8 +253,8 @@ export async function renameHighlight(
         throw new NotFoundError('Highlight not found');
     }
 
-    // Same rule as deleteHighlight: the author, or an editor of the meeting.
-    const canEdit = await isUserAuthorizedToEdit({ cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
+    // Same rule as deleteHighlight: the author, or whoever manages the highlights of the meeting.
+    const canEdit = await hasRight('highlight.manage', { cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
     if (!canEdit && highlight.createdById !== currentUser.id) {
         throw new ForbiddenError('Not authorized to rename this highlight');
     }
@@ -284,8 +284,8 @@ export async function deleteHighlight(id: Highlight["id"]) {
         throw new NotFoundError('Highlight not found');
     }
 
-    // Check authorization: editors of the meeting or the owner can delete
-    const canEdit = await isUserAuthorizedToEdit({ cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
+    // The author, or whoever manages the highlights of the meeting, can delete
+    const canEdit = await hasRight('highlight.manage', { cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
     const isOwner = highlight.createdById === currentUser.id;
 
     if (!canEdit && !isOwner) {
@@ -299,14 +299,14 @@ export async function deleteHighlight(id: Highlight["id"]) {
 export async function toggleHighlightShowcase(id: Highlight["id"]) {
     const highlight = await prisma.highlight.findUnique({
         where: { id },
-        select: { isShowcased: true, muxPlaybackId: true, cityId: true }
+        select: { isShowcased: true, muxPlaybackId: true, cityId: true, meetingId: true }
     });
 
     if (!highlight) {
         throw new NotFoundError('Highlight not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: highlight.cityId });
+    await withRight('highlight.manage', { cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
 
     if (!highlight.muxPlaybackId) {
         throw new BadRequestError('Cannot showcase highlight without video');

@@ -48,6 +48,9 @@ function ReceiptSentence({ receipt, t }: { receipt: Receipt; t: ReturnType<typeo
 }
 
 export interface QuestionsCardProps {
+    /** The `records.edit` right. A reader opens the documents and answers
+     * nothing: no placing, no dismissing, no poll. */
+    canEdit: boolean;
     /** Subjects with no decision yet, split by what answering them takes. */
     waiting: { proposed: number; plain: number } | null;
     onJumpToTable: () => void;
@@ -104,6 +107,7 @@ export interface QuestionsCardProps {
  * and a finished meeting look identical otherwise.
  */
 export function QuestionsCard({
+    canEdit,
     waiting,
     onJumpToTable,
     conflicts,
@@ -226,24 +230,26 @@ export function QuestionsCard({
                                                 </>
                                             )}
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Button size="sm" variant="outline" disabled={busy} onClick={() => onKeepHolder(conflict.candidateId)}>
-                                                {busy
-                                                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                                                    : conflict.holder.hasAgendaNumber
-                                                        ? t('attention.keepAsIs', { subject: conflict.holder.label })
-                                                        : t('attention.keepAsIsPlain')}
-                                            </Button>
-                                            {conflict.claimant && (
-                                                <Button size="sm" variant="default" disabled={busy} onClick={() => onMoveToClaimant(conflict.candidateId)}>
+                                        {canEdit && (
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button size="sm" variant="outline" disabled={busy} onClick={() => onKeepHolder(conflict.candidateId)}>
                                                     {busy
                                                         ? <Loader2 className="h-4 w-4 animate-spin" />
-                                                        : conflict.claimant.hasAgendaNumber
-                                                            ? t('attention.moveTo', { subject: conflict.claimant.label })
-                                                            : t('attention.moveToPlain')}
+                                                        : conflict.holder.hasAgendaNumber
+                                                            ? t('attention.keepAsIs', { subject: conflict.holder.label })
+                                                            : t('attention.keepAsIsPlain')}
                                                 </Button>
-                                            )}
-                                        </div>
+                                                {conflict.claimant && (
+                                                    <Button size="sm" variant="default" disabled={busy} onClick={() => onMoveToClaimant(conflict.candidateId)}>
+                                                        {busy
+                                                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                            : conflict.claimant.hasAgendaNumber
+                                                                ? t('attention.moveTo', { subject: conflict.claimant.label })
+                                                                : t('attention.moveToPlain')}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        )}
                                     </li>
                                 );
                             })}
@@ -288,7 +294,7 @@ export function QuestionsCard({
                                                             {t('panel.open')}
                                                         </QuietButton>
                                                     )}
-                                                    action={pickerOpen ? null : (
+                                                    action={pickerOpen || !canEdit ? null : (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -299,7 +305,7 @@ export function QuestionsCard({
                                                             {t('attention.chooseSubject')}
                                                         </Button>
                                                     )}
-                                                    secondary={pickerOpen ? null : (
+                                                    secondary={pickerOpen || !canEdit ? null : (
                                                         <QuietButton
                                                             // Quieter than the action beside it, and deliberately not
                                                             // destructive-red: this only sets `dismissedAt`, so the
@@ -329,7 +335,7 @@ export function QuestionsCard({
                 pollScope={pollScope}
                 lastCheck={lastCheck}
                 pollState={pollState}
-                onPoll={onPoll}
+                onPoll={canEdit ? onPoll : null}
                 polling={polling}
                 dividerAbove={!noQuestions || receipts.length > 0}
             />

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight, withUserAuthorizedToEdit } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
 import { getApiSubject } from '@/lib/db/subjectsApi';
@@ -15,7 +15,7 @@ export async function GET(
     try {
         const { includeUnreleased } = subjectQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams.entries()));
         if (includeUnreleased) {
-            await withUserAuthorizedToEdit({ cityId: params.cityId });
+            await withRight('drafts.read', { cityId: params.cityId, councilMeetingId: params.meetingId });
         }
 
         const subject = await getApiSubject(

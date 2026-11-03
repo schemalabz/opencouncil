@@ -1,7 +1,8 @@
 /** @jest-environment node */
 import type { NextRequest } from 'next/server';
 
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), getCurrentUser: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withRight: jest.fn(), getCurrentUser: jest.fn() }));
+jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/db/notifications', () => ({
     createNotificationsForMeeting: jest.fn().mockResolvedValue({ notificationsCreated: 0, subjectsTotal: 2, notificationIds: [] }),
     getNotificationImpactPreviewData: jest.fn().mockResolvedValue({ subjects: [], usersWithPreferences: [] }),
@@ -13,7 +14,7 @@ jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { councilMeetin
 
 import { POST } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/route';
 import { POST as PREVIEW } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/preview/route';
-import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, withRight } from '@/lib/auth';
 import { createNotificationsForMeeting, getNotificationImpactPreviewData } from '@/lib/db/notifications';
 import { calculateNotificationImpact } from '@/lib/notifications/matching';
 import { ForbiddenError, validationErrorSchema } from '@/lib/api/errors';
@@ -25,7 +26,7 @@ const request = (body: unknown) => new Request('http://localhost/api/cities/athe
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    (withRight as jest.Mock).mockResolvedValue(undefined);
     (getCurrentUser as jest.Mock).mockResolvedValue({ id: 'u1' });
 });
 
@@ -41,6 +42,20 @@ describe('POST /api/cities/[cityId]/meetings/[meetingId]/notifications', () => {
             s1: { topicImportance: 'high', proximityImportance: 'near' },
             s2: { topicImportance: 'doNotNotify', proximityImportance: 'none' },
         });
+        expect(withRight).toHaveBeenCalledTimes(1);
+        expect(withRight).toHaveBeenCalledWith('notification.send', { cityId: 'athens', councilMeetingId: 'm1' });
+    });
+
+    it('asks for admin on the realm of the city to send at once, and creates nothing without it', async () => {
+        (withRight as jest.Mock)
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new ForbiddenError('Not authorized'));
+
+        const response = await POST(request({ type: 'afterMeeting', subjectImportances: {}, sendImmediately: true }), params);
+
+        expect(response.status).toBe(403);
+        expect(withRight).toHaveBeenLastCalledWith('admin', { realm: 'greece' });
+        expect(createNotificationsForMeeting).not.toHaveBeenCalled();
     });
 
     it.each([

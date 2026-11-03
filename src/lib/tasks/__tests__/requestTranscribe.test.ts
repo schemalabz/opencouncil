@@ -3,7 +3,7 @@ import { requestTranscribeInternal } from '../transcribeInternal';
 import { ConflictError } from '@/lib/api/errors';
 import { PipelineBusyError, TaskAlreadyExistsError } from '../types';
 
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('../transcribeInternal', () => ({ requestTranscribeInternal: jest.fn(), deleteExistingSpeakerData: jest.fn() }));
 jest.mock('../fixTranscriptInternal', () => ({ requestFixTranscriptInternal: jest.fn() }));

@@ -6,8 +6,8 @@ import prisma from "@/lib/db/prisma";
 import { notAuthorizedError } from "@/lib/api/errors";
 import { type UnreleasedScope, NO_UNRELEASED } from "@/lib/unreleased";
 import { publicAdministrativeBodyRelation } from "@/lib/db/types";
-import { actorOf, adminRealms, scopeInCity, type Right } from "@/lib/auth/rights";
-import { activeGrantWhere, hasRightOn, realmFor, validateScope, type AuthorizationScope } from "@/lib/auth/grants.server";
+import { RIGHTS, actorOf, adminRealms, resolve, scopeInCity, type Right } from "@/lib/auth/rights";
+import { activeGrantWhere, hasRightOn, realmFor, toTarget, validateScope, type AuthorizationScope } from "@/lib/auth/grants.server";
 
 export { personIsOwnedByBodyAdmin } from "@/lib/auth/rights";
 export type { AuthorizationScope } from "@/lib/auth/grants.server";
@@ -62,6 +62,21 @@ export async function withRight(right: Right, scope: AuthorizationScope): Promis
         throw notAuthorizedError(Boolean(await getCurrentUser()));
     }
     return true;
+}
+
+/**
+ * Every right the viewer holds on the scope, for a client component that
+ * shows or hides its controls by right. The server checks again on each
+ * write, so the list is a view and not a gate.
+ */
+export async function rightsFor(scope: AuthorizationScope): Promise<Right[]> {
+    validateScope(scope);
+    const user = await getCurrentUser();
+    if (!user) return [];
+    if (user.isSuperAdmin) return [...RIGHTS];
+    const actor = actorOf(user);
+    const target = await toTarget(scope, actor);
+    return target ? RIGHTS.filter((right) => resolve(actor, right, target)) : [];
 }
 
 /** The `admin` right on the scope: what "may edit" meant before the roles. */

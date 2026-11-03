@@ -1,5 +1,5 @@
 /** @jest-environment node */
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({ withRight: jest.fn() }));
 jest.mock('@/env.mjs', () => ({
     env: { DO_SPACES_ENDPOINT: 'https://fra1.digitaloceanspaces.com', DO_SPACES_BUCKET: 'bucket', NEXTAUTH_SECRET: 'test-secret' },
 }));
@@ -9,11 +9,11 @@ jest.mock('@/lib/uploads', () => ({
 }));
 
 import { POST } from '../route';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { startUpload } from '@/lib/uploads';
 import { ForbiddenError } from '@/lib/api/errors';
 
-const guard = withUserAuthorizedToEdit as jest.Mock;
+const guard = withRight as jest.Mock;
 const post = (body: unknown) => POST({ json: async () => body } as never);
 const AGENDA = { filename: 'Agenda.PDF', sizeBytes: 1000, config: { cityId: 'chania', kind: 'agenda', councilMeetingId: 'nov5_2026' } };
 
@@ -23,13 +23,20 @@ beforeEach(() => {
 });
 
 describe('POST /api/upload/start', () => {
-    it('authorizes the scope of the config, and starts the upload in the format of the file', async () => {
+    it('authorizes the right of the kind on the scope of the config, and starts the upload in the format of the file', async () => {
         const response = await post(AGENDA);
 
         expect(response.status).toBe(200);
-        expect(guard).toHaveBeenCalledWith({ cityId: 'chania', councilMeetingId: 'nov5_2026' });
+        expect(guard).toHaveBeenCalledWith('meeting.manage', { cityId: 'chania', councilMeetingId: 'nov5_2026' });
         expect(startUpload).toHaveBeenCalledWith(AGENDA.config, 'pdf', 1000);
         expect(await response.json()).toEqual({ key: 'k', completion: null });
+    });
+
+    it('asks for records.edit for a decision', async () => {
+        const response = await post({ ...AGENDA, config: { ...AGENDA.config, kind: 'decision' } });
+
+        expect(response.status).toBe(200);
+        expect(guard).toHaveBeenCalledWith('records.edit', { cityId: 'chania', councilMeetingId: 'nov5_2026' });
     });
 
     it('refuses a caller who may not edit the meeting, before it signs anything', async () => {

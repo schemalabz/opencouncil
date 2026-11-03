@@ -5,7 +5,7 @@ import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
 import { deleteTaskStatusDirect, getTaskStatusDirect, type TaskStatusScope } from '@/lib/db/tasksInternal';
 import { verifyCallbackToken } from '@/lib/tasks/callbackToken';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
 import { taskScope } from '@/lib/tasks/types';
 
 type RouteParams = { cityId: string; meetingId: string; taskStatusId: string };
@@ -25,7 +25,8 @@ export async function GET(request: NextRequest, props: { params: Promise<RoutePa
         return taskStatusNotFound();
     }
 
-    const authorized = await isUserAuthorizedToEdit(taskScope(taskStatus));
+    // The operator who starts and replays the task reads its payload.
+    const authorized = await hasRight('tasks.run', taskScope(taskStatus));
     if (!authorized) {
         // Task bodies can contain sensitive payloads. Public callers
         // (e.g. decision polling on subject pages) only need progress fields.

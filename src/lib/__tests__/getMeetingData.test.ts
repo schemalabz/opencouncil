@@ -11,7 +11,7 @@ jest.mock('@/lib/statistics', () => ({}));
 jest.mock('@/lib/db/tasks', () => ({ getMeetingTaskStatus: jest.fn() }));
 jest.mock('@/lib/cache', () => ({ createCache: (fn: () => Promise<unknown>) => fn }));
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
-jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: jest.fn().mockResolvedValue(false) }));
+jest.mock('@/lib/auth', () => ({ hasRight: jest.fn().mockResolvedValue(false) }));
 jest.mock('@/lib/cache/queries', () => ({
     getAllCityIdsCached: jest.fn().mockResolvedValue(['athens']),
     getPeopleForCityCached: jest.fn().mockResolvedValue([]),

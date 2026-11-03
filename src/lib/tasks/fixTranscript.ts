@@ -1,6 +1,6 @@
 import "server-only";
 
-import { withUserAuthorizedToEdit } from '../auth';
+import { withRight } from '../auth';
 import { taskScope } from './types';
 import { requestFixTranscriptInternal } from './fixTranscriptInternal';
 
@@ -13,6 +13,6 @@ import { requestFixTranscriptInternal } from './fixTranscriptInternal';
  * requestFixTranscriptInternal.
  */
 export const requestFixTranscript = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
-    await withUserAuthorizedToEdit(taskScope({ type: 'fixTranscript', cityId, councilMeetingId }));
+    await withRight('tasks.run', taskScope({ type: 'fixTranscript', cityId, councilMeetingId }));
     return requestFixTranscriptInternal(councilMeetingId, cityId, options);
 };

@@ -1,5 +1,7 @@
 // Centralized task configuration and types
 
+import type { Right } from '@/lib/auth/rights';
+
 /**
  * Controls whether generic Discord alerts (started/completed/failed) are sent
  * via sendTaskAdminAlert for a given task type.
@@ -18,11 +20,11 @@ export type TaskBlockedReason = 'already_succeeded' | 'already_running';
 export interface TaskConfig {
   requiredForPipeline: boolean;
   /**
-   * Who starts, replays and deletes the task (#828). 'meeting': the editors
-   * of its meeting, the admin of the meeting's body among them. 'city': the
-   * city's admins only, because the task takes a step that a body admin may
-   * not: human review and the transcript it sends, decision polling, and
-   * voiceprints. A new task type does not compile until it decides.
+   * Where the task is checked (#828): 'meeting', on its meeting, so a holder
+   * of a right on the meeting's body passes; 'city', on its city only,
+   * because the task takes a step that a body-level holder may not: human
+   * review and the transcript it sends, and voiceprints. A new task type
+   * does not compile until it decides.
    */
   scope: 'meeting' | 'city';
   discordAlertMode?: DiscordAlertMode;
@@ -71,7 +73,7 @@ export const TASK_CONFIG = {
     concurrentRuns: true,
   },
   pollDecisions: {
-    scope: 'city',
+    scope: 'meeting',
     requiredForPipeline: false,
     discordAlertMode: 'none',
     concurrentRuns: true,
@@ -94,6 +96,23 @@ export function taskScope(task: { type: string; cityId: string; councilMeetingId
     return task.councilMeetingId && isMeetingTaskType(task.type) && TASK_CONFIG[task.type].scope === 'meeting'
         ? { cityId: task.cityId, councilMeetingId: task.councilMeetingId }
         : { cityId: task.cityId };
+}
+
+/**
+ * The right that replays a task's result, by its stored type. A voiceprint
+ * is written on a person, so only an admin replays it, as only an admin
+ * starts it. A decision poll is the records keeper's, as the poll they
+ * start. Every other task is the operator's.
+ */
+export function taskRight(type: string): Right {
+    switch (type) {
+        case 'generateVoiceprint':
+            return 'admin';
+        case 'pollDecisions':
+            return 'records.edit';
+        default:
+            return 'tasks.run';
+    }
 }
 
 /**

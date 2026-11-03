@@ -3,7 +3,7 @@ import { getMeetingDataCore } from '@/lib/getMeetingData';
 import { toPublicApiMeeting } from '@/lib/meetingPublic';
 import { pickRecordInput } from '@/lib/meetingLifecycleRules';
 import { handleApiError } from '@/lib/api/errors';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { updateMeetingWithEffects } from '@/lib/meetingWrites';
 import { getCouncilMeetingDirect } from '@/lib/db/meetings';
@@ -48,7 +48,7 @@ export async function PUT(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId, councilMeetingId: params.meetingId });
+        await withRight('meeting.manage', { cityId: params.cityId, councilMeetingId: params.meetingId });
         const body = await request.json();
         // The URL names the meeting, and an edit queues no agenda task. The
         // facts of the record come from MEETING_RECORD_INPUT_KEYS, as on create.
@@ -61,11 +61,11 @@ export async function PUT(
         }
 
         // An absent body leaves the meeting where it is. Moving it to another
-        // body, or to no body, needs rights on the destination too: a body
-        // admin may not hand their meeting over or take one of another body.
+        // body, or to no body, needs the right on the destination too: a grant
+        // on a body may not hand its meeting over or take one of another body.
         const nextBodyId = administrativeBodyId === undefined ? undefined : administrativeBodyId || null;
         if (nextBodyId !== undefined && nextBodyId !== current.administrativeBodyId) {
-            await withUserAuthorizedToEdit(nextBodyId
+            await withRight('meeting.manage', nextBodyId
                 ? { cityId: params.cityId, administrativeBodyId: nextBodyId }
                 : { cityId: params.cityId });
         }

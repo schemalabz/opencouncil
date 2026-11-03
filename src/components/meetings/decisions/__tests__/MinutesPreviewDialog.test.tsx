@@ -17,8 +17,8 @@ jest.mock('@/components/meetings/admin/MinutesPreviewContent', () => ({
 }));
 
 const data = {} as MinutesData;
-const renderDialog = (isSuperAdmin: boolean) => render(
-    <MinutesPreviewDialog open onOpenChange={() => {}} data={data} isSuperAdmin={isSuperAdmin} />,
+const renderDialog = (cityAdmin: boolean) => render(
+    <MinutesPreviewDialog open onOpenChange={() => {}} data={data} cityAdmin={cityAdmin} />,
 );
 
 describe('MinutesPreviewDialog', () => {

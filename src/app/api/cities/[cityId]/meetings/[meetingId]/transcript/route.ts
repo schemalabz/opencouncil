@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { withRight } from '@/lib/auth';
 import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
 import { generateMeetingFileName } from '@/lib/export/download';
 import { handleApiError } from '@/lib/api/errors';
@@ -17,7 +17,7 @@ export async function GET(
 
     let buffer: Buffer;
     try {
-        await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
+        await withRight('transcript.export', { councilMeetingId: meetingId, cityId });
         buffer = await generateMeetingDocxBuffer(cityId, meetingId);
     } catch (error) {
         return handleApiError(error, 'Failed to build the transcript');

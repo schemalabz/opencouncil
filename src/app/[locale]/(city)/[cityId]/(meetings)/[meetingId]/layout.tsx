@@ -1,7 +1,7 @@
 "use server";
 import { notFound } from 'next/navigation';
 import { PlaybackBar } from '@/components/meetings/bar/PlaybackBar';
-import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, rightsFor } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
@@ -141,23 +141,26 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const editablePromise = isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
+    // The client shows its controls by right; every role reads the drafts,
+    // only `admin` edits the transcript.
+    const rightsPromise = rightsFor({ cityId, councilMeetingId: meetingId });
+    const draftsPromise = rightsPromise.then((rights) => rights.includes('drafts.read'));
     const realmPromise = getRealm();
-    const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
+    const [currentUser, rights, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,
-        editablePromise,
+        rightsPromise,
         getMeetingDataCached(cityId, meetingId),
         currentUserPromise.then(user =>
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
         ),
         realmPromise,
-        // Editors step through unreleased meetings too. Behind the same
-        // known-city check as the meeting data (#358): this segment renders
-        // before the [cityId] layout 404s, and an unknown slug must not write
-        // a per-city cache entry.
-        Promise.all([realmPromise, editablePromise]).then(async ([currentRealm, canEdit]) =>
+        // Who reads the drafts steps through unreleased meetings too. Behind
+        // the same known-city check as the meeting data (#358): this segment
+        // renders before the [cityId] layout 404s, and an unknown slug must
+        // not write a per-city cache entry.
+        Promise.all([realmPromise, draftsPromise]).then(async ([currentRealm, canSeeDrafts]) =>
             (await getAllCityIdsCached(currentRealm)).includes(cityId)
-                ? getAdjacentMeetingsCached(cityId, meetingId, canEdit)
+                ? getAdjacentMeetingsCached(cityId, meetingId, canSeeDrafts)
                 : { previous: null, next: null }
         ),
         getTranslations({ locale, namespace: 'CouncilMeeting' }),
@@ -169,11 +172,12 @@ export default async function CouncilMeetingPage(
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const meetingData = (data.transcriptHiddenForReview && !editable)
+    const editable = rights.includes('admin');
+    const meetingData = (data.transcriptHiddenForReview && !rights.includes('drafts.read'))
         ? { ...data, transcript: [], speakerTags: [] }
         : data;
 
-    const highlightCreationAllowed = editable || (
+    const highlightCreationAllowed = editable || rights.includes('highlight.manage') || (
         !!currentUser &&
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
@@ -196,7 +200,7 @@ export default async function CouncilMeetingPage(
             <NotificationPreferenceProvider notificationPreference={notificationPreference}>
             <CouncilMeetingWrapper
                 meetingData={meetingData}
-                editable={editable}
+                rights={rights}
                 canCreateHighlights={highlightCreationAllowed}
             >
                 <SubjectHeaderProvider>

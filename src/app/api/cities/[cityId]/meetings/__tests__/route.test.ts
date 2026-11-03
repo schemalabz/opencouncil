@@ -2,7 +2,7 @@
 import { NextRequest } from 'next/server';
 
 // No session with rights: includeUnreleased then asks for an editor of the city.
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), getUnreleasedScope: jest.fn().mockResolvedValue({ all: false, bodyIds: [] }) }));
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn(), getUnreleasedScope: jest.fn().mockResolvedValue({ all: false, bodyIds: [] }) }));
 jest.mock('@/lib/db/meetingsList', () => ({ getCouncilMeetingsForCity: jest.fn().mockResolvedValue([]) }));
 jest.mock('@/lib/meetingWrites', () => ({ createMeetingWithEffects: jest.fn() }));
 // The public list reads the original date of a postponed meeting.

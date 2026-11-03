@@ -18,7 +18,7 @@ jest.mock('../../db/prisma', () => ({
 }));
 const mockSave = jest.fn().mockResolvedValue(new Map());
 jest.mock('../../db/utils', () => ({ saveSubjectsForMeeting: (...a: unknown[]) => mockSave(...a) }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 jest.mock('../../subjectImages', () => ({ generateImagesForMeeting: jest.fn() }));
 jest.mock('../../cache', () => ({ revalidateMeeting: jest.fn() }));
 jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: jest.fn() }));

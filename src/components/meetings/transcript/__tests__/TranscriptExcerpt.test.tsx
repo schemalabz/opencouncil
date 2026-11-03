@@ -45,7 +45,7 @@ function OptionsProbe() {
 }
 
 function Fixture() {
-    return <TranscriptOptionsProvider editable={false} canCreateHighlights={false}><Transcript /></TranscriptOptionsProvider>;
+    return <TranscriptOptionsProvider rights={[]} canCreateHighlights={false}><Transcript /></TranscriptOptionsProvider>;
 }
 
 describe('excerpt filter isolation', () => {

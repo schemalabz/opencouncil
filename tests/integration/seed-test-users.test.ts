@@ -75,6 +75,7 @@ describe('ensureTestUsers', () => {
             ['body', testUserId('body')],
             ['realmadmin', testUserId('realmadmin')],
             ['records', testUserId('records')],
+            ['meetings', testUserId('meetings')],
             ['comms', testUserId('comms')],
             ['viewer', testUserId('viewer')],
             ['readonly', testUserId('readonly')],
@@ -88,6 +89,7 @@ describe('ensureTestUsers', () => {
         expect(byType.body.administers.map((a) => a.administrativeBodyId)).toEqual(['alpha-committee', 'beta-council'])
         expect(byType.realmadmin.administers.map((a) => [a.role, a.realm])).toEqual([['admin', 'greece']])
         expect(byType.records.administers.map((a) => [a.role, a.administrativeBodyId])).toEqual([['records', 'alpha-committee'], ['records', 'beta-council']])
+        expect(byType.meetings.administers.map((a) => [a.role, a.cityId])).toEqual([['meetings', 'alpha'], ['meetings', 'beta']])
         expect(byType.comms.administers.map((a) => [a.role, a.cityId])).toEqual([['highlights', 'alpha'], ['highlights', 'beta']])
         expect(byType.viewer.administers.map((a) => [a.role, a.cityId])).toEqual([['viewer', 'alpha'], ['viewer', 'beta']])
         expect(byType.readonly.administers).toEqual([])

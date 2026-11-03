@@ -40,7 +40,7 @@ jest.mock('../../db/prisma', () => ({
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn(), withRight: jest.fn() }));
 jest.mock('../../discord', () => ({
   sendTaskAdminAlert: jest.fn(),
   sendPollDecisionsBatchStartedAlert: (...args: unknown[]) => mockSendBatchStarted(...args),

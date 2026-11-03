@@ -4,14 +4,14 @@
  * The browser-callable task entry points take a caller-supplied city, meeting or
  * task id. These tests fail if one of them ever reaches the work without the gate.
  */
-const mockWithUserAuthorizedToEdit = jest.fn();
+const mockWithRight = jest.fn();
 const mockTaskFindUnique = jest.fn();
 const mockStartTask = jest.fn();
 const mockHandler = jest.fn();
 
 jest.mock('@/lib/notifications/meetingNotifications', () => ({ notifySubscribersOfTask: jest.fn() }));
 jest.mock('../../auth', () => ({
-  withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
+  withRight: (...args: unknown[]) => mockWithRight(...args),
 }));
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
@@ -33,7 +33,7 @@ import { processTaskResponse } from '../tasks';
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+  mockWithRight.mockResolvedValue(true);
   mockTaskFindUnique.mockResolvedValue({
     id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', councilMeetingId: 'other-meeting', responseBody: '{}',
   });
@@ -42,11 +42,11 @@ beforeEach(() => {
 describe('requestFixTranscript', () => {
   it('authorizes the caller for the meeting it was handed', async () => {
     await requestFixTranscript('meeting-1', 'city-1');
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1', councilMeetingId: 'meeting-1' });
+    expect(mockWithRight).toHaveBeenCalledWith('tasks.run', { cityId: 'city-1', councilMeetingId: 'meeting-1' });
   });
 
   it('starts no task when the caller is not authorized', async () => {
-    mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Not authorized'));
+    mockWithRight.mockRejectedValue(new Error('Not authorized'));
     await expect(requestFixTranscript('meeting-1', 'city-1')).rejects.toThrow('Not authorized');
     expect(mockStartTask).not.toHaveBeenCalled();
   });
@@ -55,23 +55,29 @@ describe('requestFixTranscript', () => {
 describe('processTaskResponse', () => {
   it("authorizes against the task's own meeting, not one the caller supplies", async () => {
     await processTaskResponse('transcribe', 'task-1');
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city', councilMeetingId: 'other-meeting' });
+    expect(mockWithRight).toHaveBeenCalledWith('tasks.run', { cityId: 'other-city', councilMeetingId: 'other-meeting' });
   });
 
-  it("authorizes against the task's city for a task that is the city's", async () => {
+  it("asks the right of the stored type: the poll replay is the records keeper's, on the meeting", async () => {
     mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'pollDecisions', cityId: 'other-city', councilMeetingId: 'other-meeting', responseBody: '{}' });
     await processTaskResponse('pollDecisions', 'task-1').catch(() => undefined);
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city' });
+    expect(mockWithRight).toHaveBeenCalledWith('records.edit', { cityId: 'other-city', councilMeetingId: 'other-meeting' });
+  });
+
+  it("asks the right of the stored type: the voiceprint replay is the admin's, on the city", async () => {
+    mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'generateVoiceprint', cityId: 'other-city', councilMeetingId: 'other-meeting', responseBody: '{}' });
+    await processTaskResponse('generateVoiceprint', 'task-1').catch(() => undefined);
+    expect(mockWithRight).toHaveBeenCalledWith('admin', { cityId: 'other-city' });
   });
 
   it("authorizes against the task's city when the task has no meeting", async () => {
     mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', councilMeetingId: null, responseBody: '{}' });
     await processTaskResponse('transcribe', 'task-1');
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city' });
+    expect(mockWithRight).toHaveBeenCalledWith('tasks.run', { cityId: 'other-city' });
   });
 
   it('runs no handler when the caller is not authorized', async () => {
-    mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Not authorized'));
+    mockWithRight.mockRejectedValue(new Error('Not authorized'));
     await expect(processTaskResponse('transcribe', 'task-1')).rejects.toThrow('Not authorized');
     expect(mockHandler).not.toHaveBeenCalled();
   });

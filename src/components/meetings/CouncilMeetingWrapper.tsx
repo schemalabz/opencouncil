@@ -14,10 +14,11 @@ import { MeetingData } from '@/lib/getMeetingData'
 import { KeyboardShortcuts } from './KeyboardShortcuts'
 import { KeyboardShortcutsProvider } from '@/contexts/KeyboardShortcutsContext'
 import { EditingProvider } from './EditingContext'
+import type { Right } from '@/lib/auth/rights'
 
 
 type CouncilMeetingWrapperProps = {
-    editable: boolean,
+    rights: Right[],
     canCreateHighlights: boolean,
     meetingData: MeetingData,
     children: React.ReactNode
@@ -26,7 +27,7 @@ type CouncilMeetingWrapperProps = {
 const LayoutContext = createContext<{ isWide: boolean }>({ isWide: false });
 export const useLayout = () => useContext(LayoutContext);
 
-export default function CouncilMeetingWrapper({ meetingData, editable, canCreateHighlights, children }: CouncilMeetingWrapperProps) {
+export default function CouncilMeetingWrapper({ meetingData, rights, canCreateHighlights, children }: CouncilMeetingWrapperProps) {
     const [isWide, setIsWide] = useState(false);
 
     const memoizedUtterances = useMemo(() => {
@@ -49,7 +50,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
     return (
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
-                <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
+                <TranscriptOptionsProvider rights={rights} canCreateHighlights={canCreateHighlights}>
                     <SpeakerIdentificationsProvider>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                         <BarDataProvider>

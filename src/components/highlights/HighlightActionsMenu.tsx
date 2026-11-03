@@ -21,7 +21,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { deleteHighlight, renameHighlight } from "@/lib/db/highlights";
+import { deleteHighlight, renameHighlight } from "@/lib/actions/highlights";
 import { HIGHLIGHT_NAME_MAX_LENGTH } from "@/lib/highlights/constants";
 import { captureHighlight, type HighlightSurface } from "@/lib/highlights/analytics";
 import { cn } from "@/lib/utils";

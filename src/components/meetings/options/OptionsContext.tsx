@@ -1,18 +1,27 @@
 "use client";
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useStoredState } from '@/hooks/useStoredState';
+import type { Right } from '@/lib/auth/rights';
 
 export interface TranscriptOptions {
     editable: boolean;
+    /** The `admin` right on the meeting: the transcript editor and the controls that stay the admins'. */
     editsAllowed: boolean;
+    /** The rights the viewer holds on the meeting, as the server listed them. */
+    rights: Right[];
+    /** Whether the viewer holds the right on the meeting. */
+    can: (right: Right) => boolean;
     canCreateHighlights: boolean;
     maxUtteranceDrift: number;
     skipInterval: number; // seconds to skip forward/backward
 }
 
+/** What the provider stores: `editsAllowed` and `can` are read off `rights` on every render. */
+type StoredOptions = Omit<TranscriptOptions, 'editsAllowed' | 'can'>;
+
 interface TranscriptOptionsContextType {
     options: TranscriptOptions;
-    updateOptions: (newOptions: Partial<TranscriptOptions>) => void;
+    updateOptions: (newOptions: Partial<StoredOptions>) => void;
 }
 
 const TranscriptOptionsContext = createContext<TranscriptOptionsContextType | undefined>(undefined);
@@ -37,28 +46,31 @@ function parseStoredSpeed(raw: string): number | undefined {
     return Number.isFinite(value) ? Math.min(4, Math.max(0.5, value)) : undefined;
 }
 
-const defaultOptions: TranscriptOptions = {
-    editsAllowed: false,
+const defaultOptions: StoredOptions = {
     editable: false,
+    rights: [],
     canCreateHighlights: false,
     maxUtteranceDrift: 500,
     skipInterval: 5,
 };
 
-export function TranscriptOptionsProvider({ children, editable, canCreateHighlights }: { children: React.ReactNode, editable: boolean, canCreateHighlights: boolean }) {
-    const [options, setOptions] = useState<TranscriptOptions>(() => ({
-        ...defaultOptions,
-        editsAllowed: editable,
-        canCreateHighlights,
-    }));
+export function TranscriptOptionsProvider({ children, rights, canCreateHighlights }: { children: React.ReactNode, rights: Right[], canCreateHighlights: boolean }) {
+    const [stored, setOptions] = useState<StoredOptions>(() => ({ ...defaultOptions, rights, canCreateHighlights }));
     // The one option that outlives the page, so it is the one option that is stored.
     const [playbackSpeed, setPlaybackSpeed] = useStoredState(SPEED_STORAGE_KEY, parseStoredSpeed, 1);
 
-    const updateOptions = useCallback((newOptions: Partial<TranscriptOptions>) => {
+    const updateOptions = useCallback((newOptions: Partial<StoredOptions>) => {
         setOptions(prev => ({ ...prev, ...newOptions }));
     }, []);
 
-    const value = useMemo<TranscriptOptionsContextType>(() => ({ options, updateOptions }), [options, updateOptions]);
+    const value = useMemo<TranscriptOptionsContextType>(() => ({
+        options: {
+            ...stored,
+            editsAllowed: stored.rights.includes('admin'),
+            can: (right) => stored.rights.includes(right),
+        },
+        updateOptions,
+    }), [stored, updateOptions]);
     const speedValue = useMemo<PlaybackSpeedContextType>(() => ({ playbackSpeed, setPlaybackSpeed }), [playbackSpeed, setPlaybackSpeed]);
 
     return (

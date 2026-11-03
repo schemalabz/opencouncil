@@ -1,6 +1,8 @@
 import Admin from "@/components/meetings/admin/Admin";
-import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
+import { hasRight, heldScope, rightsFor } from "@/lib/auth";
+import { ADMIN_PAGE_RIGHTS } from "@/lib/auth/rights";
 import { getMeetingBodySettings } from "@/lib/db/administrativeBodies";
+import { getCityRealm } from "@/lib/db/cityRealm";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -14,25 +16,37 @@ export const metadata: Metadata = {
 export default async function AdminPage(props: {
     params: Promise<{ cityId: string; meetingId: string }>;
 }) {
-    // The parent meeting layout computes `editable` but still renders this page
+    // The parent meeting layout computes the rights but still renders this page
     // for anyone — and a layout guard would not re-run on an RSC navigation
-    // anyway. Gate here, at city-admin scope (not superadmin), so the check
-    // fires on every render path. `notFound()` hides the page's existence.
+    // anyway. Gate here, on the rights the page has a section for, so the
+    // check fires on every render path. `notFound()` hides the page's existence.
     const { cityId, meetingId } = await props.params;
-    const [editable, scope] = await Promise.all([
-        isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }),
-        // Which bodies the edit form offers: all of them to a city admin, the
-        // admin's own bodies to a body admin.
-        getUnreleasedScope(cityId),
+    const [rights, scope, cityAdmin, realm] = await Promise.all([
+        rightsFor({ cityId, councilMeetingId: meetingId }),
+        // Which bodies the edit form offers: all of them to a holder on the
+        // city, their own bodies to a holder on a body.
+        heldScope('meeting.manage', cityId),
+        // The cache and the operator act on the city, as their routes check.
+        hasRight('admin', { cityId }),
+        getCityRealm(cityId),
     ]);
-    if (!editable) {
+    if (!ADMIN_PAGE_RIGHTS.some((right) => rights.includes(right))) {
         notFound();
     }
-    const bodySettings = await getMeetingBodySettings(cityId, meetingId);
+    const [bodySettings, realmAdmin] = await Promise.all([
+        getMeetingBodySettings(cityId, meetingId),
+        // A send that skips the approval queue needs `admin` on the realm, as the notifications route checks.
+        realm ? hasRight('admin', { realm }) : false,
+    ]);
 
     return (
         <div className="container py-8">
-            <Admin notificationBehavior={bodySettings?.notificationBehavior ?? null} editableBodyIds={scope.all ? undefined : scope.bodyIds} />
+            <Admin
+                notificationBehavior={bodySettings?.notificationBehavior ?? null}
+                editableBodyIds={scope.all ? undefined : scope.bodyIds}
+                cityAdmin={cityAdmin}
+                realmAdmin={realmAdmin}
+            />
         </div>
     );
 }

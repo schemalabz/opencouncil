@@ -15,18 +15,19 @@ import {
  */
 export async function GET(request: NextRequest) {
     try {
-        const realms = await getAdminRealms();
-
         const query = adminNotificationsQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
         const { meetingId, cityIdForMeeting, cityId, status, type, page, pageSize, startDate } = query;
 
-        // Check if this is a request for a specific meeting's notifications
+        // One meeting's notifications, for the expanded view and for the send
+        // modal of the meeting. getNotificationsForMeeting checks the
+        // `notification.send` right on the meeting, which a sender holds
+        // without any realm, so this branch comes before the realm gate.
         if (meetingId && cityIdForMeeting) {
-            // Return notifications for a specific meeting (for expanded view).
-            // getNotificationsForMeeting checks the `admin` right on the city.
             const notifications = await getNotificationsForMeeting(meetingId, cityIdForMeeting, type);
             return NextResponse.json({ notifications });
         }
+
+        const realms = await getAdminRealms();
 
         // Check if this is a request for cities list
         if (query.getCities) {

@@ -17,11 +17,11 @@ import {
  *
  * The task modules are server-only: next to each request they hold the
  * handler of the task server's result, which a browser must not reach. Every
- * request below gates on withUserAuthorizedToEdit for the meeting, the city
- * or the person before it starts a task.
+ * request below gates on `tasks.run` for the meeting or the city, or on
+ * `admin` for the person, before it starts a task.
  */
 
-/** Reprocess for the admin task list. processTaskResponse gates on the task's own city. */
+/** Reprocess for the admin task list. processTaskResponse gates on the right of the task's type, on the task's own scope. */
 export async function processTaskResponse(
     taskType: string,
     taskId: string,

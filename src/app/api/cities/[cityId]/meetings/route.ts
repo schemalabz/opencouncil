@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
-import { withUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
+import { withRight, withUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
 import { ALL_UNRELEASED, NO_UNRELEASED, type UnreleasedScope } from '@/lib/unreleased';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
@@ -14,17 +14,17 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
     const params = await props.params;
     try {
         const body = await request.json();
-        // A body admin creates meetings of their body only, so the check
+        // A grant on a body creates meetings of that body only, so the check
         // carries the body; a meeting with no body is the city's. The check
         // runs before the parse, so a caller without rights learns nothing
         // about the schema.
         const bodyId = typeof body?.administrativeBodyId === 'string' && body.administrativeBodyId ? body.administrativeBodyId : undefined;
-        await withUserAuthorizedToEdit(bodyId
+        await withRight('meeting.manage', bodyId
             ? { cityId: params.cityId, administrativeBodyId: bodyId }
             : { cityId: params.cityId });
         const { processAgenda, ...input } = meetingSchema.parse(body);
 
-        // Auth was already verified by withUserAuthorizedToEdit above. The shared
+        // Auth was already verified by withRight above. The shared
         // write runs the lifecycle rules and does no auth of its own.
         const { meeting, processAgendaStatus } = await createMeetingWithEffects(params.cityId, { ...input, processAgenda });
 

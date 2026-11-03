@@ -16,7 +16,8 @@ const parseAuditMode = (raw: string): boolean | undefined =>
  * extraction works through many meetings in a sitting, and a mode that reset
  * on every navigation would be turned on again at each one.
  *
- * Every caller must also hold `isSuperAdmin`: this hook says what the person
+ * Every caller must also hold `cityAdmin`, the `admin` right on the city:
+ * this hook says what the person
  * chose, never who they are. Off is the fallback, so a browser that refuses
  * storage — and the server render, which has none — shows the ordinary page.
  */

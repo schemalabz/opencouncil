@@ -11,7 +11,7 @@ import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
+import { withRight, hasRight } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
@@ -21,7 +21,7 @@ import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
-import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
+import { setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { meetingWithAdminBodyInclude } from "./types/meeting";
@@ -35,13 +35,6 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
     include: typeof meetingWithAdminBodyInclude
 }>;
 
-
-
-export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
-    // The city's, not the body admin's: deletion is not among their rights (#828).
-    await withUserAuthorizedToEdit({ cityId });
-    await deleteMeetingRecord(cityId, id);
-}
 
 /**
  * Generate a unique meeting ID for a city, handling collisions
@@ -91,7 +84,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     try {
         const meeting = await getCouncilMeetingDirect(cityId, id);
 
-        if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId, councilMeetingId: id }))) {
+        if (meeting && !meeting.released && !(await hasRight('drafts.read', { cityId, councilMeetingId: id }))) {
             return null;
         }
         return meeting;
@@ -186,7 +179,7 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 }
 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    await withRight('meeting.release', { councilMeetingId: id, cityId: cityId });
     try {
         // The module also releases or hides the other meetings of a postponement.
         const { meeting: updatedMeeting, changed } = await setMeetingReleased(cityId, id, released);

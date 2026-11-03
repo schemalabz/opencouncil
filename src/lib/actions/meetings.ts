@@ -3,7 +3,7 @@
 import { toggleMeetingRelease as toggleRelease } from "@/lib/db/meetings";
 import type { CouncilMeetingWithAdminBody } from "@/lib/db/meetings";
 import { LifecycleRuleError, type LifecycleRuleCode } from "@/lib/meetingLifecycleRules";
-import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { withRight } from "@/lib/auth";
 import { getReleaseOutlook, type ReleaseOutlook } from "@/lib/notifications/meetingNotifications";
 
 export type ToggleReleaseResult =
@@ -14,7 +14,7 @@ export type ToggleReleaseResult =
  * Browser-facing release toggle for the meeting admin panel.
  *
  * The data module is server-only. toggleMeetingRelease gates on
- * withUserAuthorizedToEdit before it writes. A refusal by a lifecycle rule
+ * `meeting.release` before it writes. A refusal by a lifecycle rule
  * comes back as a value: production Next hides the message of an error that
  * a Server Action throws.
  */
@@ -36,6 +36,6 @@ export async function toggleMeetingRelease(
  * The data module is server-only and caller-gated, so the gate is here.
  */
 export async function getMeetingReleaseOutlook(cityId: string, id: string): Promise<ReleaseOutlook> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId });
+    await withRight('meeting.release', { councilMeetingId: id, cityId });
     return getReleaseOutlook(cityId, id);
 }
