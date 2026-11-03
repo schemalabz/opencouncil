@@ -32,6 +32,8 @@ import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { setMeetingReleaseDirect } from '@/lib/db/meetings';
+import { getReleaseOutlook } from '@/lib/notifications/meetingNotifications';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { landingSubjectsTag } from '@/lib/db/subject';
 import { parseBoundaryInput } from '@/lib/utils/geojson';
@@ -85,7 +87,7 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
         url: meetingUrl(meeting.cityId, meeting.id),
         ...(processAgendaStatus && { processAgendaStatus }),
         next: 'The meeting is saved as a draft: only administrators see it, and no subscriber is notified '
-            + 'until it is released. Transcription and release are done on the site, on the admin page of the meeting.',
+            + 'until it is released. Use start_task for processing and update_meeting with released for publication.',
     };
 }
 
@@ -93,6 +95,30 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
     await requireMeetingAdmin(identity, args.cityId, args.meetingId);
     // Realm-scoped, and an administrator of the meeting passes it for a draft.
     const current = await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    if (args.released !== undefined) {
+        const notifications = args.released && !current.released
+            ? await getReleaseOutlook(args.cityId, args.meetingId)
+            : null;
+        const result = args.dryRun
+            ? { meeting: { released: current.released }, changed: false }
+            : await setMeetingReleaseDirect(args.cityId, args.meetingId, args.released);
+        return {
+            cityId: args.cityId,
+            meetingId: args.meetingId,
+            dryRun: args.dryRun ?? false,
+            released: result.meeting.released,
+            changed: result.changed,
+            notifications: args.dryRun || result.changed ? notifications : null,
+            url: meetingUrl(args.cityId, args.meetingId),
+            next: args.dryRun
+                ? 'Preview only: no visibility change or notifications. Confirm the visibility change with the user before writing.'
+                : !result.changed
+                    ? 'The meeting already had the requested visibility. No new release notifications were scheduled.'
+                    : args.released
+                        ? 'The meeting is released. Normal notification rules apply. Public discovery also requires a public city.'
+                        : 'The meeting is unreleased. Postponement rules can make an earlier meeting visible again.',
+        };
+    }
     // A body admin may not move a meeting away from their body, nor take the
     // meeting of another body: the new body needs its own right.
     if (args.administrativeBodyId !== undefined && args.administrativeBodyId !== current.administrativeBodyId) {

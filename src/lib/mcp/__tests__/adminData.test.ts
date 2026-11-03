@@ -31,6 +31,8 @@ jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn
 jest.mock('../../db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
 jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn(), publishCityDemoDirect: jest.fn(), updateCityGeometryDirect: jest.fn() }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
+jest.mock('../../db/meetings', () => ({ setMeetingReleaseDirect: jest.fn() }));
+jest.mock('../../notifications/meetingNotifications', () => ({ getReleaseOutlook: jest.fn() }));
 jest.mock('../realmGuards', () => ({
     assertCitiesInRealm: jest.fn(),
     requireRealmCity: jest.fn(),
@@ -59,6 +61,9 @@ import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetin
 import { requireRealmCity } from '../realmGuards';
 import { requireVisibleMeeting } from '../gate';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
+import { setMeetingReleaseDirect } from '../../db/meetings';
+import { getReleaseOutlook } from '../../notifications/meetingNotifications';
+import { LifecycleRuleError } from '../../meetingLifecycleRules';
 import { completeUpload, startUpload } from '../../uploads';
 import * as cityPopulate from '../../db/cityPopulate';
 
@@ -634,4 +639,79 @@ it('start_task starts directly without an inspection preflight', async () => {
     await mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'transcribe', force: false });
     expect(startMeetingTask).toHaveBeenCalledTimes(1);
     expect(fetch).not.toHaveBeenCalled();
+});
+
+
+describe('release a meeting through the token rights', () => {
+    const args = { cityId: 'argos', meetingId: 'm1', released: true, dryRun: false };
+    const outlook = { notis: { phase: null, reason: 'archive' }, email: { phase: null, outcome: { kind: 'none', reason: 'archive' }, recipients: 0 } };
+    beforeEach(() => {
+        (getReleaseOutlook as jest.Mock).mockReset().mockResolvedValue(outlook);
+        (setMeetingReleaseDirect as jest.Mock).mockReset().mockResolvedValue({ meeting: { id: 'm1', cityId: 'argos', released: true }, changed: true });
+    });
+    it.each([null, ADMIN_TOKEN])('refuses a caller without meeting rights (%s)', async identity => {
+        await expect(mcpUpdateMeeting(identity, args)).rejects.toThrow();
+        expect(setMeetingReleaseDirect).not.toHaveBeenCalled();
+        expect(getReleaseOutlook).not.toHaveBeenCalled();
+    });
+    it('refuses an administrator of another body', async () => {
+        asBodyAdmin('committee', 'argos');
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, args)).rejects.toThrow(ForbiddenError);
+        expect(setMeetingReleaseDirect).not.toHaveBeenCalled();
+    });
+    it('allows the administrator of the meeting body', async () => {
+        asBodyAdmin('council', 'argos');
+        expect(await mcpUpdateMeeting(ADMIN_TOKEN, args)).toMatchObject({ released: true, changed: true, notifications: outlook });
+        expect(setMeetingReleaseDirect).toHaveBeenCalledWith('argos', 'm1', true);
+    });
+    it('checks realm visibility before reading notification recipients or writing', async () => {
+        asCityAdmin('argos');
+        (requireVisibleMeeting as jest.Mock).mockRejectedValueOnce(new NotFoundError('Meeting not found'));
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, args)).rejects.toThrow(NotFoundError);
+        expect(setMeetingReleaseDirect).not.toHaveBeenCalled();
+        expect(getReleaseOutlook).not.toHaveBeenCalled();
+    });
+    it('previews notifications without releasing the draft', async () => {
+        asCityAdmin('argos');
+        expect(await mcpUpdateMeeting(ADMIN_TOKEN, { ...args, dryRun: true })).toMatchObject({ dryRun: true, released: false, changed: false, notifications: outlook });
+        expect(setMeetingReleaseDirect).not.toHaveBeenCalled();
+    });
+    it('reports an already released meeting without claiming a new change', async () => {
+        asSuperadmin();
+        (setMeetingReleaseDirect as jest.Mock).mockResolvedValueOnce({ meeting: { id: 'm1', cityId: 'argos', released: true }, changed: false });
+        expect(await inRealm('sweden', () => mcpUpdateMeeting(SUPERADMIN_TOKEN, args))).toMatchObject({ released: true, changed: false, url: 'https://se.opencouncil.eu/argos/m1' });
+    });
+    it.each([true, false])('reports no notification effects for an already released meeting (dryRun=%s)', async dryRun => {
+        asCityAdmin('argos');
+        (requireVisibleMeeting as jest.Mock).mockResolvedValueOnce({ released: true, administrativeBodyId: 'council', locale: 'el' });
+        (getReleaseOutlook as jest.Mock).mockResolvedValueOnce({ email: { outcome: { kind: 'sends' }, recipients: 5 } });
+        (setMeetingReleaseDirect as jest.Mock).mockResolvedValueOnce({ meeting: { released: true }, changed: false });
+        expect(await mcpUpdateMeeting(ADMIN_TOKEN, { ...args, dryRun })).toMatchObject({ released: true, changed: false, notifications: null });
+        expect(getReleaseOutlook).not.toHaveBeenCalled();
+    });
+    it('preserves a lifecycle refusal for the tool error handler', async () => {
+        asCityAdmin('argos');
+        (setMeetingReleaseDirect as jest.Mock).mockRejectedValueOnce(new LifecycleRuleError('laterMeetingReleased', 'A later meeting is public'));
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, args)).rejects.toMatchObject({ code: 'laterMeetingReleased' });
+    });
+});
+
+
+describe('unrelease through update_meeting', () => {
+    const args = { cityId: 'argos', meetingId: 'm1', released: false };
+    beforeEach(() => {
+        asCityAdmin('argos');
+        (requireVisibleMeeting as jest.Mock).mockResolvedValue({ released: true, administrativeBodyId: 'council', locale: 'el' });
+        (setMeetingReleaseDirect as jest.Mock).mockReset().mockResolvedValue({ meeting: { released: false }, changed: true });
+        (getReleaseOutlook as jest.Mock).mockReset();
+    });
+    it('uses the existing unrelease lifecycle without requesting a release notification outlook', async () => {
+        expect(await mcpUpdateMeeting(ADMIN_TOKEN, args)).toMatchObject({ released: false, changed: true, notifications: null });
+        expect(setMeetingReleaseDirect).toHaveBeenCalledWith('argos', 'm1', false);
+        expect(getReleaseOutlook).not.toHaveBeenCalled();
+    });
+    it('previews an unrelease without hiding the meeting', async () => {
+        expect(await mcpUpdateMeeting(ADMIN_TOKEN, { ...args, dryRun: true })).toMatchObject({ released: true, changed: false, notifications: null });
+        expect(setMeetingReleaseDirect).not.toHaveBeenCalled();
+    });
 });

@@ -54,7 +54,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 'Create a council meeting in a municipality, or of an administrative body, that you administer. '
                 + 'An administrator of a body must pass that body. The meeting is saved as a '
                 + 'draft (unreleased), so the public does not see it, and a draft notifies no subscriber: '
-                + 'an admin releases it from the admin page, and the release notifies them. It also creates the calendar event. '
+                + 'an admin releases it with update_meeting or from the admin page. The release applies the usual notification rules. It also creates the calendar event. '
                 + 'Call list_meetings first with the same date: a second call creates a second meeting. '
                 + 'Pass administrativeBodyId (see get_city): the meeting list of the site shows the council '
                 + 'by default and hides a meeting that has no body. The meeting has no name to set: the site '
@@ -68,7 +68,7 @@ function registerMeetingAdminTools(server: McpServer) {
         'update_meeting',
         {
             title: 'Update meeting',
-            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
             _meta: category('admin'),
             description:
                 'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
@@ -77,8 +77,12 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
                 + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
                 + 'to a body that they do not administer. It cannot link a meeting to a postponed '
-                + 'meeting, it cannot release a meeting and it cannot delete one. Confirm the change with the '
-                + 'user before you call.',
+                + 'meeting and it cannot delete one. Set released to true to publish or false to unrelease. '
+                + 'Send visibility changes separately from detail edits. For visibility, use dryRun=true to preview effects, '
+                + 'then confirm with the user before writing. Release can notify subscribers and hide earlier postponed meetings. '
+                + 'Unrelease can restore a postponed predecessor. Repeating the same visibility schedules no new release notifications. '
+                + 'This does not publish the city or mark human review complete. Unsupported fields are rejected. '
+                + 'Confirm detail edits with the user before calling.',
             inputSchema: updateMeetingToolInput,
         },
         (args, ctx: ServerContext) => run(() => mcpUpdateMeeting(identityFromContext(ctx), args))

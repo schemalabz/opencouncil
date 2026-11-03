@@ -12,7 +12,7 @@ jest.mock('../adminData', () => ({
     mcpPublishCityDemo: jest.fn().mockResolvedValue({}),
     mcpSetCityBoundary: jest.fn().mockResolvedValue({}),
     mcpStartTask: jest.fn(),
-    mcpUpdateMeeting: jest.fn(),
+    mcpUpdateMeeting: jest.fn().mockResolvedValue({}),
 }));
 // auth.ts reaches Prisma, and through it env.mjs, which jest does not transform.
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
@@ -226,4 +226,28 @@ it('advertises optional inspection to an admin and validates its URL through the
     expect((await mcp.listTools()).map(t => t.name)).toContain('inspect_media');
     const result = await mcp.call('inspect_media', { url: 'file:///secret' });
     expect(result.isError).toBe(true);
+});
+
+
+describe('update_meeting publication through the SDK', () => {
+    it.each([true, false])('supports released=%s without adding a release tool', async released => {
+        expect((await mcp.listTools()).some(t => t.name === 'release_meeting')).toBe(false);
+        expect((await mcp.call('update_meeting', { cityId: 'laholm', meetingId: 'sep29_2026', released, dryRun: true })).isError).toBeFalsy();
+        expect(mcpUpdateMeeting).toHaveBeenCalledWith(null, { cityId: 'laholm', meetingId: 'sep29_2026', released, dryRun: true });
+    });
+    it.each([
+        { released: true, place: 'Theatre' },
+        { released: false, administrativeBodyId: 'council' },
+        { dryRun: true, place: 'Theatre' },
+        { dryRun: false, place: 'Theatre' },
+        { released: true, publishTypo: true },
+        { agendaURL: 'https://example.com/agenda.pdf', place: 'Theatre' },
+    ])('rejects mixed edits or unsupported fields before the handler: %j', async patch => {
+        expect((await mcp.call('update_meeting', { cityId: 'laholm', meetingId: 'sep29_2026', ...patch })).isError).toBe(true);
+        expect(mcpUpdateMeeting).not.toHaveBeenCalled();
+    });
+    it('keeps normal detail edits valid', async () => {
+        expect((await mcp.call('update_meeting', { cityId: 'laholm', meetingId: 'sep29_2026', place: 'Theatre' })).isError).toBeFalsy();
+        expect(mcpUpdateMeeting).toHaveBeenCalledWith(null, { cityId: 'laholm', meetingId: 'sep29_2026', place: 'Theatre' });
+    });
 });

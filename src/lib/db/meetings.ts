@@ -186,6 +186,11 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    return (await setMeetingReleaseDirect(cityId, id, released)).meeting;
+}
+
+/** Caller-gated release workflow shared by the browser action and token-authorized MCP tools. */
+export async function setMeetingReleaseDirect(cityId: string, id: string, released: boolean) {
     try {
         // The module also releases or hides the other meetings of a postponement.
         const { meeting: updatedMeeting, changed } = await setMeetingReleased(cityId, id, released);
@@ -202,7 +207,7 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
             // a newly (un)released meeting can enter/leave the landing's upcoming list
             revalidateTag(upcomingMeetingsTag(realm), 'max');
         }
-        return updatedMeeting;
+        return { meeting: updatedMeeting, changed };
     } catch (error) {
         // A lifecycle rule explains itself to the admin (lib/actions/meetings.ts).
         if (error instanceof LifecycleRuleError) throw error;

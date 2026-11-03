@@ -458,6 +458,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
         summarized,
+        released: visible.released,
         ...(tasks && {
             tasks: tasks.map(mcpTaskSummary),
             // What processAgenda and summarize would do with email if they succeeded now, read before start_task.

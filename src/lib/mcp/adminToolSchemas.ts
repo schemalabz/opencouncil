@@ -94,6 +94,15 @@ export const updateMeetingToolInput = z.object({
     agendaUrl: baseMeetingFields.agendaUrl.nullable().optional(),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional(),
     ...meetingRecordInput,
+    released: z.boolean().optional().meta({ description: 'Release or unrelease the meeting. Send this separately from detail edits; uses the normal release lifecycle and notification rules' }),
+    dryRun: z.boolean().optional().meta({ description: 'Visibility changes only: preview without changing data or scheduling notifications' }),
+}).strict().superRefine(({ cityId, meetingId, released, dryRun, ...details }, ctx) => {
+    if (released !== undefined && Object.values(details).some(value => value !== undefined)) {
+        ctx.addIssue({ code: 'custom', path: ['released'], message: 'Send a visibility change separately from meeting detail edits.' });
+    }
+    if (dryRun !== undefined && released === undefined) {
+        ctx.addIssue({ code: 'custom', path: ['dryRun'], message: 'dryRun applies to a released change only.' });
+    }
 });
 export type UpdateMeetingToolArgs = z.output<typeof updateMeetingToolInput>;
 

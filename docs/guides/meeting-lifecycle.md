@@ -306,3 +306,15 @@ sequenceDiagram
 
 
 
+
+## Visibility changes through MCP
+
+Administrators can use `update_meeting` with `cityId`, `meetingId`, and `released`. Body administrators can change visibility for meetings of their own body.
+
+Read `get_meeting` to check processing state and the `released` flag. Set `released: true` to publish or `released: false` to unrelease. Use `dryRun: true` to preview effects without changing data. Confirm the visibility change with the user before writing. Omit `dryRun` or set it to `false` to apply the change.
+
+Send visibility changes separately from meeting detail edits. The tool rejects mixed requests and unsupported fields. The `dryRun` option applies only to visibility changes.
+
+The tool uses the admin page's lifecycle, cache updates, and notification workflow. A repeated visibility request does not schedule new release notifications. Releasing a replacement can hide earlier meetings in its postponement chain. Unreleasing it can restore a predecessor. Lifecycle errors include their rule code.
+
+The tool does not mark human review complete. Released content still follows the city's public status and the body's transcript visibility rules.
