@@ -32,12 +32,10 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
 /** How long the "Saved" tick stays under the form. */
 const SAVED_FOR_MS = 3000;
 
-/** A person this account administers: the consent box is theirs, not the account's. */
+/** A person this account is, by a QR claim: the consent box is theirs, not the account's. */
 export interface ConsentPerson {
     id: string;
     name: string;
-    /** By a QR scan: the account is this person, not an editor a superadmin added. */
-    claimed: boolean;
     /**
      * The consent in force, by who recorded it; null when none is. The person
      * revokes an ADMIN consent by email, not here.
@@ -66,7 +64,6 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     const t = useTranslations("Profile");
     const locale = useLocale();
     const router = useRouter();
-    const claimed = persons.filter((p) => p.claimed);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
     const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,9 +80,9 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     const [formData, setFormData] = useState({
         // A councillor who signed up through their QR has no name yet: start
         // from the name on their council record. Only with exactly one claimed
-        // person: with more, nothing says which name is the account holder's,
-        // and an editor's name is their own. Saved only with the form.
-        name: user.name || (claimed.length === 1 ? claimed[0].name : ""),
+        // person: with more, nothing says which name is the account holder's.
+        // Saved only with the form.
+        name: user.name || (persons.length === 1 ? persons[0].name : ""),
         phone: user.phone || "",
     });
     // The number whose code dialog is open, and the one the

@@ -42,14 +42,15 @@ const closePeriod = (tx: Prisma.TransactionClient, period: OpenPeriod) =>
     });
 
 /**
- * Set a person's voiceprint consent from the profile of an account that
- * administers the person: the person's own account, by a QR claim, or an
- * account a superadmin gave the person to. The consent is the person's, not
- * the account's, so every such account sees and changes the same state.
+ * Set a person's voiceprint consent from the profile of the person's own
+ * account: the one that claimed the person by its QR code. The consent is
+ * the person's, so the account that is the person gives it. An account a
+ * superadmin gave the person to edits the page, but the profile shows the
+ * consent box only to the account that claimed the person.
  *
  * Not `withUserAuthorizedToEdit`: that would let a superadmin, or a city
  * admin, tick the box for a person they were never given. The caller must
- * hold an Administers row for the person.
+ * hold the claimed Administers row for the person.
  *
  * A consent is a period. A tick opens one, under this account, and a tick
  * on an open period keeps it, so the original time stands. A withdrawal
@@ -64,12 +65,17 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
     if (typeof consent !== "boolean") throw new BadRequestError("consent must be a boolean");
     const user = await getCurrentUser();
     if (!user) throw new UnauthorizedError("Not signed in");
-    const refused = () => new ForbiddenError("Only an account that administers the person can set its voiceprint consent");
-    if (!user.administers.some((a) => a.personId === personId)) throw refused();
+    // The claim is what makes the account the person's own (#875). A row a
+    // superadmin gave to a delegate lets them edit the page, not consent.
+    const refused = () => new ForbiddenError("Only the account that claimed the person can set its voiceprint consent");
+    if (!user.administers.some((a) => a.personId === personId && a.claimedAt)) throw refused();
 
     await writeConsent(async (tx) => {
         // Read inside the write: a permission removed meanwhile refuses it.
-        const row = await tx.administers.findFirst({ where: { userId: user.id, personId, ...activeGrantWhere }, select: { id: true } });
+        const row = await tx.administers.findFirst({
+            where: { userId: user.id, personId, claimedAt: { not: null }, ...activeGrantWhere },
+            select: { id: true },
+        });
         if (!row) throw refused();
 
         const open = await tx.voicePrintConsent.findFirst({ where: openPeriod(personId), select: openPeriodSelect });

@@ -19,7 +19,17 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row"
-import { GRANT_TYPE_ICON, mapAdministersToGrants } from "@/components/admin/users/administers"
+import { GRANT_TYPE_ICON, mapAdministersToGrants, type GrantEntry } from "@/components/admin/users/administers"
+import { grantStatus, pendingUntil } from "@/lib/auth/rights"
+
+/** When the row took effect, or until when the invite waits, and who gave it. */
+function grantHistoryLine(history: NonNullable<GrantEntry['history']>): string {
+    const by = history.grantedBy ? ` · by ${history.grantedBy}` : ''
+    const status = grantStatus({ ...history, revokedAt: null })
+    if (status === 'active') return `Accepted ${format(history.acceptedAt as Date, 'MMM dd, yyyy')}${by}`
+    const until = format(pendingUntil(new Date(history.createdAt)), 'MMM dd, yyyy')
+    return status === 'pending' ? `Invite open until ${until}${by}` : `Invite expired ${until}${by}`
+}
 
 interface ExpandableUserRowProps {
     user: UserWithRelations
@@ -53,11 +63,18 @@ export function ExpandableUserRow({
                             <CardContent className="space-y-2 text-xs">
                                 {grants.length > 0 ? (
                                     <div className="space-y-2">
-                                        {grants.map(({ key, role, entity }) => (
-                                            <Badge key={key} variant="secondary" className="block w-fit">
-                                                {GRANT_TYPE_ICON[entity.type]} {entity.displayName} · {role}
-                                            </Badge>
-                                        ))}
+                                        {grants.map(({ key, role, entity, history }) => {
+                                            const pending = history !== undefined && grantStatus({ ...history, revokedAt: null }) !== 'active'
+                                            return (
+                                                <div key={key}>
+                                                    {/* An outline badge: an invite that nobody accepted is no right yet. */}
+                                                    <Badge variant={pending ? "outline" : "secondary"} className="block w-fit">
+                                                        {GRANT_TYPE_ICON[entity.type]} {entity.displayName} · {role}
+                                                    </Badge>
+                                                    {history && <p className="mt-0.5 text-muted-foreground">{grantHistoryLine(history)}</p>}
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No administrative roles</p>

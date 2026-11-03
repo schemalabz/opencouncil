@@ -27,14 +27,14 @@ export const metadata: Metadata = {
 export default async function ProfilePage() {
     const user = await getCurrentUser();
     if (!user) redirect("/sign-in");
-    // The persons this account administers, by a QR claim or given by a
-    // superadmin: their voiceprint consent boxes.
-    const linkedPersons = user.administers.flatMap((a) => (a.person ? [{ person: a.person, claimed: a.claimedAt !== null }] : []));
-    const consents = await getVoicePrintConsents(linkedPersons.map((l) => l.person.id));
-    const persons: ConsentPerson[] = linkedPersons.map(({ person, claimed }) => ({
+    // The persons this account is, by a QR claim: their voiceprint consent
+    // boxes. The box is a first-person statement, so a person the account
+    // was given to by a superadmin has none here.
+    const ownPersons = user.administers.flatMap((a) => (a.person && a.claimedAt ? [a.person] : []));
+    const consents = await getVoicePrintConsents(ownPersons.map((person) => person.id));
+    const persons: ConsentPerson[] = ownPersons.map((person) => ({
         id: person.id,
         name: person.name,
-        claimed,
         consent: consents.get(person.id) ?? null,
     }));
     const [t, tTeam, highlightsAllowed, signedUp, linkedProviders, requestHeaders] = await Promise.all([

@@ -6,7 +6,9 @@ import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors"
 import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { findMachineAccount } from "@/lib/db/machineAccounts";
-import { acceptedAtFor, DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
+import { acceptedAtFor, activeGrantWhere, DUPLICATE_GRANT_MESSAGE, isDuplicateGrant } from "@/lib/auth/grants.server";
+import { namedScope, scopeLabel, type NamedScope } from "@/lib/auth/grantScope";
+import { sendAccountDeletedAdminAlert } from "@/lib/discord";
 import { peopleOnly, userWithAdministersInclude, type UserWithAdministers } from "@/lib/db/types";
 
 const userWithRelationsInclude = {
@@ -230,15 +232,45 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
     }
 }
 
+const heldRoleSelect = {
+    role: true,
+    realm: true,
+    city: { select: { id: true, name: true } },
+    administrativeBody: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    party: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+    person: { select: { id: true, name: true, cityId: true, city: { select: { name: true } } } },
+} satisfies Prisma.AdministersSelect;
+
+/**
+ * The scope as the deletion alert names it. A person's name is personal
+ * data, and the alert goes to a Discord channel: it names the city only.
+ */
+const alertScope = (scope: NamedScope): string =>
+    scope.kind === 'person' ? scopeLabel({ ...scope, name: 'A person' }) : scopeLabel(scope);
+
+/**
+ * Delete the account. Its grant rows go with it (the cascade on `userId`),
+ * and the account is personal data, so nothing of it stays: the alert is
+ * the trace of the roles it held. Read before the delete, posted after it,
+ * so the alert reports a deletion that happened.
+ */
+async function deleteAccount(id: string, deletedBy: 'self' | 'superadmin'): Promise<void> {
+    const held = await prisma.administers.findMany({ where: { userId: id, ...activeGrantWhere }, select: heldRoleSelect });
+    await prisma.user.delete({ where: { id } });
+    if (held.length === 0) return;
+    await sendAccountDeletedAdminAlert({
+        deletedBy,
+        roles: held.map((row) => ({ role: row.role, scope: alertScope(namedScope(row)) })),
+    });
+}
+
 export async function deleteUser(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
     // The account is the attribution of the highlights its tokens created
     // (Highlight.createdBy is SetNull on delete), so it stays.
     if (await findMachineAccount(id)) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
     try {
-        await prisma.user.delete({
-            where: { id },
-        });
+        await deleteAccount(id, 'superadmin');
     } catch (error) {
         const errorWithCode = error as { code?: string };
         if (errorWithCode.code === "P2025") {
@@ -253,6 +285,6 @@ export async function deleteCurrentUser(): Promise<void> {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not authenticated');
     if (user.isMachine) throw new ConflictError(MACHINE_ACCOUNT_RETIRE_HINT);
-    await prisma.user.delete({ where: { id: user.id } });
+    await deleteAccount(user.id, 'self');
 }
 

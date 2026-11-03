@@ -9,6 +9,16 @@ export type GrantEntry = {
     key: string
     role: GrantRole
     entity: AdminEntity
+    /**
+     * The lifecycle of the row, for the users page. The edit dialog builds
+     * entries without it: a row it adds has no history yet.
+     */
+    history?: {
+        createdAt: Date
+        acceptedAt: Date | null
+        /** Who gave the row: a name, or an email, or null for a claim. */
+        grantedBy: string | null
+    }
 }
 
 export const grantKey = (entity: Pick<AdminEntity, 'type' | 'id'>, role: GrantRole): string => `${entity.type}:${entity.id}:${role}`
@@ -38,7 +48,14 @@ export function mapAdministersToGrants(administers: UserWithAdministers['adminis
     const grants: GrantEntry[] = []
     for (const a of administers) {
         const entity = entityOf(a)
-        if (entity) grants.push({ key: grantKey(entity, a.role), role: a.role, entity })
+        if (!entity) continue
+        // The rows reach the users page through a JSON fetch: the dates are strings there.
+        const history = {
+            createdAt: new Date(a.createdAt),
+            acceptedAt: a.acceptedAt ? new Date(a.acceptedAt) : null,
+            grantedBy: a.grantedBy?.name ?? a.grantedBy?.email ?? null,
+        }
+        grants.push({ key: grantKey(entity, a.role), role: a.role, entity, history })
     }
     return grants
 }
