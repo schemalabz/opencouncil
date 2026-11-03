@@ -260,6 +260,7 @@
         "citySections": "Секције града",
         "openConsultations": "{count, plural, one {# отворена јавна расправа} few {# отворене јавне расправе} other {# отворених јавних расправа}}",
         "widget": "Виџет",
+        "team": "Тим",
         "supportBadgeOfficialAthens": "Уз подршку града и компаније ДАЕМ",
         "supportBadgeOfficialMunicipality": "Уз подршку општине/града",
         "supportBadgeOfficialRegion": "Уз подршку округа",
@@ -768,12 +769,7 @@
         "superAdminAccess": "Имате приступ системског администратора",
         "goToAdmin": "Иди на администрацију",
         "noAdminAccess": "Немате администраторска права.",
-        "contactForAccess": "Да бисте добили администраторски приступ, контактирајте нас:",
-        "adminCity": "Управљај градом",
-        "adminParty": "Управљај одборничком групом",
-        "adminPerson": "Управљај чланом",
-        "adminBody": "Управљај органом",
-        "adminRealm": "Управљај државом"
+        "contactForAccess": "Да бисте добили администраторски приступ, контактирајте нас:"
     },
     "ReportForm": {
         "title": "Креирање извештаја о напретку",

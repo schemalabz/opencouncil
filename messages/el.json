@@ -274,6 +274,7 @@
         "citySections": "Ενότητες δήμου",
         "openConsultations": "{count, plural, one {# ανοιχτή διαβούλευση} other {# ανοιχτές διαβουλεύσεις}}",
         "widget": "Widget",
+        "team": "Ομάδα",
         "supportBadgeOfficialAthens": "Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.",
         "supportBadgeOfficialMunicipality": "Με την υποστήριξη του δήμου",
         "supportBadgeOfficialRegion": "Με την υποστήριξη της περιφέρειας",
@@ -873,12 +874,7 @@
         "superAdminAccess": "Έχετε πρόσβαση διαχειριστή συστήματος",
         "goToAdmin": "Μετάβαση στη Διαχείριση",
         "noAdminAccess": "Δεν έχετε δικαιώματα διαχείρισης.",
-        "contactForAccess": "Για να αποκτήσετε πρόσβαση διαχείρισης, επικοινωνήστε μαζί μας:",
-        "adminCity": "Διαχείριση Πόλης",
-        "adminParty": "Διαχείριση Παράταξης",
-        "adminPerson": "Διαχείριση Μέλους",
-        "adminBody": "Διαχείριση Οργάνου",
-        "adminRealm": "Διαχείριση Χώρας"
+        "contactForAccess": "Για να αποκτήσετε πρόσβαση διαχείρισης, επικοινωνήστε μαζί μας:"
     },
     "ReportForm": {
         "title": "Δημιουργία Αναφοράς Προόδου",

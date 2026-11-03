@@ -2,7 +2,7 @@
 import { City, CityMessage, Realm } from '@prisma/client';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { Code, Database } from 'lucide-react';
+import { Code, Database, Users } from 'lucide-react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
 import { Button } from '@/components/ui/button';
@@ -97,6 +97,12 @@ export function CityAdminTools({ city, cityMessage, canEdit, isSuperAdmin, formR
                         <Link href={`/${city.id}/widget`} className="hover:no-underline">
                             <Code className="w-3.5 h-3.5 mr-1.5" />
                             {t('widget')}
+                        </Link>
+                    </AdminToolButton>
+                    <AdminToolButton asChild>
+                        <Link href={`/${city.id}/team`} className="hover:no-underline">
+                            <Users className="w-3.5 h-3.5 mr-1.5" />
+                            {t('team')}
                         </Link>
                     </AdminToolButton>
                 </>

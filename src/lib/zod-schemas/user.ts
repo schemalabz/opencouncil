@@ -140,3 +140,10 @@ export const GRANT_ERROR_CODES = ['last-admin', 'cap', 'machine-address', 'claim
 export type GrantErrorCode = (typeof GRANT_ERROR_CODES)[number];
 export const isGrantErrorCode = (value: unknown): value is GrantErrorCode =>
     typeof value === 'string' && (GRANT_ERROR_CODES as readonly string[]).includes(value);
+
+/** The refusal code of a grants answer, when its body carries a known one. */
+export async function grantErrorCodeOf(response: Response | null): Promise<GrantErrorCode | undefined> {
+    const json: unknown = await response?.json().catch(() => null);
+    const code = json && typeof json === 'object' && 'error' in json ? json.error : undefined;
+    return isGrantErrorCode(code) ? code : undefined;
+}

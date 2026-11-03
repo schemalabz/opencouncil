@@ -37,8 +37,9 @@ export default async function ProfilePage() {
         claimed,
         consent: consents.get(person.id) ?? null,
     }));
-    const [t, highlightsAllowed, signedUp, linkedProviders, requestHeaders] = await Promise.all([
+    const [t, tTeam, highlightsAllowed, signedUp, linkedProviders, requestHeaders] = await Promise.all([
         getTranslations("Profile"),
+        getTranslations("team"),
         canAccessMyHighlights(),
         // Only the settings view invites; the onboarding form does not ask.
         user.onboarded ? hasNotificationPreference(user.id) : true,
@@ -101,7 +102,14 @@ export default async function ProfilePage() {
                 connections={connections}
                 aside={administersSomething || showDevTools ? (
                     <>
-                        {administersSomething && <AdminSection user={user} t={t} />}
+                        {administersSomething && (
+                            <AdminSection
+                                user={user}
+                                t={t}
+                                roleLabel={(role) => tTeam(`role.${role}`)}
+                                kindLabel={(kind) => tTeam(`scopeKind.${kind}`)}
+                            />
+                        )}
                         {showDevTools && <DevelopmentSection isPreview={isPreview} />}
                     </>
                 ) : undefined}

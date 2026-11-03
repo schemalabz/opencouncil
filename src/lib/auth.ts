@@ -32,9 +32,13 @@ const currentUser = cache(async () => {
                 where: activeGrantWhere,
                 include: {
                     city: true,
-                    party: true,
-                    person: true,
-                    administrativeBody: publicAdministrativeBodyRelation,
+                    // The city's name too: the profile rail names a body, a
+                    // party or a person with its city, as the Team page does.
+                    party: { include: { city: { select: { name: true } } } },
+                    person: { include: { city: { select: { name: true } } } },
+                    administrativeBody: {
+                        select: { ...publicAdministrativeBodyRelation.select, city: { select: { name: true } } },
+                    },
                 }
             }
         }
@@ -112,6 +116,15 @@ export async function heldScope(right: Right, cityId: City["id"]): Promise<Unrel
     if (!user) return NO_UNRELEASED;
     const actor = actorOf(user);
     return scopeInCity(actor, right, cityId, await realmFor(actor, cityId));
+}
+
+/**
+ * Whether the viewer opens the Team tab of a city (#875): an admin of the
+ * city, or of one of its bodies. The grants module narrows what each sees.
+ */
+export async function canManageTeam(cityId: City["id"]): Promise<boolean> {
+    const held = await heldScope('admin', cityId);
+    return held.all || held.bodyIds.length > 0;
 }
 
 /** Which unreleased meetings of a city the viewer may see (see src/lib/unreleased.ts). */

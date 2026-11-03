@@ -1,19 +1,29 @@
 {
     "title": "Team",
     "lead": "The people who hold a role on your realms, cities and administrative bodies.",
+    "leadCity": "The people who hold a role in {city}.",
     "invite": "Invite",
-    "showRevoked": "Show revoked grants",
-    "empty": "Nobody holds a grant here yet.",
-    "noName": "No name",
+    "empty": "Nobody holds a role here yet.",
+    "emptyHint": "Invite a colleague by email. They get the role at their first sign-in.",
+    "members": "Members",
+    "invitations": "Invitations",
+    "invitationsHint": "An invite stays open for {days} days. After that it expires, and a resend opens it again.",
+    "history": "History",
+    "showHistory": "Show history",
+    "historyEmpty": "No role was revoked and no invite was withdrawn here.",
     "columns": {
-        "name": "Name",
-        "email": "Email",
+        "person": "Person",
         "role": "Role",
         "scope": "Scope",
         "since": "Since",
-        "grantedBy": "Granted by",
-        "status": "Status"
+        "invited": "Invited",
+        "status": "Status",
+        "ended": "Ended",
+        "actions": "Actions"
     },
+    "by": "by {name}",
+    "expires": "Expires {date}",
+    "inviteWithdrawn": "Invite withdrawn",
     "role": {
         "admin": "Admin",
         "records": "Records",
@@ -21,9 +31,14 @@
         "highlights": "Highlights",
         "viewer": "Viewer"
     },
+    "roleHint": {
+        "admin": "Everything below, and the team: invites and revokes roles.",
+        "records": "Edits the records: transcripts, subjects, minutes. Exports them.",
+        "meetings": "Manages the meetings: adds, releases, runs the processing tasks.",
+        "highlights": "Manages the highlights and sends the notifications.",
+        "viewer": "Reads the unreleased records and exports the transcripts."
+    },
     "status": {
-        "active": "Active",
-        "pending": "Pending",
         "expired": "Expired",
         "revoked": "Revoked"
     },
@@ -36,13 +51,30 @@
     },
     "revoke": {
         "action": "Revoke",
-        "title": "Revoke grant",
-        "description": "The account keeps every other grant it holds. The grant stays on the list as revoked.",
-        "failed": "The grant could not be revoked."
+        "title": "Revoke role",
+        "description": "The account keeps every other role it holds. The row moves to the history.",
+        "failed": "The role could not be revoked.",
+        "done": "Role revoked."
+    },
+    "withdraw": {
+        "action": "Withdraw",
+        "title": "Withdraw invite",
+        "description": "A sign-in no longer gives the role. The row moves to the history.",
+        "failed": "The invite could not be withdrawn.",
+        "done": "Invite withdrawn."
+    },
+    "resend": {
+        "action": "Resend",
+        "failed": "The invite could not be sent again.",
+        "done": "Invite sent again to {email}."
+    },
+    "invited": {
+        "pending": "Invite sent to {email}.",
+        "active": "{who} now holds the {role} role on {scope}."
     },
     "dialog": {
         "title": "Invite to the team",
-        "description": "A new email gets an account and an invite email. An existing account only gets the role.",
+        "description": "A new address gets an invite email, and the role takes effect at the first sign-in. An account that signed in before gets the role at once, and an email that says so.",
         "email": "Email",
         "name": "Name (optional)",
         "role": "Role",
@@ -50,6 +82,8 @@
         "realm": "Realm",
         "city": "City",
         "body": "Administrative body",
+        "party": "Party",
+        "wholeCity": "The whole of {city}.",
         "pick": "Select…",
         "submit": "Send invite",
         "sending": "Sending…",
@@ -58,9 +92,9 @@
     },
     "errors": {
         "last-admin": "This is the last admin of the scope. Only an admin of the scope above can revoke it.",
-        "cap": "The scope has reached its limit of admins.",
+        "cap": "The scope has reached its limit of roles.",
         "machine-address": "This address is reserved for machine accounts.",
-        "claimed": "The person claimed this grant. Only a superadmin can remove it, on the users page.",
+        "claimed": "The person claimed this role. Only a superadmin can remove it, on the users page.",
         "duplicate": "The account already holds this role on this scope."
     },
     "errorGeneric": "Something went wrong. Try again."

@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getAdminRealms } from '@/lib/auth';
+import { getAdminRealms, getCurrentUser } from '@/lib/auth';
 import { listGrants, listGrantScopes } from '@/lib/db/grants';
 import { TeamTable } from '@/components/admin/team/TeamTable';
 
@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function TeamAdminPage() {
     const realms = await getAdminRealms();
-    const [grants, scopes] = await Promise.all([listGrants({ realms }), listGrantScopes(realms)]);
-    return <TeamTable grants={grants} scopes={scopes} superadmin={realms === null} />;
+    const [grants, scopes, user] = await Promise.all([listGrants({ realms }), listGrantScopes(realms), getCurrentUser()]);
+    // getAdminRealms throws without a session, so the viewer is here.
+    return <TeamTable grants={grants} scopes={scopes} superadmin={realms === null} viewerId={user?.id ?? ''} />;
 }
