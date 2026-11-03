@@ -23,7 +23,7 @@ import { JsonMetadataDialog } from "@/components/ui/json-metadata-dialog";
 const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
     task: TaskStatus
-    onDelete: (taskId: string) => void
+    onDelete?: (taskId: string) => void
     showMeetingInfo?: boolean
 }
 
@@ -128,7 +128,7 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                             <Clock className="h-3 w-3 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground"><RelativeTime date={task.updatedAt} /></span>
                         </div>
-                        <Button
+                        {onDelete && <Button
                             variant="ghost"
                             size="sm"
                             className="h-5 w-5 p-0"
@@ -142,7 +142,7 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                             ) : (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                             )}
-                        </Button>
+                        </Button>}
                         {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     </div>
                 </div>
@@ -363,7 +363,7 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                             variant="destructive"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onDelete(task.id);
+                                onDelete?.(task.id);
                                 setShowDeleteDialog(false);
                             }}
                         >

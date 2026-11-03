@@ -99,7 +99,7 @@ export function DecisionsTablePanel({ open, onOpenChange }: { open: boolean; onO
                     leaves room on the right for the sheet's close control. */}
                 <ResponsiveSheetHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 md:pr-10">
                     <ResponsiveSheetTitle>{t('title')}</ResponsiveSheetTitle>
-                    {options.editsAllowed && (
+                    {options.can('minutes.export') && (
                         <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
                             {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                             {t('export')}

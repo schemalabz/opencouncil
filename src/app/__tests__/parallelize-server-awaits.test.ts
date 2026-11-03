@@ -47,6 +47,7 @@ jest.mock('@/lib/cache', () => ({
 jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn(),
     hasRight: jest.fn(async () => false),
+    rightsFor: jest.fn(async () => []),
     getRoleLimitForCity: jest.fn(),
     getUnreleasedScope: jest.fn(),
     getCurrentUser: jest.fn(),
@@ -156,11 +157,11 @@ describe('PR1: server-side awaits run concurrently', () => {
         const notifications = require('@/lib/db/notifications');
 
         const userD = deferred<unknown>();
-        const authD = deferred<boolean>();
+        const authD = deferred<string[]>();
         const dataD = deferred<unknown>();
 
         auth.getCurrentUser.mockReturnValue(userD.promise);
-        auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
+        auth.rightsFor.mockReturnValue(authD.promise);
         meetingData.getMeetingDataCached.mockReturnValue(dataD.promise);
         notifications.getNotificationPreferenceForCity.mockResolvedValue(null);
 
@@ -175,11 +176,11 @@ describe('PR1: server-side awaits run concurrently', () => {
         await flushMicrotasks();
 
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
-        expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(auth.rightsFor).toHaveBeenCalledTimes(1);
         expect(meetingData.getMeetingDataCached).toHaveBeenCalledTimes(1);
 
         userD.resolve(null);
-        authD.resolve(false);
+        authD.resolve([]);
         dataD.resolve({
             city: { id: 'athens', name: 'Athens', highlightCreationPermission: 'ADMIN' },
             meeting: { name: 'm', updatedAt: new Date(), administrativeBody: null, muxPlaybackId: null },
@@ -197,12 +198,12 @@ describe('PR1: server-side awaits run concurrently', () => {
         const notifications = require('@/lib/db/notifications');
 
         const userD = deferred<unknown>();
-        const authD = deferred<boolean>();
+        const authD = deferred<string[]>();
         const dataD = deferred<unknown>();
         const notifD = deferred<unknown>();
 
         auth.getCurrentUser.mockReturnValue(userD.promise);
-        auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
+        auth.rightsFor.mockReturnValue(authD.promise);
         meetingData.getMeetingDataCached.mockReturnValue(dataD.promise);
         notifications.getNotificationPreferenceForCity.mockReturnValue(notifD.promise);
 
@@ -218,7 +219,7 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         // Top-level awaits started, but notification cannot fire until the user resolves.
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
-        expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(auth.rightsFor).toHaveBeenCalledTimes(1);
         expect(meetingData.getMeetingDataCached).toHaveBeenCalledTimes(1);
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
 
@@ -231,7 +232,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(notifications.getNotificationPreferenceForCity).toHaveBeenCalledWith('user-42', 'athens');
 
         // Now resolve the remaining promises so the layout can finish.
-        authD.resolve(false);
+        authD.resolve([]);
         dataD.resolve({
             city: { id: 'athens', name: 'Athens', highlightCreationPermission: 'ADMIN' },
             meeting: { name: 'm', updatedAt: new Date(), administrativeBody: null, muxPlaybackId: null },

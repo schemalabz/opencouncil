@@ -145,6 +145,7 @@ export function ExpandableMeetingRow({
                         cityId={selectedCityId}
                         meetingId={meeting.id}
                         disabled={false}
+                        isAdmin
                     />
                 </CardContent>
             </Card>

@@ -101,6 +101,8 @@ function grantsFor(adminType: TestUserAdminType, scope: ScopedEntities): Grant[]
             return scope.realms.map((realm) => ({ realm }));
         case 'records':
             return scope.bodyIds.map((administrativeBodyId) => ({ administrativeBodyId, role: 'records' as const }));
+        case 'meetings':
+            return scope.cityIds.map((cityId) => ({ cityId, role: 'meetings' as const }));
         case 'comms':
             return scope.cityIds.map((cityId) => ({ cityId, role: 'highlights' as const }));
         case 'viewer':

@@ -16,20 +16,23 @@ import { ConventionsSection, type ConventionsPanel } from '@/components/meetings
 import type { Issue } from '@/lib/derivation/types';
 
 /**
- * The decisions page's rail: the minutes card, the meeting's facts (presence,
- * attendance changes, discussion order), and — for a superadmin only — the
- * staff block. No fetching: the page owns every value and callback, this only
- * composes the cards.
+ * The decisions page's rail: the two export cards, the meeting's facts
+ * (presence, attendance changes, discussion order), the body's reading rules,
+ * and — for a city admin only — the staff block. No fetching: the page owns
+ * every value and callback, this only composes the cards.
+ *
+ * The export cards are a `minutes.export` holder's, and the rules a
+ * `records.edit` holder's: the rules link to the body form that right opens.
+ * A viewer gets the facts alone.
  *
  * The minutes card leads because it is the only card here that does anything,
  * and because producing the πρακτικά is often why a city admin opened the
  * page. On a phone the rail stacks below the whole table, so last place put
  * the export at the bottom of a very long page.
  *
- * The staff block holds the audit-mode switch, the rules the derivation read
- * this body's documents by, and the two controls nobody else may run: a poll
- * that bypasses the task server's extraction cache, and the destructive
- * extraction reset. The ordinary Diavgeia re-check belongs to every admin and
+ * The staff block holds the audit-mode switch and the two controls nobody
+ * else may run: a poll that bypasses the task server's extraction cache, and
+ * the destructive extraction reset. The ordinary Diavgeia re-check belongs to every admin and
  * lives on the questions card, so it is not repeated here. Where the decisions
  * come from is on the page's status line, where a city admin can read it too.
  *
@@ -39,7 +42,9 @@ import type { Issue } from '@/lib/derivation/types';
 export function DecisionsRail({
     minutes,
     timeline,
-    isSuperAdmin,
+    cityAdmin,
+    canEdit,
+    canExport,
     auditMode,
     onAuditModeChange,
     conventions,
@@ -66,7 +71,11 @@ export function DecisionsRail({
      * attendance-changes and discussion-order cards render nothing then. */
     minutes: MinutesData | null;
     timeline: Timeline | null;
-    isSuperAdmin: boolean;
+    cityAdmin: boolean;
+    /** The `records.edit` right: the reading rules and their form. */
+    canEdit: boolean;
+    /** The `minutes.export` right: the minutes and decisions-table cards. */
+    canExport: boolean;
     auditMode: boolean;
     onAuditModeChange: (value: boolean) => void;
     /** The reading rules the derivation applied, and the body they belong to.
@@ -110,22 +119,25 @@ export function DecisionsRail({
 
     return (
         <div className="flex min-w-0 flex-col gap-3.5">
-            <MinutesCard
-                onPreview={onPreviewMinutes}
-                onExport={onExportDocx}
-                previewDisabled={previewDisabled}
-                readiness={minutes && minutesReadiness(minutes)}
-                onRederive={onRederive}
-                isRederiving={isRederiving}
-                showRederive={isSuperAdmin && auditMode}
-            />
-            <DecisionsTableCard onExport={onExportDecisionsTable} />
+            {canExport && (
+                <MinutesCard
+                    onPreview={onPreviewMinutes}
+                    onExport={onExportDocx}
+                    previewDisabled={previewDisabled}
+                    readiness={minutes && minutesReadiness(minutes)}
+                    onRederive={onRederive}
+                    isRederiving={isRederiving}
+                    showRederive={cityAdmin && auditMode}
+                />
+            )}
+            {canExport && <DecisionsTableCard onExport={onExportDecisionsTable} />}
             {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} />}
             {minutes && (
                 <AttendanceChangesCard changes={changes} subjects={minutes.subjects} attendanceChanges={minutes.attendanceChanges} />
             )}
             {minutes && <DiscussionOrderCard data={minutes} />}
-            {isSuperAdmin && (
+            {canEdit && conventions && <ConventionsSection panel={conventions} />}
+            {cityAdmin && (
                 // One frame, not two: the block wore the AdminOnly stripes and
                 // then striped each control row inside them again, so the
                 // hazard pattern read as two nested warnings about one thing.
@@ -149,7 +161,6 @@ export function DecisionsRail({
                             </label>
                             <p className="mt-1 text-[11px] text-muted-foreground">{tPage('auditModeHint')}</p>
                         </div>
-                        {conventions && <ConventionsSection panel={conventions} />}
                         {/* The controls' own surface. Their 11px hints used to be
                             printed straight onto the stripes, where the pattern
                             runs through every letter of the text you have to read

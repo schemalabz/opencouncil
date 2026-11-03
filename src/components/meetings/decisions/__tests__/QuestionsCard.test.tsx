@@ -9,6 +9,7 @@ import admin from '../../../../../messages/el/admin.json';
 // `Partial<typeof props>` overrides below (e.g. `renderCard({ unplaced })`)
 // could not accept the concrete arrays.
 const props: QuestionsCardProps = {
+    canEdit: true,
     waiting: null as { proposed: number; plain: number } | null,
     onJumpToTable: jest.fn(),
     conflicts: [],
@@ -126,6 +127,26 @@ describe('QuestionsCard', () => {
         const controls = dismiss.parentElement;
         expect(controls).toHaveClass('flex-col', 'items-end');
         expect(controls).toContainElement(screen.getByRole('button', { name: /^Σε ποιο θέμα ανήκει/ }));
+    });
+
+    it('lets a reader open the documents and answer nothing, not even a poll', async () => {
+        renderCard({
+            canEdit: false,
+            total: 4,
+            unplaced,
+            conflicts: [{
+                candidateId: 'c4', number: '664/2026', title: 'Παροχή πληρεξουσιότητας',
+                holder: { id: 's24', label: 'το θέμα 24', hasAgendaNumber: true },
+                claimant: { id: 's25', label: 'το θέμα 25', hasAgendaNumber: true },
+            }],
+        });
+        await userEvent.click(screen.getByRole('button', { name: /Εμφάνιση/ }));
+        expect(screen.getAllByRole('button', { name: /^Άνοιγμα εγγράφου/ })).toHaveLength(4);
+        expect(screen.queryByRole('button', { name: /Μένει/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Μεταφορά/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Σε ποιο θέμα ανήκει/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Δεν αφορά/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
     });
 
     it('answers a conflict by naming the outcome, not the subject twice', () => {

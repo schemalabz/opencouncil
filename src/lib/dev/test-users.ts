@@ -14,6 +14,7 @@ export const TEST_USER_EMAILS = {
   BODY_ADMIN: 'body@test.com',
   REALM_ADMIN: 'realmadmin@test.com',
   RECORDS: 'records@test.com',
+  MEETINGS: 'meetings@test.com',
   COMMS: 'comms@test.com',
   VIEWER: 'viewer@test.com',
   READ_ONLY: 'readonly@test.com'
@@ -83,6 +84,14 @@ export const TEST_USERS = [
     description: 'Decisions, attendance and minutes of one administrative body'
   },
   {
+    email: TEST_USER_EMAILS.MEETINGS,
+    phone: '+306990000011',
+    name: 'Meetings Operator',
+    isSuperAdmin: false,
+    adminType: 'meetings' as const,
+    description: 'Creates, edits and releases the meetings of a city, and runs their tasks'
+  },
+  {
     email: TEST_USER_EMAILS.COMMS,
     phone: '+306990000009',
     name: 'Communications',
@@ -135,6 +144,7 @@ function getTestUserIcon(adminType: TestUserAdminType): string {
     case 'body': return '🏢'
     case 'realmadmin': return '🌍'
     case 'records': return '📜'
+    case 'meetings': return '📅'
     case 'comms': return '📣'
     case 'viewer': return '🔍'
     case 'readonly': return '👁️'

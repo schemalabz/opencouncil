@@ -51,8 +51,8 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const preference = useNotificationPreference();
     if (stage === 'complete') return null;
 
-    // The layout keeps the transcript for editors; the strip must say what they see.
-    const hidden = transcriptHiddenForReview && !options.editsAllowed;
+    // The layout keeps the transcript for the roles; the strip must say what they see.
+    const hidden = transcriptHiddenForReview && !options.can('drafts.read');
 
     const date = new Date(meeting.dateTime);
     const timezone = city.timezone;

@@ -72,7 +72,9 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
         <DecisionsRail
             minutes={minutes}
             timeline={buildTimeline(minutes)}
-            isSuperAdmin={false}
+            cityAdmin={false}
+            canEdit={false}
+            canExport
             auditMode={false}
             onAuditModeChange={jest.fn()}
             conventions={null}
@@ -98,12 +100,20 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
 }
 
 describe('DecisionsRail', () => {
-    it('renders the presence, attendance-changes, discussion-order and minutes cards for everyone', () => {
+    it('renders the presence, attendance-changes, discussion-order and minutes cards for an exporter', () => {
         renderRail();
         expect(screen.getByText('attendance')).toBeInTheDocument();
         expect(screen.getByText('factsArrivalsDepartures')).toBeInTheDocument();
         expect(screen.getByText('factsDiscussionOrder')).toBeInTheDocument();
         expect(screen.getByText('previewMinutes')).toBeInTheDocument();
+    });
+
+    it('shows a viewer the facts and neither export card', () => {
+        renderRail({ canExport: false });
+        expect(screen.getByText('attendance')).toBeInTheDocument();
+        expect(screen.queryByText('previewMinutes')).not.toBeInTheDocument();
+        expect(screen.queryByText('rail.minutesTitle')).not.toBeInTheDocument();
+        expect(screen.queryByText('title')).not.toBeInTheDocument();
     });
 
     it('puts the minutes card first, then the decisions table export, above the facts they are built from', () => {
@@ -116,33 +126,33 @@ describe('DecisionsRail', () => {
     // The issues read against audit mode, which only a superadmin has; a city
     // admin seeing the codes without the mode that explains them was confusing.
     it('shows the issues card to a superadmin only, inside the admin frame', () => {
-        renderRail({ isSuperAdmin: false });
+        renderRail({ cityAdmin: false });
         expect(screen.queryByText('issues.title')).not.toBeInTheDocument();
 
-        renderRail({ isSuperAdmin: true });
+        renderRail({ cityAdmin: true });
         const frame = screen.getByText('Μόνο για διαχειριστές').parentElement!;
         expect(frame).toContainElement(screen.getByText('issues.title'));
     });
 
     it('renders no reset strip for a non-superadmin', () => {
-        renderRail({ isSuperAdmin: false, showResetExtractions: true });
+        renderRail({ cityAdmin: false, showResetExtractions: true });
         expect(screen.queryByText('resetExtractions')).not.toBeInTheDocument();
     });
 
     it('renders no reset strip when showResetExtractions is false, even for a superadmin', () => {
-        renderRail({ isSuperAdmin: true, showResetExtractions: false });
+        renderRail({ cityAdmin: true, showResetExtractions: false });
         expect(screen.queryByText('resetExtractions')).not.toBeInTheDocument();
     });
 
     it('renders the destructive reset strip for a superadmin when eligible', () => {
-        renderRail({ isSuperAdmin: true, showResetExtractions: true });
+        renderRail({ cityAdmin: true, showResetExtractions: true });
         expect(screen.getByText('resetExtractions')).toBeInTheDocument();
         expect(screen.getByText('resetExtractionsDescription')).toBeInTheDocument();
     });
 
     it('calls onResetExtractions when the reset button is clicked', () => {
         const onResetExtractions = jest.fn();
-        renderRail({ isSuperAdmin: true, showResetExtractions: true, onResetExtractions });
+        renderRail({ cityAdmin: true, showResetExtractions: true, onResetExtractions });
         fireEvent.click(screen.getByText('resetExtractions'));
         expect(onResetExtractions).toHaveBeenCalledTimes(1);
     });
@@ -152,34 +162,34 @@ describe('DecisionsRail', () => {
         // sits on the questions card; a second copy here would be the same
         // request behind a staff-only frame.
         const onPollSkippingCache = jest.fn();
-        renderRail({ isSuperAdmin: true, onPollSkippingCache });
+        renderRail({ cityAdmin: true, onPollSkippingCache });
         fireEvent.click(screen.getByText('pollButtonSkipCache'));
         expect(onPollSkippingCache).toHaveBeenCalledTimes(1);
         expect(screen.getByText('skipCacheHint')).toBeInTheDocument();
     });
 
     it('disables the poll while one is on its way', () => {
-        renderRail({ isSuperAdmin: true, isPolling: true });
+        renderRail({ cityAdmin: true, isPolling: true });
         expect(screen.getByText('pollButtonSkipCache').closest('button')).toBeDisabled();
     });
 
     it('frames the staff block once, with one label', () => {
         // The block wore the AdminOnly stripes and then striped each control
         // row inside them again: one warning about one thing, not two.
-        renderRail({ isSuperAdmin: true, showResetExtractions: true });
+        renderRail({ cityAdmin: true, showResetExtractions: true });
         expect(screen.getAllByText('Μόνο για διαχειριστές')).toHaveLength(1);
         const frame = screen.getByText('Μόνο για διαχειριστές').parentElement as HTMLElement;
         expect(frame.querySelectorAll('[style*="repeating-linear-gradient"]')).toHaveLength(0);
     });
 
     it('prints the control hints on a solid surface rather than on the stripes', () => {
-        renderRail({ isSuperAdmin: true, showResetExtractions: true });
+        renderRail({ cityAdmin: true, showResetExtractions: true });
         expect(screen.getByText('skipCacheHint').closest('.bg-background')).toBeInTheDocument();
         expect(screen.getByText('resetExtractionsDescription').closest('.bg-background')).toBeInTheDocument();
     });
 
     it('summarises the body\'s reading rules on one line, collapsed', () => {
-        renderRail({ isSuperAdmin: true, conventions });
+        renderRail({ canEdit: true, conventions });
         expect(screen.getByText('conventionsTitle')).toBeInTheDocument();
         // The rules belong to the body; the page is one meeting of it.
         expect(screen.getByText('Δημοτική Επιτροπή · Δήμος Παπάγου-Χολαργού')).toBeInTheDocument();
@@ -191,7 +201,7 @@ describe('DecisionsRail', () => {
     });
 
     it('opens to all nine fields, with the flags as ✓/✗ and a link to the form', () => {
-        const { container } = renderRail({ isSuperAdmin: true, conventions });
+        const { container } = renderRail({ canEdit: true, conventions });
         fireEvent.click(screen.getByText('conventionsTitle'));
 
         for (const field of ['rollCallLayout', 'presentListMeaning', 'attendanceChangeAnchors', 'namedVoters']) {
@@ -207,7 +217,7 @@ describe('DecisionsRail', () => {
     });
 
     it('reveals a value\'s description as text rather than a tooltip', () => {
-        renderRail({ isSuperAdmin: true, conventions });
+        renderRail({ canEdit: true, conventions });
         fireEvent.click(screen.getByText('conventionsTitle'));
         expect(screen.queryByText('namedVoters.dissenters_only.description')).not.toBeInTheDocument();
         fireEvent.click(screen.getByText('namedVoters.dissenters_only.label'));
@@ -215,18 +225,30 @@ describe('DecisionsRail', () => {
     });
 
     it('says a body has no stored rules rather than hiding the section', () => {
-        renderRail({ isSuperAdmin: true, conventions: { ...conventions, rules: null } });
+        renderRail({ canEdit: true, conventions: { ...conventions, rules: null } });
         expect(screen.getByText('conventionsNone')).toBeInTheDocument();
         expect(screen.getByText('conventionsEdit →').closest('a')).toHaveAttribute('href', '/chalandri');
     });
 
     it('shows no rules section when the meeting names no administrative body', () => {
-        renderRail({ isSuperAdmin: true, conventions: null });
+        renderRail({ canEdit: true, conventions: null });
         expect(screen.queryByText('conventionsTitle')).not.toBeInTheDocument();
     });
 
-    it('shows a city admin no staff block at all', () => {
-        renderRail({ isSuperAdmin: false, showResetExtractions: true, conventions });
+    it('shows a records keeper the rules outside the staff block', () => {
+        renderRail({ canEdit: true, conventions });
+        expect(screen.getByText('conventionsTitle')).toBeInTheDocument();
+        expect(screen.queryByText('Μόνο για διαχειριστές')).not.toBeInTheDocument();
+    });
+
+    it('shows the rules to nobody without the right, the staff block or not', () => {
+        renderRail({ cityAdmin: true, canEdit: false, conventions });
+        expect(screen.getByText('Μόνο για διαχειριστές')).toBeInTheDocument();
+        expect(screen.queryByText('conventionsTitle')).not.toBeInTheDocument();
+    });
+
+    it('shows a viewer no staff block at all', () => {
+        renderRail({ cityAdmin: false, showResetExtractions: true, conventions });
         expect(screen.queryByText('Μόνο για διαχειριστές')).not.toBeInTheDocument();
         expect(screen.queryByText('conventionsTitle')).not.toBeInTheDocument();
         expect(screen.queryByText('pollButtonSkipCache')).not.toBeInTheDocument();
@@ -234,18 +256,18 @@ describe('DecisionsRail', () => {
     });
 
     it('shows a superadmin the re-derive button in audit mode, with its hint', () => {
-        renderRail({ isSuperAdmin: true, auditMode: true });
+        renderRail({ cityAdmin: true, auditMode: true });
         expect(screen.getByText('rederive')).toBeInTheDocument();
         expect(screen.getByText('rederiveHint')).toBeInTheDocument();
     });
 
     it('shows a superadmin no re-derive button outside audit mode', () => {
-        renderRail({ isSuperAdmin: true, auditMode: false });
+        renderRail({ cityAdmin: true, auditMode: false });
         expect(screen.queryByText('rederive')).not.toBeInTheDocument();
     });
 
     it('never shows a city admin the re-derive button', () => {
-        renderRail({ isSuperAdmin: false, auditMode: true });
+        renderRail({ cityAdmin: false, auditMode: true });
         expect(screen.queryByText('rederive')).not.toBeInTheDocument();
     });
 });

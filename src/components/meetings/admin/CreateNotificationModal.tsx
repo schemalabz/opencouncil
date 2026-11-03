@@ -21,6 +21,8 @@ interface CreateNotificationModalProps {
     onOpenChange: (open: boolean) => void;
     subjects: SubjectWithRelations[];
     notificationType: 'beforeMeeting' | 'afterMeeting';
+    /** Whether the viewer may skip the approval queue: `admin` on the realm, as the route checks. */
+    canSendImmediately: boolean;
     onCreateNotifications: (
         type: 'beforeMeeting' | 'afterMeeting',
         subjectImportances: Record<string, SubjectImportance>,
@@ -33,6 +35,7 @@ export function CreateNotificationModal({
     onOpenChange,
     subjects,
     notificationType,
+    canSendImmediately,
     onCreateNotifications
 }: CreateNotificationModalProps) {
     const { meeting, city } = useCouncilMeetingData();
@@ -280,8 +283,7 @@ export function CreateNotificationModal({
                 </div>
 
                 <div className="space-y-6 py-4">
-                    {/* Send Immediately Switch */}
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    {canSendImmediately && <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div className="space-y-0.5">
                             <Label htmlFor="send-immediately" className="text-base font-medium">
                                 Delivery Mode
@@ -302,7 +304,7 @@ export function CreateNotificationModal({
                                 onCheckedChange={setSendImmediately}
                             />
                         </div>
-                    </div>
+                    </div>}
 
                     {/* Impact Preview */}
                     <div className="p-4 bg-blue-50 rounded-lg h-20 flex flex-col justify-center">

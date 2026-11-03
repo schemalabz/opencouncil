@@ -19,13 +19,16 @@ interface MeetingExportButtonsProps {
   meetingId: string;
   /** Additional condition to disable export buttons */
   disabled?: boolean;
+  /** The transcript download is every `transcript.export` holder's; the audio export stays the admin's. */
+  isAdmin: boolean;
 }
 
 export function MeetingExportButtons({
   getMeetingData,
   cityId,
   meetingId,
-  disabled = false
+  disabled = false,
+  isAdmin,
 }: MeetingExportButtonsProps) {
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingAudio, setIsExportingAudio] = useState(false);
@@ -101,7 +104,7 @@ export function MeetingExportButtons({
         <span>{t('docx')}</span>
       </Button>
       
-      <div className="w-full">
+      {isAdmin && <div className="w-full">
         <Button
           onClick={handleExportAudio}
           className="w-full"
@@ -121,7 +124,7 @@ export function MeetingExportButtons({
             <Progress value={audioProgress} className="h-2" />
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 } 

@@ -28,7 +28,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
   const canCreateHighlights = options.canCreateHighlights;
-  const canEditCity = options.editsAllowed;
+  const canEditCity = options.can('highlight.manage');
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
   const t = useTranslations('highlights');
 

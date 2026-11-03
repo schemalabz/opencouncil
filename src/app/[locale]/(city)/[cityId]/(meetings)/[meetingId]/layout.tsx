@@ -1,7 +1,7 @@
 "use server";
 import { notFound } from 'next/navigation';
 import { PlaybackBar } from '@/components/meetings/bar/PlaybackBar';
-import { getCurrentUser, hasRight, isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, rightsFor } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
@@ -141,13 +141,14 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const editablePromise = isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
-    // Every role on the meeting reads its draft; only `admin` edits it.
-    const draftsPromise = hasRight('drafts.read', { cityId, councilMeetingId: meetingId });
+    // The client shows its controls by right; every role reads the drafts,
+    // only `admin` edits the transcript.
+    const rightsPromise = rightsFor({ cityId, councilMeetingId: meetingId });
+    const draftsPromise = rightsPromise.then((rights) => rights.includes('drafts.read'));
     const realmPromise = getRealm();
-    const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
+    const [currentUser, rights, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,
-        editablePromise,
+        rightsPromise,
         getMeetingDataCached(cityId, meetingId),
         currentUserPromise.then(user =>
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
@@ -171,11 +172,12 @@ export default async function CouncilMeetingPage(
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const meetingData = (data.transcriptHiddenForReview && !editable)
+    const editable = rights.includes('admin');
+    const meetingData = (data.transcriptHiddenForReview && !rights.includes('drafts.read'))
         ? { ...data, transcript: [], speakerTags: [] }
         : data;
 
-    const highlightCreationAllowed = editable || (
+    const highlightCreationAllowed = editable || rights.includes('highlight.manage') || (
         !!currentUser &&
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
@@ -198,7 +200,7 @@ export default async function CouncilMeetingPage(
             <NotificationPreferenceProvider notificationPreference={notificationPreference}>
             <CouncilMeetingWrapper
                 meetingData={meetingData}
-                editable={editable}
+                rights={rights}
                 canCreateHighlights={highlightCreationAllowed}
             >
                 <SubjectHeaderProvider>

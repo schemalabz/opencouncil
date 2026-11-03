@@ -31,15 +31,24 @@ import { NotificationOutcomeIcon, NotificationOutcomeNote } from '@/components/n
 export default function AdminActions({
     notificationBehavior,
     editableBodyIds,
+    cityAdmin,
+    realmAdmin,
 }: {
     /** The notification setting of the meeting's body, null without a body. The page reads it for an editor; the public meeting does not carry it. */
     notificationBehavior: NotificationBehavior | null;
-    /** The bodies a body admin may move the meeting to; absent for a city admin. */
+    /** The bodies a body-level holder may move the meeting to; absent for a holder on the city. */
     editableBodyIds?: string[],
+    /** The `admin` right on the city: the cache and the operator. */
+    cityAdmin: boolean;
+    /** The `admin` right on the city's realm: a send that skips the approval queue. */
+    realmAdmin: boolean;
 }) {
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
     const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
+    // One section per right: the page shows a holder of any of them what they may do.
+    const { options: { can, editsAllowed: isAdmin } } = useTranscriptOptions();
+    const canRunTasks = can('tasks.run');
     const transcriptionRefused = transcriptionRefusal(meeting) !== null;
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
@@ -86,10 +95,11 @@ export default function AdminActions({
     }, [meeting.cityId, meeting.id, toast, t]);
 
     React.useEffect(() => {
+        if (!canRunTasks) return;
         fetchTaskStatuses();
         const intervalId = setInterval(fetchTaskStatuses, 3000);
         return () => clearInterval(intervalId);
-    }, [fetchTaskStatuses]);
+    }, [fetchTaskStatuses, canRunTasks]);
 
     const handleTranscribe = async () => {
         setIsTranscribing(true);
@@ -323,7 +333,7 @@ export default function AdminActions({
     };
 
     return (<div>
-        <div className="mt-6">
+        {can('meeting.manage') && <div className="mt-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold">{t('sections.meetingDetails')}</h3>
                 <Sheet>
@@ -352,14 +362,14 @@ export default function AdminActions({
                     </SheetContent>
                 </Sheet>
             </div>
-        </div>
+        </div>}
 
-        <div className="mt-6">
+        {canRunTasks && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.taskStatuses')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.taskStatusesSubtitle')}</p>
-            <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />
-        </div>
-        <div className="mt-6">
+            <TaskList tasks={taskStatuses} onDelete={isAdmin ? handleDeleteTask : undefined} isLoading={isLoadingTasks} />
+        </div>}
+        {canRunTasks && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.requestNewTasks')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.requestNewTasksSubtitle')}</p>
             <div className="space-x-4">
@@ -484,8 +494,8 @@ export default function AdminActions({
                     {t('buttons.fixTranscript')}
                 </Button>
             </div>
-        </div>
-        <div className="mt-6">
+        </div>}
+        {can('meeting.release') && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.meetingReleaseSubtitle')}</p>
             <div className="flex items-center space-x-2">
@@ -505,9 +515,9 @@ export default function AdminActions({
                 meetingId={meeting.id}
                 onConfirm={() => setRelease(true)}
             />
-        </div>
+        </div>}
 
-        <div className="mt-6">
+        {can('notification.send') && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.notifications')}</h3>
             <p className="text-sm text-muted-foreground mb-4">
                 {t('sections.notificationsSubtitle')}
@@ -540,10 +550,11 @@ export default function AdminActions({
                 subjects={subjects}
                 notificationType={notificationType}
                 onCreateNotifications={handleCreateNotifications}
+                canSendImmediately={realmAdmin}
             />
-        </div>
+        </div>}
 
-        <div className="mt-6">
+        {cityAdmin && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.cacheManagement')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.cacheManagementSubtitle')}</p>
             <div className="flex space-x-3">
@@ -601,9 +612,9 @@ export default function AdminActions({
                     {t('buttons.refreshCityCache')}
                 </Button>
             </div>
-        </div>
+        </div>}
 
-        <div className="mt-6">
+        {can('transcript.export') && <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.export')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.exportSubtitle')}</p>
 
@@ -611,11 +622,12 @@ export default function AdminActions({
                 getMeetingData={getMeetingData}
                 cityId={city.id}
                 meetingId={meeting.id}
+                isAdmin={isAdmin}
             />
 
-        </div>
+        </div>}
 
-        <MeetingOperator cityId={meeting.cityId} meetingId={meeting.id} />
+        {cityAdmin && <MeetingOperator cityId={meeting.cityId} meetingId={meeting.id} />}
 
         <UtteranceDriftSetting />
     </div>

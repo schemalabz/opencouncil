@@ -2,6 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
+import { TranscriptOptionsProvider } from '../../options/OptionsContext';
 import { requestPollDecisions } from '@/lib/actions/decisions';
 import { readAdaLookup } from '@/lib/actions/adaLookups';
 import admin from '../../../../../messages/el/admin.json';
@@ -197,16 +198,40 @@ beforeEach(() => {
 
 afterAll(() => { global.fetch = originalFetch; });
 
-const renderPage = async () => {
+/** A records keeper's page, or a city admin's with `cityAdmin`. */
+const renderPage = async (cityAdmin = false) => {
     render(
         <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-            <MeetingDecisionsPage isSuperAdmin={false} bodySettings={null} />
+            <TranscriptOptionsProvider rights={['records.read', 'records.edit', 'minutes.export']} canCreateHighlights={false}>
+                <MeetingDecisionsPage cityAdmin={cityAdmin} bodySettings={null} />
+            </TranscriptOptionsProvider>
         </NextIntlClientProvider>,
     );
     await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
 };
 
 const postsOf = (action: string) => store.posts.filter(p => p.action === action);
+
+describe('MeetingDecisionsPage — a viewer', () => {
+    it('reads the table, asks for no minutes, and answers nothing', async () => {
+        store.candidates = [candidate()];
+        render(
+            <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
+                <TranscriptOptionsProvider rights={['records.read']} canCreateHighlights={false}>
+                    <MeetingDecisionsPage cityAdmin={false} bodySettings={null} />
+                </TranscriptOptionsProvider>
+            </NextIntlClientProvider>,
+        );
+        await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
+        await screen.findByText(/637\/2026/);
+
+        expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/minutes'))).toBe(false);
+        expect(screen.queryByText('Προεπισκόπηση')).not.toBeInTheDocument();
+        for (const name of ['Συμπλήρωση αριθμού', 'Όχι', 'Ναι, είναι αυτή', 'Έλεγχος τώρα']) {
+            expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+        }
+    });
+});
 
 describe('MeetingDecisionsPage — rejecting a proposal and taking it back from the receipt', () => {
     it('drops the receipt on the first undo and sends no second undismiss', async () => {
@@ -638,14 +663,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
     beforeEach(() => { mockMeetingData.getPerson = id => (id === 'p1' ? { name: 'Παπαδόπουλος Γιώργος' } : undefined); });
     afterEach(() => { mockMeetingData.getPerson = original; });
 
-    const renderAsSuperAdmin = async () => {
-        render(
-            <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
-            </NextIntlClientProvider>,
-        );
-        await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
-    };
+    const renderAsSuperAdmin = () => renderPage(true);
 
     it('names the presiding members from the city\'s people, never by id', async () => {
         store.derivation = derivation([{ code: 'PRESIDING_DISAGREES', source: 'decision',
@@ -671,14 +689,7 @@ describe('MeetingDecisionsPage — the names an issue prints', () => {
 });
 
 describe('MeetingDecisionsPage — from the issues card to the subject', () => {
-    const renderAsSuperAdmin = async () => {
-        render(
-            <NextIntlClientProvider locale="el" messages={{ admin, decisionsTable, Subject: el.Subject }}>
-                <MeetingDecisionsPage isSuperAdmin bodySettings={null} />
-            </NextIntlClientProvider>,
-        );
-        await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
-    };
+    const renderAsSuperAdmin = () => renderPage(true);
     afterEach(() => window.localStorage.clear());
 
     it('opens the subject\'s issues under its row, turning audit mode on, and states each issue once', async () => {

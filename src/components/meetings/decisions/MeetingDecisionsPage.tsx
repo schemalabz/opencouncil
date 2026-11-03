@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useTranscriptOptions } from '../options/OptionsContext';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
 import type { AdaLookupOutcome, AdministrativeBodySettings } from '@/lib/db/types';
@@ -154,8 +155,8 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
     return new DecisionWriteError(causeFromPayload(payload), `HTTP ${response.status}`);
 };
 
-export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
-    isSuperAdmin: boolean;
+export function MeetingDecisionsPage({ cityAdmin, bodySettings }: {
+    cityAdmin: boolean;
     /** The settings of the meeting's body. The page reads them for an editor; the public meeting does not carry them. */
     bodySettings: Pick<AdministrativeBodySettings, 'diavgeiaUnitIds' | 'decisionConventions'> | null;
 }) {
@@ -163,9 +164,14 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
     // table and the sheet read it too, and a superadmin's choice must never
     // reach a page rendered for anyone else.
     const [auditModePreference, setAuditMode] = useAuditMode();
-    const auditMode = isSuperAdmin && auditModePreference;
+    const auditMode = cityAdmin && auditModePreference;
     const { toast } = useToast();
     const { subjects, meeting, city, getPerson } = useCouncilMeetingData();
+    // A viewer reads the table; a records keeper links the decisions and
+    // produces the minutes. The destructive controls stay the city admin's.
+    const { options: { can } } = useTranscriptOptions();
+    const canEdit = can('records.edit');
+    const canExport = can('minutes.export');
     // A λογοδοσία or an απολογισμός has no decisions on Diavgeia: the page offers no poll for it.
     const noDecisions = takesNoDecisions(meeting);
     const t = useTranslations('admin.adminActions');
@@ -212,7 +218,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
     // offer the link only when they are handed one, so withholding the callback
     // is what keeps the glossary out of a city admin's reach — no second
     // permission check down there to keep in step with this one.
-    const explainDerivation = isSuperAdmin ? openDerivation : undefined;
+    const explainDerivation = cityAdmin ? openDerivation : undefined;
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
@@ -294,6 +300,8 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
     // The minutes route is the one source of the discussion order and the
     // per-subject minutes facts, so the page and the DOCX cannot drift apart.
     const fetchMinutes = useCallback(async () => {
+        // The minutes route answers a `minutes.export` holder only.
+        if (!canExport) return;
         setMinutesFailed(false);
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes?format=json`);
@@ -302,7 +310,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
         } catch {
             setMinutesFailed(true);
         }
-    }, [meeting.cityId, meeting.id]);
+    }, [meeting.cityId, meeting.id, canExport]);
 
     useEffect(() => {
         fetchDecisions();
@@ -1196,7 +1204,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
     const panelSubjects: PanelSubject[] = orderedSubjects.map(subject => ({ id: subject.id, label: labelOf(subject) }));
 
     const renderPanel = (subjectId: string): ReactNode => {
-        if (!panel || panel.subjectId !== subjectId) return null;
+        if (!canEdit || !panel || panel.subjectId !== subjectId) return null;
         const subject = subjectById.get(subjectId);
         if (!subject) return null;
         const current = panel.mode === 'change' ? decisions[subjectId] : undefined;
@@ -1269,7 +1277,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
 
     const renderPicker = (candidateId: string): ReactNode => {
         const candidate = candidates.find(c => c.id === candidateId);
-        if (!candidate) return null;
+        if (!canEdit || !candidate) return null;
         const waitingIds = new Set([...waiting.proposed, ...waiting.plain].map(s => s.id));
         const pickerQueryText = normalizeText(pickerQuery.trim());
         const options = orderedSubjects
@@ -1435,7 +1443,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
 
                 {auditEvidence}
 
-                {isSuperAdmin && (
+                {cityAdmin && (
                     <AdminStrip>
                         <AdminToolButton
                             destructive
@@ -1469,7 +1477,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                 subjectId: null,
                 subjectName: null,
                 // A candidate set aside is no longer offered, so it opens to be read only.
-                target: live && viewing.targetSubjectId ? { subjectId: viewing.targetSubjectId, candidate: live } : null,
+                target: canEdit && live && viewing.targetSubjectId ? { subjectId: viewing.targetSubjectId, candidate: live } : null,
             };
         }
         const entry = Object.entries(decisions).find(([, decision]) => decision.id === viewing.id);
@@ -1537,6 +1545,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                     ) : (
                         <>
                             <QuestionsCard
+                                canEdit={canEdit}
                                 waiting={{ proposed: waiting.proposed.length, plain: waiting.plain.length }}
                                 onJumpToTable={handleJumpToTable}
                                 conflicts={conflicts}
@@ -1566,6 +1575,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
 
                             <div ref={tableRef}>
                                 <DecisionsTable
+                                    canEdit={canEdit}
                                     rows={visibleRows}
                                     beforeAgenda={beforeAgenda}
                                     filter={effectiveFilter}
@@ -1686,11 +1696,11 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                             open={previewOpen}
                             onOpenChange={setPreviewOpen}
                             data={minutes}
-                            isSuperAdmin={isSuperAdmin}
+                            cityAdmin={cityAdmin}
                         />
                     )}
 
-                    {isSuperAdmin && (
+                    {cityAdmin && (
                         <DerivationDialog open={derivationOpen} onOpenChange={setDerivationOpen} />
                     )}
                 </div>
@@ -1698,7 +1708,9 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
                     <DecisionsRail
                         minutes={minutes}
                         timeline={timeline}
-                        isSuperAdmin={isSuperAdmin}
+                        cityAdmin={cityAdmin}
+                        canEdit={canEdit}
+                        canExport={canExport}
                         onPreviewMinutes={() => setPreviewOpen(true)}
                         onExportDocx={handleExportDocx}
                         onExportDecisionsTable={handleExportDecisionsTable}
