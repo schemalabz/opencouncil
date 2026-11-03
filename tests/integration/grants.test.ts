@@ -8,6 +8,9 @@
 import prisma from '@/lib/db/prisma'
 import { BadRequestError } from '@/lib/api/errors'
 import { inviteGrant, listGrants, revokeGrant, MAX_GRANTS_PER_SCOPE } from '@/lib/db/grants'
+import { acceptPendingGrants } from '@/lib/auth/grants.server'
+import { sendInviteEmail } from '@/lib/auth/invite'
+import { PENDING_GRANT_DAYS } from '@/lib/auth/rights'
 import { editPerson } from '@/lib/db/people'
 import { GET as listMeetings } from '@/app/api/cities/[cityId]/meetings/route'
 import { NextRequest } from 'next/server'
@@ -38,8 +41,9 @@ async function signInAsCityAdmin() {
     return mayor
 }
 
+/** Accepted rows up to `total`: the open invites of a test are its own to count. */
 async function fillBody(total: number) {
-    const current = await prisma.administers.count({ where: { ...scope, revokedAt: null } })
+    const current = await prisma.administers.count({ where: { ...scope, revokedAt: null, acceptedAt: { not: null } } })
     for (let i = current; i < total; i++) {
         const user = await createUser(`filler${i}@integration.test`)
         await createGrant(user.id, scope)
@@ -78,7 +82,7 @@ describe('grants', () => {
 
     it('counts an existing account against the cap, and a revoked grant not at all', async () => {
         await fillBody(MAX_GRANTS_PER_SCOPE)
-        await createUser('existing@integration.test')
+        await createUser('existing@integration.test', { emailVerified: new Date() })
         await expect(invite('existing@integration.test')).rejects.toThrow('cap')
 
         const gone = await prisma.administers.findFirstOrThrow({ where: { ...scope, user: { email: 'filler5@integration.test' } } })
@@ -93,8 +97,10 @@ describe('grants', () => {
         await expect(invite('newcomer@integration.test', 'records')).rejects.toThrow('cap')
     })
 
-    it('refuses the same role on the same scope twice, and takes a second role', async () => {
-        await expect(invite('filler@integration.test', 'records')).resolves.toMatchObject({ role: 'records' })
+    it('refuses the same role on the same scope twice once accepted, and takes a second role', async () => {
+        const first = await invite('filler@integration.test', 'records')
+        expect(first).toMatchObject({ role: 'records', status: 'pending' })
+        await acceptPendingGrants(prisma, first.user.id)
         await expect(invite('filler@integration.test', 'records')).rejects.toThrow('duplicate')
         await expect(invite('filler@integration.test', 'admin')).resolves.toMatchObject({ role: 'admin' })
         expect(await prisma.administers.count({ where: { ...scope, user: { email: 'filler@integration.test' } } })).toBe(2)
@@ -109,7 +115,7 @@ describe('grants', () => {
             invite('twice@integration.test', 'admin', { administrativeBodyId: other.id }),
         ])
 
-        expect(results.map(r => r.status)).toEqual(['active', 'active'])
+        expect(results.map(r => r.status)).toEqual(['pending', 'pending'])
         expect(await prisma.user.count({ where: { email: 'twice@integration.test' } })).toBe(1)
         expect(await prisma.administers.count({ where: { user: { email: 'twice@integration.test' } } })).toBe(2)
     })
@@ -159,6 +165,81 @@ describe('grants', () => {
             ['colleague@integration.test', 'revoked'],
         ])
         expect(all[2].revokedBy?.id).toBe(admin.id)
+    })
+
+    describe('the invite lifecycle', () => {
+        const mockSend = sendInviteEmail as jest.Mock
+        const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        const rowOf = (email: string) => prisma.administers.findFirstOrThrow({ where: { ...scope, revokedAt: null, user: { email } } })
+
+        beforeEach(() => mockSend.mockClear())
+
+        it('keeps the grant of a new email pending until the first sign-in, which takes it up', async () => {
+            const invited = await invite('new@integration.test')
+            expect(invited).toMatchObject({ status: 'pending', acceptedAt: null, inviteEmailSent: true })
+            expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ email: 'new@integration.test', pending: true, invitedBy: 'secretary@integration.test' }))
+
+            expect(await acceptPendingGrants(prisma, invited.user.id)).toBe(1)
+            expect((await rowOf('new@integration.test')).acceptedAt).toBeInstanceOf(Date)
+            expect(await acceptPendingGrants(prisma, invited.user.id)).toBe(0)
+        })
+
+        it('gives an account that signed in before the grant at once, with a notice', async () => {
+            await createUser('veteran@integration.test', { emailVerified: new Date() })
+            await expect(invite('veteran@integration.test')).resolves.toMatchObject({ status: 'active' })
+            expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ email: 'veteran@integration.test', pending: false }))
+        })
+
+        it('resends by renewing the pending row in place, and refuses once the row is accepted', async () => {
+            const first = await invite('slow@integration.test')
+            await prisma.administers.update({ where: { id: first.id }, data: { createdAt: daysAgo(3) } })
+            const second = await invite('slow@integration.test')
+            // One row, so the history holds no withdrawn invite for a resend.
+            expect(second.id).toBe(first.id)
+            expect(second.status).toBe('pending')
+            const renewed = await prisma.administers.findUniqueOrThrow({ where: { id: first.id } })
+            expect(renewed.revokedAt).toBeNull()
+            expect(renewed.createdAt.getTime()).toBeGreaterThan(daysAgo(1).getTime())
+            expect(await prisma.administers.count({ where: { userId: second.user.id } })).toBe(1)
+            expect(mockSend).toHaveBeenCalledTimes(2)
+
+            await acceptPendingGrants(prisma, second.user.id)
+            await expect(invite('slow@integration.test')).rejects.toThrow('duplicate')
+        })
+
+        it('lets an expired invite lapse: a sign-in leaves it, the cap forgets it, a resend renews it', async () => {
+            const expired = await invite('late@integration.test')
+            await prisma.administers.update({ where: { id: expired.id }, data: { createdAt: daysAgo(PENDING_GRANT_DAYS + 1) } })
+            expect((await listGrants({ realms: null, cityId: CITY })).find(g => g.id === expired.id)?.status).toBe('expired')
+
+            expect(await acceptPendingGrants(prisma, expired.user.id)).toBe(0)
+
+            // One place left, and the expired invite does not hold it.
+            await fillBody(MAX_GRANTS_PER_SCOPE - 1)
+            await expect(invite('newcomer@integration.test')).resolves.toMatchObject({ status: 'pending' })
+            await expect(invite('other@integration.test')).rejects.toThrow('cap')
+            await expect(invite('late@integration.test')).rejects.toThrow('cap')
+
+            // The resend renews the expired row, once there is a place for it.
+            await revokeGrant((await rowOf('newcomer@integration.test')).id)
+            const again = await invite('late@integration.test')
+            expect(again).toMatchObject({ id: expired.id, status: 'pending' })
+            expect(await acceptPendingGrants(prisma, expired.user.id)).toBe(1)
+        })
+
+        it('counts an open invite against the cap', async () => {
+            await fillBody(MAX_GRANTS_PER_SCOPE - 1)
+            await invite('open@integration.test')
+            await expect(invite('newcomer@integration.test')).rejects.toThrow('cap')
+        })
+
+        it('lets a body admin list the rows of their body and no other', async () => {
+            const other = await createAdministrativeBody(CITY, { name: 'Other', name_en: 'Other', type: 'committee' })
+            const outsider = await createUser('outsider@integration.test')
+            await createGrant(outsider.id, { administrativeBodyId: other.id })
+            const rows = await listGrants({ realms: null, cityId: CITY })
+            expect(rows.map(g => g.user.email)).toEqual(['secretary@integration.test'])
+        })
     })
 
     describe('the members of the body', () => {

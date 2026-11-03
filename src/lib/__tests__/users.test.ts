@@ -231,14 +231,17 @@ describe('users db layer - normalization and duplicate handling', () => {
     const row = (id: string, scope: Partial<Record<'realm' | 'cityId' | 'partyId' | 'personId' | 'administrativeBodyId', string>>, role = 'admin') =>
       ({ id, role, realm: null, cityId: null, partyId: null, personId: null, administrativeBodyId: null, ...scope });
 
-    const withGrants = (existing: (ReturnType<typeof row> & { claimedAt?: Date })[]) => {
+    const withGrants = (existing: (ReturnType<typeof row> & { claimedAt?: Date })[], signedIn = true) => {
       const tx = {
         administers: {
           findMany: jest.fn().mockResolvedValue(existing),
           updateMany: jest.fn(),
           update: jest.fn(),
         },
-        user: { update: mockUpdate },
+        user: {
+          update: mockUpdate,
+          findUnique: jest.fn().mockResolvedValue({ emailVerified: signedIn ? new Date() : null, _count: { accounts: 0, sessions: 0 } }),
+        },
       };
       mockTransaction.mockImplementationOnce(async (fn: (client: typeof tx) => unknown) => fn(tx));
       return tx;
@@ -270,6 +273,14 @@ describe('users db layer - normalization and duplicate handling', () => {
           }),
         })
       );
+    });
+
+    it('keeps a new row pending for an account that never signed in', async () => {
+      const tx = withGrants([], false);
+      await updateUser('user-1', { email: 'user@example.com', administers: [{ cityId: 'city-1' }] });
+      expect(tx.user.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ administers: { create: [{ cityId: 'city-1', acceptedAt: null, grantedById: undefined }] } }),
+      }));
     });
 
     it('treats the role as part of the grant: a new role on the same scope is a new grant', async () => {

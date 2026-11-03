@@ -12,7 +12,7 @@ const db = {
     party: { findUnique: jest.fn() },
     person: { findUnique: jest.fn() },
     user: { findUnique: jest.fn(), create: jest.fn() },
-    administers: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
+    administers: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     $executeRaw: jest.fn(),
 };
 
@@ -32,7 +32,7 @@ import type { ActiveGrant } from '@/lib/auth/rights';
 const CITIES: Record<string, { realm: string }> = { athens: { realm: 'greece' }, argos: { realm: 'greece' }, lyon: { realm: 'france' } };
 const BODIES: Record<string, { cityId: string }> = { youth: { cityId: 'athens' }, other: { cityId: 'athens' } };
 
-const viewer = (grants: ActiveGrant[], isSuperAdmin = false) => ({ id: 'viewer', isSuperAdmin, administers: grants });
+const viewer = (grants: ActiveGrant[], isSuperAdmin = false) => ({ id: 'viewer', name: 'Viewer', email: 'viewer@example.org', isSuperAdmin, administers: grants });
 const signIn = (grants: ActiveGrant[], isSuperAdmin = false) => mockGetCurrentUser.mockResolvedValue(viewer(grants, isSuperAdmin));
 
 const row = (data: Record<string, unknown>) => ({
@@ -40,6 +40,20 @@ const row = (data: Record<string, unknown>) => ({
     claimedAt: null, acceptedAt: new Date('2026-01-01'), revokedAt: null, createdAt: new Date('2026-01-01'),
     user: { isMachine: false },
     ...data,
+});
+
+/** The account an invited email names: none, one that never signed in, or one that did. */
+const account = (id: string | null, signedIn = true) => db.user.findUnique.mockImplementation(async ({ select }: { select: Record<string, unknown> }) => {
+    if (select.id) return id ? { id } : null;
+    return { emailVerified: signedIn ? new Date('2026-01-01') : null, _count: { accounts: 0, sessions: 0 } };
+});
+
+/** The relations of a created row, as grantRowSelect reads them, from the columns of the create. */
+const relationsOf = (data: Record<string, unknown>) => ({
+    city: data.cityId ? { id: data.cityId, name: 'Athens' } : null,
+    administrativeBody: data.administrativeBodyId ? { id: data.administrativeBodyId, name: 'Youth', cityId: 'athens', city: { name: 'Athens' } } : null,
+    party: data.partyId ? { id: data.partyId, name: 'Party', cityId: 'athens', city: { name: 'Athens' } } : null,
+    person: null,
 });
 
 const code = async (promise: Promise<unknown>, expected: string) => {
@@ -54,12 +68,14 @@ beforeEach(() => {
         const body = BODIES[where.id];
         return body ? { cityId: body.cityId, city: CITIES[body.cityId] } : null;
     });
-    db.user.findUnique.mockResolvedValue(null);
+    account(null);
     db.user.create.mockResolvedValue({ id: 'new-user' });
     db.administers.findFirst.mockResolvedValue(null);
     db.administers.findMany.mockResolvedValue([]);
     db.administers.count.mockResolvedValue(0);
-    db.administers.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => row({ id: 'created', ...data, user: { id: 'u', email: 'x', name: null, isMachine: false } }));
+    db.administers.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) =>
+        row({ id: 'created', createdAt: new Date(), ...data, ...relationsOf(data), user: { id: 'u', email: 'clerk@example.org', name: 'Clerk', isMachine: false } }));
+    db.administers.update.mockResolvedValue({});
     db.administers.updateMany.mockResolvedValue({ count: 1 });
     mockSendInviteEmail.mockResolvedValue(true);
 });
@@ -95,9 +111,10 @@ describe('inviteGrant', () => {
         signIn([], true);
         const result = await inviteGrant({ ...invite, role: 'admin', scope: { realm: 'greece' } });
         expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({
-            data: { role: 'admin', realm: 'greece', userId: 'new-user', grantedById: 'viewer', acceptedAt: expect.any(Date) },
+            data: { role: 'admin', realm: 'greece', userId: 'new-user', grantedById: 'viewer', acceptedAt: null },
         }));
-        expect(result.status).toBe('active');
+        expect(result.status).toBe('pending');
+        expect(mockSendInviteEmail).toHaveBeenCalledWith(expect.objectContaining({ realm: 'greece', pending: true, grant: expect.objectContaining({ path: '/admin' }) }));
     });
 
     it('lets a realm admin of greece invite on a body of athens', async () => {
@@ -124,7 +141,7 @@ describe('inviteGrant', () => {
         db.administers.findMany.mockResolvedValue(Array.from({ length: MAX_GRANTS_PER_SCOPE }, (_, i) => ({ userId: `holder-${i}` })));
         await code(inviteGrant(invite), 'cap');
         expect(db.administers.findMany).toHaveBeenCalledWith({
-            where: { cityId: 'athens', acceptedAt: { not: null }, revokedAt: null, user: { isMachine: false } },
+            where: { cityId: 'athens', revokedAt: null, OR: [{ acceptedAt: { not: null } }, { createdAt: { gte: expect.any(Date) } }], user: { isMachine: false } },
             select: { userId: true },
             distinct: ['userId'],
         });
@@ -134,7 +151,7 @@ describe('inviteGrant', () => {
 
     it('counts people against the cap, not roles: a holder of the scope takes a second role past it', async () => {
         signIn([cityGrant('athens')]);
-        db.user.findUnique.mockResolvedValue({ id: 'holder-3' });
+        account('holder-3');
         db.administers.findMany.mockResolvedValue(Array.from({ length: MAX_GRANTS_PER_SCOPE }, (_, i) => ({ userId: `holder-${i}` })));
         await inviteGrant({ ...invite, role: 'records' });
         expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'holder-3', role: 'records' }) }));
@@ -142,20 +159,38 @@ describe('inviteGrant', () => {
 
     it('refuses the same role on the same scope for the same account twice', async () => {
         signIn([cityGrant('athens')]);
-        db.user.findUnique.mockResolvedValue({ id: 'existing' });
-        db.administers.findFirst.mockResolvedValue({ id: 'held' });
+        account('existing');
+        db.administers.findFirst.mockResolvedValue({ id: 'held', acceptedAt: new Date('2026-01-01') });
         await code(inviteGrant(invite), 'duplicate');
         expect(db.administers.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-            where: { userId: 'existing', role: 'records', cityId: 'athens', acceptedAt: { not: null }, revokedAt: null },
+            where: { userId: 'existing', role: 'records', cityId: 'athens', revokedAt: null },
         }));
         expect(db.administers.create).not.toHaveBeenCalled();
     });
 
-    it('creates an account for a new email and sends it the invite', async () => {
+    it('creates an account for a new email, keeps the row pending, and sends the invite', async () => {
         signIn([cityGrant('athens')]);
-        await inviteGrant({ ...invite, email: ' Clerk@Example.org ', name: ' Clerk ' });
+        const result = await inviteGrant({ ...invite, email: ' Clerk@Example.org ', name: ' Clerk ' });
         expect(db.user.create).toHaveBeenCalledWith({ data: { email: 'clerk@example.org', name: 'Clerk' }, select: { id: true } });
-        expect(mockSendInviteEmail).toHaveBeenCalledWith('clerk@example.org', 'Clerk', undefined);
+        expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'new-user', acceptedAt: null }) }));
+        expect(db.administers.update).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).toHaveBeenCalledWith({
+            email: 'clerk@example.org',
+            name: 'Clerk',
+            realm: 'greece',
+            invitedBy: 'Viewer',
+            grant: { role: 'records', scopeName: 'Athens', path: '/athens' },
+            pending: true,
+        });
+        expect(result).toMatchObject({ status: 'pending', inviteEmailSent: true });
+    });
+
+    it('names the city of a body in the invite, and sends the reader to the meetings of the city', async () => {
+        signIn([cityGrant('athens')]);
+        await inviteGrant({ ...invite, scope: { administrativeBodyId: 'youth' } });
+        expect(mockSendInviteEmail).toHaveBeenCalledWith(expect.objectContaining({
+            grant: { role: 'records', scopeName: 'Youth, Athens', path: '/athens/meetings' },
+        }));
     });
 
     it('keeps the grant and reports it when the invite email fails', async () => {
@@ -166,14 +201,38 @@ describe('inviteGrant', () => {
         expect(result.inviteEmailSent).toBe(false);
     });
 
-    it('sends no invite to an account that exists', async () => {
+    it('gives an account that signed in before the row at once, with a notice', async () => {
         signIn([cityGrant('athens')]);
-        db.user.findUnique.mockResolvedValue({ id: 'existing' });
+        account('existing');
         const result = await inviteGrant(invite);
         expect(db.user.create).not.toHaveBeenCalled();
-        expect(mockSendInviteEmail).not.toHaveBeenCalled();
-        expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'existing' }) }));
-        expect(result.inviteEmailSent).toBeNull();
+        expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'existing', acceptedAt: expect.any(Date) }) }));
+        expect(mockSendInviteEmail).toHaveBeenCalledWith(expect.objectContaining({ email: 'clerk@example.org', pending: false }));
+        expect(result).toMatchObject({ status: 'active', inviteEmailSent: true });
+    });
+
+    it('keeps the row pending for an account that never signed in', async () => {
+        signIn([cityGrant('athens')]);
+        account('existing', false);
+        const result = await inviteGrant(invite);
+        expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: 'existing', acceptedAt: null }) }));
+        expect(mockSendInviteEmail).toHaveBeenCalledWith(expect.objectContaining({ pending: true }));
+        expect(result.status).toBe('pending');
+    });
+
+    it('renews a pending row on the same role and scope in place: that is a resend', async () => {
+        signIn([cityGrant('athens')]);
+        account('existing', false);
+        db.administers.findFirst.mockResolvedValue({ id: 'stale', acceptedAt: null });
+        db.administers.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) =>
+            row({ id: 'stale', cityId: 'athens', ...data, ...relationsOf({ cityId: 'athens' }), user: { id: 'existing', email: 'clerk@example.org', name: 'Clerk', isMachine: false } }));
+        await expect(inviteGrant(invite)).resolves.toMatchObject({ id: 'stale', status: 'pending' });
+        expect(db.administers.update).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: 'stale' },
+            data: { createdAt: expect.any(Date), grantedById: 'viewer', acceptedAt: null },
+        }));
+        expect(db.administers.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -357,8 +416,19 @@ describe('listGrants', () => {
         await expect(listGrants({ realms: null, cityId: 'argos' })).rejects.toThrow(ForbiddenError);
     });
 
-    it('does not let a body admin list the city', async () => {
+    it('gives a body admin the rows of the bodies held, and nothing of another city', async () => {
         signIn([bodyGrant('youth', 'athens')]);
+        db.administers.findMany.mockResolvedValue([]);
+        await listGrants({ realms: null, cityId: 'athens' });
+        expect(db.administers.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { AND: [{ user: { isMachine: false } }, { revokedAt: null }, {}, { administrativeBodyId: { in: ['youth'] } }] },
+        }));
+
+        await expect(listGrants({ realms: null, cityId: 'argos' })).rejects.toThrow(ForbiddenError);
+    });
+
+    it('does not open the city to a body viewer', async () => {
+        signIn([bodyGrant('youth', 'athens', 'viewer')]);
         await expect(listGrants({ realms: null, cityId: 'athens' })).rejects.toThrow(ForbiddenError);
     });
 });

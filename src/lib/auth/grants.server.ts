@@ -3,7 +3,7 @@ import { cache } from 'react';
 import { Prisma, type AdministrativeBody, type City, type CouncilMeeting, type Party, type Person, type Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { getCityRealm } from '@/lib/db/cityRealm';
-import { resolve, roleHasRight, type Actor, type Right, type Target } from './rights';
+import { PENDING_GRANT_MS, resolve, roleHasRight, type Actor, type Right, type Target } from './rights';
 
 /**
  * The grants of a user without a session (#875): the MCP server and the
@@ -219,4 +219,78 @@ export async function hasRightOn(actor: Actor, right: Right, scope: Authorizatio
     }
     const target = await toTarget(scope, actor);
     return target !== null && resolve(actor, right, target);
+}
+
+// --- The invite lifecycle (#875, PR 3) -------------------------------------
+
+/** The database a lifecycle write runs on: the client, or the transaction of a caller. */
+type Db = Pick<Prisma.TransactionClient, 'user' | 'administers'>;
+
+/** The oldest creation a pending row may have and still count: before that, it expired. */
+export const pendingSince = (now = new Date()): Date => new Date(now.getTime() - PENDING_GRANT_MS);
+
+/**
+ * The rows that count against the cap of a scope: the accepted ones, and
+ * the invites still open. An admin cannot fan invites out past the cap by
+ * leaving them pending; an expired invite frees its place.
+ */
+export const countedGrantWhere = (now = new Date()): Prisma.AdministersWhereInput => ({
+    revokedAt: null,
+    OR: [{ acceptedAt: { not: null } }, { createdAt: { gte: pendingSince(now) } }],
+});
+
+/**
+ * Whether a new grant to the account takes effect at once: the account has
+ * signed in at least once (a magic link sets `emailVerified`, Google leaves
+ * an `Account`, the dev quick-login a `Session`), or it is a machine
+ * account, which never signs in and gets its rights from a superadmin. A
+ * grant to any other account waits as a pending invite until the first
+ * sign-in.
+ */
+export async function acceptsGrantsAtOnce(db: Db, userId: string): Promise<boolean> {
+    const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { isMachine: true, emailVerified: true, _count: { select: { accounts: true, sessions: true } } },
+    });
+    if (!user) return false;
+    return user.isMachine || user.emailVerified !== null || user._count.accounts > 0 || user._count.sessions > 0;
+}
+
+/** The `acceptedAt` of a new grant: now for an account that takes it at once, else a pending invite. */
+export async function acceptedAtFor(db: Db, userId: string, now = new Date()): Promise<Date | null> {
+    return (await acceptsGrantsAtOnce(db, userId)) ? now : null;
+}
+
+/**
+ * Open the pending invites of the account again, for another
+ * PENDING_GRANT_DAYS: a resend. The row stays the same row, so the history
+ * shows no withdrawal that nobody made; `createdAt` is when the invite was
+ * last sent. The rows of `where` narrow it, as one role on one scope.
+ */
+export async function renewPendingGrants(
+    db: Db,
+    userId: string,
+    renewedBy: string | null,
+    where: Prisma.AdministersWhereInput = {},
+    now = new Date(),
+): Promise<number> {
+    const { count } = await db.administers.updateMany({
+        where: { ...where, userId, acceptedAt: null, revokedAt: null },
+        data: { createdAt: now, ...(renewedBy ? { grantedById: renewedBy } : {}) },
+    });
+    return count;
+}
+
+/**
+ * The first sign-in takes the pending invites of the account up: every
+ * pending row younger than PENDING_GRANT_DAYS is accepted at once. An older
+ * one stays pending, and the Team page shows it as expired with a resend.
+ * Called from the signIn event of Auth.js and from the dev quick-login.
+ */
+export async function acceptPendingGrants(db: Db, userId: string, now = new Date()): Promise<number> {
+    const { count } = await db.administers.updateMany({
+        where: { userId, acceptedAt: null, revokedAt: null, createdAt: { gte: pendingSince(now) } },
+        data: { acceptedAt: now },
+    });
+    return count;
 }

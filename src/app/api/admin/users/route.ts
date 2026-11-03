@@ -1,10 +1,11 @@
-import { withUserAuthorizedToEdit } from "@/lib/auth"
+import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { createUser, getUsers, updateUser } from "@/lib/db/users"
 import { createMachineAccount } from "@/lib/db/machineAccounts"
 import { sendUserOnboardedAdminAlert } from "@/lib/discord"
 import { handleApiError } from "@/lib/api/errors"
 import { sendInviteEmail } from "@/lib/auth/invite"
+import { inviteRealm } from "@/lib/auth/grantScope"
 import { createUserRequestSchema, updateAdminUserSchema } from "@/lib/zod-schemas/user"
 
 export async function GET() {
@@ -32,8 +33,15 @@ export async function POST(request: Request) {
 
         const newUser = await createUser({ email, name, isSuperAdmin, administers })
 
-        // Send invitation email
-        const inviteEmailSent = await sendInviteEmail(newUser.email, newUser.name ?? newUser.email, request)
+        // The grants wait, pending, for the first sign-in.
+        const actor = await getCurrentUser()
+        const inviteEmailSent = await sendInviteEmail({
+            email: newUser.email,
+            name: newUser.name,
+            realm: inviteRealm(newUser.administers),
+            invitedBy: actor?.name || actor?.email || null,
+            pending: newUser.administers.length > 0,
+        })
 
         if (!inviteEmailSent) {
             console.error(`User ${newUser.id} created, but invite email failed to send`)

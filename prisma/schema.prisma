@@ -1360,22 +1360,25 @@ model Administers {
   /// says "this account is this person", where a row without it says only
   /// "this account may edit this person" (a delegate a superadmin added).
   /// A partial unique index in the migration allows one claimed row per
-  /// person, revoked rows aside. Voiceprint consent needs any row for the
-  /// person, claimed or not.
+  /// person, revoked rows aside. Voiceprint consent needs the claimed row:
+  /// a delegate edits the person's page, but does not consent for them.
   claimedAt DateTime?
 
   /// Who made the grant; null for a row older than #875 or a claim.
   grantedById String?
   grantedBy   User?   @relation("GrantedGrants", fields: [grantedById], references: [id], onDelete: SetNull)
   /// When the holder took the grant up. Null is a pending invite: the holder
-  /// never signed in, and the resolver ignores the row. Every writer sets it
-  /// at once until the invite lifecycle lands.
+  /// never signed in, and the resolver ignores the row. The first sign-in
+  /// sets it (acceptPendingGrants). A writer sets it at once for an account
+  /// that signed in before, and for a machine account, which never signs in.
   acceptedAt  DateTime?
   /// A revocation is a soft delete: the row stays as the trace.
   revokedAt   DateTime?
   revokedById String?
   revokedBy   User?   @relation("RevokedGrants", fields: [revokedById], references: [id], onDelete: SetNull)
 
+  /// For a pending invite, the time of the last send: a resend renews it, and
+  /// the invite expires PENDING_GRANT_DAYS after it.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

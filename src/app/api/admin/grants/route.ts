@@ -24,12 +24,12 @@ export async function GET(request: NextRequest) {
     }
 }
 
-/** Invite an account to a role on a scope, by email. A new email gets an account and an invite. */
+/** Invite an account to a role on a scope, by email. A new email gets an account and a pending invite. */
 export async function POST(request: NextRequest) {
     try {
         await getAdminRealms();
         const input = inviteGrantRequestSchema.parse(await request.json().catch(() => null));
-        return NextResponse.json(await inviteGrant(input, request), { status: 201 });
+        return NextResponse.json(await inviteGrant(input), { status: 201 });
     } catch (error) {
         return handleApiError(error, 'Failed to invite');
     }

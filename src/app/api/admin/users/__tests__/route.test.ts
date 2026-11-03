@@ -1,5 +1,8 @@
 /** @jest-environment node */
-jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/auth', () => ({
+    withUserAuthorizedToEdit: jest.fn(),
+    getCurrentUser: jest.fn(async () => ({ id: 'root', name: 'Root', email: 'root@example.com' })),
+}));
 jest.mock('@/lib/db/users', () => ({
     createUser: jest.fn(),
     getUsers: jest.fn(),
@@ -72,12 +75,22 @@ describe('POST /api/admin/users', () => {
     });
 
     it('still invites a person', async () => {
-        mockCreateUser.mockResolvedValue({ id: 'u1', email: 'reader@example.com', name: null } as unknown as Awaited<ReturnType<typeof createUser>>);
+        mockCreateUser.mockResolvedValue({ id: 'u1', email: 'reader@example.com', name: null, administers: [] } as unknown as Awaited<ReturnType<typeof createUser>>);
 
         const response = await post({ email: 'reader@example.com', name: null, isSuperAdmin: false, administers: [] });
 
         expect(response.status).toBe(200);
-        expect(mockInvite).toHaveBeenCalledWith('reader@example.com', 'reader@example.com', expect.any(Request));
+        // No role waits for the sign-in, so the email gives no time limit.
+        expect(mockInvite).toHaveBeenCalledWith({ email: 'reader@example.com', name: null, realm: null, invitedBy: 'Root', pending: false });
         expect(mockCreateMachine).not.toHaveBeenCalled();
+    });
+
+    it('tells a person with a pending role that the invite waits, on the realm of the role', async () => {
+        const pendingRow = { createdAt: new Date(), acceptedAt: null, realm: null, city: { id: 'athens', realm: 'greece' }, administrativeBody: null, party: null, person: null };
+        mockCreateUser.mockResolvedValue({ id: 'u1', email: 'clerk@example.com', name: 'Clerk', administers: [pendingRow] } as unknown as Awaited<ReturnType<typeof createUser>>);
+
+        await post({ email: 'clerk@example.com', name: 'Clerk', isSuperAdmin: false, administers: [{ role: 'records', cityId: 'athens' }] });
+
+        expect(mockInvite).toHaveBeenCalledWith(expect.objectContaining({ email: 'clerk@example.com', realm: 'greece', pending: true }));
     });
 });

@@ -20,7 +20,7 @@ const cityGrant: GrantRow = {
 };
 const bodyGrant: GrantRow = {
     ...base, id: 'g2', role: 'records', administrativeBodyId: 'b1',
-    administrativeBody: { id: 'b1', name: 'Council', cityId: 'athens' },
+    administrativeBody: { id: 'b1', name: 'Council', cityId: 'athens', city: { name: 'Athens' } },
     user: { id: 'u2', email: 'nobody@example.com', name: null, isMachine: false }, status: 'pending',
 };
 const revokedGrant: GrantRow = {
@@ -32,6 +32,7 @@ const scopes: GrantScopes = {
     realms: ['greece'],
     cities: [{ id: 'athens', name: 'Athens', realm: 'greece' }],
     bodies: [{ id: 'b1', name: 'Council', cityId: 'athens' }],
+    parties: [],
 };
 
 let fetchMock: jest.Mock;

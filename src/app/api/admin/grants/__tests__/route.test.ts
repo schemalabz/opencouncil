@@ -50,10 +50,7 @@ describe('/api/admin/grants', () => {
 
         expect(response.status).toBe(201);
         expect(await response.json()).toEqual({ id: 'g1', inviteEmailSent: false });
-        expect(inviteGrant).toHaveBeenCalledWith(
-            { email: 'clerk@example.org', name: 'Clerk', role: 'records', scope: { cityId: 'athens' } },
-            expect.any(NextRequest),
-        );
+        expect(inviteGrant).toHaveBeenCalledWith({ email: 'clerk@example.org', name: 'Clerk', role: 'records', scope: { cityId: 'athens' } });
     });
 
     it.each([

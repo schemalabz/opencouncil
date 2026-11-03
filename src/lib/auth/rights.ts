@@ -198,6 +198,10 @@ export function scopeInCity(actor: Actor, right: Right, cityId: string, realm?: 
 
 /** A pending grant (an invite nobody accepted) expires this many days after its creation. */
 export const PENDING_GRANT_DAYS = 14;
+export const PENDING_GRANT_MS = PENDING_GRANT_DAYS * 24 * 60 * 60 * 1000;
+
+/** The moment a pending invite sent at `createdAt` expires. */
+export const pendingUntil = (createdAt: Date): Date => new Date(createdAt.getTime() + PENDING_GRANT_MS);
 
 export type GrantStatus = 'active' | 'pending' | 'expired' | 'revoked';
 
@@ -207,8 +211,7 @@ export function grantStatus(
 ): GrantStatus {
     if (row.revokedAt) return 'revoked';
     if (row.acceptedAt) return 'active';
-    const ageMs = now.getTime() - row.createdAt.getTime();
-    return ageMs > PENDING_GRANT_DAYS * 24 * 60 * 60 * 1000 ? 'expired' : 'pending';
+    return now > pendingUntil(row.createdAt) ? 'expired' : 'pending';
 }
 
 /** The rows that count as rights now: accepted and not revoked. */
