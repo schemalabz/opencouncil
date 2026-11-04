@@ -8,7 +8,7 @@
 // the lifecycle module (meetingLifecycle.ts), which meetingWrites.ts calls.
 import "server-only";
 import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
-import { revalidateTag, revalidatePath } from 'next/cache';
+import { revalidateAfterResponse } from '../cache/afterResponse';
 import { after } from 'next/server';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
@@ -198,15 +198,16 @@ export async function setMeetingReleaseDirect(cityId: string, id: string, releas
         // release does. After the response: rendering one email per reader
         // must not hold the admin's toggle.
         if (released && changed) after(() => notifySubscribersOnRelease(cityId, id));
-        // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
-        revalidateTag(`city:${cityId}:meetings`, 'max');
-        revalidatePath(`/${cityId}`, "layout");
         const realm = await getCityRealm(cityId);
-        if (realm) {
-            revalidateTag(landingSubjectsTag(realm), 'max');
-            // a newly (un)released meeting can enter/leave the landing's upcoming list
-            revalidateTag(upcomingMeetingsTag(realm), 'max');
-        }
+        // MCP runs after its streaming Response has already been returned.
+        // The shared helper also handles browser actions and non-request calls.
+        revalidateAfterResponse({
+            tags: [
+                `city:${cityId}:meetings`,
+                ...(realm ? [landingSubjectsTag(realm), upcomingMeetingsTag(realm)] : []),
+            ],
+            paths: [{ path: `/${cityId}`, type: 'layout' }],
+        });
         return { meeting: updatedMeeting, changed };
     } catch (error) {
         // A lifecycle rule explains itself to the admin (lib/actions/meetings.ts).
