@@ -443,10 +443,24 @@ describe('a grant row with no scope', () => {
 
 // `grant` is the generic fixture; the file keeps it in use for a party scope.
 describe('inviteGrant on a party', () => {
-    it('lets the admin of the party invite on it', async () => {
-        signIn([grant({ partyId: 'p1' })]);
+    beforeEach(() => {
         db.party.findUnique.mockResolvedValue({ cityId: 'athens', city: CITIES.athens });
+    });
+
+    it('lets an admin of the city invite on the party', async () => {
+        signIn([cityGrant('athens')]);
         await inviteGrant({ email: 'clerk@example.org', role: 'viewer', scope: { partyId: 'p1' } });
         expect(db.administers.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ partyId: 'p1', role: 'viewer' }) }));
+    });
+
+    // An admin of the party has no page that lists the party's members.
+    it('refuses the admin of the party, and refuses their revoke', async () => {
+        signIn([grant({ partyId: 'p1' })]);
+        await expect(inviteGrant({ email: 'clerk@example.org', role: 'viewer', scope: { partyId: 'p1' } })).rejects.toThrow(ForbiddenError);
+        expect(db.administers.create).not.toHaveBeenCalled();
+
+        db.administers.findUnique.mockResolvedValue(row({ partyId: 'p1' }));
+        await expect(revokeGrant('g1')).rejects.toThrow(ForbiddenError);
+        expect(db.administers.updateMany).not.toHaveBeenCalled();
     });
 });

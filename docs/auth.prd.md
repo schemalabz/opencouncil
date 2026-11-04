@@ -144,7 +144,9 @@ in `src/lib/auth.ts` answers the question on the server.
 
 An account grants a role at a scope when it holds `admin` at that scope or
 above it. An `admin` of a body invites to that body only. An `admin` of a
-city invites to the city and to each of its bodies and parties. A person
+city invites to the city and to each of its bodies and parties. An `admin`
+of a party does not invite, not even to that party: no page lists the members
+of a party for them, so the party's team is the city's to manage. A person
 scope, a realm and the global scope are for a superadmin only. A superadmin
 invites anywhere. `canGrant` in `src/lib/auth/rights.ts` applies
 this rule, and `/api/admin/grants` refuses the rest.

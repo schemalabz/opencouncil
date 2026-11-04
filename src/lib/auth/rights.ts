@@ -148,13 +148,16 @@ export function adminRealms(actor: Actor): Realm[] {
 /**
  * Whether the actor may give a grant at the target: a superadmin may give
  * any; a realm grant, the global scope and a person are a superadmin's to
- * give; any other needs the `admin` right at the target or above it. A row
- * on a person speaks for the person (setVoicePrintConsent), so only a claim
- * or a superadmin writes one.
+ * give; a party needs the `admin` right on its city or above; any other
+ * needs the `admin` right at the target or above it. A row on a person
+ * speaks for the person (setVoicePrintConsent), so only a claim or a
+ * superadmin writes one. An admin of a party has no page that lists the
+ * members of the party, so the party's team is the city's to manage.
  */
 export function canGrant(actor: Actor, target: Target): boolean {
     if (actor.isSuperAdmin) return true;
     if (target.level === 'global' || target.level === 'realm' || target.level === 'person') return false;
+    if (target.level === 'party') return resolve(actor, 'admin', { level: 'city', realm: target.realm, cityId: target.cityId });
     return resolve(actor, 'admin', target);
 }
 

@@ -141,6 +141,13 @@ describe('canGrant', () => {
         expect(canGrant(actorWith([bodyGrant('youth', 'athens')]), CITY)).toBe(false);
     });
 
+    it('leaves a party to an admin of its city: an admin of the party has no team page', () => {
+        expect(canGrant(actorWith([cityGrant('athens')]), PARTY)).toBe(true);
+        expect(canGrant(actorWith([realmGrant('greece')]), { ...PARTY, realm: 'greece' })).toBe(true);
+        expect(canGrant(actorWith([grant({ partyId: 'p1' })]), PARTY)).toBe(false);
+        expect(canGrant(actorWith([bodyGrant('youth', 'athens')]), PARTY)).toBe(false);
+    });
+
     it('keeps a person a superadmin\'s, as the row speaks for the person', () => {
         expect(canGrant(superadmin(), PERSON)).toBe(true);
         expect(canGrant(actorWith([realmGrant('greece')]), { ...PERSON, realm: 'greece' })).toBe(false);
