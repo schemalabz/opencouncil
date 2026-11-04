@@ -41,6 +41,27 @@ function respondByMethod(onToolCall: () => Response) {
 }
 
 describe("McpClient content parsing", () => {
+  it("prefers structured content over explanatory or legacy text", async () => {
+    mockFetch(respondByMethod(() => jsonResponse({
+      jsonrpc: "2.0", id: 1,
+      result: { structuredContent: { id: "laholm", boundary: null }, content: [{ type: "text", text: '{"outdated":true}' }] },
+    })));
+    await expect(new McpClient("http://mcp.test").call("get_city", {})).resolves.toEqual({ id: "laholm", boundary: null });
+  });
+
+  it("accepts structured-only and empty-object results", async () => {
+    mockFetch(respondByMethod(() => jsonResponse({ jsonrpc: "2.0", id: 1, result: { structuredContent: {} } })));
+    await expect(new McpClient("http://mcp.test").call("get_city", {})).resolves.toEqual({});
+  });
+
+  it("rejects tool errors even when structured data is also present", async () => {
+    mockFetch(respondByMethod(() => jsonResponse({
+      jsonrpc: "2.0", id: 1,
+      result: { isError: true, structuredContent: { id: "laholm" }, content: [{ type: "text", text: "Permission denied" }] },
+    })));
+    await expect(new McpClient("http://mcp.test").call("get_city", {})).rejects.toThrow("Permission denied");
+  });
+
   it("returns the JSON data block even when the server appends advisory text", async () => {
     mockFetch(
       respondByMethod(() =>

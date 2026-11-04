@@ -4,7 +4,8 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
 import { currentAdminAccess, currentMcpIdentity } from './realm-context';
 import { registerAdminTools } from './adminTools';
-import { category, run } from './toolSupport';
+import { category, run, runStructured } from './toolSupport';
+import { cityProfileSchema, getCityToolInput } from './citySchemas';
 import { latitude, longitude } from '@/lib/zod-schemas/primitives';
 import { jsonPageFields } from '@/lib/zod-schemas/listQuery';
 import {
@@ -190,10 +191,12 @@ export function registerOpenCouncilServer(server: McpServer) {
             description:
                 'Get a municipality profile: its political parties, and its administrative ' +
                 'bodies — the council, committees and κοινότητες that hold meetings. Each body ' +
-                'carries the id that list_meetings and search filter by.',
-            inputSchema: z.object({ cityId: z.string().min(1) }),
+                'carries the id that list_meetings and search filter by. Includes status, realm, language, timezone, ' +
+                'official names and compact boundary metadata; null boundary means no outline is stored.',
+            inputSchema: getCityToolInput,
+            outputSchema: cityProfileSchema,
         },
-        (args, ctx: ServerContext) => run(() => mcpGetCity(args.cityId, identityFromContext(ctx)))
+        (args, ctx: ServerContext) => runStructured(() => mcpGetCity(args.cityId, identityFromContext(ctx)))
     );
 
     server.registerTool(

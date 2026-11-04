@@ -138,8 +138,8 @@ describe('admin tools are advertised by admin access', () => {
     it('marks the writes that lose data as destructive', () => {
         const { meta } = advertised(USER, { adminAccess: SUPERADMIN });
         const destructive = Object.keys(meta).filter(name => meta[name].annotations?.destructiveHint === true);
-        // start_task with force deletes a transcript.
-        expect(destructive).toEqual(['start_task']);
+        // force can delete a transcript; a city update can replace a boundary.
+        expect(destructive).toEqual(['start_task', 'update_city']);
     });
 
     it('forwards the caller identity to the data layer', async () => {

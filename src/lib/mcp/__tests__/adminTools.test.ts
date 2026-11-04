@@ -9,7 +9,7 @@ jest.mock('../adminData', () => ({
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
-    mcpUpdateCity: jest.fn().mockResolvedValue({}),
+    mcpUpdateCity: jest.fn(),
     mcpStartTask: jest.fn(),
     mcpUpdateMeeting: jest.fn().mockResolvedValue({}),
 }));
@@ -22,6 +22,7 @@ import {
     mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpUpdateCity, mcpStartTask, mcpUpdateMeeting,
 } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
+import { cityProfile } from './cityProfileFixture';
 
 /** A real McpServer with the tools of a superadmin. Only the handlers are stubs. */
 function connect() {
@@ -51,6 +52,7 @@ const CITY = {
 let mcp: Awaited<ReturnType<typeof connect>>;
 beforeEach(async () => {
     jest.clearAllMocks();
+    (mcpUpdateCity as jest.Mock).mockResolvedValue({ city: cityProfile, changed: false, changes: {} });
     mcp = await connect();
 });
 afterEach(() => mcp.close());

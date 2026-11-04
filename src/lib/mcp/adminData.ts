@@ -3,7 +3,7 @@ import { CityLanguage, Prisma, type City } from '@prisma/client';
 import { inspectMedia } from '@/lib/tasks/inspectMedia';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
-import { createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '@/lib/db/citiesAdmin';
+import { createCityDirect, applyCityUpdateDirect } from '@/lib/db/citiesAdmin';
 import { populateCity } from '@/lib/db/cityPopulate';
 import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
@@ -37,6 +37,8 @@ import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { landingSubjectsTag } from '@/lib/db/subject';
 import { parseBoundaryInput } from '@/lib/utils/geojson';
 import { isNewsPhase } from '@/lib/notifications/freshness';
+import { projectCityProfile } from './data';
+import type { CityChanges, UpdateCityResult } from './citySchemas';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -250,40 +252,38 @@ function revalidateCityDiscovery(cityId: string, realm: City['realm']) {
     revalidateAfterResponse({ blockingTags: ['city', 'cities:all', `city:${cityId}`, landingSubjectsTag(realm)] });
 }
 
-export async function mcpUpdateCity(identity: McpIdentity, args: UpdateCityToolArgs) {
+export async function mcpUpdateCity(identity: McpIdentity, args: UpdateCityToolArgs): Promise<UpdateCityResult> {
     await requireSuperadmin(identity);
     const realm = await requireRealmCity(args.cityId);
+    let geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon | undefined;
     if (args.geojson !== undefined) {
         const boundary = parseBoundaryInput(args.geojson);
         if (!boundary.ok) throw new BadRequestError(`Invalid boundary GeoJSON: ${boundary.error}. Supply the municipality's WGS84 Polygon or MultiPolygon.`);
-        await updateCityGeometryDirect(args.cityId, boundary.geometry);
-        rememberCityRealm(args.cityId, realm);
-        revalidateCityDiscovery(args.cityId, realm);
-        revalidateAfterResponse({ blockingTags: [`city:${args.cityId}:geometry`] });
-        return {
-            cityId: args.cityId, realm,
-            geometryType: boundary.geometry.type,
-            polygonCount: boundary.geometry.type === 'Polygon' ? 1 : boundary.geometry.coordinates.length,
-            url: `${cityBaseUrl(args.cityId)}/${args.cityId}/map`,
-            next: 'The boundary is saved. Verify its outline on the city map. City status and meeting release flags are unchanged.',
-        };
+        geometry = boundary.geometry;
     }
-    let city: City;
+    let outcome: Awaited<ReturnType<typeof applyCityUpdateDirect>>;
     try {
-        city = await publishCityDemoDirect(args.cityId);
+        outcome = await applyCityUpdateDirect(args.cityId, geometry !== undefined ? { geometry } : { status: 'demo' });
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
             throw new ConflictError('Only a pending or demo city can be published as a demo. Check list_cities with includePending before retrying.');
         }
         throw error;
     }
-    rememberCityRealm(city.id, city.realm);
-    revalidateCityDiscovery(city.id, city.realm);
-    return {
-        id: city.id, status: city.status, realm: city.realm,
-        url: `${cityBaseUrl(city.id)}/${city.id}`,
-        next: 'The city is a public demo. Already released meetings are discoverable; draft meetings remain unreleased. No official support or notifications have been enabled.',
-    };
+    rememberCityRealm(args.cityId, realm);
+    const changes: CityChanges = {};
+    if (outcome.changed) {
+        revalidateCityDiscovery(args.cityId, realm);
+        if (geometry !== undefined) {
+            revalidateAfterResponse({ blockingTags: [`city:${args.cityId}:geometry`] });
+            // A saved polygon always has a non-null summary.
+            if (!outcome.after.boundary) throw new Error('Missing boundary after successful write');
+            changes.boundary = { before: outcome.before.boundary, after: outcome.after.boundary };
+        } else {
+            changes.status = { before: outcome.before.status, after: 'demo' };
+        }
+    }
+    return { city: await projectCityProfile(outcome.city, outcome.after.boundary, identity), changed: outcome.changed, changes };
 }
 
 export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolArgs) {

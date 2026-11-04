@@ -29,7 +29,7 @@ jest.mock('../../db/prisma', () => ({
 // session, Discord, the calendar), and none of that is under test here.
 jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
 jest.mock('../../db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
-jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn(), publishCityDemoDirect: jest.fn(), updateCityGeometryDirect: jest.fn() }));
+jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn(), applyCityUpdateDirect: jest.fn() }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
 jest.mock('../../db/meetings', () => ({ setMeetingReleaseDirect: jest.fn() }));
 jest.mock('../../notifications/meetingNotifications', () => ({ getReleaseOutlook: jest.fn() }));
@@ -38,6 +38,7 @@ jest.mock('../realmGuards', () => ({
     requireRealmCity: jest.fn(),
     requireCityBodies: jest.fn(),
 }));
+jest.mock('../data', () => ({ projectCityProfile: jest.fn() }));
 jest.mock('../gate', () => ({ requireVisibleMeeting: jest.fn() }));
 jest.mock('../../tasks/startMeetingTask', () => ({ startMeetingTask: jest.fn() }));
 // The upload service signs against the bucket; its own tests cover it.
@@ -45,6 +46,8 @@ jest.mock('../../uploads', () => ({ startUpload: jest.fn(), completeUpload: jest
 
 jest.mock('@/env.mjs', () => ({ env: { TASK_API_URL: 'https://tasks.test', TASK_API_KEY: 'secret' } }));
 
+import { projectCityProfile } from '../data';
+import { cityProfile } from './cityProfileFixture';
 import { Prisma, Realm } from '@prisma/client';
 import {
     mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpUpdateCity, mcpStartTask,
@@ -54,7 +57,7 @@ import type { McpAdminAccess } from '../adminAccess';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import { cityPopulationSchema, type CityPopulationInput } from '../../zod-schemas/cityPopulation';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../api/errors';
-import { countCitiesByRealmAndStatus, createCityDirect, publishCityDemoDirect, updateCityGeometryDirect } from '../../db/citiesAdmin';
+import { countCitiesByRealmAndStatus, createCityDirect, applyCityUpdateDirect } from '../../db/citiesAdmin';
 import { revalidateAfterResponse } from '../../cache/afterResponse';
 import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
@@ -101,6 +104,8 @@ const MEETING = { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', proces
 
 beforeEach(() => {
     jest.clearAllMocks();
+    (applyCityUpdateDirect as jest.Mock).mockResolvedValue({ before: { status: 'pending', boundary: null }, after: { status: 'demo', boundary: { geometryType: 'Polygon', polygonCount: 1 } }, changed: true, city: { id: 'laholm' } });
+    (projectCityProfile as jest.Mock).mockResolvedValue(cityProfile);
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
     mockPartyFindMany.mockResolvedValue([]);
     mockPersonFindMany.mockResolvedValue([]);
@@ -333,31 +338,38 @@ describe('update_city realm guard', () => {
         asSuperadmin();
         (requireRealmCity as jest.Mock).mockRejectedValueOnce(new NotFoundError('Unknown municipality'));
         await expect(mcpUpdateCity(SUPERADMIN_TOKEN, args)).rejects.toThrow(NotFoundError);
-        expect(publishCityDemoDirect).not.toHaveBeenCalled();
-        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
+        expect(applyCityUpdateDirect).not.toHaveBeenCalled();
         expect(revalidateAfterResponse).not.toHaveBeenCalled();
     });
 });
 
 describe('update_city demo publication', () => {
+    it('returns the current profile without invalidating caches for a no-op', async () => {
+        asSuperadmin();
+        (applyCityUpdateDirect as jest.Mock).mockResolvedValue({ before: { status: 'demo', boundary: null }, after: { status: 'demo', boundary: null }, changed: false, city: { id: 'laholm' } });
+        expect(await mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'laholm', status: 'demo' }))
+            .toEqual({ city: cityProfile, changed: false, changes: {} });
+        expect(revalidateAfterResponse).not.toHaveBeenCalled();
+    });
+
     it('promotes across realms, invalidates discovery and returns the city realm URL', async () => {
-        (publishCityDemoDirect as jest.Mock).mockResolvedValue({ id: 'mannheim', status: 'demo', realm: 'germany' });
+        (requireRealmCity as jest.Mock).mockResolvedValue('germany');
+        (projectCityProfile as jest.Mock).mockResolvedValue({ ...cityProfile, id: 'mannheim', realm: 'germany', url: 'https://opencouncil.de/mannheim' });
         const result = await inRealm(Realm.greece, () => mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'mannheim', status: 'demo' }));
         expect(requireRealmCity).toHaveBeenCalledWith('mannheim');
-        expect(publishCityDemoDirect).toHaveBeenCalledWith('mannheim');
-        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ id: 'mannheim', status: 'demo', realm: 'germany', url: 'https://opencouncil.de/mannheim' });
+        expect(applyCityUpdateDirect).toHaveBeenCalledWith('mannheim', { status: 'demo' });
+        expect(result).toMatchObject({ city: { id: 'mannheim', status: 'demo', realm: 'germany', url: 'https://opencouncil.de/mannheim' }, changed: true, changes: { status: { before: 'pending', after: 'demo' } } });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:mannheim', 'realm:germany:landing-subjects'] });
     });
 
     it.each([null, ADMIN_TOKEN])('refuses callers without superadmin rights before writing (%j)', async identity => {
         await expect(mcpUpdateCity(identity, { cityId: 'mannheim', status: 'demo' })).rejects.toThrow();
-        expect(publishCityDemoDirect).not.toHaveBeenCalled();
+        expect(applyCityUpdateDirect).not.toHaveBeenCalled();
     });
 
     it('reports a missing or ineligible city instead of changing official support', async () => {
         asSuperadmin();
-        (publishCityDemoDirect as jest.Mock).mockRejectedValue(new Prisma.PrismaClientKnownRequestError('no eligible city', { code: 'P2025', clientVersion: 'test' }));
+        (applyCityUpdateDirect as jest.Mock).mockRejectedValue(new Prisma.PrismaClientKnownRequestError('no eligible city', { code: 'P2025', clientVersion: 'test' }));
         await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'mannheim', status: 'demo' })).rejects.toThrow(ConflictError);
     });
 });
@@ -370,11 +382,10 @@ describe('update_city boundary', () => {
         const result = await inRealm(Realm.greece, () => mcpUpdateCity(SUPERADMIN_TOKEN, {
             cityId: 'sarajevo', geojson: JSON.stringify({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { source: 'official' }, geometry: polygon }] }),
         }));
-        expect(updateCityGeometryDirect).toHaveBeenCalledWith('sarajevo', {
+        expect(applyCityUpdateDirect).toHaveBeenCalledWith('sarajevo', { geometry: {
             ...polygon, coordinates: [[[18.3, 43.8], [18.4, 43.8], [18.4, 43.9], [18.3, 43.8]]],
-        });
-        expect(publishCityDemoDirect).not.toHaveBeenCalled();
-        expect(result).toMatchObject({ cityId: 'sarajevo', realm: 'bosnia', geometryType: 'Polygon', polygonCount: 1, url: 'https://ba.opencouncil.eu/sarajevo/map' });
+        } });
+        expect(result).toMatchObject({ changed: true, changes: { boundary: { before: null, after: { geometryType: 'Polygon', polygonCount: 1 } } } });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city', 'cities:all', 'city:sarajevo', 'realm:bosnia:landing-subjects'] });
         expect(revalidateAfterResponse).toHaveBeenCalledWith({ blockingTags: ['city:sarajevo:geometry'] });
     });
@@ -385,12 +396,12 @@ describe('update_city boundary', () => {
     ])('refuses malformed, non-polygonal or projected coordinates before writing', async geojson => {
         asSuperadmin();
         await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson })).rejects.toThrow(BadRequestError);
-        expect(updateCityGeometryDirect).not.toHaveBeenCalled();
+        expect(applyCityUpdateDirect).not.toHaveBeenCalled();
     });
 
     it('does not invalidate caches or report success when the database rejects the boundary', async () => {
         asSuperadmin();
-        (updateCityGeometryDirect as jest.Mock).mockRejectedValueOnce(new Error('Invalid geometry'));
+        (applyCityUpdateDirect as jest.Mock).mockRejectedValueOnce(new Error('Invalid geometry'));
         await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'sarajevo', geojson: JSON.stringify(polygon) })).rejects.toThrow('Invalid geometry');
         expect(revalidateAfterResponse).not.toHaveBeenCalled();
     });
@@ -568,7 +579,7 @@ describe('permission matrix', () => {
     };
     type McpIdentityArg = Parameters<typeof mcpCreateMeeting>[0];
     const writes = () => [
-        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity, publishCityDemoDirect, updateCityGeometryDirect, startUpload,
+        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity, applyCityUpdateDirect, startUpload,
         completeUpload,
     ].map(fn => (fn as jest.Mock).mock.calls.length).reduce((a, b) => a + b, 0);
 

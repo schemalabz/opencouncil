@@ -22,6 +22,7 @@ import { McpServer, type AuthInfo } from '@modelcontextprotocol/server';
 import { instrumentMcpAnalytics } from '@/lib/mcp/analytics';
 import type { McpIdentity } from '@/lib/mcp/auth';
 import { connectInMemory } from './inMemoryClient';
+import { runStructured } from '../toolSupport';
 
 /**
  * The PostHog MCP SDK wraps the request handlers of a real McpServer, and
@@ -78,6 +79,23 @@ afterEach(() => {
 });
 
 describe('MCP analytics', () => {
+    it('preserves declared output schemas and structured results through instrumentation', async () => {
+        const server = new McpServer({ name: 'test', version: '0.0.0' });
+        server.registerTool('structured_echo', {
+            inputSchema: z.object({ text: z.string() }),
+            outputSchema: z.object({ text: z.string() }),
+        }, async ({ text }) => runStructured(async () => ({ text })));
+        instrumentMcpAnalytics(server);
+        const mcp = await connectInMemory(server);
+        try {
+            const tool = (await mcp.listTools()).find(tool => tool.name === 'structured_echo')!;
+            expect(tool.outputSchema).toMatchObject({ type: 'object', properties: { text: { type: 'string' } }, required: ['text'] });
+            const response = await mcp.request('tools/call', { name: 'structured_echo', arguments: { text: 'public city profile' } });
+            expect(response.result?.structuredContent).toEqual({ text: 'public city profile' });
+            expect(JSON.parse((response.result?.content as { text: string }[])[0].text)).toEqual(response.result?.structuredContent);
+        } finally { await mcp.close(); }
+    });
+
     it('keeps the payload of an anonymous tool call and tags it with the realm and host', async () => {
         const [event] = await callEcho();
 
