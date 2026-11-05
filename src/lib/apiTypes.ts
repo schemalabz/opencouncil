@@ -25,7 +25,7 @@ export type CityLanguage = 'el' | 'fr' | 'sr' | 'de' | 'nl' | 'it' | 'pl' | 'pt'
 // backend restricts geocoding of subject locations to it; without it everything
 // is geocoded as if it were in Greece. Comes from the city's realm, not its
 // language — see `getRealmCountry`.
-export type Country = 'GR' | 'FR' | 'CY' | 'RS' | 'AT' | 'BE' | 'FI' | 'DE' | 'IT' | 'NL' | 'PL' | 'PT' | 'ES' | 'BA' | 'AD' | 'AL' | 'BG' | 'CH' | 'CZ' | 'DK' | 'EE' | 'GB' | 'HR' | 'HU' | 'IE' | 'IS' | 'LI' | 'LT' | 'LU' | 'LV' | 'MC' | 'MD' | 'ME' | 'MK' | 'MT' | 'NO' | 'RO' | 'SE' | 'SI' | 'SK' | 'SM' | 'UA' | 'XK';
+export type Country = 'GR' | 'FR' | 'CY' | 'RS' | 'AT' | 'BE' | 'FI' | 'DE' | 'IT' | 'NL' | 'PL' | 'PT' | 'ES' | 'BA' | 'AD' | 'AL' | 'BG' | 'CH' | 'CZ' | 'DK' | 'EE' | 'GB' | 'HR' | 'HU' | 'IE' | 'IS' | 'LI' | 'LT' | 'LU' | 'LV' | 'MC' | 'MD' | 'ME' | 'MK' | 'MT' | 'NO' | 'RO' | 'SE' | 'SI' | 'SK' | 'SM' | 'UA' | 'XK' | 'CA';
 
 /*
  * System endpoints

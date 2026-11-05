@@ -99,6 +99,11 @@ export const REALMS = {
     san_marino: { ...REALM_DEFAULTS, domain: 'sm.opencouncil.eu', country: 'SM' },
     ukraine: { ...REALM_DEFAULTS, domain: 'ua.opencouncil.eu', country: 'UA' },
     kosovo: { ...REALM_DEFAULTS, domain: 'xk.opencouncil.eu', country: 'XK' },
+    // Canada is bilingual, and the language of a city decides the language of
+    // its council. English is the default so that the realm does not present
+    // all of Canada as French-speaking. French is the realm's own second
+    // locale: /fr serves the French interface on the realm, with no redirect.
+    canada: { ...REALM_DEFAULTS, domain: 'ca.opencouncil.eu', extraLocales: ['fr'], country: 'CA' },
 } as const satisfies Record<
     Realm,
     {
@@ -177,6 +182,7 @@ const REALM_DEFAULT_MAP_VIEW: Record<Realm, { center: [number, number]; zoom: nu
     ukraine: { center: [31.2, 49.0], zoom: 5 },
     kosovo: { center: [20.9, 42.6], zoom: 8 },
     spain: { center: [-3.7, 40.4], zoom: 5 },        // mainland Spain
+    canada: { center: [-96.0, 56.0], zoom: 3 },      // all of Canada, not one province
 };
 
 const hostMatchesDomain = (host: string, domain: string): boolean =>
