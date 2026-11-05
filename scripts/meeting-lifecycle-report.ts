@@ -29,7 +29,7 @@ import path from 'path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import prisma from '@/lib/db/prisma';
-import { formatDateAsMeetingId } from '@/lib/utils/meetingId';
+import { meetingIdFromCalendarDate } from '@/lib/utils/meetingId';
 import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
 import { analyzeStoredName, postponementInInvitation, storedNameLoss } from '@/lib/meetingRecordBackfill';
 import { checkAgendaIdentity, describeMismatch, holdsAnotherMeeting, meetingsOfThisBody, reconcileAgendaMeetingRecord } from '@/lib/agendaMeetingRecord';
@@ -189,7 +189,7 @@ async function main() {
         const otherMeetings = meetingsInAgenda.length > 1
             ? `agenda holds ${meetingsInAgenda.length} meetings: ${meetingsInAgenda.map((m) => `${m.bodyName ?? '?'}${m.time ? ` ${m.time}` : ''} ${m.kind ?? '?'}${m.urgent ? ' urgent' : ''}${m.sessionNumber ? ` #${m.sessionNumber}` : ''}`).join(' | ')}`
             : null;
-        const idDate = formatDateAsMeetingId(new Date(`${localDate}T12:00:00Z`));
+        const idDate = meetingIdFromCalendarDate(localDate);
         const notes = [
             analysis?.note,
             analysis?.combined ? 'combined' : null,

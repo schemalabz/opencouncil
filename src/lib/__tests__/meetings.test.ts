@@ -6,6 +6,8 @@ jest.mock('../auth', () => ({
 
 jest.mock('../notifications/meetingNotifications', () => ({ notifySubscribersOnRelease: jest.fn() }));
 
+jest.mock('../db/cityTimezone', () => ({ getCityTimezone: jest.fn() }));
+
 // Mock Prisma
 jest.mock('../db/prisma', () => ({
   __esModule: true,
@@ -19,8 +21,10 @@ jest.mock('../db/prisma', () => ({
 import { generateUniqueMeetingId } from '../db/meetings';
 import { getCouncilMeetingsForCity } from '../db/meetingsList';
 import prisma from '../db/prisma';
+import { getCityTimezone } from '../db/cityTimezone';
 
 const mockFindMany = prisma.councilMeeting.findMany as jest.MockedFunction<typeof prisma.councilMeeting.findMany>;
+const mockGetCityTimezone = getCityTimezone as jest.MockedFunction<typeof getCityTimezone>;
 
 describe('getCouncilMeetingsForCity - Pagination', () => {
   beforeEach(() => {
@@ -177,6 +181,7 @@ describe('generateUniqueMeetingId', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCityTimezone.mockResolvedValue('Europe/Athens');
   });
 
   it('returns base ID when no collisions exist', async () => {
@@ -231,5 +236,14 @@ describe('generateUniqueMeetingId', () => {
       },
       select: { id: true },
     });
+  });
+
+  it('names the day in the city\'s own time zone', async () => {
+    mockFindMany.mockResolvedValue([]);
+    mockGetCityTimezone.mockResolvedValue('America/Toronto');
+    // 18:30 in Laval on 3 November is already 4 November in Athens.
+    const id = await generateUniqueMeetingId('laval', new Date('2026-11-03T18:30:00-05:00'));
+    expect(mockGetCityTimezone).toHaveBeenCalledWith('laval');
+    expect(id).toBe('nov3_2026');
   });
 });

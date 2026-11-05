@@ -32,7 +32,7 @@ import { COUNCIL_ONLY_KINDS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCode
 import { meetingLabel } from '@/lib/meetingName'
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
 import { Textarea } from '../ui/textarea'
-import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
+import { meetingIdFromCalendarDate } from '@/lib/utils/meetingId'
 import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
 import { apiErrorMessage } from '@/lib/utils/validationIssues'
 import { useToast } from "@/hooks/use-toast"
@@ -136,6 +136,12 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     // the form holds, so a new meeting on another date finds its candidates.
     const selectedDate = form.watch('date')
     const meetingDay = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null
+    // The id of the day picked in the calendar, which is a day in the browser's
+    // zone. The API makes the real id from the day in the city's zone; the two
+    // agree when the admin works in the city's zone. An upload is named before
+    // the meeting has an id, so it takes the typed id or this one.
+    const pickedDayId = meetingIdFromCalendarDate(meetingDay ?? format(new Date(), 'yyyy-MM-dd'))
+    const uploadIdentifier = form.watch('meetingId') || pickedDayId
 
     useEffect(() => {
         // Fetch administrative bodies for the city
@@ -448,7 +454,6 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                         control={form.control}
                         name="youtubeUrl"
                         render={({ field }) => {
-                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
                             const administrativeBodyId = uploadBodyId(form.watch('administrativeBodyId'))
 
                             return (
@@ -461,7 +466,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             onUrlChange={(url) => field.onChange(url)}
                                             config={{
                                                 cityId,
-                                                identifier: meetingId,
+                                                identifier: uploadIdentifier,
                                                 councilMeetingId: meeting?.id,
                                                 kind: 'recording',
                                                 administrativeBodyId,
@@ -481,7 +486,6 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                         control={form.control}
                         name="agendaUrl"
                         render={({ field }) => {
-                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
                             const administrativeBodyId = uploadBodyId(form.watch('administrativeBodyId'))
 
                             return (
@@ -494,7 +498,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             onUrlChange={(url) => field.onChange(url)}
                                             config={{
                                                 cityId,
-                                                identifier: meetingId,
+                                                identifier: uploadIdentifier,
                                                 councilMeetingId: meeting?.id,
                                                 kind: 'agenda',
                                                 administrativeBodyId,
@@ -626,7 +630,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             <Input
                                                 {...field}
                                                 disabled={Boolean(meeting)}
-                                                placeholder={formatDateAsMeetingId(form.watch('date') ?? new Date())}
+                                                placeholder={pickedDayId}
                                             />
                                         </FormControl>
                                         <FormDescription>
