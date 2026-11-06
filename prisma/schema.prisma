@@ -153,6 +153,7 @@ enum Realm {
   ukraine
   kosovo
   canada
+  south_africa
 }
 
 /// Where a city stands with us. Collapses the old (status, officialSupport) pair:

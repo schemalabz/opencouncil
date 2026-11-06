@@ -96,3 +96,25 @@ describe('proxy on the canada realm', () => {
         expect(new URL(res!.headers.get('location')!).pathname).toBe('/laval');
     });
 });
+
+/**
+ * South Africa serves English only: /fr is foreign there, as on every realm
+ * except France and Canada.
+ */
+describe('proxy on the south_africa realm', () => {
+    const host = 'za.opencouncil.eu';
+    const get = (path: string) => proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+
+    it('rewrites an unprefixed path to /en', async () => {
+        const res = await get('/cape-town');
+
+        expect(new URL(res!.headers.get('x-middleware-rewrite')!).pathname).toBe('/en/cape-town');
+    });
+
+    it.each(['/el', '/fr', '/sr', '/lat'])('301s the foreign prefix %s', async (prefix) => {
+        const res = await get(`${prefix}/cape-town`);
+
+        expect(res!.status).toBe(301);
+        expect(new URL(res!.headers.get('location')!).pathname).toBe('/cape-town');
+    });
+});
