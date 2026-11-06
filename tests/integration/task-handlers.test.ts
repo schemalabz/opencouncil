@@ -531,6 +531,25 @@ describe('handleSummarizeResult', () => {
         expect(autoSurviving).toBeUndefined()
     })
 
+    test('labels a segment with the topic of the meeting\'s realm when another realm has the same name', async () => {
+        // The city is in greece. south_africa's topic is created last, so a
+        // lookup across realms would find it last and keep it.
+        await createTopic('housing-greece', { name: 'Housing', realm: 'greece' })
+        await createTopic('housing-south-africa', { name: 'Housing', realm: 'south_africa' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'summarize' })
+
+        await handleSummarizeResult(task.id, makeSummarizeResult({
+            speakerSegmentSummaries: [
+                { speakerSegmentId: segmentId1, topicLabels: ['Housing'], summary: 's', type: 'SUBSTANTIAL' },
+            ],
+            subjects: [],
+            utteranceDiscussionStatuses: [],
+        }))
+
+        const labels = await prisma.topicLabel.findMany({ where: { speakerSegmentId: segmentId1 }, select: { topicId: true } })
+        expect(labels).toEqual([{ topicId: 'housing-greece' }])
+    })
+
     describe('re-summarize replaces the topic labels and discussion statuses', () => {
         beforeEach(async () => {
             await createTopic('t1', { name: 'Transport' })
