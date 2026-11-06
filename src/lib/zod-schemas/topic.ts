@@ -16,5 +16,19 @@ const baseTopicFields = {
 
 export const createTopicSchema = z.object(baseTopicFields);
 
+/**
+ * The form of a topic label that two labels must not share: the MCP search
+ * resolves a label to a topic by it, so two topics of a realm with the same
+ * key would hide one another.
+ */
+export function topicLabelKey(label: string): string {
+    return label.trim().toLowerCase();
+}
+
+/** The keys a topic is found by: its name and its English name. */
+export function topicLabelKeys(topic: { name: string; name_en: string }): string[] {
+    return [...new Set([topicLabelKey(topic.name), topicLabelKey(topic.name_en)])];
+}
+
 // All fields optional for partial updates — absent fields stay undefined.
 export const updateTopicSchema = z.object(baseTopicFields).partial();

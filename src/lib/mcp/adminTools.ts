@@ -7,6 +7,7 @@ import {
     mcpInspectMedia,
     mcpCreateCity,
     mcpCreateMeeting,
+    mcpCreateTopics,
     mcpCreateUploadUrl,
     mcpListRealms,
     mcpPopulateCity,
@@ -19,6 +20,8 @@ import {
     inspectMediaToolInput,
     createCityToolInput,
     createMeetingToolInput,
+    createTopicsToolInput,
+    MAX_TOPICS_PER_CALL,
     createUploadUrlToolInput,
     startTaskToolInput,
     updateMeetingToolInput,
@@ -195,11 +198,29 @@ function registerCityAdminTools(server: McpServer) {
             _meta: category('admin'),
             description:
                 'Superadmin only. List the realms (one per country and domain): the country, the domain, the '
-                + 'language of the site, whether the realm has paying municipalities yet, and how many cities it '
-                + 'has in each status. Call it before you add a city.',
+                + 'language of the site, whether the realm has paying municipalities yet, how many cities it '
+                + 'has in each status and how many active topics. Call it before you add a city.',
             inputSchema: z.object({}),
         },
         (_args, ctx: ServerContext) => run(() => mcpListRealms(identityFromContext(ctx)))
+    );
+
+    server.registerTool(
+        'create_topics',
+        {
+            title: 'Create topics',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Superadmin only. Add topics to the taxonomy of a realm. processAgenda and summarize give each '
+                + 'subject one topic of its city\'s realm, so a realm needs its topics before its first meeting is '
+                + 'processed. A topic with a name or English name that a topic of the realm already has, in any letter case and deprecated or not, is skipped. '
+                + `At most ${MAX_TOPICS_PER_CALL} per call. Topics are shared by every `
+                + 'city of the realm: name them in the language of its councils and fit them to the powers of its '
+                + 'municipalities. Show the complete list to the user and get a confirmation before you call.',
+            inputSchema: createTopicsToolInput,
+        },
+        (args, ctx: ServerContext) => run(() => mcpCreateTopics(identityFromContext(ctx), args))
     );
 
     server.registerTool(

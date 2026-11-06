@@ -8,6 +8,7 @@ jest.mock('../adminData', () => ({
     mcpInspectMedia: jest.fn().mockResolvedValue({ supported: true, source: { kind: 'file' } }),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
+    mcpCreateTopics: jest.fn().mockResolvedValue({}),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
     mcpUpdateCity: jest.fn(),
     mcpStartTask: jest.fn(),
@@ -19,7 +20,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
 import {
-    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpPopulateCity, mcpUpdateCity, mcpStartTask, mcpUpdateMeeting,
+    mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateTopics, mcpCreateUploadUrl, mcpPopulateCity, mcpUpdateCity, mcpStartTask, mcpUpdateMeeting,
 } from '@/lib/mcp/adminData';
 import { connectInMemory } from './inMemoryClient';
 import { cityProfile } from './cityProfileFixture';
@@ -157,6 +158,27 @@ describe('create_city through the SDK', () => {
         const result = await mcp.call('create_city', CITY);
         expect(result.isError).toBeFalsy();
         expect(mcpCreateCity).toHaveBeenCalledWith(null, { ...CITY, authorityType: 'municipality' });
+    });
+});
+
+describe('create_topics through the SDK', () => {
+    const topic = (name: string, name_en: string) => ({ name, name_en, colorHex: '#16a34a', icon: 'leaf', description: `${name_en} items.` });
+
+    it('hands the trimmed topics to the handler, with no icon as null', async () => {
+        const result = await mcp.call('create_topics', { realm: 'canada', topics: [
+            topic(' Habitation ', 'Housing'), { ...topic('Environnement', 'Environment'), icon: undefined },
+        ] });
+        expect(result.isError).toBeFalsy();
+        expect(mcpCreateTopics).toHaveBeenCalledWith(null, { realm: 'canada', topics: [
+            topic('Habitation', 'Housing'), { ...topic('Environnement', 'Environment'), icon: null },
+        ] });
+    });
+
+    it('refuses two topics with a shared English name, before the handler runs', async () => {
+        const result = await mcp.call('create_topics', { realm: 'canada', topics: [topic('Logement', 'Housing'), topic('Habitation', 'housing')] });
+        expect(result.isError).toBe(true);
+        expect(result.content[0].text).toContain('shares a name or English name with topics[0]');
+        expect(mcpCreateTopics).not.toHaveBeenCalled();
     });
 });
 

@@ -53,6 +53,7 @@ import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meet
 import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { publicRecordFields } from '@/lib/meetingPublic';
+import { topicLabelKey } from '@/lib/zod-schemas/topic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -801,14 +802,14 @@ async function resolveTopicIds(labels: string[]): Promise<string[]> {
 
     const byLabel = new Map<string, string>();
     for (const topic of topics) {
-        byLabel.set(topic.name.trim().toLowerCase(), topic.id);
-        byLabel.set(topic.name_en.trim().toLowerCase(), topic.id);
+        byLabel.set(topicLabelKey(topic.name), topic.id);
+        byLabel.set(topicLabelKey(topic.name_en), topic.id);
     }
 
     const ids: string[] = [];
     const unknown: string[] = [];
     for (const label of labels) {
-        const id = byLabel.get(label.trim().toLowerCase());
+        const id = byLabel.get(topicLabelKey(label));
         if (id) ids.push(id);
         else unknown.push(label);
     }

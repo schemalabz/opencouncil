@@ -56,3 +56,26 @@ export const imageFile = () => z.file()
 export const logoFile = (params?: { error?: string }) => z.file(params)
     .mime([...ALLOWED_LOGO_CONTENT_TYPES], { error: vmsg('logoType') })
     .max(MAX_IMAGE_BYTES, { error: vmsg('logoMaxSize') });
+
+/**
+ * In a superRefine, report every entry that shares a key with an earlier
+ * entry, at `[...path, index, field]`. `keysOf` gives all keys of an entry:
+ * a topic is found by its name and by its English name.
+ */
+export function refuseDuplicateKeys<E>(ctx: z.RefinementCtx, entries: E[], options: {
+    path: PropertyKey[];
+    field: string;
+    keysOf: (entry: E) => string[];
+    message: (entry: E, firstIndex: number) => string;
+}): void {
+    const firstIndex = new Map<string, number>();
+    entries.forEach((entry, index) => {
+        const keys = options.keysOf(entry);
+        const first = keys.map(key => firstIndex.get(key)).find(i => i !== undefined);
+        if (first !== undefined) {
+            ctx.addIssue({ code: 'custom', path: [...options.path, index, options.field], message: options.message(entry, first) });
+            return;
+        }
+        keys.forEach(key => firstIndex.set(key, index));
+    });
+}

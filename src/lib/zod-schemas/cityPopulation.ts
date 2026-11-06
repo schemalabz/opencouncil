@@ -3,7 +3,7 @@ import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields, youtubeChannelUrlValue } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue, rolePeriodsOverlap } from './role';
-import { blankToNull, webUrl } from './primitives';
+import { blankToNull, refuseDuplicateKeys, webUrl } from './primitives';
 
 // The payload of populate_city: the parties, administrative bodies, people
 // and roles of a city that has no data yet. A role names its party or its
@@ -62,18 +62,11 @@ export const cityPopulationSchema = z.object({
 }).superRefine((data, ctx) => {
     // A role links to the first party or body with its name, so a second entry
     // with the same name would get no role and no warning.
-    const refuseDuplicateNames = (entries: { name: string }[], key: 'parties' | 'administrativeBodies', noun: string) => {
-        const firstIndex = new Map<string, number>();
-        entries.forEach((entry, index) => {
-            const first = firstIndex.get(entry.name);
-            if (first === undefined) {
-                firstIndex.set(entry.name, index);
-                return;
-            }
-            ctx.addIssue({ code: 'custom', path: [key, index, 'name'],
-                message: `The ${noun} name "${entry.name}" is also the name of ${key}[${first}]. Roles name a ${noun} by its \`name\`, so each ${noun} needs a different one.` });
+    const refuseDuplicateNames = (entries: { name: string }[], key: 'parties' | 'administrativeBodies', noun: string) =>
+        refuseDuplicateKeys(ctx, entries, {
+            path: [key], field: 'name', keysOf: entry => [entry.name],
+            message: (entry, first) => `The ${noun} name "${entry.name}" is also the name of ${key}[${first}]. Roles name a ${noun} by its \`name\`, so each ${noun} needs a different one.`,
         });
-    };
     refuseDuplicateNames(data.parties, 'parties', 'party');
     refuseDuplicateNames(data.administrativeBodies, 'administrativeBodies', 'body');
 

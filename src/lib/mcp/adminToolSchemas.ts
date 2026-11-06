@@ -6,9 +6,10 @@ import { STARTABLE_MEETING_TASKS } from '@/lib/tasks/startableTasks';
 import { baseCityFields, cityIdSchema } from '@/lib/zod-schemas/city';
 import { baseMeetingFields } from '@/lib/zod-schemas/meeting';
 import { isoZonedDateTime } from '@/lib/zod-schemas/dates';
-import { webUrl } from '@/lib/zod-schemas/primitives';
+import { refuseDuplicateKeys, webUrl } from '@/lib/zod-schemas/primitives';
 import { UPLOAD_FORMAT_NAMES, type UploadKind } from '@/types/upload';
 import { completeUploadRequestSchema, uploadSizeBytes } from '@/lib/zod-schemas/upload';
+import { createTopicSchema, topicLabelKeys } from '@/lib/zod-schemas/topic';
 
 /**
  * The input schemas of the admin tools. adminTools.ts registers them, and
@@ -183,6 +184,28 @@ export const createCityToolInput = z.object({
         .meta({ description: 'The realm (country) of the city. Omit for the realm of this domain' }),
 });
 export type CreateCityToolArgs = z.output<typeof createCityToolInput>;
+
+// The fields and rules of the topic form of /admin/topics.
+const topicFields = createTopicSchema.shape;
+export const MAX_TOPICS_PER_CALL = 50;
+
+export const createTopicsToolInput = z.object({
+    realm: topicFields.realm.meta({ description: 'The realm (country) whose taxonomy gets the topics. See list_realms' }),
+    topics: z.array(z.object({
+        name: topicFields.name.meta({ description: 'The name in the language of the realm\'s councils. '
+            + 'processAgenda and summarize choose a topic for each subject by this name' }),
+        name_en: topicFields.name_en.meta({ description: 'The name in English, for the English interface' }),
+        colorHex: topicFields.colorHex.meta({ description: 'Colour as "#rrggbb", distinct from the other topics of the realm' }),
+        icon: topicFields.icon.meta({ description: 'A lucide icon name, e.g. "landmark", "bus", "leaf"' }),
+        description: topicFields.description.meta({ description: 'What the topic covers, with the local institutions and terms. '
+            + 'The model reads it to choose a topic' }),
+    })).min(1).max(MAX_TOPICS_PER_CALL).superRefine((topics, ctx) => refuseDuplicateKeys(ctx, topics, {
+        path: [], field: 'name', keysOf: topicLabelKeys,
+        message: (topic, first) => `"${topic.name}" (${topic.name_en}) shares a name or English name with topics[${first}]. `
+            + 'The search finds a topic by either, so each must be different',
+    })),
+});
+export type CreateTopicsToolArgs = z.output<typeof createTopicsToolInput>;
 
 export const inspectMediaToolInput = z.object({ url: webUrl() });
 export type InspectMediaToolArgs = z.output<typeof inspectMediaToolInput>;

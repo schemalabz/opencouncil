@@ -3,6 +3,7 @@ import { Prisma, Realm, Topic } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { ConflictError } from "../api/errors";
+import type { TopicInput } from "./types/topic";
 
 const topicWithSubjectCountInclude = {
     _count: {
@@ -49,9 +50,6 @@ export async function getAllTopicsWithSubjectCount(): Promise<TopicWithSubjectCo
         throw new Error('Failed to fetch topics');
     }
 }
-
-export type TopicInput = Pick<Prisma.TopicCreateInput, 'name' | 'name_en' | 'colorHex' | 'icon' | 'description' | 'deprecated' | 'realm'>;
-
 
 export async function createTopic(data: TopicInput): Promise<Topic> {
     await withUserAuthorizedToEdit({});
