@@ -1,4 +1,5 @@
 import * as z from "zod";
+import type { McpLike } from "../lib/mcp-client";
 import {
   cityPreferenceSchema,
   conversationMessageSchema,
@@ -182,9 +183,7 @@ export interface AnthropicLike {
   create(params: ModelRequest): Promise<ModelResponse>;
 }
 
-export interface McpLike {
-  call(tool: string, args: Record<string, unknown>): Promise<unknown>;
-}
+export type { McpLike } from "../lib/mcp-client";
 
 export interface Prompts {
   system: string;

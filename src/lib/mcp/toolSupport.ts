@@ -16,9 +16,18 @@ function errorResult(message: string): CallToolResult {
  * Wrap a tool implementation so ApiErrors and lifecycle rule errors surface as readable tool errors and
  * anything unexpected stays generic (no stack traces to clients).
  */
-export async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
+export function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
+    return execute(fn, json);
+}
+
+/** The SDK validates this data using the tool's declared outputSchema. */
+export function runStructured<T extends Record<string, unknown>>(fn: () => Promise<T>): Promise<CallToolResult> {
+    return execute(fn, data => ({ ...json(data), structuredContent: data }));
+}
+
+async function execute<T>(fn: () => Promise<T>, serialize: (data: T) => CallToolResult): Promise<CallToolResult> {
     try {
-        return json(await fn());
+        return serialize(await fn());
     } catch (error) {
         if (error instanceof ApiError) {
             return errorResult(error.message);

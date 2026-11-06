@@ -11,6 +11,13 @@ export const highlightCreationPermissionSchema = z.enum(HighlightCreationPermiss
 export const cityLanguageSchema = z.enum(CityLanguage);
 export const realmSchema = z.enum(Realm);
 
+/** Compact metadata of the stored municipal outline; null means no boundary. */
+export const cityBoundarySummarySchema = z.object({
+  geometryType: z.enum(['Polygon', 'MultiPolygon']),
+  polygonCount: z.number().int().positive(),
+});
+export type CityBoundarySummary = z.output<typeof cityBoundarySummarySchema>;
+
 // Default values — single source of truth for the entire app.
 // These mirror the Prisma schema defaults and are used by:
 //   - Frontend forms (React Hook Form defaultValues in CityForm.tsx)

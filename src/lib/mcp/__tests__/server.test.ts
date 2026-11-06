@@ -41,7 +41,7 @@ const USER: McpIdentity = { userId: 'u1' };
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
 const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_upload_url', 'complete_upload', 'inspect_media', 'start_task'];
-const SUPERADMIN_TOOLS = ['publish_city_demo', 'set_city_boundary', 'list_realms', 'create_city', 'populate_city'];
+const SUPERADMIN_TOOLS = ['update_city', 'list_realms', 'create_city', 'populate_city'];
 const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']), bodyIds: new Set() };
 const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
 
@@ -138,8 +138,8 @@ describe('admin tools are advertised by admin access', () => {
     it('marks the writes that lose data as destructive', () => {
         const { meta } = advertised(USER, { adminAccess: SUPERADMIN });
         const destructive = Object.keys(meta).filter(name => meta[name].annotations?.destructiveHint === true);
-        // start_task with force deletes a transcript.
-        expect(destructive).toEqual(['start_task']);
+        // force can delete a transcript; a city update can replace a boundary.
+        expect(destructive).toEqual(['start_task', 'update_city']);
     });
 
     it('forwards the caller identity to the data layer', async () => {
@@ -169,12 +169,12 @@ describe('admin tools are advertised by admin access', () => {
         expect(() => meta.create_meeting.inputSchema?.parse({ ...base, dateTime: '2026-10-05T18:00:00+03:00' })).not.toThrow();
     });
 
-    it('drops a name from the meeting tools, because the site derives it', () => {
+    it('drops derived names on create and rejects them on update', () => {
         const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
         const names = { name: 'Ειδική Συνεδρίαση για το Λιμάνι', name_en: 'Special Meeting on the Port' };
         const created = meta.create_meeting.inputSchema?.parse({ cityId: 'athens', dateTime: '2026-10-05T18:00:00+03:00', ...names });
-        const updated = meta.update_meeting.inputSchema?.parse({ cityId: 'athens', meetingId: 'm1', ...names });
-        for (const parsed of [created, updated]) {
+        expect(() => meta.update_meeting.inputSchema?.parse({ cityId: 'athens', meetingId: 'm1', ...names })).toThrow();
+        for (const parsed of [created]) {
             expect(parsed).not.toHaveProperty('name');
             expect(parsed).not.toHaveProperty('name_en');
         }

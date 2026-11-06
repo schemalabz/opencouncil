@@ -19,7 +19,10 @@ import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } fro
 import { cityBaseUrl, currentBaseUrl, currentRealm, rememberCityRealm } from './realm-context';
 import { REALMS } from '@/lib/realm';
 import { requireSuperadmin } from './adminAccess';
-import { listCitiesWithCounts } from '@/lib/db/citiesAdmin';
+import { listCitiesWithCounts, getCityBoundarySummary } from '@/lib/db/citiesAdmin';
+import type { CityProfile } from './citySchemas';
+import type { CityWithCounts } from '@/lib/db/cities';
+import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import { getTranscript } from '@/lib/db/transcript';
 import { getMeetingTaskStatus } from '@/lib/db/tasks';
 import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
@@ -180,14 +183,23 @@ const SCHEDULE_STATUS_NOTES = {
         + 'carries postponedFromDate.',
 } as const satisfies Record<MeetingScheduleStatus, string | null>;
 
-export async function mcpGetCity(cityId: string, identity: McpIdentity) {
+export async function mcpGetCity(cityId: string, identity: McpIdentity): Promise<CityProfile> {
     await requireRealmCity(cityId);
-    const [city, parties, includeUnreleased] = await Promise.all([
+    const [city, boundary] = await Promise.all([
         getCity(cityId),
+        getCityBoundarySummary(cityId),
+    ]);
+    if (!city) throw new NotFoundError('City not found');
+    return projectCityProfile(city, boundary, identity);
+}
+
+/** Shared projection for a read or the city snapshot captured by a write. */
+export async function projectCityProfile(city: CityWithCounts, boundary: CityBoundarySummary | null, identity: McpIdentity): Promise<CityProfile> {
+    const cityId = city.id;
+    const [parties, includeUnreleased] = await Promise.all([
         getPartiesForCity(cityId),
         canSeeUnreleased(identity, cityId),
     ]);
-    if (!city) throw new NotFoundError('City not found');
 
     // The bodies carry the ids list_meetings filters by, so a body whose
     // meetings are all drafts would be a dead filter option for anyone who
@@ -200,8 +212,15 @@ export async function mcpGetCity(cityId: string, identity: McpIdentity) {
         id: city.id,
         name: city.name,
         name_en: city.name_en,
+        name_municipality: city.name_municipality,
+        name_municipality_en: city.name_municipality_en,
         municipality: city.name_municipality,
         authorityType: city.authorityType,
+        realm: city.realm,
+        status: city.status,
+        language: city.language,
+        timezone: city.timezone,
+        boundary,
         officialSupport: isCustomer(city.status),
         counts: {
             meetings: city._count.councilMeetings,
@@ -458,6 +477,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
         summarized,
+        released: visible.released,
         ...(tasks && {
             tasks: tasks.map(mcpTaskSummary),
             // What processAgenda and summarize would do with email if they succeeded now, read before start_task.

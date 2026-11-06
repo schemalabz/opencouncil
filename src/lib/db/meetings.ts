@@ -8,7 +8,7 @@
 // the lifecycle module (meetingLifecycle.ts), which meetingWrites.ts calls.
 import "server-only";
 import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
-import { revalidateTag, revalidatePath } from 'next/cache';
+import { revalidateAfterResponse } from '../cache/afterResponse';
 import { after } from 'next/server';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
@@ -186,6 +186,11 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    return (await setMeetingReleaseDirect(cityId, id, released)).meeting;
+}
+
+/** Caller-gated release workflow shared by the browser action and token-authorized MCP tools. */
+export async function setMeetingReleaseDirect(cityId: string, id: string, released: boolean) {
     try {
         // The module also releases or hides the other meetings of a postponement.
         const { meeting: updatedMeeting, changed } = await setMeetingReleased(cityId, id, released);
@@ -193,16 +198,17 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
         // release does. After the response: rendering one email per reader
         // must not hold the admin's toggle.
         if (released && changed) after(() => notifySubscribersOnRelease(cityId, id));
-        // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
-        revalidateTag(`city:${cityId}:meetings`, 'max');
-        revalidatePath(`/${cityId}`, "layout");
         const realm = await getCityRealm(cityId);
-        if (realm) {
-            revalidateTag(landingSubjectsTag(realm), 'max');
-            // a newly (un)released meeting can enter/leave the landing's upcoming list
-            revalidateTag(upcomingMeetingsTag(realm), 'max');
-        }
-        return updatedMeeting;
+        // MCP runs after its streaming Response has already been returned.
+        // The shared helper also handles browser actions and non-request calls.
+        revalidateAfterResponse({
+            tags: [
+                `city:${cityId}:meetings`,
+                ...(realm ? [landingSubjectsTag(realm), upcomingMeetingsTag(realm)] : []),
+            ],
+            paths: [{ path: `/${cityId}`, type: 'layout' }],
+        });
+        return { meeting: updatedMeeting, changed };
     } catch (error) {
         // A lifecycle rule explains itself to the admin (lib/actions/meetings.ts).
         if (error instanceof LifecycleRuleError) throw error;

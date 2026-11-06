@@ -1,4 +1,7 @@
-import { McpLike } from "@/agent/types";
+/** Minimal transport interface, also used by the agent's dependency types. */
+export interface McpLike {
+  call(tool: string, args: Record<string, unknown>): Promise<unknown>;
+}
 
 /**
  * Minimal Streamable-HTTP MCP client for anonymous reads against
@@ -9,6 +12,7 @@ import { McpLike } from "@/agent/types";
 
 interface JsonRpcResponse {
   result?: {
+    structuredContent?: Record<string, unknown>;
     content?: Array<{ type: string; text?: string }>;
     isError?: boolean;
   };
@@ -127,6 +131,7 @@ export class McpClient implements McpLike {
       const msg = body.result.content?.map((c) => c.text).join("\n") ?? "unknown tool error";
       throw new Error(`MCP ${tool}: ${msg}`);
     }
+    if (body.result?.structuredContent !== undefined) return body.result.structuredContent;
     // Parse text blocks individually: the server may append advisory blocks
     // (e.g. the analytics wrapper's "[SERVER]: Reuse conversation_id=…"), and
     // joining them corrupts the JSON. The data block is the first one that

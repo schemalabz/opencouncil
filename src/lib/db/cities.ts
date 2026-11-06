@@ -7,7 +7,7 @@ import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
-import { createCityDirect, updateCityGeometryDirect } from "./citiesAdmin";
+import { createCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -107,12 +107,7 @@ export async function getCity(
     options?: CityGeometryOptions
 ): Promise<(CityWithCounts & { geometry?: GeoJSON.Geometry }) | null> {
     try {
-        const city = await prisma.city.findUnique({
-            where: { id },
-            include: {
-                _count: CITY_COUNT_SELECT
-            }
-        });
+        const city = await getCityWithCountsDirect(id);
         
         if (!city) return null;
         if (!options?.includeGeometry) return city;
