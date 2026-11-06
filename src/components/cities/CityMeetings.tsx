@@ -79,7 +79,7 @@ export default function CityMeetings({
             ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone, now }}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId, realm, allowedBodyIds: editableBodyIds }}
+            formProps={{ cityId, realm, timezone, allowedBodyIds: editableBodyIds }}
             t={t}
             announceCount
             renderFilter={({ selectedValues, onChange }) => {

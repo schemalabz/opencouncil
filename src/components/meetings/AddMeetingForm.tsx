@@ -20,17 +20,18 @@ import { SheetClose } from "../ui/sheet"
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { Checkbox } from "../ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Calendar } from "../ui/calendar"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { format, parse, setHours, setMinutes } from "date-fns"
+import { format, parse } from "date-fns"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
 import { COUNCIL_ONLY_KINDS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
 import { meetingLabel } from '@/lib/meetingName'
-import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
+import { localCalendarDate, localClockTime } from '@/lib/formatters/time'
+import { zonedInstant } from '@/lib/dates/dayBounds'
 import { Textarea } from '../ui/textarea'
 import { meetingIdFromCalendarDate } from '@/lib/utils/meetingId'
 import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
@@ -67,6 +68,11 @@ interface AddMeetingFormProps {
     cityId: string;
     /** The realm of the city: only a Greek city has a kind, an urgency and a session number. */
     realm: Realm;
+    /**
+     * The city's IANA time zone. The form shows and takes the date and the time
+     * of the meeting in this zone, whatever the zone of the admin's browser.
+     */
+    timezone: string;
     meeting?: CouncilMeeting;
     onSuccess?: () => void;
     /**
@@ -76,7 +82,7 @@ interface AddMeetingFormProps {
     allowedBodyIds?: string[];
 }
 
-export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allowedBodyIds }: AddMeetingFormProps) {
+export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuccess, allowedBodyIds }: AddMeetingFormProps) {
     const router = useRouter()
     const { toast } = useToast()
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -85,14 +91,16 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string, place: string | null }>>([])
     const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
+    const locale = useLocale()
     const greekCodeFacts = recordsGreekCodeFacts(realm)
     const validationMessage = useValidationMessage()
 
     const form = useForm({
         resolver: useZodResolver(meetingFormSchema),
         defaultValues: {
-            date: meeting ? new Date(meeting.dateTime) : new Date(),
-            time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
+            // The calendar picks a day as a local Date; the day it shows is the city's day: of the meeting, or today.
+            date: parse(localCalendarDate(meeting ? new Date(meeting.dateTime) : new Date(), timezone), 'yyyy-MM-dd', new Date()),
+            time: meeting ? localClockTime(new Date(meeting.dateTime), timezone) : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
             meetingId: meeting?.id ?? "",
@@ -136,11 +144,9 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     // the form holds, so a new meeting on another date finds its candidates.
     const selectedDate = form.watch('date')
     const meetingDay = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null
-    // The id of the day picked in the calendar, which is a day in the browser's
-    // zone. The API makes the real id from the day in the city's zone; the two
-    // agree when the admin works in the city's zone. An upload is named before
-    // the meeting has an id, so it takes the typed id or this one.
-    const pickedDayId = meetingIdFromCalendarDate(meetingDay ?? format(new Date(), 'yyyy-MM-dd'))
+    // The picked day is the city's day of the meeting, so this is the id that
+    // the API makes. An upload is named before the meeting has an id.
+    const pickedDayId = meetingIdFromCalendarDate(meetingDay ?? localCalendarDate(new Date(), timezone))
     const uploadIdentifier = form.watch('meetingId') || pickedDayId
 
     useEffect(() => {
@@ -175,13 +181,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
         const method = meeting ? 'PUT' : 'POST'
 
         try {
-            // Parse time and combine with date
-            const [hours, minutes] = values.time.split(':').map(Number)
-            const dateTime = new Date(values.date)
-            dateTime.setHours(hours)
-            dateTime.setMinutes(minutes)
-            dateTime.setSeconds(0)
-            dateTime.setMilliseconds(0)
+            const dateTime = zonedInstant(format(values.date, 'yyyy-MM-dd'), values.time, timezone)
 
             const response = await fetch(url, {
                 method,
@@ -388,7 +388,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                         <SelectItem value="none">{t('postponedFromNone')}</SelectItem>
                                         {postponementCandidates.map(candidate => (
                                             <SelectItem key={candidate.id} value={candidate.id}>
-                                                {meetingLabel(candidate, 'el', DEFAULT_TIMEZONE)}
+                                                {meetingLabel(candidate, locale, timezone)}
                                             </SelectItem>
                                         ))}
                                         {/* The current link stays selectable when its meeting is outside the window. */}

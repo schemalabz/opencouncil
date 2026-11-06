@@ -341,6 +341,7 @@ export default function AdminActions({
                             <AddMeetingForm
                                 cityId={meeting.cityId}
                                 realm={city.realm}
+                                timezone={city.timezone}
                                 meeting={meeting}
                                 allowedBodyIds={editableBodyIds}
                                 onSuccess={() => {

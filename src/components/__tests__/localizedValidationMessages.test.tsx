@@ -78,7 +78,7 @@ async function expectFieldMessages(expected: string[]) {
 
 describe.each(['el', 'en', 'sr', 'sr-Latn'])('validation messages in %s', (locale) => {
     it('AddMeetingForm shows the custom message of a session number below 1', async () => {
-        renderIn(locale, <AddMeetingForm cityId="athens" realm="greece" />);
+        renderIn(locale, <AddMeetingForm cityId="athens" realm="greece" timezone="Europe/Athens" />);
         const sessionNumber = document.querySelector<HTMLInputElement>('input[name="sessionNumber"]');
         if (!sessionNumber) throw new Error('no session number input rendered');
         fireEvent.change(sessionNumber, { target: { value: '0' } });

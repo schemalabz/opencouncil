@@ -165,6 +165,17 @@ export function localCalendarDate(d: Date, timeZone: string): string {
 }
 
 /**
+ * The wall-clock time of a moment in a timezone, as `HH:mm` (24 h): the value
+ * of a time input. With localCalendarDate it is the inverse of zonedInstant.
+ * Intl reads the zone directly; date-fns-tz's formatInTimeZone goes through a
+ * local Date and shows the wrong hour when that wall time does not exist in
+ * the machine's zone.
+ */
+export function localClockTime(d: Date, timeZone: string): string {
+    return d.toLocaleTimeString('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+}
+
+/**
  * Numeric date, compact for tables and message strings: `DD/MM/YYYY`.
  * The date-only counterpart of `formatNumericDateTime`.
  *

@@ -20,6 +20,14 @@ export function hasDayBound({ from, to }: DateRangeBounds): boolean {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * The instant of a wall-clock time (`HH:mm`) on a calendar day (`YYYY-MM-DD`)
+ * in an IANA time zone: 18:30 on 2026-11-03 in America/Toronto is 23:30 UTC.
+ */
+export function zonedInstant(day: string, time: string, timeZone: string): Date {
+    return fromZonedTime(`${day}T${time}:00`, timeZone);
+}
+
+/**
  * The first and the last millisecond of a calendar day (`YYYY-MM-DD`) in an
  * IANA time zone. A day across a DST change has 23 or 25 hours, so the end is
  * the start of the next day minus one millisecond, not the start plus 24 hours.
@@ -27,8 +35,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function dayBounds(day: string, timeZone: string): { start: Date; end: Date } {
     const nextDay = new Date(Date.parse(`${day}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
     return {
-        start: fromZonedTime(`${day}T00:00:00`, timeZone),
-        end: new Date(fromZonedTime(`${nextDay}T00:00:00`, timeZone).getTime() - 1),
+        start: zonedInstant(day, '00:00', timeZone),
+        end: new Date(zonedInstant(nextDay, '00:00', timeZone).getTime() - 1),
     };
 }
 
