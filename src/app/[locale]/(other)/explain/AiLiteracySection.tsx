@@ -227,16 +227,19 @@ export function AiLiteracySection() {
 
             <Sub id="oc-ai-registry" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
-                Κάθε δήμος δηλώνει τα συστήματα τεχνητής νοημοσύνης που χρησιμοποιεί στο {REGISTRY_LAW.registry} (
-                {REGISTRY_LAW.article} του {REGISTRY_LAW.law}, {REGISTRY_LAW.gazette}). Για σύστημα που ήδη λειτουργεί, η
-                προθεσμία είναι η {formatDate(new Date(REGISTRY_LAW.deadline))} ({REGISTRY_LAW.deadlineArticle}). Τη δήλωση
-                υποβάλλει {REGISTRY_LAW.responsible}. Το Μητρώο τηρεί η {REGISTRY_LAW.keeper}. Μέχρι σήμερα δεν υπάρχει
-                πλατφόρμα ή υπόδειγμα υποβολής. Ο δήμος κρατά τη δήλωση έτοιμη και την υποβάλλει μόλις ανοίξει ο τρόπος
-                υποβολής.
+                Κάθε δήμος υποχρεούται να δηλώσει τα συστήματα τεχνητής νοημοσύνης που χρησιμοποιεί στο{" "}
+                {REGISTRY_LAW.registry} ({REGISTRY_LAW.article} του {REGISTRY_LAW.law},{" "}
+                <a href={REGISTRY_LAW.gazetteUrl} target="_blank" rel="noopener noreferrer" className="text-orange underline underline-offset-2">
+                    {REGISTRY_LAW.gazette}
+                </a>
+                ). Για σύστημα που ήδη λειτουργεί, η προθεσμία είναι η {formatDate(new Date(REGISTRY_LAW.deadline))} (
+                {REGISTRY_LAW.deadlineArticle}). Τη δήλωση υποβάλλει {REGISTRY_LAW.responsible}. Το Μητρώο τηρεί η{" "}
+                {REGISTRY_LAW.keeper}.
             </p>
             <p className="mt-3 leading-relaxed text-muted-foreground">
-                Ο νόμος ζητά έντεκα στοιχεία. Παρακάτω είναι οι απαντήσεις της OpenCouncil για καθένα. Ο δήμος συμπληρώνει
-                μόνο το χρονοδιάγραμμα (στοιχείο γ). Το PDF έχει το ίδιο περιεχόμενο, με ημερομηνία έκδοσης.
+                Ο νόμος ζητά έντεκα πράγματα. Παρακάτω είναι οι απαντήσεις της OpenCouncil για καθένα από αυτά. Το μόνο
+                επιπλέον πράγμα που πρέπει να γνωρίζετε και διαφοροποιείται ανά δήμο είναι το χρονοδιάγραμμα του έργου,
+                δηλαδή η περίοδος ισχύος της σύμβασης του OpenCouncil με τον Δήμο.
             </p>
             <div className="not-prose mt-4">
                 <RegistryDownloadButton />
@@ -255,14 +258,6 @@ export function AiLiteracySection() {
                     </div>
                 ))}
             </dl>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Η νομική τεκμηρίωση για τα στοιχεία (η) και (ια) δίνεται στον δήμο ως ξεχωριστό έγγραφο. Το κείμενο του
-                νόμου:{" "}
-                <a href={REGISTRY_LAW.gazetteUrl} target="_blank" rel="noopener noreferrer" className="text-orange underline underline-offset-2">
-                    {REGISTRY_LAW.gazette}
-                </a>
-                .
-            </p>
 
             <Sub id="oc-ai-changes" />
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

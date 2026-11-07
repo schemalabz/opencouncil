@@ -24,9 +24,10 @@ export function RegistryDeclarationPdf({ baseUrl }: { baseUrl: string }) {
                     Στοιχεία για τη δήλωση του OpenCouncil στο {REGISTRY_LAW.registry}
                 </Text>
                 <Text style={{ fontSize: 9.5, lineHeight: 1.45, marginBottom: 4 }}>
-                    Το {REGISTRY_LAW.article} παρ. 3 του {REGISTRY_LAW.law} ({REGISTRY_LAW.gazette}) ζητά έντεκα στοιχεία για κάθε
-                    σύστημα. Εδώ είναι οι απαντήσεις της OpenCouncil. Ο δήμος συμπληρώνει το χρονοδιάγραμμα (στοιχείο γ) και
-                    υποβάλλει τη δήλωση. Αρμόδιος: {REGISTRY_LAW.responsible} ({REGISTRY_LAW.article} παρ. 4).
+                    Το {REGISTRY_LAW.article} παρ. 3 του {REGISTRY_LAW.law} ({REGISTRY_LAW.gazette}) ζητά έντεκα
+                    πράγματα για κάθε σύστημα. Εδώ είναι οι απαντήσεις της OpenCouncil. Το μόνο επιπλέον πράγμα που πρέπει να
+                    γνωρίζετε και διαφοροποιείται ανά δήμο είναι το χρονοδιάγραμμα του έργου, δηλαδή η περίοδος ισχύος της
+                    σύμβασης του OpenCouncil με τον Δήμο. Αρμόδιος είναι {REGISTRY_LAW.responsible} ({REGISTRY_LAW.article} παρ. 4).
                 </Text>
                 <Text style={{ fontSize: 9.5, lineHeight: 1.45, marginBottom: 16 }}>
                     Για σύστημα που ήδη λειτουργεί, η προθεσμία είναι η {formatDate(new Date(REGISTRY_LAW.deadline))} (

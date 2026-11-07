@@ -27,7 +27,7 @@ export function RegistryDownloadButton() {
             className="inline-flex items-center gap-2 rounded-full bg-orange px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange/90 disabled:opacity-60"
         >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FileDown className="h-4 w-4" aria-hidden="true" />}
-            Κατεβάστε τη δήλωση σε PDF
+            Κατεβάστε την παρακάτω δήλωση σε PDF
         </button>
     );
 }
