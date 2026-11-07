@@ -21,7 +21,11 @@ export const UPLOAD_FORMATS = {
     docx: { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', extension: 'docx' },
     mp4: { contentType: 'video/mp4', extension: 'mp4' },
     mov: { contentType: 'video/quicktime', extension: 'mov' },
+    mkv: { contentType: 'video/x-matroska', extension: 'mkv' },
     mp3: { contentType: 'audio/mpeg', extension: 'mp3' },
+    wav: { contentType: 'audio/wav', extension: 'wav' },
+    m4a: { contentType: 'audio/mp4', extension: 'm4a' },
+    aac: { contentType: 'audio/aac', extension: 'aac' },
 } as const;
 export type UploadFormat = keyof typeof UPLOAD_FORMATS;
 
@@ -31,7 +35,9 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
  * - agenda: processAgenda reads a PDF or a .docx (documentConversion in
  *   opencouncil-tasks). It refuses a legacy .doc: convert one to PDF first.
  * - decision: the decision reading reads a PDF.
- * - recording: video in MP4/QuickTime, or audio-only recordings in MP3.
+ * - recording: video in MP4, QuickTime or Matroska, or audio in MP3, WAV,
+ *   M4A or AAC. The task server turns every source into an mp4 and an mp3
+ *   (downloadYTV in opencouncil-tasks), and it has transcribed each of these.
  * A PDF reaches Claude base64-encoded, in a request of at most 32 MB, so the
  * task server stops at 20 MiB (MAX_DOCUMENT_BYTES). A recording of a whole
  * day of sittings at 1080p stays well under 40 GiB.
@@ -39,7 +45,7 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
 export const UPLOAD_KINDS = {
     agenda: { formats: ['pdf', 'docx'], maxBytes: 20 * MiB },
     decision: { formats: ['pdf'], maxBytes: 20 * MiB },
-    recording: { formats: ['mp4', 'mov', 'mp3'], maxBytes: 40 * GiB },
+    recording: { formats: ['mp4', 'mov', 'mkv', 'mp3', 'wav', 'm4a', 'aac'], maxBytes: 40 * GiB },
 } as const satisfies Record<string, { formats: readonly UploadFormat[]; maxBytes: number }>;
 export type UploadKind = keyof typeof UPLOAD_KINDS;
 

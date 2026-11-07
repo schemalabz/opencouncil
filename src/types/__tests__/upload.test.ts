@@ -38,13 +38,16 @@ describe('uploadFormatOfFile', () => {
         expect(uploadFormatOfFile('agenda', 'agenda.v2.docx')).toBe('docx');
         expect(uploadFormatOfFile('recording', 'sitting.MOV')).toBe('mov');
         expect(uploadFormatOfFile('recording', 'sitting.MP3')).toBe('mp3');
+        expect(uploadFormatOfFile('recording', 'interview.WAV')).toBe('wav');
+        expect(uploadFormatOfFile('recording', 'phone recording.m4a')).toBe('m4a');
+        expect(uploadFormatOfFile('recording', 'sitting.mkv')).toBe('mkv');
         expect(uploadFormatOfFile('agenda', 'sitting.mp3')).toBeNull();
     });
 
     it('refuses a format that the kind does not take', () => {
         expect(uploadFormatOfFile('agenda', 'agenda.doc')).toBeNull();
         expect(uploadFormatOfFile('decision', 'decision.docx')).toBeNull();
-        expect(uploadFormatOfFile('recording', 'sitting.mkv')).toBeNull();
+        expect(uploadFormatOfFile('recording', 'sitting.avi')).toBeNull();
         expect(uploadFormatOfFile('recording', 'sitting')).toBeNull();
     });
 });
@@ -52,6 +55,7 @@ describe('uploadFormatOfFile', () => {
 describe('uploadAccept', () => {
     it('lists the extensions and the content types of the kind', () => {
         expect(uploadAccept('decision')).toBe('.pdf,application/pdf');
-        expect(uploadAccept('recording')).toBe('.mp4,video/mp4,.mov,video/quicktime,.mp3,audio/mpeg');
+        expect(uploadAccept('recording')).toBe(
+            '.mp4,video/mp4,.mov,video/quicktime,.mkv,video/x-matroska,.mp3,audio/mpeg,.wav,audio/wav,.m4a,audio/mp4,.aac,audio/aac');
     });
 });

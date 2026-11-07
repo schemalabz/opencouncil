@@ -101,7 +101,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'storage of OpenCouncil, in a municipality that you administer. Use it when the file has no public '
                 + 'URL that the task server can read: an email attachment, a download link that expires, a video '
                 + 'joined from parts or downloaded from a player. An agenda is a PDF or a .docx, at most 20 MiB; '
-                + 'a recording is an mp4, .mov or .mp3, at most 40 GiB. A file of up '
+                + 'a recording is a video (.mp4, .mov, .mkv) or an audio file (.mp3, .wav, .m4a, .aac), at most 40 GiB. A file of up '
                 + 'to partSize bytes goes up in one PUT, and `completion` is null. A bigger file goes up in parts, '
                 + 'one PUT per part, and complete_upload then joins them. The answer\'s `next` gives the steps. The '
                 + 'file is then public at `publicUrl`.',

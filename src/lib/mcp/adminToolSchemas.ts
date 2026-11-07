@@ -126,7 +126,7 @@ export const createUploadUrlToolInput = z.object({
         .meta({ description: 'Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
             + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only' }),
     format: z.enum(UPLOAD_FORMAT_NAMES)
-        .meta({ description: 'The format of the file: pdf or docx for an agenda, mp4, mov or mp3 for a recording. '
+        .meta({ description: 'The format of the file: pdf or docx for an agenda; mp4, mov or mkv for a video recording, mp3, wav, m4a or aac for an audio one. '
             + 'The answer carries the matching Content-Type' }),
     sizeBytes: uploadSizeBytes
         .meta({ description: 'The exact size of the file in bytes, e.g. from `wc -c < <file>`. It decides '
