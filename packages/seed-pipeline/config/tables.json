@@ -63,5 +63,5 @@
     "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification",
     "UtteranceEdit"
   ],
-  "ignoreTables": ["spatial_ref_sys", "ServiceApiKey"]
+  "ignoreTables": ["spatial_ref_sys"]
 }
