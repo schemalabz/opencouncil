@@ -4,6 +4,9 @@ import prisma from "@/lib/db/prisma"
 import authConfig, { authProviders } from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
 import { signInAllowed } from "@/lib/auth/signInGuard"
+import { claimMagicLinkSend } from "@/lib/auth/magicLinkLimit"
+import { rateLimitedSignInPath } from "@/lib/auth/signInResult"
+import { headers } from "next/headers"
 import { usesSecureCookies } from "@/lib/auth/sessionMirror"
 import { pendingCommentQuote } from "@/lib/db/consultationComments"
 
@@ -36,8 +39,17 @@ export const authOptions = {
     // Said once here, both paths look for the same cookie names.
     useSecureCookies: usesSecureCookies(),
     callbacks: {
-        signIn({ user, account, profile }) {
-            return signInAllowed(account, profile, user);
+        async signIn({ user, account, profile, email }) {
+            if (!signInAllowed(account, profile, user)) return false;
+            // Auth.js asks here before it sends a magic link, from every entry
+            // (the sign-in form, person join, a pending comment, signup, and
+            // its own HTTP route), so the rate limit on the link lives here.
+            // A refusal is a URL, which Auth.js reports like any failure.
+            if (email?.verificationRequest && user.email) {
+                const claim = await claimMagicLinkSend(user.email, await headers());
+                if (!claim.ok) return rateLimitedSignInPath(claim.retryAfterMs);
+            }
+            return true;
         },
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin

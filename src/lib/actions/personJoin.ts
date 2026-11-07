@@ -36,7 +36,9 @@ export async function claimWithToken(token: string): Promise<ClaimWithTokenStatu
     return result.status;
 }
 
-export type SendJoinEmailResult = { ok: true } | { ok: false; error: "invalid_code" | "invalid_email" | "send_failed" };
+export type SendJoinEmailResult =
+    | { ok: true }
+    | { ok: false; error: "invalid_code" | "invalid_email" | "send_failed" | "rate_limited" };
 
 /**
  * Step 2 for a signed-out scanner: the sign-in email. Its link comes back
@@ -53,7 +55,8 @@ export async function sendJoinEmail(token: string, email: string): Promise<SendJ
     form.set("email", normalizeEmail(email));
     form.set("callbackUrl", `/api/join/${token}?confirmed=${signJoinConfirmation(token, email)}`);
     try {
-        await signInWithEmail(form);
+        const sent = await signInWithEmail(form);
+        if (!sent.ok) return { ok: false, error: "rate_limited" };
         return { ok: true };
     } catch (error) {
         console.error("Join email failed:", error);
