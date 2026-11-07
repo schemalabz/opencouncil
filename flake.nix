@@ -234,6 +234,12 @@
         ''}
       '';
 
+      # esbuild flags for a CommonJS bundle of ESM-only packages. esbuild empties
+      # `import.meta` in CJS output, so a package that calls
+      # createRequire(import.meta.url) or fileURLToPath(import.meta.url) (yargs 18)
+      # throws when the bundle loads. Give it the URL of the bundle file instead.
+      esbuildImportMetaUrl = ''--define:import.meta.url=__import_meta_url --banner:js="const __import_meta_url = require('url').pathToFileURL(__filename).href;"'';
+
       # Shared npm deps (used by opencouncil-prod and CI checks).
       # importNpmLock fetches each package using the integrity hashes already
       # in package-lock.json, so there is no aggregate npmDepsHash to keep in
@@ -1630,8 +1636,13 @@ EOF
             buildPhase = ''
               runHook preBuild
               esbuild packages/seed-pipeline/src/cli.ts --bundle --platform=node --format=cjs --target=node20 \
-                --external:pg-native --outfile=dist/seed-pipeline.cjs
+                ${esbuildImportMetaUrl} --external:pg-native --outfile=dist/seed-pipeline.cjs
               runHook postBuild
+            '';
+            # Building is not enough: a bundle can build and still throw when it loads.
+            doInstallCheck = true;
+            installCheckPhase = ''
+              node $out/lib/seed-pipeline.cjs --help > /dev/null
             '';
             installPhase = ''
               mkdir -p $out/lib $out/prisma
@@ -1677,8 +1688,12 @@ EOF
               ${mkPrismaEnv pkgs}
               prisma generate --schema prisma/schema.prisma
               esbuild scripts/seed/cli.ts --bundle --platform=node --format=cjs --target=node20 \
-                --tsconfig=tsconfig.json --external:pg-native --external:@prisma/client --outfile=dist/seed.cjs
+                ${esbuildImportMetaUrl} --tsconfig=tsconfig.json --external:pg-native --external:@prisma/client --outfile=dist/seed.cjs
               runHook postBuild
+            '';
+            doInstallCheck = true;
+            installCheckPhase = ''
+              node $out/lib/seed.cjs --help > /dev/null
             '';
             installPhase = ''
               mkdir -p $out/lib/node_modules/@prisma $out/lib/node_modules/.prisma $out/prisma
