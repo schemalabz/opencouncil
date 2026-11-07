@@ -3,7 +3,7 @@ import MuxVideo from '@mux/mux-video-react';
 import { useVideo } from './VideoProvider';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Minimize2, Move, ArrowDownLeftSquare, Scaling } from 'lucide-react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { usePlaybackSpeed } from '@/components/meetings/options/OptionsContext';
@@ -36,7 +36,6 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
     const containerRef = useRef<HTMLDivElement>(null);
     const initialMousePos = useRef<{ x: number; y: number } | null>(null);
     const initialDimensions = useRef<{ width: number; height: number } | null>(null);
-    const controls = useAnimation();
 
     const toggleExpand = () => {
         const prevState = {
@@ -166,7 +165,6 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                     whileDrag={!isResizing ? { scale: 1.1 } : undefined}
                     initial={{ opacity: 0, scale: 0.5 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className="fixed z-50 shadow-lg rounded-lg overflow-hidden"
                     // Anchored above the playback dock: with no coordinates a fixed box
@@ -187,7 +185,6 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
                         >
                             <Move className="w-6 h-6 text-white" />
@@ -239,7 +236,6 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
                     className="absolute top-0 left-0 w-full h-full bg-black opacity-50 flex items-center justify-center"
                     onClick={toggleExpand}
                 >
