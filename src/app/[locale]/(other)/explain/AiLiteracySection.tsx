@@ -234,7 +234,7 @@ export function AiLiteracySection() {
             </p>
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Ο νόμος ζητά έντεκα στοιχεία. Παρακάτω είναι οι απαντήσεις της OpenCouncil για καθένα. Ο δήμος συμπληρώνει
-                μόνο όσα έχουν την ένδειξη «συμπληρώνει ο δήμος». Το PDF έχει το ίδιο περιεχόμενο, με ημερομηνία έκδοσης.
+                μόνο το χρονοδιάγραμμα (στοιχείο γ). Το PDF έχει το ίδιο περιεχόμενο, με ημερομηνία έκδοσης.
             </p>
             <div className="not-prose mt-4">
                 <RegistryDownloadButton />
@@ -242,14 +242,8 @@ export function AiLiteracySection() {
             <dl className="not-prose mt-5 divide-y divide-border rounded-xl border border-border">
                 {REGISTRY_ITEMS.map((item) => (
                     <div key={item.letter} className="grid gap-2 p-4 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6">
-                        <dt>
-                            <span className="text-xs text-muted-foreground">{item.letter})</span>
-                            <span className="mt-0.5 block font-semibold leading-snug text-foreground">{item.question}</span>
-                            {item.byMunicipality && (
-                                <span className="mt-1.5 inline-block rounded-full border border-orange/40 bg-orange/5 px-2 py-0.5 text-xs text-orange">
-                                    συμπληρώνει ο δήμος
-                                </span>
-                            )}
+                        <dt className="font-semibold leading-snug text-foreground">
+                            {item.letter}) {item.question}
                         </dt>
                         <dd className="space-y-2 text-sm leading-relaxed text-muted-foreground">
                             {item.answer.map((line) => (

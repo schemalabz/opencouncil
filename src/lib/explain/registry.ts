@@ -7,8 +7,8 @@ import { LAST_UPDATED } from '@/lib/explain/aiLiteracy';
  * lettering. The page renders them as a table and the PDF as a document, from
  * this one source, so the two never disagree.
  *
- * Every answer describes the product as it is today. Items the municipality
- * must fill in are flagged, not guessed.
+ * Every answer describes the product as it is today. Where the municipality
+ * must fill something in, the answer says so instead of guessing.
  */
 
 export const REGISTRY_LAW = {
@@ -36,8 +36,6 @@ export interface RegistryItem {
     question: string;
     /** Short paragraphs or list lines. */
     answer: string[];
-    /** The municipality fills this in. */
-    byMunicipality?: boolean;
 }
 
 export const REGISTRY_ITEMS: RegistryItem[] = [
@@ -62,8 +60,7 @@ export const REGISTRY_ITEMS: RegistryItem[] = [
     {
         letter: 'γ',
         question: 'Χρονοδιάγραμμα λειτουργίας',
-        answer: ['Από την ημερομηνία έναρξης της σύμβασης του δήμου με την OpenCouncil, για τη διάρκειά της.'],
-        byMunicipality: true,
+        answer: ['Συμπληρώνει ο δήμος: η ημερομηνία έναρξης της σύμβασης με την OpenCouncil και η διάρκειά της.'],
     },
     {
         letter: 'δ',

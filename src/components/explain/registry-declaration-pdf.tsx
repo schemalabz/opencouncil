@@ -14,37 +14,31 @@ export function RegistryDeclarationPdf({ baseUrl }: { baseUrl: string }) {
     return (
         <Document title="OpenCouncil: στοιχεία για το Μητρώο συστημάτων ΤΝ" language="el">
             <Page size="A4" style={{ fontFamily: "Inter", padding: "48 52 56", color: C.body, fontSize: 9.5 }}>
-                <View fixed style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-                    <Brand size={16} />
-                    <Text style={{ fontSize: 7.5, color: C.light }}>
-                        Έκδοση {version} · {baseUrl}/explain#oc-ai-registry
-                    </Text>
+                {/* lockup sized like the brochure's: the butterfly's strokes read as heavy as the text */}
+                <View fixed style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 26 }}>
+                    <Brand size={44} textScale={0.335} />
+                    <Text style={{ fontSize: 8.5, color: C.light }}>Έκδοση {version}</Text>
                 </View>
 
-                <Text style={{ fontSize: 8.5, color: C.accent, letterSpacing: 1, marginBottom: 6 }}>
-                    ΜΗΤΡΩΟ ΣΥΣΤΗΜΑΤΩΝ ΤΕΧΝΗΤΗΣ ΝΟΗΜΟΣΥΝΗΣ · {REGISTRY_LAW.law.toUpperCase()}
-                </Text>
-                <Text style={{ fontSize: 17, fontWeight: 600, color: C.ink, lineHeight: 1.25, marginBottom: 8 }}>
-                    Στοιχεία για τη δήλωση καταχώρισης του OpenCouncil
+                <Text style={{ fontSize: 17, fontWeight: 600, color: C.ink, lineHeight: 1.25, marginBottom: 10 }}>
+                    Στοιχεία για τη δήλωση του OpenCouncil στο {REGISTRY_LAW.registry}
                 </Text>
                 <Text style={{ fontSize: 9.5, lineHeight: 1.45, marginBottom: 4 }}>
-                    Τα έντεκα στοιχεία που ζητά το {REGISTRY_LAW.article} παρ. 3 του {REGISTRY_LAW.law} ({REGISTRY_LAW.gazette}),
-                    με τις απαντήσεις της OpenCouncil. Ο δήμος συμπληρώνει τα στοιχεία με την ένδειξη «συμπληρώνει ο δήμος»
-                    και υποβάλλει τη δήλωση. Αρμόδιος: {REGISTRY_LAW.responsible} ({REGISTRY_LAW.article} παρ. 4).
+                    Το {REGISTRY_LAW.article} παρ. 3 του {REGISTRY_LAW.law} ({REGISTRY_LAW.gazette}) ζητά έντεκα στοιχεία για κάθε
+                    σύστημα. Εδώ είναι οι απαντήσεις της OpenCouncil. Ο δήμος συμπληρώνει το χρονοδιάγραμμα (στοιχείο γ) και
+                    υποβάλλει τη δήλωση. Αρμόδιος: {REGISTRY_LAW.responsible} ({REGISTRY_LAW.article} παρ. 4).
                 </Text>
                 <Text style={{ fontSize: 9.5, lineHeight: 1.45, marginBottom: 16 }}>
-                    Για σύστημα που ήδη λειτουργεί, η δήλωση υποβάλλεται το αργότερο έως {formatDate(new Date(REGISTRY_LAW.deadline))} (
+                    Για σύστημα που ήδη λειτουργεί, η προθεσμία είναι η {formatDate(new Date(REGISTRY_LAW.deadline))} (
                     {REGISTRY_LAW.deadlineArticle}). Το Μητρώο τηρεί η {REGISTRY_LAW.keeper}.
                 </Text>
 
                 {REGISTRY_ITEMS.map((item) => (
                     <View key={item.letter} minPresenceAhead={40} style={{ flexDirection: "row", borderTop: `1 solid ${C.line}`, paddingVertical: 8 }}>
                         <View style={{ width: 150, paddingRight: 12 }}>
-                            <Text style={{ fontSize: 8, color: C.light, marginBottom: 2 }}>{item.letter})</Text>
-                            <Text style={{ fontSize: 9.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>{item.question}</Text>
-                            {item.byMunicipality && (
-                                <Text style={{ fontSize: 7.5, color: C.accent, marginTop: 4 }}>συμπληρώνει ο δήμος</Text>
-                            )}
+                            <Text style={{ fontSize: 9.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>
+                                {item.letter}) {item.question}
+                            </Text>
                         </View>
                         <View style={{ flex: 1 }}>
                             {item.answer.map((line) => (
@@ -52,9 +46,6 @@ export function RegistryDeclarationPdf({ baseUrl }: { baseUrl: string }) {
                                     {line}
                                 </Text>
                             ))}
-                            {item.byMunicipality && (
-                                <View style={{ borderBottom: `1 solid ${C.light}`, height: 18, marginTop: 6 }} />
-                            )}
                         </View>
                     </View>
                 ))}
