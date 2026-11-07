@@ -138,7 +138,7 @@
     "react-loading-skeleton": "^3.5.0",
     "react-markdown": "^10.1.0",
     "react-tweet": "^3.3.1",
-    "recharts": "^2.15.0",
+    "recharts": "^3.10.1",
     "redis": "^6.3.0",
     "remark-gfm": "^4.0.1",
     "resend": "^4.0.0",

@@ -151,7 +151,8 @@ export function ReviewVolumeChart() {
                         />
                       }
                     />
-                    <Legend />
+                    {/* Bottom-to-top, as the bars stack. recharts 3 sorts the legend by label by default. */}
+                    <Legend itemSorter={(item) => (item.dataKey === "reviewed" ? 0 : 1)} />
                     <Bar
                       dataKey="reviewed"
                       stackId="a"
