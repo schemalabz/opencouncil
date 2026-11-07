@@ -2,7 +2,7 @@ import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
 import { handleFixTranscriptResult } from './fixTranscriptInternal';
 import { handleProcessAgendaResult } from './processAgenda';
-import { handleGenerateVoiceprintResult } from './generateVoiceprint';
+import { handleGenerateVoiceprintResult } from './generateVoiceprintInternal';
 import { handleGenerateHighlightResult } from './generateHighlight';
 import { handlePollDecisionsResult, checkBatchCompletionAndAlert } from './pollDecisions';
 

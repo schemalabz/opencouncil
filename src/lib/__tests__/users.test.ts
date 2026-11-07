@@ -23,6 +23,12 @@ jest.mock('../api/errors', () => {
   return { ApiError, BadRequestError, ConflictError, NotFoundError };
 });
 
+// User normalization tests do not exercise the object-store cleanup dependency
+// now reached through claimedLink -> personConsent. Keep that boundary isolated.
+jest.mock('../db/voiceprintsDelete', () => ({
+  deleteVoicePrintsWithoutConsent: jest.fn(),
+}));
+
 jest.mock('../auth', () => ({
   withUserAuthorizedToEdit: jest.fn(),
   getCurrentUser: jest.fn(),

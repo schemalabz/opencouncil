@@ -31,6 +31,7 @@
     "import:import": "tsx prisma/import_administrations.ts --mode import",
     "test:og": "tsx scripts/test_og_images.ts",
     "generate-seed": "tsx scripts/generate_seed_dump.ts",
+    "voiceprints:delete-without-consent": "NODE_PATH=scripts/shims tsx scripts/delete-voiceprints-without-consent.ts",
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
     "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
     "generate-openapi": "tsx scripts/generate-openapi.ts",

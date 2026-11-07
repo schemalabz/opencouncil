@@ -22,6 +22,10 @@ jest.mock('@/lib/db/prisma', () => ({
 
 const mockCloseAppConsent = jest.fn();
 jest.mock('@/lib/db/personConsent', () => ({ closeAppConsent: (...args: unknown[]) => mockCloseAppConsent(...args) }));
+const mockDeleteVoicePrintsWithoutConsent = jest.fn();
+jest.mock('@/lib/db/voiceprintsDelete', () => ({
+    deleteVoicePrintsWithoutConsent: (...args: unknown[]) => mockDeleteVoicePrintsWithoutConsent(...args),
+}));
 
 import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '../personClaim';
 
@@ -39,7 +43,8 @@ const person = (administrators: { id: string; userId: string; claimedAt: Date | 
 });
 
 beforeEach(() => {
-    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst, mockCloseAppConsent]) m.mockReset();
+    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst, mockCloseAppConsent, mockDeleteVoicePrintsWithoutConsent]) m.mockReset();
+    mockDeleteVoicePrintsWithoutConsent.mockResolvedValue({ voicePrints: [], clipFailures: [] });
     mockUserFindUnique.mockResolvedValue({ name: null });
     // Run the callback against the fake client, as the real $transaction does.
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
@@ -52,6 +57,16 @@ describe('claimPerson', () => {
         expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         expect(mockCloseAppConsent).toHaveBeenCalledWith(tx, 'person-1');
         expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
+    });
+
+    it('deletes the voiceprints a closed app consent leaves behind, after the claim has committed', async () => {
+        mockFindUnique.mockResolvedValue(person([]));
+        const order: string[] = [];
+        mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => { const r = await fn(tx); order.push('commit'); return r; });
+        mockDeleteVoicePrintsWithoutConsent.mockImplementation(async () => { order.push('delete'); return { voicePrints: [], clipFailures: [] }; });
+        await claimPerson('user-1', 'person-1');
+        expect(mockDeleteVoicePrintsWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' });
+        expect(order).toEqual(['commit', 'delete']);
     });
 
     it('completes the account: the confirmed name when it has none, and onboarded', async () => {
@@ -91,6 +106,7 @@ describe('claimPerson', () => {
         expect(await claimPerson('user-1', 'person-1')).toEqual({ status: 'already_linked' });
         expect(mockCreate).not.toHaveBeenCalled();
         expect(mockUpdate).not.toHaveBeenCalled();
+        expect(mockDeleteVoicePrintsWithoutConsent).not.toHaveBeenCalled();
     });
 
     it('is a no-op for a second scan by the same account', async () => {
