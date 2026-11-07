@@ -350,7 +350,7 @@
     "processing": {
       "transcription": {
         "title": "Transcription",
-        "description": "AI transcription with speaker recognition, human-verified within 48 hours."
+        "description": "AI transcription with speaker recognition, human-verified, usually within 48 hours."
       },
       "analysis": {
         "title": "Analysis & structure",
