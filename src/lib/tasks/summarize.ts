@@ -7,7 +7,7 @@ import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
-import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
+import { getAvailableSpeakerSegmentIds, getTopicsByName, saveSubjectsForMeeting } from "../db/utils";
 import { requestSummarizeInternal } from "./summarizeInternal";
 import { withUserAuthorizedToEdit } from "../auth";
 import { taskScope } from "./types";
@@ -66,18 +66,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
-    // Pre-fetch all topics to avoid repeated queries
-    const allTopicNames = new Set<string>();
-    for (const segmentSummary of response.speakerSegmentSummaries) {
-        if (segmentSummary.topicLabels) {
-            segmentSummary.topicLabels.forEach(label => allTopicNames.add(label));
-        }
-    }
-
-    const topics = await prisma.topic.findMany({
-        where: { name: { in: Array.from(allTopicNames) }, deprecated: false }
-    });
-    const topicByName = new Map(topics.map(t => [t.name, t]));
+    const topicByName = await getTopicsByName(councilMeeting.city.realm);
 
     // The upserts below keep a label for a topic that is no longer assigned to its
     // segment, so the old labels are deleted first. The delete is in the same

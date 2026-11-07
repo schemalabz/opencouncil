@@ -14,12 +14,14 @@ import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS, cityLanguageSchema } from '@/lib/zod-schemas/city';
 import { ALL_REALMS, REALMS, getRealmDisplayName } from '@/lib/realm';
 import { countCitiesByRealmAndStatus } from '@/lib/db/citiesAdmin';
+import { countActiveTopicsByRealm, createRealmTopicsDirect } from '@/lib/db/topicsAdmin';
 import type { McpIdentity } from './auth';
 import type {
     CompleteUploadToolArgs,
     InspectMediaToolArgs,
     CreateCityToolArgs,
     CreateMeetingToolArgs,
+    CreateTopicsToolArgs,
     CreateUploadUrlToolArgs,
     StartTaskToolArgs,
     UpdateMeetingToolArgs,
@@ -343,7 +345,7 @@ export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolA
  */
 export async function mcpListRealms(identity: McpIdentity) {
     await requireSuperadmin(identity);
-    const counts = await countCitiesByRealmAndStatus();
+    const [counts, topicCounts] = await Promise.all([countCitiesByRealmAndStatus(), countActiveTopicsByRealm()]);
     const cityCount = (realm: string, status: string) =>
         counts.find((row) => row.realm === realm && row.status === status)?._count._all ?? 0;
     return {
@@ -360,9 +362,33 @@ export async function mcpListRealms(identity: McpIdentity) {
                 demo: cityCount(realm, 'demo'),
                 pending: cityCount(realm, 'pending'),
             },
+            topics: topicCounts.find((row) => row.realm === realm)?._count._all ?? 0,
         })),
         next: 'Pass a realm to create_city to add a city there, and to list_cities (with includePending) to see its cities. '
-            + 'The UI language is the site\'s; the language a council speaks is set per city.',
+            + 'The UI language is the site\'s; the language a council speaks is set per city. '
+            + '`topics` counts the active topics of the realm: with none, processAgenda and summarize give no subject a topic. Add them with create_topics.',
+    };
+}
+
+/**
+ * Add topics to the taxonomy of a realm, as the topic form of /admin/topics
+ * does one at a time.
+ */
+export async function mcpCreateTopics(identity: McpIdentity, args: CreateTopicsToolArgs) {
+    await requireSuperadmin(identity);
+    const { created, skipped } = await createRealmTopicsDirect(args.realm, args.topics);
+    revalidateAfterResponse({ paths: [{ path: '/admin/topics' }] });
+    return {
+        realm: args.realm,
+        created,
+        skipped,
+        next: (skipped.length
+            ? 'For each skipped topic, the realm already had `existing`, and it stays as it is. '
+            : '')
+            + (skipped.some((topic) => topic.existing.deprecated)
+                ? 'A skipped topic marked deprecated is not offered to processAgenda or summarize: un-deprecate it on the site to use it. '
+                : '')
+            + `Edit or deprecate a topic on the site: ${currentBaseUrl()}/admin/topics.`,
     };
 }
 

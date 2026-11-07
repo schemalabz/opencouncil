@@ -14,7 +14,7 @@ import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeReque
 import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
-import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
+import { DiscussionStatus, Subject as DbSubject, type Realm, type Topic } from "@prisma/client";
 import { getPartyFromRoles } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { agendaDescriptionsByRowId, categorizeSubjectsForUpsert } from "./subject-helpers";
@@ -201,19 +201,23 @@ export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, ci
     return speakerSegments.map(s => s.id);
 }
 
+/**
+ * The active topics of a realm by name. processAgenda and summarize offer the
+ * model the topics of the city's realm and resolve its labels here. Topics are
+ * per realm: another realm can have a topic of the same name.
+ */
+export async function getTopicsByName(realm: Realm): Promise<Map<string, Topic>> {
+    return new Map((await getTopics(realm)).map(topic => [topic.name, topic]));
+}
+
 // --- Internal helpers for saveSubjectsForMeeting ---
 
 async function validateSubjectPersons(subjects: Subject[], cityId: string) {
-    // Topics are realm-specific, so scope the name->topic map to the city's realm.
-    // Otherwise a subject's topicLabel could resolve to another realm's
-    // identically-named topic, and Object.fromEntries would pick a duplicate name
-    // non-deterministically.
     const realm = await getCityRealm(cityId);
     if (!realm) {
         throw new Error(`City not found: ${cityId}`);
     }
-    const topics = await prisma.topic.findMany({ where: { deprecated: false, realm } });
-    const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
+    const topicsByName = await getTopicsByName(realm);
 
     const speakerIds = subjects
         .flatMap(s => s.speakerContributions.map(c => c.speakerId))
@@ -489,9 +493,7 @@ export async function saveSubjectsForMeeting(
                 console.warn(`Person ${incoming.introducedByPersonId} not found for subject "${incoming.name}"`);
             }
 
-            const topicId = incoming.topicLabel && topicsByName[incoming.topicLabel]
-                ? topicsByName[incoming.topicLabel].id
-                : null;
+            const topicId = (incoming.topicLabel ? topicsByName.get(incoming.topicLabel)?.id : undefined) ?? null;
 
             console.log(`Updating subject "${incoming.name}" (${existingId}) with ${incoming.speakerContributions.length} contributions`);
 
@@ -578,6 +580,7 @@ export async function saveSubjectsForMeeting(
 
             console.log(`Creating subject "${subject.name}" with ${subject.speakerContributions.length} contributions`);
 
+            const topic = subject.topicLabel ? topicsByName.get(subject.topicLabel) : undefined;
             const createdSubject = await tx.subject.create({
                 data: {
                     name: subject.name,
@@ -590,9 +593,7 @@ export async function saveSubjectsForMeeting(
                         connect: { cityId_id: { cityId, id: councilMeetingId } }
                     },
                     location: locationId ? { connect: { id: locationId } } : undefined,
-                    topic: subject.topicLabel && topicsByName[subject.topicLabel]
-                        ? { connect: { id: topicsByName[subject.topicLabel].id } }
-                        : undefined,
+                    topic: topic ? { connect: { id: topic.id } } : undefined,
                     agendaItemIndex: typeof subject.agendaItemIndex === 'number'
                         ? subject.agendaItemIndex
                         : undefined,

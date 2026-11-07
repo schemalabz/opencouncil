@@ -30,6 +30,7 @@ jest.mock('../../db/prisma', () => ({
 jest.mock('../../cache/afterResponse', () => ({ revalidateAfterResponse: jest.fn() }));
 jest.mock('../../db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
 jest.mock('../../db/citiesAdmin', () => ({ createCityDirect: jest.fn(), countCitiesByRealmAndStatus: jest.fn(), applyCityUpdateDirect: jest.fn() }));
+jest.mock('../../db/topicsAdmin', () => ({ createRealmTopicsDirect: jest.fn(), countActiveTopicsByRealm: jest.fn().mockResolvedValue([]) }));
 jest.mock('../../meetingWrites', () => ({ createMeetingWithEffects: jest.fn(), updateMeetingWithEffects: jest.fn() }));
 jest.mock('../../db/meetings', () => ({ setMeetingReleaseDirect: jest.fn() }));
 jest.mock('../../notifications/meetingNotifications', () => ({ getReleaseOutlook: jest.fn() }));
@@ -50,7 +51,7 @@ import { projectCityProfile } from '../data';
 import { cityProfile } from './cityProfileFixture';
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpUpdateCity, mcpStartTask,
+    mcpInspectMedia, mcpCompleteUpload, mcpCreateCity, mcpCreateMeeting, mcpCreateTopics, mcpCreateUploadUrl, mcpListRealms, mcpPopulateCity, mcpUpdateCity, mcpStartTask,
     mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
@@ -59,6 +60,8 @@ import { cityPopulationSchema, type CityPopulationInput } from '../../zod-schema
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../api/errors';
 import { countCitiesByRealmAndStatus, createCityDirect, applyCityUpdateDirect } from '../../db/citiesAdmin';
 import { revalidateAfterResponse } from '../../cache/afterResponse';
+import { countActiveTopicsByRealm, createRealmTopicsDirect } from '../../db/topicsAdmin';
+import { createTopicsToolInput } from '../adminToolSchemas';
 import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
@@ -413,22 +416,68 @@ describe('list_realms', () => {
             { realm: 'greece', status: 'supported', _count: { _all: 13 } },
             { realm: 'poland', status: 'pending', _count: { _all: 1 } },
         ]);
+        (countActiveTopicsByRealm as jest.Mock).mockResolvedValue([{ realm: 'greece', _count: { _all: 15 } }]);
         const { realms } = await inRealm(Realm.greece, () => mcpListRealms(SUPERADMIN_TOKEN));
 
         expect(realms).toHaveLength(Object.values(Realm).length);
         expect(realms.find((r) => r.realm === 'bosnia')).toMatchObject({
             country: 'BA', domain: 'ba.opencouncil.eu', uiLanguage: 'en', stage: 'pending',
         });
-        expect(realms.find((r) => r.realm === 'greece')).toMatchObject({ domain: 'opencouncil.gr', thisConnection: true, cities: { supported: 13, pending: 0 } });
+        expect(realms.find((r) => r.realm === 'greece')).toMatchObject({ domain: 'opencouncil.gr', thisConnection: true, cities: { supported: 13, pending: 0 }, topics: 15 });
         expect(realms.find((r) => r.realm === 'poland')).toMatchObject({
             country: 'PL', countryName: 'Poland', domain: 'opencouncil.pl', uiLanguage: 'en', stage: 'pending',
-            thisConnection: false, cities: { supported: 0, demo: 0, pending: 1 },
+            thisConnection: false, cities: { supported: 0, demo: 0, pending: 1 }, topics: 0,
         });
     });
 
     it('is refused to a city administrator', async () => {
         asCityAdmin('athens');
         await expect(mcpListRealms(ADMIN_TOKEN)).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('create_topics', () => {
+    // The SDK parses a call with createTopicsToolInput before the handler runs.
+    const args = createTopicsToolInput.parse({
+        realm: 'canada',
+        topics: [
+            { name: ' Habitation ', name_en: 'Housing', colorHex: '#c2410c', icon: 'house', description: 'Logement social.' },
+            { name: 'Animaux', name_en: 'Animals', colorHex: '#e548ab', description: 'Contrôle animalier.' },
+        ],
+    });
+
+    it('is refused to a city administrator', async () => {
+        asCityAdmin('athens');
+        await expect(mcpCreateTopics(ADMIN_TOKEN, args)).rejects.toThrow(ForbiddenError);
+        expect(createRealmTopicsDirect).not.toHaveBeenCalled();
+    });
+
+    it('adds the parsed topics to the realm it names, and reports the names that it skipped', async () => {
+        asSuperadmin();
+        (createRealmTopicsDirect as jest.Mock).mockResolvedValue({
+            created: [{ id: 't1', name: 'Habitation', name_en: 'Housing' }],
+            skipped: [{ name: 'Animaux', existing: { id: 't0', name: 'Animaux', name_en: 'Animals', deprecated: true } }],
+        });
+        const result = await inRealm(Realm.greece, () => mcpCreateTopics(SUPERADMIN_TOKEN, args));
+
+        expect(createRealmTopicsDirect).toHaveBeenCalledWith('canada', [
+            { name: 'Habitation', name_en: 'Housing', colorHex: '#c2410c', icon: 'house', description: 'Logement social.' },
+            { name: 'Animaux', name_en: 'Animals', colorHex: '#e548ab', icon: null, description: 'Contrôle animalier.' },
+        ]);
+        expect(result).toMatchObject({ realm: 'canada', created: [{ id: 't1', name: 'Habitation' }], skipped: [{ name: 'Animaux', existing: { id: 't0', deprecated: true } }] });
+        expect(result.next).toContain('un-deprecate');
+    });
+
+    it('says nothing of un-deprecating when every skipped topic is active', async () => {
+        asSuperadmin();
+        (createRealmTopicsDirect as jest.Mock).mockResolvedValue({
+            created: [],
+            skipped: [{ name: 'Animaux', existing: { id: 't0', name: 'Animaux', name_en: 'Animals', deprecated: false } }],
+        });
+        const result = await inRealm(Realm.greece, () => mcpCreateTopics(SUPERADMIN_TOKEN, args));
+
+        expect(result.next).not.toContain('un-deprecate');
+        expect(revalidateAfterResponse).toHaveBeenCalledWith({ paths: [{ path: '/admin/topics' }] });
     });
 });
 

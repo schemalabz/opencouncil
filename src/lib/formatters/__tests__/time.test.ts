@@ -1,4 +1,4 @@
-import { formatWeekdayDateTime, formatCalendarDate, formatNumericDate, localCalendarDate } from '../time';
+import { formatWeekdayDateTime, formatCalendarDate, formatNumericDate, localCalendarDate, localClockTime } from '../time';
 
 describe('formatWeekdayDateTime', () => {
     const tz = 'Europe/Athens';
@@ -57,5 +57,14 @@ describe('formatNumericDate', () => {
     it('keeps one formatter per locale, so two locales in one time zone format differently', () => {
         expect(formatNumericDate(lateEvening, 'Europe/Athens', 'el')).toBe('25/07/2026');
         expect(formatNumericDate(lateEvening, 'Europe/Athens', 'sr')).toBe('25.07.2026.');
+    });
+});
+
+describe('localClockTime', () => {
+    it('gives the wall-clock time in the zone as HH:mm, with 00 at midnight', () => {
+        expect(localClockTime(new Date('2026-11-03T23:30:00Z'), 'America/Toronto')).toBe('18:30');
+        // 00:30 in Athens on 6 Sep; the hour does not exist in Santiago that night,
+        // where date-fns-tz's formatInTimeZone answered 01:30.
+        expect(localClockTime(new Date('2026-09-05T21:30:00Z'), 'Europe/Athens')).toBe('00:30');
     });
 });

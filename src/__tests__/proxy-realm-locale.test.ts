@@ -65,3 +65,56 @@ describe('proxy on a realm whose default locale is en', () => {
         expect(res?.headers.get('location') ?? null).toBeNull();
     });
 });
+
+/**
+ * Canada serves English by default and French as its own second locale: a
+ * city in Québec links to its pages under /fr. The other realms' locales stay
+ * foreign there.
+ */
+describe('proxy on the canada realm', () => {
+    const host = 'ca.opencouncil.eu';
+    const get = (path: string) => proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+
+    it('rewrites an unprefixed path to /en', async () => {
+        const res = await get('/laval');
+
+        expect(new URL(res!.headers.get('x-middleware-rewrite')!).pathname).toBe('/en/laval');
+    });
+
+    it('serves /fr in French without a redirect', async () => {
+        const res = await get('/fr/laval');
+
+        expect(res?.status ?? 200).not.toBe(301);
+        expect(res?.headers.get('location') ?? null).toBeNull();
+        expect(res!.headers.get('x-middleware-request-x-next-intl-locale')).toBe('fr');
+    });
+
+    it.each(['/el', '/sr', '/lat'])('301s the foreign prefix %s', async (prefix) => {
+        const res = await get(`${prefix}/laval`);
+
+        expect(res!.status).toBe(301);
+        expect(new URL(res!.headers.get('location')!).pathname).toBe('/laval');
+    });
+});
+
+/**
+ * South Africa serves English only: /fr is foreign there, as on every realm
+ * except France and Canada.
+ */
+describe('proxy on the south_africa realm', () => {
+    const host = 'za.opencouncil.eu';
+    const get = (path: string) => proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+
+    it('rewrites an unprefixed path to /en', async () => {
+        const res = await get('/cape-town');
+
+        expect(new URL(res!.headers.get('x-middleware-rewrite')!).pathname).toBe('/en/cape-town');
+    });
+
+    it.each(['/el', '/fr', '/sr', '/lat'])('301s the foreign prefix %s', async (prefix) => {
+        const res = await get(`${prefix}/cape-town`);
+
+        expect(res!.status).toBe(301);
+        expect(new URL(res!.headers.get('location')!).pathname).toBe('/cape-town');
+    });
+});

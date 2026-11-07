@@ -234,6 +234,10 @@ describe('foreignLocalesForRealm', () => {
     it('marks every locale but en foreign on a realm whose default is en', () => {
         expect(foreignLocalesForRealm('poland').sort()).toEqual(['el', 'fr', 'sr', 'sr-Latn']);
     });
+
+    it('keeps fr as an own locale of canada, beside its en default', () => {
+        expect(foreignLocalesForRealm('canada').sort()).toEqual(['el', 'sr', 'sr-Latn']);
+    });
 });
 
 describe('getRealmCountry', () => {
@@ -252,6 +256,8 @@ describe('getRealmCountry', () => {
         expect(getRealmCountry('portugal')).toBe('PT');
         expect(getRealmCountry('spain')).toBe('ES');
         expect(getRealmCountry('bosnia')).toBe('BA');
+        expect(getRealmCountry('canada')).toBe('CA');
+        expect(getRealmCountry('south_africa')).toBe('ZA');
     });
 
     it('covers every realm, so a new one cannot silently geocode as Greece', () => {
@@ -316,9 +322,9 @@ describe('metadataBaseForHost', () => {
 });
 
 
-describe('European realm coverage', () => {
-    const countries = 'AD AL AT BA BE BG CH CY CZ DE DK EE ES FI FR GB GR HR HU IE IS IT LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS SE SI SK SM UA XK'.split(' ');
-    it('covers exactly the 43 researched countries with distinct country codes', () => {
+describe('Realm coverage', () => {
+    const countries = 'AD AL AT BA BE BG CA CH CY CZ DE DK EE ES FI FR GB GR HR HU IE IS IT LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS SE SI SK SM UA XK ZA'.split(' ');
+    it('covers exactly the 43 researched European countries, Canada and South Africa, with distinct country codes', () => {
         expect(ALL_REALMS.map(getRealmCountry).sort()).toEqual(countries);
     });
     it.each([
@@ -326,6 +332,8 @@ describe('European realm coverage', () => {
         ['gb.opencouncil.eu', 'united_kingdom', 'GB'],
         ['mk.opencouncil.eu', 'north_macedonia', 'MK'],
         ['xk.opencouncil.eu', 'kosovo', 'XK'],
+        ['ca.opencouncil.eu', 'canada', 'CA'],
+        ['za.opencouncil.eu', 'south_africa', 'ZA'],
     ])('routes %s to its own country and ignores overrides on that production host', (host, realm, country) => {
         expect(effectiveRealm(host, 'greece')).toBe(realm);
         expect(isKnownRealmHost(host)).toBe(true);

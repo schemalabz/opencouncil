@@ -35,7 +35,6 @@ const mockTaskStatusFindUnique = jest.fn().mockResolvedValue({
     administrativeBody: null,
   },
 });
-const mockTopicFindMany = jest.fn().mockResolvedValue([]);
 
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
@@ -49,9 +48,6 @@ jest.mock('../../db/prisma', () => ({
     utterance: {
       updateMany: (...args: unknown[]) => mockUtteranceUpdateMany(...args),
     },
-    topic: {
-      findMany: (...args: unknown[]) => mockTopicFindMany(...args),
-    },
     $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
@@ -62,6 +58,7 @@ const mockGetSummarizeRequestBody = jest.fn().mockResolvedValue({ transcript: []
 jest.mock('../../db/utils', () => ({
   getAvailableSpeakerSegmentIds: (...args: unknown[]) => mockGetAvailableSpeakerSegmentIds(...args),
   saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
+  getTopicsByName: async () => new Map(),
   getSummarizeRequestBody: (...args: unknown[]) => mockGetSummarizeRequestBody(...args),
 }));
 

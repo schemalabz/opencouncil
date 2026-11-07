@@ -126,6 +126,14 @@ describe('meeting API routes', () => {
         expect(await urgent.json()).toMatchObject({ code: 'greekRealmOnly' })
     })
 
+    test('names a generated id by the day in the city\'s time zone', async () => {
+        await createCity({ id: 'laval', realm: 'canada', timezone: 'America/Toronto', language: 'fr' })
+        // 18:30 in Laval on 3 November is already 4 November in Athens.
+        const created = await POST(request('/api/cities/laval/meetings', { date: '2026-11-03T23:30:00.000Z' }), { params: Promise.resolve({ cityId: 'laval' }) })
+        expect(created.status).toBe(201)
+        expect(await created.json()).toMatchObject({ id: 'nov3_2026' })
+    })
+
     test('takes a meeting by circulation, as the form and MCP do', async () => {
         const created = await POST(request(`/api/cities/${CITY}/meetings`, {
             date: '2026-03-19T16:00:00.000Z', administrativeBodyId: councilId, format: 'byCirculation',

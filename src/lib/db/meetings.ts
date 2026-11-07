@@ -20,6 +20,7 @@ import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
+import { getCityTimezone } from "./cityTimezone";
 import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
@@ -45,9 +46,10 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 /**
  * Generate a unique meeting ID for a city, handling collisions
  * by appending _2, _3, etc. (matches existing convention).
+ * The ID names the day of the meeting in the city's time zone.
  */
 export async function generateUniqueMeetingId(cityId: string, date: Date): Promise<string> {
-    const baseId = formatDateAsMeetingId(date);
+    const baseId = formatDateAsMeetingId(date, await getCityTimezone(cityId));
 
     // Fetch all existing meeting IDs with this base prefix in one query
     const existing = await prisma.councilMeeting.findMany({

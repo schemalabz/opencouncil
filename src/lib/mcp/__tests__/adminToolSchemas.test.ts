@@ -1,8 +1,9 @@
 /** @jest-environment node */
 // The schemas load without the write layer: no mock of Prisma, env.mjs or
 // adminData is necessary here.
-import { createMeetingToolInput, updateMeetingToolInput } from '@/lib/mcp/adminToolSchemas';
+import { createMeetingToolInput, createTopicsToolInput, MAX_TOPICS_PER_CALL, updateMeetingToolInput } from '@/lib/mcp/adminToolSchemas';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { createTopicSchema } from '@/lib/zod-schemas/topic';
 
 const meeting = { cityId: 'chania' };
 
@@ -51,5 +52,45 @@ describe('the MCP meeting tools and the REST meeting routes', () => {
     it('keeps the date as text for the tool, which the write converts', () => {
         expect(createMeetingToolInput.parse({ ...meeting, dateTime: '2026-10-05T18:00+03:00' }).dateTime)
             .toBe('2026-10-05T18:00+03:00');
+    });
+});
+
+describe('create_topics and the topic form of /admin/topics', () => {
+    const topic = { name: 'Housing', name_en: 'Housing', colorHex: '#c2410c', icon: 'house', description: 'Social housing.' };
+
+    it.each([
+        ['a valid topic', {}],
+        ['a colour that is not a hex colour', { colorHex: 'orange' }],
+        ['a name that is only spaces', { name: '   ' }],
+        ['no icon', { icon: undefined }],
+    ])('agree on %s', (_case, change) => {
+        const rest = createTopicSchema.safeParse({ ...topic, ...change, realm: 'south_africa' }).success;
+        expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: [{ ...topic, ...change }] }).success).toBe(rest);
+    });
+
+    it('refuses two topics that share an English name, the other key the search finds a topic by', () => {
+        const result = createTopicsToolInput.safeParse({ realm: 'canada', topics: [
+            { ...topic, name: 'Logement', name_en: 'Housing' }, { ...topic, name: 'Habitation', name_en: 'housing ' },
+        ] });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues[0]).toMatchObject({ path: ['topics', 1, 'name'] });
+    });
+
+    it('accepts a topic whose name and English name are the same', () => {
+        expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: [topic] }).success).toBe(true);
+    });
+
+    it('refuses two topics whose names differ only in letter case or spaces', () => {
+        const result = createTopicsToolInput.safeParse({ realm: 'south_africa', topics: [topic, { ...topic, name: ' housing', name_en: 'Other' }] });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues[0]).toMatchObject({ path: ['topics', 1, 'name'] });
+    });
+
+    it('takes up to MAX_TOPICS_PER_CALL topics, and refuses an empty list, one more and an unknown realm', () => {
+        expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: [] }).success).toBe(false);
+        const many = (n: number) => Array.from({ length: n }, (_, i) => ({ ...topic, name: `Topic ${i}`, name_en: `Topic ${i}` }));
+        expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: many(MAX_TOPICS_PER_CALL) }).success).toBe(true);
+        expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: many(MAX_TOPICS_PER_CALL + 1) }).success).toBe(false);
+        expect(createTopicsToolInput.safeParse({ realm: 'atlantis', topics: [topic] }).success).toBe(false);
     });
 });

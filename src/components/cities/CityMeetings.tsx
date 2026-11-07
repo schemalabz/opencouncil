@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useMemo, type ComponentProps } from 'react';
 import { AdministrativeBodyType, Realm } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
@@ -73,13 +73,13 @@ export default function CityMeetings({
     );
 
     return (
-        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType>
+        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType, ComponentProps<typeof AddMeetingForm>>
             state={state}
             editable={canEdit}
             ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone, now }}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId, realm, allowedBodyIds: editableBodyIds }}
+            formProps={{ cityId, realm, timezone, allowedBodyIds: editableBodyIds }}
             t={t}
             announceCount
             renderFilter={({ selectedValues, onChange }) => {
