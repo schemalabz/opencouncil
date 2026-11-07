@@ -1,6 +1,6 @@
 import { markdownToDocxParagraphs } from '../markdownToDocx';
 import { Document, Packer, Paragraph, Table, TextRun } from 'docx';
-import JSZip from 'jszip';
+import { docxPart } from '../../../../tests/helpers/docx';
 
 type DocxElement = Paragraph | Table;
 
@@ -69,8 +69,7 @@ function hasBoldRun(paragraph: DocxElement): boolean {
  */
 async function centeredFlags(elements: DocxElement[]): Promise<boolean[]> {
     const doc = new Document({ sections: [{ children: elements }] });
-    const zip = await JSZip.loadAsync(await Packer.toBuffer(doc));
-    const xml = await zip.file('word/document.xml')!.async('string');
+    const xml = await docxPart(await Packer.toBuffer(doc));
     return xml
         .split('<w:p>')
         .slice(1)

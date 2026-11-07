@@ -1,7 +1,7 @@
-import JSZip from 'jszip';
 import { renderDocx } from '../CouncilMeetingDocx';
 import { MeetingDataForExport } from '@/lib/export/meetings';
 import { roleTitlesFor } from '../../../../../tests/helpers/catalog';
+import { docxPart } from '../../../../../tests/helpers/docx';
 
 const roleText = roleTitlesFor('el');
 
@@ -56,8 +56,7 @@ function makeData(roles: Record<string, unknown>[]): MeetingDataForExport {
 
 async function documentXml(data: MeetingDataForExport): Promise<string> {
     const blob = await (await renderDocx(data, roleText)).save();
-    const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
-    return zip.file('word/document.xml')!.async('string');
+    return docxPart(blob);
 }
 
 describe('renderDocx speaker line', () => {

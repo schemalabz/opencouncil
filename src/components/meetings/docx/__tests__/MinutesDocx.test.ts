@@ -1,7 +1,7 @@
-import JSZip from 'jszip';
 import { renderMinutesDocx } from '../MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
+import { docxPart } from '../../../../../tests/helpers/docx';
 
 function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
     return {
@@ -189,8 +189,7 @@ describe('renderMinutesDocx', () => {
 /** The rendered text lives in word/document.xml inside the docx zip. */
 async function docxText(data: MinutesData): Promise<string> {
     const blob = await renderMinutesDocx(data);
-    const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
-    return zip.file('word/document.xml')!.async('string');
+    return docxPart(blob);
 }
 
 describe('MinutesDocx TOC order', () => {
@@ -268,8 +267,7 @@ describe('MinutesDocx decision number', () => {
 /** Every visible text run of the rendered document, in order. */
 async function docxRuns(data: MinutesData): Promise<string[]> {
     const blob = await renderMinutesDocx(data);
-    const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
-    const xml = await zip.file('word/document.xml')!.async('string');
+    const xml = await docxPart(blob);
     // Match `<w:t>` and `<w:t attr>` only. A bare `<w:t` prefix also matches
     // `<w:tbl>`, `<w:tblPr>` and `<w:tc>`, and pulls table and drawing XML into the runs.
     return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => m[1]);
