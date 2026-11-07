@@ -44,7 +44,6 @@ const ALLOWED_FILES = new Set([
     'src/instrumentation-node.ts',
     'src/lib/auth.ts',
     'src/lib/statistics.ts',
-    'src/lib/pilotStats.ts',
     'src/app/sitemap.ts',
     'src/app/qr/[code]/route.ts',
     'src/app/[locale]/(admin)/admin/reports/page.tsx',
