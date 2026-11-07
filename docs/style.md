@@ -11,10 +11,8 @@
   - Spring animations for natural movement
 
 ### Background Elements
-- `FloatingPathsBackground` component for dynamic, subtle motion
 - Background opacity transforms on scroll for depth
 - Use blur effects (`blur-2xl`) for glow effects behind highlighted text
-- Grid patterns and particles for visual texture
 
 ## Colors
 
@@ -28,7 +26,6 @@
 - Default text: System default (dark/light mode compatible)
 - Muted text: Use `text-muted-foreground` for secondary information
 - Party-specific text: Use the party's `colorHex` directly
-- Gradient text available through `AnimatedGradientText` component
 
 ## Typography
 
@@ -72,7 +69,6 @@
 ### Cards
 - Base: `Card` component from UI library
 - Feature cards: Include icon, title, description, and optional badge
-- Use `ShineBorder` for interactive card effects
 
 ### Interactive Elements
 - Buttons: Use `Button` component from UI library
