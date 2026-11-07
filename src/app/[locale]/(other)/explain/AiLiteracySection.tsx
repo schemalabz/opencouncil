@@ -2,6 +2,8 @@ import { Link } from "@/i18n/routing";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { ACTOR_ICON } from "@/components/explain/actorIcons";
+import { RegistryDownloadButton } from "@/components/explain/RegistryDownloadButton";
+import { REGISTRY_ITEMS, REGISTRY_LAW } from "@/lib/explain/registry";
 import { formatDate } from "@/lib/formatters/time";
 import {
     ACTOR_LABEL,
@@ -17,7 +19,8 @@ import {
  * The AI-literacy sub-section of /explain#opencouncil: what the AI does and
  * who checks it, what it never does, how the
  * label looks, who is responsible for what, how municipal staff should use
- * it, which models and data, where to report errors, and a change log.
+ * it, which models and data, where to report errors, what a municipality
+ * needs for the national AI registry, and a change log.
  */
 
 /** Who answers for what. The AI is a tool, so it is not a card here. */
@@ -218,6 +221,51 @@ export function AiLiteracySection() {
                 <a href="mailto:corrections@opencouncil.gr" className="text-orange underline underline-offset-2">corrections@opencouncil.gr</a>. Το εξετάζουμε και το διορθώνουμε, και
                 το κείμενο αλλάζει για όλους. Περισσότερα στη σελίδα <Link href="/corrections" className="text-orange underline underline-offset-2">διορθώσεων</Link>. Οι υπάλληλοι του
                 δήμου με πρόσβαση διαχείρισης μπορούν να διορθώσουν το κείμενο και μόνοι τους.
+            </p>
+
+            <Sub id="oc-ai-registry">Για τη δήλωση στο Μητρώο συστημάτων ΤΝ</Sub>
+            <p className="mt-3 leading-relaxed text-muted-foreground">
+                Κάθε δήμος δηλώνει τα συστήματα τεχνητής νοημοσύνης που χρησιμοποιεί στο {REGISTRY_LAW.registry} (
+                {REGISTRY_LAW.article} του {REGISTRY_LAW.law}, {REGISTRY_LAW.gazette}). Για σύστημα που ήδη λειτουργεί, η
+                προθεσμία είναι η {formatDate(new Date(REGISTRY_LAW.deadline))} ({REGISTRY_LAW.deadlineArticle}). Τη δήλωση
+                υποβάλλει {REGISTRY_LAW.responsible}. Το Μητρώο τηρεί η {REGISTRY_LAW.keeper}. Μέχρι σήμερα δεν υπάρχει
+                πλατφόρμα ή υπόδειγμα υποβολής. Ο δήμος κρατά τη δήλωση έτοιμη και την υποβάλλει μόλις ανοίξει ο τρόπος
+                υποβολής.
+            </p>
+            <p className="mt-3 leading-relaxed text-muted-foreground">
+                Ο νόμος ζητά έντεκα στοιχεία. Παρακάτω είναι οι απαντήσεις της OpenCouncil για καθένα. Ο δήμος συμπληρώνει
+                μόνο όσα έχουν την ένδειξη «συμπληρώνει ο δήμος». Το PDF έχει το ίδιο περιεχόμενο, με ημερομηνία έκδοσης.
+            </p>
+            <div className="not-prose mt-4">
+                <RegistryDownloadButton />
+            </div>
+            <dl className="not-prose mt-5 divide-y divide-border rounded-xl border border-border">
+                {REGISTRY_ITEMS.map((item) => (
+                    <div key={item.letter} className="grid gap-2 p-4 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6">
+                        <dt>
+                            <span className="text-xs text-muted-foreground">{item.letter})</span>
+                            <span className="mt-0.5 block font-semibold leading-snug text-foreground">{item.question}</span>
+                            {item.byMunicipality && (
+                                <span className="mt-1.5 inline-block rounded-full border border-orange/40 bg-orange/5 px-2 py-0.5 text-xs text-orange">
+                                    συμπληρώνει ο δήμος
+                                </span>
+                            )}
+                        </dt>
+                        <dd className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+                            {item.answer.map((line) => (
+                                <p key={line}>{line}</p>
+                            ))}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Η νομική τεκμηρίωση για τα στοιχεία (η) και (ια) δίνεται στον δήμο ως ξεχωριστό έγγραφο. Το κείμενο του
+                νόμου:{" "}
+                <a href={REGISTRY_LAW.gazetteUrl} target="_blank" rel="noopener noreferrer" className="text-orange underline underline-offset-2">
+                    {REGISTRY_LAW.gazette}
+                </a>
+                .
             </p>
 
             <Sub id="oc-ai-changes">Ιστορικό αλλαγών αυτής της ενότητας</Sub>

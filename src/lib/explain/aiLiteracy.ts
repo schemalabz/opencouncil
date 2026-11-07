@@ -187,6 +187,7 @@ export const STAFF_RULES: string[] = [
 
 /** Dated changes to this section, newest first. Shown on the page. */
 export const CHANGELOG: { date: string; text: string }[] = [
+    { date: '2026-11-07', text: 'Προστέθηκαν τα στοιχεία για τη δήλωση στο Μητρώο συστημάτων ΤΝ, με PDF.' },
     { date: '2026-11-01', text: 'Πρώτη δημοσίευση της ενότητας.' },
 ];
 
