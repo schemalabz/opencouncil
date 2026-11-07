@@ -17,7 +17,7 @@ import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
-import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
+import { AI_SUBSECTIONS, OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
 import { ExplainReader } from "./ExplainReader";
 import { ExplainFeatures } from "./ExplainFeatures";
 import { AiLiteracySection } from "./AiLiteracySection";
@@ -43,12 +43,14 @@ const NAV_GROUPS = [
     { id: "opencouncil", title: OPENCOUNCIL_TITLE, items: OPENCOUNCIL_SUBSECTIONS },
 ];
 
-/** Full scroll-spy / mobile-nav order (top → bottom of the page). */
+const AI_SECTION_TITLE = OPENCOUNCIL_SUBSECTIONS.find((s) => s.id === "oc-ai")?.title ?? OPENCOUNCIL_TITLE;
+
+/** Full scroll-spy / mobile-nav order (top → bottom of the page). The AI parts follow their section. */
 const NAV_SECTIONS = [
     { id: "greek-municipalities", title: GREEK_MUNICIPALITIES_TITLE },
     ...LOCAL_GOV_SECTIONS,
     { id: "opencouncil", title: OPENCOUNCIL_TITLE },
-    ...OPENCOUNCIL_SUBSECTIONS,
+    ...OPENCOUNCIL_SUBSECTIONS.flatMap((s) => (s.id === "oc-ai" ? [s, ...AI_SUBSECTIONS] : [s])),
     { id: "substack", title: SUBSTACK_HEADING },
 ];
 
@@ -56,6 +58,7 @@ const NAV_SECTIONS = [
 const SECTION_PARENTS: Record<string, string> = {
     ...Object.fromEntries(LOCAL_GOV_SECTIONS.map((s) => [s.id, GREEK_MUNICIPALITIES_TITLE])),
     ...Object.fromEntries(OPENCOUNCIL_SUBSECTIONS.map((s) => [s.id, OPENCOUNCIL_TITLE])),
+    ...Object.fromEntries(AI_SUBSECTIONS.map((s) => [s.id, AI_SECTION_TITLE])),
 };
 
 const PAGE_TITLE = "Η τοπική αυτοδιοίκηση, απλά";
@@ -226,13 +229,28 @@ export default async function ExplainPage() {
                                 </a>
                                 <ol className="mt-1.5 space-y-0.5">
                                     {g.items.map((it) => (
-                                        <li key={it.id}>
+                                        <li key={it.id} data-toc-subgroup={it.id === "oc-ai" ? it.id : undefined}>
                                             <a
                                                 href={`#${it.id}`}
+                                                data-toc-subhead={it.id === "oc-ai" ? "" : undefined}
                                                 className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
                                             >
                                                 {it.title}
                                             </a>
+                                            {it.id === "oc-ai" && (
+                                                <ol className="space-y-0.5">
+                                                    {AI_SUBSECTIONS.map((sub) => (
+                                                        <li key={sub.id}>
+                                                            <a
+                                                                href={`#${sub.id}`}
+                                                                className="block border-l-2 border-border py-1 pl-7 text-[13px] leading-snug text-muted-foreground/80 transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:text-orange"
+                                                            >
+                                                                {sub.nav}
+                                                            </a>
+                                                        </li>
+                                                    ))}
+                                                </ol>
+                                            )}
                                         </li>
                                     ))}
                                 </ol>

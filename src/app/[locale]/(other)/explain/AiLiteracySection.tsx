@@ -4,6 +4,7 @@ import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { ACTOR_ICON } from "@/components/explain/actorIcons";
 import { RegistryDownloadButton } from "@/components/explain/RegistryDownloadButton";
 import { REGISTRY_ITEMS, REGISTRY_LAW } from "@/lib/explain/registry";
+import { AI_SUBSECTION_TITLE } from "@/lib/explain/subsections";
 import { formatDate } from "@/lib/formatters/time";
 import {
     ACTOR_LABEL,
@@ -62,10 +63,11 @@ function ActorChips({ actors }: { actors: Actor[] }) {
     );
 }
 
-function Sub({ id, children }: { id: string; children: React.ReactNode }) {
+/** A part heading. Its title comes from AI_SUBSECTIONS, which the table of contents also lists. */
+function Sub({ id }: { id: string }) {
     return (
         <h4 id={id} className="!text-left mt-10 scroll-mt-24 text-lg font-semibold text-foreground">
-            <HeadingAnchor id={id}>{children}</HeadingAnchor>
+            <HeadingAnchor id={id}>{AI_SUBSECTION_TITLE[id]}</HeadingAnchor>
         </h4>
     );
 }
@@ -83,7 +85,7 @@ export function AiLiteracySection() {
                 κάνει λάθος και πώς να το διαβάζετε.
             </p>
 
-            <Sub id="oc-ai-what">Τι κάνει η τεχνητή νοημοσύνη, και ποιος το ελέγχει</Sub>
+            <Sub id="oc-ai-what" />
             {/* wide screens: a table; narrow screens: the same rows as cards */}
             <div className="not-prose mt-4 hidden overflow-hidden rounded-xl border border-border sm:block">
                 <table className="w-full border-collapse text-sm">
@@ -131,14 +133,14 @@ export function AiLiteracySection() {
                 ))}
             </ul>
 
-            <Sub id="oc-ai-not">Τι δεν κάνει</Sub>
+            <Sub id="oc-ai-not" />
             <ul className="mt-3 list-disc space-y-2 pl-5 leading-relaxed text-muted-foreground marker:text-orange">
                 {NOT_DONE.map((t) => (
                     <li key={t}>{t}</li>
                 ))}
             </ul>
 
-            <Sub id="oc-ai-label">Πώς θα το αναγνωρίσετε: η σήμανση</Sub>
+            <Sub id="oc-ai-label" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Κάθε κείμενο που έγραψε η ΤΝ χωρίς να το ελέγξει άνθρωπος έχει δίπλα του την ένδειξη «Κείμενο από ΤΝ».
                 Έτσι φαίνεται σε μια σύνοψη θέματος:
@@ -164,7 +166,7 @@ export function AiLiteracySection() {
                 ίδιο τρόπο.
             </p>
 
-            <Sub id="oc-ai-who">Ποιος ευθύνεται για τι</Sub>
+            <Sub id="oc-ai-who" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Η τεχνητή νοημοσύνη είναι εργαλείο. Δεν ευθύνεται για τίποτα: ευθύνονται όσοι τη χρησιμοποιούν.
             </p>
@@ -190,14 +192,14 @@ export function AiLiteracySection() {
                 })}
             </div>
 
-            <Sub id="oc-ai-staff">Αν δουλεύετε σε δήμο: πέντε κανόνες</Sub>
+            <Sub id="oc-ai-staff" />
             <ol className="mt-3 list-decimal space-y-2 pl-5 leading-relaxed text-muted-foreground marker:font-semibold marker:text-orange">
                 {STAFF_RULES.map((t) => (
                     <li key={t}>{t}</li>
                 ))}
             </ol>
 
-            <Sub id="oc-ai-models">Μοντέλα και δεδομένα</Sub>
+            <Sub id="oc-ai-models" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Η απομαγνητοφώνηση γίνεται με την υπηρεσία ElevenLabs Scribe και η ταυτοποίηση των ομιλητών από την
                 φωνή τους (μόνο όταν οι ίδιοι οι ομιλητές έχουν δώσει ρητή συγκατάθεση στην OpenCouncil) με την
@@ -215,7 +217,7 @@ export function AiLiteracySection() {
                 παράγει. Δεν παίρνει αποφάσεις για πρόσωπα και δεν τα αξιολογεί.
             </p>
 
-            <Sub id="oc-ai-errors">Πού αναφέρετε ένα λάθος</Sub>
+            <Sub id="oc-ai-errors" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Στείλτε τον σύνδεσμο της σελίδας, το απόσπασμα που είναι λάθος και, αν μπορείτε, το σωστό, στο{" "}
                 <a href="mailto:corrections@opencouncil.gr" className="text-orange underline underline-offset-2">corrections@opencouncil.gr</a>. Το εξετάζουμε και το διορθώνουμε, και
@@ -223,7 +225,7 @@ export function AiLiteracySection() {
                 δήμου με πρόσβαση διαχείρισης μπορούν να διορθώσουν το κείμενο και μόνοι τους.
             </p>
 
-            <Sub id="oc-ai-registry">Για τη δήλωση στο Μητρώο συστημάτων ΤΝ</Sub>
+            <Sub id="oc-ai-registry" />
             <p className="mt-3 leading-relaxed text-muted-foreground">
                 Κάθε δήμος δηλώνει τα συστήματα τεχνητής νοημοσύνης που χρησιμοποιεί στο {REGISTRY_LAW.registry} (
                 {REGISTRY_LAW.article} του {REGISTRY_LAW.law}, {REGISTRY_LAW.gazette}). Για σύστημα που ήδη λειτουργεί, η
@@ -262,7 +264,7 @@ export function AiLiteracySection() {
                 .
             </p>
 
-            <Sub id="oc-ai-changes">Ιστορικό αλλαγών αυτής της ενότητας</Sub>
+            <Sub id="oc-ai-changes" />
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 Η ενότητα αλλάζει όποτε αλλάζει ο τρόπος που δουλεύει το OpenCouncil. Κάθε αλλαγή καταγράφεται εδώ.
             </p>

@@ -87,6 +87,11 @@ export function ExplainReader({
                 ?.closest("[data-toc-group]")
                 ?.querySelector("[data-toc-grouphead]")
                 ?.setAttribute("aria-current", "true");
+            // and the section whose parts are listed under it ("Η τεχνητή νοημοσύνη…")
+            activeLink
+                ?.closest("[data-toc-subgroup]")
+                ?.querySelector("[data-toc-subhead]")
+                ?.setAttribute("aria-current", "true");
 
             // The pinned column scrolls its own content on a short screen, so the
             // active entry can sit outside it. Move the column to the entry, and

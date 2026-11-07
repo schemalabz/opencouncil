@@ -23,3 +23,18 @@ export const OPENCOUNCIL_SUBSECTIONS: NavSection[] = [
     { id: "oc-pricing", title: "Ποιος πληρώνει για το OpenCouncil;" },
     { id: "oc-cta", title: "Φέρτε το OpenCouncil στον δήμο σας" },
 ];
+
+/** The parts of "Η τεχνητή νοημοσύνη στο OpenCouncil": heading on the page, shorter label in the table of contents. */
+export const AI_SUBSECTIONS: (NavSection & { nav: string })[] = [
+    { id: "oc-ai-what", title: "Τι κάνει η τεχνητή νοημοσύνη, και ποιος το ελέγχει", nav: "Τι κάνει, ποιος το ελέγχει" },
+    { id: "oc-ai-not", title: "Τι δεν κάνει", nav: "Τι δεν κάνει" },
+    { id: "oc-ai-label", title: "Πώς θα το αναγνωρίσετε: η σήμανση", nav: "Η σήμανση" },
+    { id: "oc-ai-who", title: "Ποιος ευθύνεται για τι", nav: "Ποιος ευθύνεται" },
+    { id: "oc-ai-staff", title: "Αν δουλεύετε σε δήμο: πέντε κανόνες", nav: "Πέντε κανόνες για δήμους" },
+    { id: "oc-ai-models", title: "Μοντέλα και δεδομένα", nav: "Μοντέλα και δεδομένα" },
+    { id: "oc-ai-errors", title: "Πού αναφέρετε ένα λάθος", nav: "Αναφορά λαθών" },
+    { id: "oc-ai-registry", title: "Για τη δήλωση στο Μητρώο συστημάτων ΤΝ", nav: "Δήλωση στο Μητρώο ΤΝ" },
+    { id: "oc-ai-changes", title: "Ιστορικό αλλαγών αυτής της ενότητας", nav: "Ιστορικό αλλαγών" },
+];
+
+export const AI_SUBSECTION_TITLE: Record<string, string> = Object.fromEntries(AI_SUBSECTIONS.map((s) => [s.id, s.title]));
