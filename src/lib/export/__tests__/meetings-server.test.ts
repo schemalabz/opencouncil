@@ -13,8 +13,8 @@ jest.mock('next-intl/server', () => ({
         jest.requireActual('../../../../tests/helpers/catalog').getTranslationsFromCatalog(o),
 }));
 
-import JSZip from 'jszip';
 import { generateMeetingDocxBuffer } from '../meetings-server';
+import { docxPart } from '../../../../tests/helpers/docx';
 import { NotFoundError } from '@/lib/api/errors';
 
 const chair = {
@@ -40,7 +40,7 @@ beforeEach(() => {
 describe('generateMeetingDocxBuffer', () => {
     it('titles the speakers in the city language, the language the municipality reads', async () => {
         const buffer = await generateMeetingDocxBuffer('rouen', 'm1');
-        const xml = await (await JSZip.loadAsync(buffer)).file('word/document.xml')!.async('string');
+        const xml = await docxPart(buffer);
 
         expect(xml).toContain('>Président(e) </w:t>');
     });

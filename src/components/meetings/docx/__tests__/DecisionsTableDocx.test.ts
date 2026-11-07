@@ -1,5 +1,5 @@
-import JSZip from 'jszip';
 import { renderDecisionsTableDocx } from '../DecisionsTableDocx';
+import { docxPart, docxParts } from '../../../../../tests/helpers/docx';
 import type { DecisionsTableData } from '@/lib/decisionsTable/getDecisionsTableData';
 import type { DecisionTableRow } from '@/lib/decisionsTable/rows';
 
@@ -24,8 +24,7 @@ function data(rows: DecisionTableRow[], beforeAgenda: DecisionsTableData['table'
 }
 
 async function documentText(blob: Blob): Promise<string> {
-    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-    return (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, ' ');
+    return (await docxPart(blob)).replace(/<[^>]+>/g, ' ');
 }
 
 describe('renderDecisionsTableDocx', () => {
@@ -81,8 +80,7 @@ describe('renderDecisionsTableDocx', () => {
     });
 
     it('prints a landscape page: wider than tall, with a fixed-width table inside its margins', async () => {
-        const zip = await JSZip.loadAsync(await (await renderDecisionsTableDocx(data([row()]))).arrayBuffer());
-        const xml = await zip.file('word/document.xml')!.async('string');
+        const xml = await docxPart(await renderDecisionsTableDocx(data([row()])));
         // The library swaps the sizes it is given for a landscape section; what matters is what it writes.
         expect(xml).toMatch(/<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"\/>/);
         expect(xml).toMatch(/<w:tblLayout w:type="fixed"\/>/);
@@ -90,9 +88,9 @@ describe('renderDecisionsTableDocx', () => {
     });
 
     it('puts the page number at the right margin of the landscape page, and no header on the first page', async () => {
-        const zip = await JSZip.loadAsync(await (await renderDecisionsTableDocx(data([row()]))).arrayBuffer());
-        const headers = await Promise.all(Object.keys(zip.files).filter(name => /^word\/header\d*\.xml$/.test(name)).map(name => zip.file(name)!.async('string')));
+        const parts = await docxParts(await renderDecisionsTableDocx(data([row()])));
+        const headers = Object.entries(parts).filter(([name]) => /^word\/header\d*\.xml$/.test(name)).map(([, xml]) => xml);
         expect(headers.some(header => /w:tab w:val="right" w:pos="14570"/.test(header))).toBe(true);
-        expect(await zip.file('word/document.xml')!.async('string')).toMatch(/<w:titlePg\/>/);
+        expect(parts['word/document.xml']).toMatch(/<w:titlePg\/>/);
     });
 });

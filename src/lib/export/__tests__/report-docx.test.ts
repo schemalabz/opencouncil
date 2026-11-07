@@ -1,6 +1,6 @@
 import { Offer } from '@prisma/client';
-import JSZip from 'jszip';
 import { renderReportDocx, ReportMeeting } from '../report-docx';
+import { docxPart } from '../../../../tests/helpers/docx';
 
 const offer = {
     id: 'offer1',
@@ -30,8 +30,7 @@ async function renderDocumentXml(): Promise<string> {
         endDate: new Date('2026-02-27'),
         contractReference: '23ΑΩΡΔ123456',
     });
-    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-    return zip.file('word/document.xml')!.async('string');
+    return docxPart(blob);
 }
 
 describe('renderReportDocx', () => {

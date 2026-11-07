@@ -1,11 +1,11 @@
 import { Packer } from 'docx';
 import type { Document } from 'docx';
-import JSZip from 'jszip';
 import type { Offer } from '@prisma/client';
 import { buildTechnicalDescriptionDoc } from '../TechnicalDescriptionDocx';
 import { buildFinancialOfferDoc } from '../FinancialOfferDocx';
 import { buildTechnicalOfferDoc } from '../TechnicalOfferDocx';
 import { CONTENT_WIDTH, FONT, PAGE_MARGIN, PAGE_WIDTH } from '../shared';
+import { docxPart } from '../../../../../tests/helpers/docx';
 
 const offer = {
     id: 'offer1',
@@ -35,11 +35,8 @@ const params = {
 };
 
 async function parts(doc: Document): Promise<{ document: string; styles: string }> {
-    const zip = await JSZip.loadAsync(await Packer.toBuffer(doc));
-    return {
-        document: await zip.file('word/document.xml')!.async('string'),
-        styles: await zip.file('word/styles.xml')!.async('string'),
-    };
+    const packed = await Packer.toBuffer(doc);
+    return { document: await docxPart(packed), styles: await docxPart(packed, 'word/styles.xml') };
 }
 
 const documents: [string, () => Document | Promise<Document>][] = [
