@@ -2,7 +2,9 @@ import { AdminSidebar } from "@/components/admin/sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import Header from "@/components/layout/Header"
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth"
-import { redirect } from "next/navigation";
+import { getPathname, redirect } from "@/i18n/routing";
+import { getLocale } from "next-intl/server";
+import { signInPath } from "@/lib/auth/signInDestination";
 import React from "react"
 import { Metadata } from "next"
 
@@ -13,7 +15,11 @@ export const metadata: Metadata = {
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
     const user = await getCurrentUser();
-    if (!user) redirect("/sign-in");
+    if (!user) {
+        const locale = await getLocale();
+        const callbackUrl = getPathname({ href: "/admin", locale });
+        redirect({ href: signInPath(callbackUrl), locale });
+    }
     await withUserAuthorizedToEdit({});
 
     return (

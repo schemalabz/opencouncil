@@ -7,11 +7,13 @@ import { captureEvent } from '@/lib/analytics/capture';
 import type { JoinStage } from '@/lib/personJoin/stage';
 
 jest.mock('next-intl', () => ({
+    useLocale: () => 'el',
     useTranslations: () => (key: string, values?: Record<string, string | number>) =>
         values ? `${key} ${Object.values(values).join(' ')}` : key,
 }));
 jest.mock('framer-motion', () => ({ useAnimate: () => [{ current: null }, jest.fn()], useReducedMotion: () => true }));
 jest.mock('@/i18n/routing', () => ({
+    getPathname: ({ href }: { href: string }) => href,
     // `onClick` and the rest pass through: TrackedLink captures its event there.
     Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
         createElement('a', { href, ...props }, children),
@@ -279,7 +281,7 @@ describe('PersonJoin, codes that cannot go on', () => {
         expect(screen.getByText('problem.usedTitle')).toBeTruthy();
         expect(screen.getByText('problem.used Αδάμ Μπούτζουκας')).toBeTruthy();
         const href = (screen.getByText('problem.signIn').closest('a') as HTMLAnchorElement).getAttribute('href');
-        expect(href).toBe('/sign-in');
+        expect(href).toBe('/sign-in?callbackUrl=%2Fprofile');
     });
 
     it('says the same to another signed-in account, with no sign-in to offer', () => {
