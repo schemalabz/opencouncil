@@ -146,8 +146,6 @@
     "swagger-ui-react": "^5.34.1",
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
-    "terra-draw": "^1.39.0",
-    "terra-draw-mapbox-gl-adapter": "^1.5.0",
     "tsx": "^4.23.15",
     "vaul": "^0.9.1",
     "yargs": "^18.2.0",
