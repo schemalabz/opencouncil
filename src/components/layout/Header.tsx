@@ -128,6 +128,7 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchOverlayRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const searchButtonRef = useRef<HTMLButtonElement>(null);
 
     const subjectContext = useSubjectHeaderOptional();
     const subjectHeader = subjectContext?.subjectHeader ?? null;
@@ -252,13 +253,27 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
             }
         };
 
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || event.isComposing) return;
+            // While the search is open, Escape belongs to it. Stop the event here, on
+            // document, so the window-level shortcuts (KeyboardShortcutsContext) do
+            // not also clear an editor selection with the same key press.
+            event.stopPropagation();
+            setIsSearchOpen(false);
+            // The focus was inside the modal, which unmounts: give it back to the
+            // control that opened it instead of dropping it to <body>.
+            searchButtonRef.current?.focus();
+        };
+
         if (isSearchOpen) {
             document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
             searchInputRef.current?.focus();
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, [isSearchOpen]);
 
@@ -379,6 +394,7 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
     const renderControls = () => (
         <div className="ml-auto flex shrink-0 items-center gap-1">
             <button
+                ref={searchButtonRef}
                 onClick={() => setIsSearchOpen(true)}
                 className={cn(headerControlClass, 'w-9 sm:w-auto sm:px-3')}
                 aria-label={t('search')}
@@ -606,7 +622,7 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
             {/* Search Modal */}
             {mounted && createPortal(<AnimatePresence>
                 {isSearchOpen && (
-                    <div className="fixed inset-0 z-50">
+                    <div className="fixed inset-0 z-50" role="dialog" aria-label={t('search')}>
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}

@@ -103,7 +103,7 @@ Switch back with `?realm=greece`.
 
 Main catalog (`messages/sr.json`), one checkbox per namespace:
 
-- [ ] Landing, MunicipalitySelector, Common, PilotPage, Header, Footer
+- [ ] Landing, MunicipalitySelector, Common, Header, Footer
 - [ ] CitiesList, CityForm, City, EmbedConfigurator, EmbedWidget
 - [ ] AddMeetingForm, NotFoundPage, AboutPage, InputWithDerivatives
 - [ ] TranscriptOptions, Chat, Onboarding, ImageCropDialog, PartyForm

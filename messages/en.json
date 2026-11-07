@@ -70,15 +70,6 @@
         "until": "until",
         "present": "present"
     },
-    "PilotPage": {
-        "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
-        "subtitle": "The information contained may have errors.",
-        "promo": "Open local government",
-        "words": "words",
-        "minutes": "minutes of speech",
-        "people": "speakers",
-        "meetings": "meetings"
-    },
     "Header": {
         "account": "Account",
         "canEditPage": "You can edit this page",
