@@ -84,15 +84,6 @@
     "today": "Séance du jour",
     "noSubjects": "Aucun sujet"
   },
-  "PilotPage": {
-    "title": "OpenCouncil fonctionne en phase pilote avec quelques-unes des dernières séances du conseil municipal de la Ville d'Athènes.",
-    "subtitle": "Les informations présentées peuvent contenir des erreurs.",
-    "promo": "Administration locale ouverte",
-    "words": "mots",
-    "minutes": "minutes de prise de parole",
-    "people": "intervenants",
-    "meetings": "séances"
-  },
   "Header": {
     "account": "Compte",
     "canEditPage": "Vous pouvez modifier cette page",

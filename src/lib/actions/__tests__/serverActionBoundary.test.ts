@@ -24,7 +24,6 @@ const ACTIONS = path.join(SRC, 'lib/actions');
 /** Client files that still import a `"use server"` module outside src/lib/actions. Remove a line when the file moves. */
 const LEGACY_CLIENT_IMPORTS = new Set([
     'src/app/[locale]/(admin)/admin/users/page.tsx -> db/users',
-    'src/components/PilotPage.tsx -> pilotStats',
     'src/components/admin/offers/offer-form.tsx -> db/cities',
     'src/components/admin/offers/offer-form.tsx -> db/offers',
     'src/components/admin/offers/offers.tsx -> db/offers',
