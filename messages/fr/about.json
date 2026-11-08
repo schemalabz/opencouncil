@@ -350,7 +350,7 @@
     "processing": {
       "transcription": {
         "title": "Transcription",
-        "description": "Transcription par IA avec reconnaissance des intervenants, vérifiée par un humain, généralement sous 48 heures."
+        "description": "Transcription par IA avec reconnaissance des intervenants, vérifiée par un humain sous 48 heures."
       },
       "analysis": {
         "title": "Analyse & structure",
