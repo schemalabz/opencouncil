@@ -19,11 +19,11 @@ import { sendErrorAdminAlert } from '@/lib/discord-core';
  * The guards are markers in Valkey, so they hold across containers and expire
  * on their own: the claim of a container that died mid-run releases with its
  * TTL, and a refused subject is left alone for a month rather than retried
- * every ten minutes for the life of a process. Without CACHE_URL (dev,
- * previews) there are no markers, and the in-process map below is the only
- * in-flight guard — enough for one container. With CACHE_URL, a claim that
- * Valkey cannot record is no claim: the run stands down, so an outage does
- * not let every container draw the same subject.
+ * every ten minutes for the life of a process. Without CACHE_URL there are
+ * no markers, and the in-process map below is the only in-flight guard —
+ * enough for one container. With CACHE_URL, a claim that Valkey cannot record
+ * is no claim: the run stands down, so an outage does not let every container
+ * draw the same subject.
  */
 
 /** How long a failed subject waits before a page view may retry it. */
@@ -86,6 +86,11 @@ function resolveDeps() {
     return { ...storeDeps(), publicBaseUrl: env.CDN_URL.replace(/\/+$/, '') };
 }
 
+/** Production's folder, read without a key through the same public origin. */
+function fallbackDeps(prefix: string) {
+    return { ...resolveDeps(), client: null, prefix };
+}
+
 function sleep(ms: number): Promise<void> {
     return new Promise((done) => setTimeout(done, ms));
 }
@@ -98,13 +103,37 @@ function reportFailure(message: string, error: unknown, context: Record<string, 
         .catch((alertError) => console.error('Failed to send subject image alert:', alertError));
 }
 
-/** Generation is on wherever a Gemini key is set; previews and dev without one serve only misses. */
-export function isSubjectImageGenerationEnabled(): boolean {
-    return Boolean(env.GEMINI_API_KEY);
+/**
+ * Why this deployment draws no image, or null where it does. Generation is on
+ * only in production: every other deployment has a fallback (derived from
+ * DEPLOYMENT_ENV in src/env.mjs), shows production's images, and draws none,
+ * because its subjects are production's and a drawing would pay again for an
+ * image production has.
+ */
+export function generationOffReason(): string | null {
+    if (env.SUBJECT_IMAGES_FALLBACK_PREFIX) return "this deployment shows production's images and draws none (SUBJECT_IMAGES_FALLBACK_PREFIX)";
+    if (!env.GEMINI_API_KEY) return 'GEMINI_API_KEY is not set';
+    return null;
 }
 
-export function resolveSubjectImage(subjectId: string): Promise<ResolvedImage | null> {
-    return resolve(subjectId, resolveDeps());
+export function isSubjectImageGenerationEnabled(): boolean {
+    return generationOffReason() === null;
+}
+
+/** The Gemini key where generation is on, else null. */
+function generationApiKey(): string | null {
+    return generationOffReason() === null ? env.GEMINI_API_KEY ?? null : null;
+}
+
+/**
+ * This deployment's image, else production's. The own folder comes first, so an
+ * upload here shows here.
+ */
+export async function resolveSubjectImage(subjectId: string): Promise<ResolvedImage | null> {
+    const own = await resolve(subjectId, resolveDeps());
+    const fallback = env.SUBJECT_IMAGES_FALLBACK_PREFIX;
+    if (own || !fallback) return own;
+    return resolve(subjectId, fallbackDeps(fallback));
 }
 
 /**
@@ -122,7 +151,8 @@ export function listSubjectsWithImages(): Promise<Set<string>> {
 }
 
 /**
- * The bucket could not be read (bad credentials, a wrong region, an outage).
+ * The bucket or the fallback could not be read (bad credentials, a wrong
+ * region, an outage, a CDN that does not answer).
  * The read route serves misses meanwhile; this makes sure someone hears about
  * it — once per window, not once per card per page view.
  */
@@ -134,10 +164,14 @@ export async function reportLookupFailure(subjectId: string, error: unknown): Pr
     }
 }
 
-/** The stored image, or null; a bucket that cannot be read is alerted once per window and the error rethrown. */
+/**
+ * The image in this deployment's own folder, or null; a bucket that cannot be
+ * read is alerted once per window and the error rethrown. Generation asks only
+ * its own folder: it writes there, and it runs only where no fallback is set.
+ */
 async function lookup(subjectId: string): Promise<ResolvedImage | null> {
     try {
-        return await resolveSubjectImage(subjectId);
+        return await resolve(subjectId, resolveDeps());
     } catch (error) {
         await reportLookupFailure(subjectId, error);
         throw error;
@@ -217,7 +251,7 @@ async function generateAndStore(subjectId: string, apiKey: string, before: Resol
     // The model takes tens of seconds. An admin who uploaded meanwhile keeps
     // their file: the ETag in the URL says whether the object changed. The
     // window between this check and the write is milliseconds, not seconds.
-    const after = await resolveSubjectImage(subjectId);
+    const after = await lookup(subjectId);
     if (after?.url !== before?.url) return 'superseded';
 
     try {
@@ -249,7 +283,7 @@ async function generateAndStore(subjectId: string, apiKey: string, before: Resol
  * turns it into a 500.
  */
 export async function generateImageForSubject(subjectId: string, options: { force?: boolean } = {}): Promise<GenerateOutcome> {
-    const apiKey = env.GEMINI_API_KEY;
+    const apiKey = generationApiKey();
     if (!apiKey) return 'disabled';
     const force = Boolean(options.force);
 

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { env } from '@/env.mjs';
-import { resolveSubjectImage } from '@/lib/subjectImages';
+import { reportLookupFailure, resolveSubjectImage } from '@/lib/subjectImages';
 import { getImageData, type ImageBox } from './remoteImage';
 
 /** The boxes the images draw an illustration into, at twice the drawn size so the pixel art stays crisp. */
@@ -26,7 +26,12 @@ function cdnHosts(): string[] {
  * anew and not from the CDN's immutable copy of the old one.
  */
 export async function getSubjectIllustrationData(subjectId: string, box: ImageBox): Promise<string | null> {
-    const resolved = await resolveSubjectImage(subjectId).catch(() => null);
+    // An image card renders without its illustration rather than fail; the
+    // failure is alerted once per window, as on the image route.
+    const resolved = await resolveSubjectImage(subjectId).catch(async (error: unknown) => {
+        await reportLookupFailure(subjectId, error);
+        return null;
+    });
     return getImageData(resolved?.url, box, cdnHosts());
 }
 

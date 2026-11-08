@@ -9,6 +9,7 @@ import { imageFile } from '@/lib/zod-schemas/primitives';
 import {
     generateImageForSubject,
     generateImageForSubjectInBackground,
+    generationOffReason,
     isSubjectImageGenerationEnabled,
     reportLookupFailure,
     resolveSubjectImage,
@@ -46,9 +47,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const invalid = invalidId(subjectId);
     if (invalid) return invalid;
 
-    // A bucket that cannot be reached (bad credentials on a preview, an outage)
-    // must not break every card on the page: answer as a miss, and do not
-    // queue a generation that would fail at the same store.
+    // A bucket or a fallback that cannot be reached (bad credentials, an
+    // outage) must not break every card on the page: answer as a miss, and do
+    // not queue a generation that would fail at the same store.
     let lookupFailed = false;
     let resolved = null;
     try {
@@ -116,8 +117,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (body?.mode !== 'generate') {
         return NextResponse.json({ error: 'Expected { mode: "generate" } or a multipart file upload' }, { status: 400 });
     }
-    if (!isSubjectImageGenerationEnabled()) {
-        return NextResponse.json({ error: 'Image generation is not configured (GEMINI_API_KEY)' }, { status: 503 });
+    const generationOff = generationOffReason();
+    if (generationOff) {
+        return NextResponse.json({ error: `Image generation is off: ${generationOff}` }, { status: 503 });
     }
 
     try {

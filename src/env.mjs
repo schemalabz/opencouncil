@@ -30,6 +30,42 @@ function derivedCookieSuffix() {
     return deploymentEnv === 'production' ? '' : `-${deploymentEnv}`;
 }
 
+/**
+ * Production's folder of subject illustrations. In a restyle it changes last:
+ * after production's SUBJECT_IMAGES_PREFIX names the new folder and the
+ * backfill has drawn it (see SUBJECT_IMAGES_PREFIX below).
+ */
+const PRODUCTION_SUBJECT_IMAGES_PREFIX = 'subject-images/prod/8bit';
+
+/**
+ * Every deployment except production reads production's subject images and
+ * draws none: its subjects are production's, so a drawing would pay again for
+ * an image production has. Derived, so no deployment has to set it; an
+ * explicit SUBJECT_IMAGES_FALLBACK_PREFIX overrides it.
+ *
+ * A wrong folder looks like a folder without images: every lookup is a 403
+ * and nothing is logged. To check a deployment, open /api/subject/{id}/image
+ * for a subject that production shows with an image; it must answer a 302
+ * to CDN_URL.
+ */
+function derivedSubjectImagesFallback() {
+    return deploymentEnv === 'production' ? undefined : PRODUCTION_SUBJECT_IMAGES_PREFIX;
+}
+
+/**
+ * The rule across variables, checked at start-up on the server. Production
+ * must not read another folder, because a fallback turns its generation off.
+ *
+ * @param {{ DEPLOYMENT_ENV?: string, SUBJECT_IMAGES_FALLBACK_PREFIX?: string }} values
+ * @returns {{ path: string[], message: string } | null}
+ */
+function crossVariableIssue(values) {
+    if (values.SUBJECT_IMAGES_FALLBACK_PREFIX && values.DEPLOYMENT_ENV === 'production') {
+        return { path: ['SUBJECT_IMAGES_FALLBACK_PREFIX'], message: 'Must be unset in production: it turns image generation off' };
+    }
+    return null;
+}
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
@@ -74,6 +110,10 @@ export const env = createEnv({
     // folder names the style. A restyle points production at a new folder and
     // draws it with scripts/backfill-subject-images.ts; the old folder stays.
     SUBJECT_IMAGES_PREFIX: z.string().min(1).default('subject-images/8bit'),
+    // Production's folder, read through CDN_URL where this deployment has no
+    // image. Derived from DEPLOYMENT_ENV: unset in production, production's
+    // folder elsewhere. See derivedSubjectImagesFallback.
+    SUBJECT_IMAGES_FALLBACK_PREFIX: z.string().min(1).optional(),
     // YouTube Data API v3 key (used by the poll-livestreams cron to find meeting
     // livestreams). Optional — when unset, the cron no-ops.
     YOUTUBE_API_KEY: z.string().optional(),
@@ -176,6 +216,7 @@ export const env = createEnv({
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     SUBJECT_IMAGES_PREFIX: process.env.SUBJECT_IMAGES_PREFIX,
+    SUBJECT_IMAGES_FALLBACK_PREFIX: process.env.SUBJECT_IMAGES_FALLBACK_PREFIX || derivedSubjectImagesFallback(),
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,
@@ -213,6 +254,15 @@ export const env = createEnv({
     NEXT_PUBLIC_BUILD_COMMIT_SHA: process.env.NEXT_PUBLIC_BUILD_COMMIT_SHA,
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   },
+
+  // A rule across variables, on the server only: the browser bundle has none
+  // of them. See crossVariableIssue.
+  createFinalSchema: (shape, isServer) =>
+    z.object(shape).superRefine((values, ctx) => {
+      if (!isServer) return;
+      const issue = crossVariableIssue(values);
+      if (issue) ctx.addIssue({ code: "custom", ...issue });
+    }),
 
   /**
    * Called when the schema validation fails.

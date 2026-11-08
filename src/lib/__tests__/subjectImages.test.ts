@@ -1,8 +1,8 @@
 /** @jest-environment node */
 
-import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '../subjectImages';
+import { generateImageForSubject, generateImagesForMeeting, generationOffReason, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '../subjectImages';
 
-const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; CDN_URL: string } = {
+const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; SUBJECT_IMAGES_FALLBACK_PREFIX?: string; CDN_URL: string } = {
     GEMINI_API_KEY: 'gemini-key',
     DO_SPACES_BUCKET: 'bucket',
     SUBJECT_IMAGES_PREFIX: 'subject-images/8bit',
@@ -84,8 +84,11 @@ const settle = () => new Promise<void>((done) => setImmediate(done));
 
 beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks keeps queued Once answers; a test that leaves one must not hand it to the next.
+    mockResolve.mockReset();
     mockCache.clear();
     mockEnv.GEMINI_API_KEY = 'gemini-key';
+    mockEnv.SUBJECT_IMAGES_FALLBACK_PREFIX = undefined;
     mockResolve.mockResolvedValue(null);
     mockGenerate.mockResolvedValue(image);
     mockCacheDown = false;
@@ -106,6 +109,45 @@ describe('resolveSubjectImage', () => {
             prefix: 'subject-images/8bit',
             publicBaseUrl: 'https://cdn.example',
         }));
+    });
+
+    describe('with a fallback folder', () => {
+        const fallbackImage = { url: 'https://cdn.example/subject-images/prod/8bit/s1.webp?v=p' };
+        beforeEach(() => {
+            mockEnv.SUBJECT_IMAGES_FALLBACK_PREFIX = 'subject-images/prod/8bit';
+            mockResolve.mockImplementation(async (_id: string, deps: { prefix: string }) =>
+                deps.prefix === 'subject-images/prod/8bit' ? fallbackImage : null);
+        });
+
+        it("reads production's folder without a key when this deployment has no image", async () => {
+            expect(await resolveSubjectImage('s1')).toEqual(fallbackImage);
+            expect(mockResolve).toHaveBeenLastCalledWith('s1', expect.objectContaining({ client: null, prefix: 'subject-images/prod/8bit', publicBaseUrl: 'https://cdn.example' }));
+        });
+
+        // An upload on staging must show on staging, not production's drawing.
+        it('prefers the image in its own folder', async () => {
+            const own = { url: 'https://cdn.example/subject-images/8bit/s1.webp?v=o' };
+            mockResolve.mockImplementation(async (_id: string, deps: { prefix: string }) =>
+                deps.prefix === 'subject-images/8bit' ? own : fallbackImage);
+            expect(await resolveSubjectImage('s1')).toEqual(own);
+            expect(mockResolve).toHaveBeenCalledTimes(1);
+            expect(mockResolve).toHaveBeenCalledWith('s1', expect.objectContaining({ prefix: 'subject-images/8bit' }));
+        });
+
+        it('rethrows when the fallback cannot be read', async () => {
+            mockResolve.mockReset();
+            mockResolve.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('HEAD answered 500'));
+            await expect(resolveSubjectImage('s1')).rejects.toThrow('HEAD answered 500');
+        });
+
+        // Its subjects are production's: a drawing here pays again for production's image.
+        it('draws nothing, even with a Gemini key, and says why', async () => {
+            expect(isSubjectImageGenerationEnabled()).toBe(false);
+            expect(generationOffReason()).toContain('SUBJECT_IMAGES_FALLBACK_PREFIX');
+            expect(await generateImageForSubject('s1', { force: true })).toBe('disabled');
+            await generateImagesForMeeting('athens', 'm1');
+            expect(mockGenerate).not.toHaveBeenCalled();
+        });
     });
 });
 
@@ -130,6 +172,7 @@ describe('generateImageForSubject', () => {
     it('is disabled without a Gemini key', async () => {
         mockEnv.GEMINI_API_KEY = undefined;
         expect(isSubjectImageGenerationEnabled()).toBe(false);
+        expect(generationOffReason()).toBe('GEMINI_API_KEY is not set');
         expect(await generateImageForSubject('s1')).toBe('disabled');
         expect(mockGenerate).not.toHaveBeenCalled();
     });

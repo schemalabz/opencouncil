@@ -24,7 +24,7 @@ import { hideBin } from 'yargs/helpers';
 import prisma from '../src/lib/db/prisma';
 import { getSubjectsForImageBackfill } from '../src/lib/db/subject';
 import { rankSubjectIdsForImages } from '../src/lib/subjectImageBackfill';
-import { generateImageForSubject, isSubjectImageGenerationEnabled, listSubjectsWithImages, type GenerateOutcome } from '../src/lib/subjectImages';
+import { generateImageForSubject, generationOffReason, listSubjectsWithImages, type GenerateOutcome } from '../src/lib/subjectImages';
 
 async function main() {
     const argv = await yargs(hideBin(process.argv))
@@ -37,8 +37,9 @@ async function main() {
         .strict()
         .parse();
 
-    if (!isSubjectImageGenerationEnabled()) {
-        throw new Error('GEMINI_API_KEY is not set');
+    const generationOff = generationOffReason();
+    if (generationOff) {
+        throw new Error(`Image generation is off: ${generationOff}`);
     }
 
     const candidates = await getSubjectsForImageBackfill({ cityId: argv.city, monthsBack: argv.months, take: argv.window });

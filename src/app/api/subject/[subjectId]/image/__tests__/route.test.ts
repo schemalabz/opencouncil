@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth';
 import {
     generateImageForSubject,
     generateImageForSubjectInBackground,
+    generationOffReason,
     isSubjectImageGenerationEnabled,
     reportLookupFailure,
     resolveSubjectImage,
@@ -36,6 +37,7 @@ jest.mock('@/lib/db/subject', () => ({
 jest.mock('@/lib/subjectImages', () => ({
     generateImageForSubject: jest.fn(),
     generateImageForSubjectInBackground: jest.fn().mockResolvedValue(undefined),
+    generationOffReason: jest.fn(),
     isSubjectImageGenerationEnabled: jest.fn(),
     reportLookupFailure: jest.fn().mockResolvedValue(undefined),
     resolveSubjectImage: jest.fn(),
@@ -55,6 +57,7 @@ const mockEnabled = isSubjectImageGenerationEnabled as jest.MockedFunction<typeo
 const mockReportLookupFailure = reportLookupFailure as jest.MockedFunction<typeof reportLookupFailure>;
 const mockResolve = resolveSubjectImage as jest.MockedFunction<typeof resolveSubjectImage>;
 const mockStore = storeSubjectImage as jest.MockedFunction<typeof storeSubjectImage>;
+const mockOffReason = generationOffReason as jest.MockedFunction<typeof generationOffReason>;
 
 const context = { params: Promise.resolve({ subjectId: 'subj-1' }) };
 const url = 'http://localhost/api/subject/subj-1/image';
@@ -62,6 +65,7 @@ const url = 'http://localhost/api/subject/subj-1/image';
 beforeEach(() => {
     jest.clearAllMocks();
     mockEnabled.mockReturnValue(true);
+    mockOffReason.mockReturnValue(null);
 });
 
 describe('GET /api/subject/[subjectId]/image', () => {
@@ -227,13 +231,15 @@ describe('POST /api/subject/[subjectId]/image', () => {
         expect(await res.json()).toEqual({ error: 'Image was not regenerated (in-flight)', outcome: 'in-flight' });
     });
 
-    it('returns 503 for generate mode when generation is off', async () => {
+    it('returns 503 for generate mode when generation is off, with the reason', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
-        mockEnabled.mockReturnValue(false);
+        mockOffReason.mockReturnValue('GEMINI_API_KEY is not set');
 
         const res = await POST(generateRequest(), context);
 
         expect(res.status).toBe(503);
+        expect(await res.json()).toEqual({ error: 'Image generation is off: GEMINI_API_KEY is not set' });
+        expect(mockGenerate).not.toHaveBeenCalled();
     });
 
     it('turns a generation failure into a 500 that does not carry its message', async () => {
