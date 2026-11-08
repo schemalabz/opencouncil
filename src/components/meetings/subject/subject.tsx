@@ -424,7 +424,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                         )}
 
                         <section>
-                            <SectionHead title={t("statements")} count={contributions?.length || 0} />
+                            <SectionHead title={t("statements")} count={contributions?.length || 0} aiNotice={false} />
                             {(!contributions || contributions.length === 0) ? (
                                 pending
                                     ? <PendingNote what="statements" kind={pending} deadline={deadline} className="mt-4" />
@@ -607,15 +607,18 @@ export default function Subject({ subjectId, highlightedContributionId, related,
 /* The redesigned page's small pieces                                  */
 /* ------------------------------------------------------------------ */
 
-/** A section's heading: title, optional count, and the AI notice once — not on every card. */
-function SectionHead({ title, count }: { title: string; count?: number }) {
+/**
+ * A section's heading: title, optional count, and the AI notice. The statements
+ * section turns the notice off, because each contribution card carries its own.
+ */
+function SectionHead({ title, count, aiNotice = true }: { title: string; count?: number; aiNotice?: boolean }) {
     return (
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <h2 className="!m-0 !text-left tracking-[.01em]">
                 {title}
                 {count !== undefined && <span className="ml-1.5 font-normal text-muted-foreground">({count})</span>}
             </h2>
-            <AIGeneratedBadge />
+            {aiNotice && <AIGeneratedBadge />}
         </div>
     );
 }

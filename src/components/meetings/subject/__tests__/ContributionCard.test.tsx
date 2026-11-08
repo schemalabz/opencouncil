@@ -10,7 +10,7 @@ jest.mock('@/components/FormattedTextDisplay', () => ({ FormattedTextDisplay: ({
 jest.mock('@/components/meetings/PlayPauseButton', () => ({ PlayPauseButton: ({ children }: { children: React.ReactNode }) => <button aria-label="playContribution">{children}</button> }));
 jest.mock('@/components/icon', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/ImageOrInitials', () => ({ ImageOrInitials: () => null }));
-jest.mock('@/i18n/routing', () => ({ Link: ({ children, href, title, 'aria-label': label }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} title={title} aria-label={label}>{children}</a> }));
+jest.mock('@/i18n/routing', () => ({ getPathname: ({ href }: { href: string }) => href, Link: ({ children, href, title, 'aria-label': label }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} title={title} aria-label={label}>{children}</a> }));
 
 const contribution = { id: 'contribution1', text: 'Summary of the contribution.', speakerId: null, speakerName: null };
 const props = { contribution, subjectId: 'subject1', meeting: { id: 'meeting1', cityId: 'city1', released: true }, speaker: null };
@@ -65,4 +65,14 @@ describe('contribution sharing entry points', () => {
         expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
     });
 
+});
+
+describe('AI notice', () => {
+    it('sits on the card itself, in both layouts', () => {
+        const { unmount } = render(<ContributionCard {...props} />);
+        expect(screen.getByRole('button', { name: 'aiGenerated' })).toBeInTheDocument();
+        unmount();
+        render(<ContributionCard {...props} contextHeader={{ meetingName: 'Meeting', adminBodyName: null, meetingDate: new Date('2026-01-01'), subjectName: 'Subject', topic: null }} />);
+        expect(screen.getByRole('button', { name: 'aiGenerated' })).toBeInTheDocument();
+    });
 });
