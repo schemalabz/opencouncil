@@ -24,6 +24,7 @@
         "label": "Contenu généré par IA",
         "title": "Créé avec l'intelligence artificielle",
         "body": "L'image est une illustration imaginaire dessinée par l'IA d'après le titre du sujet, pas une photographie. Le résumé a été rédigé par l'IA à partir de la transcription de la séance.",
+        "bodyText": "Le texte a été rédigé par l'IA à partir de la transcription de la séance et peut contenir des erreurs. L'enregistrement fait foi.",
         "learnMore": "Comment ça marche"
     },
     "skipToContent": "Aller au contenu principal",
