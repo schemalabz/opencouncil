@@ -1,11 +1,11 @@
-jest.mock('@/env.mjs', () => ({
-    env: {
-        DO_SPACES_ENDPOINT: 'https://fra1.digitaloceanspaces.com',
-        DO_SPACES_KEY: 'key',
-        DO_SPACES_SECRET: 'secret',
-        DO_SPACES_BUCKET: 'bucket',
-    },
-}));
+const mockEnv: { DO_SPACES_ENDPOINT: string; DO_SPACES_KEY?: string; DO_SPACES_SECRET?: string; DO_SPACES_BUCKET: string } = {
+    DO_SPACES_ENDPOINT: 'https://fra1.digitaloceanspaces.com',
+    DO_SPACES_KEY: 'key',
+    DO_SPACES_SECRET: 'secret',
+    DO_SPACES_BUCKET: 'bucket',
+};
+// A getter: the import below runs before mockEnv is initialised.
+jest.mock('@/env.mjs', () => ({ get env() { return mockEnv; } }));
 
 import { extractFileExtension, objectKey, presignPart, presignPut } from '../s3';
 
@@ -52,5 +52,24 @@ describe('signed URLs', () => {
         expect(url.searchParams.get('uploadId')).toBe('upload-1');
         expect(url.searchParams.get('partNumber')).toBe('3');
         expect(url.searchParams.get('X-Amz-Expires')).toBe('43200');
+    });
+});
+
+describe('without storage keys', () => {
+    // A presigned URL is signed locally: without this check it would be signed
+    // with empty credentials and fail later, at the browser, as a CORS error.
+    it('fails at once and names the missing keys', async () => {
+        try {
+            mockEnv.DO_SPACES_KEY = undefined;
+            mockEnv.DO_SPACES_SECRET = undefined;
+            let keyless: typeof import('../s3') | undefined;
+            // The client reads the keys when the module loads.
+            jest.isolateModules(() => { keyless = require('../s3'); });
+            await expect(keyless!.presignPut('uploads/a.pdf', 'application/pdf', 1000, 300))
+                .rejects.toThrow('Storage needs DO_SPACES_KEY and DO_SPACES_SECRET');
+        } finally {
+            mockEnv.DO_SPACES_KEY = 'key';
+            mockEnv.DO_SPACES_SECRET = 'secret';
+        }
     });
 });

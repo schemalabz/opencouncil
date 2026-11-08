@@ -402,6 +402,6 @@ Required services:
 - PostgreSQL 16 with PostGIS extension; the seed restore needs the PostgreSQL 16 client tools
 - Elasticsearch instance
 - Task API server (separate backend)
-- S3-compatible storage (DigitalOcean Spaces)
+- S3-compatible storage (DigitalOcean Spaces). A development setup can run without the storage keys: see `.env.example`
 
 See `.env.example` for required environment variables.

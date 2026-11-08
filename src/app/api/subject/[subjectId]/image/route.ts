@@ -6,6 +6,7 @@ import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError, notAuthorizedError } from '@/lib/api/errors';
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser';
 import { imageFile } from '@/lib/zod-schemas/primitives';
+import { isStorageConfigured } from '@/lib/s3';
 import {
     generateImageForSubject,
     generateImageForSubjectInBackground,
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const contentType = request.headers.get('content-type') ?? '';
 
     if (contentType.includes('multipart/form-data')) {
+        if (!isStorageConfigured()) {
+            return NextResponse.json({ error: 'Image storage is not configured (DO_SPACES_KEY, DO_SPACES_SECRET)' }, { status: 503 });
+        }
         let file: File;
         try {
             ({ file } = parseFormData(await readFormData(request), subjectImageUploadSchema));

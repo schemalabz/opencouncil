@@ -55,13 +55,23 @@ function derivedSubjectImagesFallback() {
 /**
  * The rule across variables, checked at start-up on the server. Production
  * must not read another folder, because a fallback turns its generation off.
+ * The storage key and secret come as a pair, and production must have them;
+ * other deployments may run without them.
  *
- * @param {{ DEPLOYMENT_ENV?: string, SUBJECT_IMAGES_FALLBACK_PREFIX?: string }} values
+ * @param {{ DEPLOYMENT_ENV?: string, DO_SPACES_KEY?: string, DO_SPACES_SECRET?: string, SUBJECT_IMAGES_FALLBACK_PREFIX?: string }} values
  * @returns {{ path: string[], message: string } | null}
  */
 function crossVariableIssue(values) {
-    if (values.SUBJECT_IMAGES_FALLBACK_PREFIX && values.DEPLOYMENT_ENV === 'production') {
+    const fallback = values.SUBJECT_IMAGES_FALLBACK_PREFIX;
+    if (fallback && values.DEPLOYMENT_ENV === 'production') {
         return { path: ['SUBJECT_IMAGES_FALLBACK_PREFIX'], message: 'Must be unset in production: it turns image generation off' };
+    }
+    const hasKey = Boolean(values.DO_SPACES_KEY);
+    if (hasKey !== Boolean(values.DO_SPACES_SECRET)) {
+        return { path: ['DO_SPACES_SECRET'], message: 'Set DO_SPACES_KEY and DO_SPACES_SECRET together, or neither' };
+    }
+    if (!hasKey && !fallback) {
+        return { path: ['DO_SPACES_KEY'], message: 'Required unless SUBJECT_IMAGES_FALLBACK_PREFIX is set (every deployment except production)' };
     }
     return null;
 }
@@ -120,8 +130,9 @@ export const env = createEnv({
 
     // Storage
     DO_SPACES_ENDPOINT: z.string().min(1),
-    DO_SPACES_KEY: z.string().min(1),
-    DO_SPACES_SECRET: z.string().min(1),
+    // A pair; may be unset outside production. See crossVariableIssue.
+    DO_SPACES_KEY: z.string().min(1).optional(),
+    DO_SPACES_SECRET: z.string().min(1).optional(),
     DO_SPACES_BUCKET: z.string().min(1),
     CDN_URL: z.url(),
 
@@ -220,8 +231,9 @@ export const env = createEnv({
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,
-    DO_SPACES_KEY: process.env.DO_SPACES_KEY,
-    DO_SPACES_SECRET: process.env.DO_SPACES_SECRET,
+    // `.env.example` lists the keys with no value: empty counts as unset.
+    DO_SPACES_KEY: process.env.DO_SPACES_KEY || undefined,
+    DO_SPACES_SECRET: process.env.DO_SPACES_SECRET || undefined,
     DO_SPACES_BUCKET: process.env.DO_SPACES_BUCKET,
     CDN_URL: process.env.CDN_URL,
     TASK_API_URL: process.env.TASK_API_URL,

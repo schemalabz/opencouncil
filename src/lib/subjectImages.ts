@@ -6,7 +6,7 @@ import { claimAlertWindow } from '@/lib/cache/alertWindow';
 import { getSubjectIdsForMeeting, getSubjectPromptInput } from '@/lib/db/subject';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { getRealmDisplayName } from '@/lib/realm';
-import { s3Client } from '@/lib/s3';
+import { isStorageConfigured, s3Client } from '@/lib/s3';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 
 /**
@@ -108,7 +108,8 @@ function reportFailure(message: string, error: unknown, context: Record<string, 
  * only in production: every other deployment has a fallback (derived from
  * DEPLOYMENT_ENV in src/env.mjs), shows production's images, and draws none,
  * because its subjects are production's and a drawing would pay again for an
- * image production has.
+ * image production has. A deployment without storage keys always has a
+ * fallback (crossVariableIssue), so the keys need no check here.
  */
 export function generationOffReason(): string | null {
     if (env.SUBJECT_IMAGES_FALLBACK_PREFIX) return "this deployment shows production's images and draws none (SUBJECT_IMAGES_FALLBACK_PREFIX)";
@@ -127,10 +128,11 @@ function generationApiKey(): string | null {
 
 /**
  * This deployment's image, else production's. The own folder comes first, so an
- * upload here shows here.
+ * upload here shows here. Without a storage key nothing is written to the own
+ * folder, so only the fallback is asked.
  */
 export async function resolveSubjectImage(subjectId: string): Promise<ResolvedImage | null> {
-    const own = await resolve(subjectId, resolveDeps());
+    const own = isStorageConfigured() ? await resolve(subjectId, resolveDeps()) : null;
     const fallback = env.SUBJECT_IMAGES_FALLBACK_PREFIX;
     if (own || !fallback) return own;
     return resolve(subjectId, fallbackDeps(fallback));

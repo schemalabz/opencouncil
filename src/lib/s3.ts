@@ -7,14 +7,27 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { env } from '@/env.mjs'
 import { isS3NotFound } from '@opencouncil/subject-images/store'
 
-// Global S3 client instance
+/** The storage key pair, or null where the deployment has none (see crossVariableIssue in src/env.mjs). */
+function storageCredentials() {
+    return env.DO_SPACES_KEY && env.DO_SPACES_SECRET
+        ? { accessKeyId: env.DO_SPACES_KEY, secretAccessKey: env.DO_SPACES_SECRET }
+        : null
+}
+
+/** Whether this deployment can write to the bucket. Contributors get no key. */
+export function isStorageConfigured(): boolean {
+    return storageCredentials() !== null
+}
+
+// Global S3 client instance. Without a key, its credentials provider throws,
+// so every request and every presigned URL fails at once and the server log
+// names the keys, instead of a 403 from Spaces later (or, for a browser
+// upload, a CORS error). A provider also keeps the SDK from searching its
+// default chain (~/.aws, the instance metadata endpoint).
 export const s3Client = new S3Client({
     endpoint: env.DO_SPACES_ENDPOINT,
     region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET,
-    }
+    credentials: storageCredentials() ?? (async () => { throw new Error('Storage needs DO_SPACES_KEY and DO_SPACES_SECRET') }),
 })
 
 // Upload configuration types

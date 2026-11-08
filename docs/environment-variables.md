@@ -146,8 +146,8 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `DO_SPACES_ENDPOINT` | Storage endpoint. | Yes | - |
-| `DO_SPACES_KEY` | Storage access key. | Yes | - |
-| `DO_SPACES_SECRET` | Storage secret key. | Yes | - |
+| `DO_SPACES_KEY` | Storage access key. Set it together with `DO_SPACES_SECRET`. Both may be empty outside production: the app then writes nothing to the bucket and uploads fail. Contributors get no key. | In production | - |
+| `DO_SPACES_SECRET` | Storage secret key. See `DO_SPACES_KEY`. | In production | - |
 | `DO_SPACES_BUCKET` | Storage bucket name. | Yes | - |
 | `CDN_URL` | CDN URL for serving static assets from storage. | Yes | - |
 

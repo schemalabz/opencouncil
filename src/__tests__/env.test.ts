@@ -8,7 +8,7 @@ import path from 'path';
 
 const root = path.resolve(__dirname, '../..');
 
-// Every required variable. Fake values only.
+// Every required variable except the storage pair. Fake values only.
 const required: Record<string, string> = {
     DATABASE_URL: 'postgres://x@localhost/db',
     DIRECT_URL: 'postgres://x@localhost/db',
@@ -18,8 +18,6 @@ const required: Record<string, string> = {
     ANTHROPIC_API_KEY: 'a',
     GOOGLE_API_KEY: 'g',
     DO_SPACES_ENDPOINT: 'https://fra1.digitaloceanspaces.com',
-    DO_SPACES_KEY: 'k',
-    DO_SPACES_SECRET: 's',
     DO_SPACES_BUCKET: 'bucket',
     CDN_URL: 'https://cdn.example',
     TASK_API_URL: 'https://tasks.example',
@@ -43,24 +41,39 @@ function loadEnv(extra: Record<string, string>, { client = false } = {}) {
     return { ok: result.status === 0, stderr: result.stderr, fallback };
 }
 
-describe('src/env.mjs: the subject image fallback', () => {
-    it('starts production with no fallback', () => {
-        expect(loadEnv({ DEPLOYMENT_ENV: 'production' })).toMatchObject({ ok: true, fallback: null });
+const keys = { DO_SPACES_KEY: 'k', DO_SPACES_SECRET: 's' };
+
+describe('src/env.mjs: storage keys and the subject image fallback', () => {
+    it('starts production with its keys and no fallback', () => {
+        expect(loadEnv({ DEPLOYMENT_ENV: 'production', ...keys })).toMatchObject({ ok: true, fallback: null });
     });
 
-    it("gives every other deployment production's folder, an empty value counting as unset", () => {
-        expect(loadEnv({ DEPLOYMENT_ENV: 'staging' })).toMatchObject({ ok: true, fallback: 'subject-images/prod/8bit' });
-        expect(loadEnv({ DEPLOYMENT_ENV: 'development', SUBJECT_IMAGES_FALLBACK_PREFIX: '' })).toMatchObject({ ok: true, fallback: 'subject-images/prod/8bit' });
+    it("gives every other deployment production's folder, keys or not", () => {
+        expect(loadEnv({ DEPLOYMENT_ENV: 'staging', ...keys })).toMatchObject({ ok: true, fallback: 'subject-images/prod/8bit' });
+        expect(loadEnv({ DEPLOYMENT_ENV: 'development', DO_SPACES_KEY: '', DO_SPACES_SECRET: '', SUBJECT_IMAGES_FALLBACK_PREFIX: '' }))
+            .toMatchObject({ ok: true, fallback: 'subject-images/prod/8bit' });
     });
 
     it('refuses a fallback in production', () => {
-        const { ok, stderr } = loadEnv({ DEPLOYMENT_ENV: 'production', SUBJECT_IMAGES_FALLBACK_PREFIX: 'subject-images/prod/8bit' });
+        const { ok, stderr } = loadEnv({ DEPLOYMENT_ENV: 'production', ...keys, SUBJECT_IMAGES_FALLBACK_PREFIX: 'subject-images/prod/8bit' });
         expect(ok).toBe(false);
         expect(stderr).toContain('SUBJECT_IMAGES_FALLBACK_PREFIX: Must be unset in production');
     });
 
+    it('refuses production without keys', () => {
+        const { ok, stderr } = loadEnv({ DEPLOYMENT_ENV: 'production' });
+        expect(ok).toBe(false);
+        expect(stderr).toContain('DO_SPACES_KEY: Required unless SUBJECT_IMAGES_FALLBACK_PREFIX is set');
+    });
+
+    it('refuses half a pair', () => {
+        const { ok, stderr } = loadEnv({ DEPLOYMENT_ENV: 'staging', DO_SPACES_KEY: 'k' });
+        expect(ok).toBe(false);
+        expect(stderr).toContain('DO_SPACES_SECRET: Set DO_SPACES_KEY and DO_SPACES_SECRET together, or neither');
+    });
+
     // The browser bundle sees no server variables: the rule must not run there.
     it('does not apply the rule in the browser bundle', () => {
-        expect(loadEnv({ DEPLOYMENT_ENV: 'production', SUBJECT_IMAGES_FALLBACK_PREFIX: 'subject-images/prod/8bit' }, { client: true }).ok).toBe(true);
+        expect(loadEnv({ DEPLOYMENT_ENV: 'production' }, { client: true }).ok).toBe(true);
     });
 });

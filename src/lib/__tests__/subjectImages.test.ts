@@ -2,8 +2,10 @@
 
 import { generateImageForSubject, generateImagesForMeeting, generationOffReason, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '../subjectImages';
 
-const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; SUBJECT_IMAGES_FALLBACK_PREFIX?: string; CDN_URL: string } = {
+const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_KEY?: string; DO_SPACES_SECRET?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; SUBJECT_IMAGES_FALLBACK_PREFIX?: string; CDN_URL: string } = {
     GEMINI_API_KEY: 'gemini-key',
+    DO_SPACES_KEY: 'key',
+    DO_SPACES_SECRET: 'secret',
     DO_SPACES_BUCKET: 'bucket',
     SUBJECT_IMAGES_PREFIX: 'subject-images/8bit',
     CDN_URL: 'https://cdn.example//',
@@ -11,7 +13,10 @@ const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAG
 // A getter: the imports above run before mockEnv is initialised, and the service reads env at call time.
 jest.mock('@/env.mjs', () => ({ get env() { return mockEnv; } }));
 
-jest.mock('@/lib/s3', () => ({ s3Client: { send: jest.fn() } }));
+jest.mock('@/lib/s3', () => ({
+    s3Client: { send: jest.fn() },
+    isStorageConfigured: () => Boolean(mockEnv.DO_SPACES_KEY && mockEnv.DO_SPACES_SECRET),
+}));
 
 const mockSendErrorAdminAlert = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/lib/discord-core', () => ({
@@ -88,6 +93,8 @@ beforeEach(() => {
     mockResolve.mockReset();
     mockCache.clear();
     mockEnv.GEMINI_API_KEY = 'gemini-key';
+    mockEnv.DO_SPACES_KEY = 'key';
+    mockEnv.DO_SPACES_SECRET = 'secret';
     mockEnv.SUBJECT_IMAGES_FALLBACK_PREFIX = undefined;
     mockResolve.mockResolvedValue(null);
     mockGenerate.mockResolvedValue(image);
@@ -134,6 +141,12 @@ describe('resolveSubjectImage', () => {
             expect(mockResolve).toHaveBeenCalledWith('s1', expect.objectContaining({ prefix: 'subject-images/8bit' }));
         });
 
+        it('asks only the fallback without a storage key', async () => {
+            mockEnv.DO_SPACES_KEY = undefined;
+            expect(await resolveSubjectImage('s1')).toEqual(fallbackImage);
+            expect(mockResolve).toHaveBeenCalledTimes(1);
+        });
+
         it('rethrows when the fallback cannot be read', async () => {
             mockResolve.mockReset();
             mockResolve.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('HEAD answered 500'));
@@ -141,7 +154,7 @@ describe('resolveSubjectImage', () => {
         });
 
         // Its subjects are production's: a drawing here pays again for production's image.
-        it('draws nothing, even with a Gemini key, and says why', async () => {
+        it('draws nothing, even with a Gemini key and a storage key, and says why', async () => {
             expect(isSubjectImageGenerationEnabled()).toBe(false);
             expect(generationOffReason()).toContain('SUBJECT_IMAGES_FALLBACK_PREFIX');
             expect(await generateImageForSubject('s1', { force: true })).toBe('disabled');
