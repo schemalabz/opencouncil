@@ -2,12 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { SearchInputPill } from '@/components/ui/search-input-pill';
-import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { cn } from '@/lib/utils';
 
 /**
- * The head of a contributions list: title with count, the AI notice, and the
- * compact search pill that hands the query to /search. One component because
+ * The head of a contributions list: title with count and the compact search pill that hands the query to /search. One component because
  * the person and party pages were carrying it as two byte-identical copies.
  */
 export function ContributionsHead({ title, count, placeholder, searchValue, onSearchChange, onSearchSubmit, className }: {
@@ -27,7 +25,6 @@ export function ContributionsHead({ title, count, placeholder, searchValue, onSe
                 {title}
                 {count > 0 && <span className="ml-1.5 text-sm font-normal text-muted-foreground">({count})</span>}
             </h2>
-            <AIGeneratedBadge />
             <form onSubmit={onSearchSubmit} className="ml-auto w-full sm:w-[260px]">
                 <SearchInputPill
                     value={searchValue}

@@ -24,6 +24,7 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 import { ContributionShareButton } from '@/components/sharing/ContributionShareButton';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { UnverifiedSpeakerLabel } from '@/components/persons/UnverifiedSpeakerLabel';
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 
 interface UtteranceTimeRange {
     startTimestamp: number;
@@ -257,6 +258,9 @@ export const ContributionCard = memo(function ContributionCard({
                 linkColor="black"
                 disableUtteranceExpansion={!!contextHeader}
             />
+            {/* Every card carries its own notice: a card is read, shared and
+                scrolled to on its own, away from any heading. */}
+            <AIGeneratedBadge className="mt-2 justify-end" />
         </div>
     );
 
