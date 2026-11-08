@@ -6,7 +6,7 @@ import { getRealmContactPhone, telHref } from "@/lib/realm";
 import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { MeetingStagesFlow } from "@/components/explain/MeetingStagesFlow";
-import { MeetingTimelineFigure } from "@/components/explain/MeetingTimelineFigure";
+import { MeetingPhases } from "@/components/explain/MeetingPhases";
 import { FeatureBlock } from "@/components/about/OpennessFeatures";
 import { OPENNESS_FEATURES } from "@/components/about/config";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
@@ -30,7 +30,7 @@ const fmt = (n: number) => n.toLocaleString("el-GR");
 /**
  * Product showcase reused from the /about page, rendered inside the
  * "Πως δουλεύει το OpenCouncil;" section of /explain (so it matches that
- * section's width): the "how it works" diagram followed by each openness
+ * section's width): the phases of a meeting followed by each openness
  * feature (Θέματα & Περιλήψεις, Αναζήτηση, Ενημερώσεις, Χάρτης θεμάτων) with
  * its interactive demo stacked below the text (rather than inline as on /about),
  * then the per-city coverage table, pricing and the closing call to action.
@@ -58,10 +58,10 @@ export function ExplainFeatures({
                 <p className="mt-3 leading-relaxed text-muted-foreground">
                     Στο OpenCouncil, μία συνεδρίαση περνάει από έξι φάσεις, από την πρόσκληση μέχρι τα πρακτικά. Κάποια
                     βήματα γίνονται με χρήση τεχνητής νοημοσύνης, κάποια από ανθρώπους της OpenCouncil, και κάποια από
-                    τον συνεργαζόμενο δήμο, συχνά την ίδια ώρα. Το σχήμα δείχνει τι κάνει ο καθένας σε κάθε φάση, και
-                    τι βλέπουν οι δημότες. Πατήστε μια στήλη για να δείτε τι γίνεται εκεί.
+                    τον συνεργαζόμενο δήμο, συχνά την ίδια ώρα. Για κάθε φάση, παρακάτω φαίνεται τι κάνει ο δήμος, τι
+                    κάνει το OpenCouncil και τι βλέπουν οι δημότες.
                 </p>
-                <MeetingTimelineFigure />
+                <MeetingPhases />
                 <p className="mt-6 leading-relaxed text-muted-foreground">
                     Μέσα στο OpenCouncil, το στάδιο στο οποίο βρίσκεται μια συνεδρίαση φαίνεται με τα εξής σύμβολα:
                 </p>

@@ -6,7 +6,7 @@
  * section's URL in their registry declaration, so every statement here must
  * describe what the product does today, not what it will do.
  *
- * Plain data, so the page, the figures and the changelog share one source.
+ * Plain data, so the page and the changelog share one source.
  */
 
 /** Who does a piece of the work. */
@@ -18,7 +18,7 @@ export const ACTOR_LABEL: Record<Actor, string> = {
     municipality: 'Ο δήμος',
 };
 
-/** The rows of the meeting timeline: who acts, and who sees the result. */
+/** The rows of each phase of a meeting: who acts, and who sees the result. */
 export type Lane = 'municipality' | 'opencouncil' | 'citizens';
 
 export const LANE_LABEL: Record<Lane, string> = {
@@ -31,9 +31,8 @@ export type MomentId = 'before' | 'meeting' | 'hours' | 'review' | 'checked' | '
 
 /**
  * One phase of a meeting's life, in time order, and what each row does
- * during it. `null` means the row does nothing in that phase. The phases are
- * the columns of the timeline figure; reading a column shows what happens at
- * the same time.
+ * during it. `null` means the row does nothing in that phase. Reading one
+ * phase shows what happens at the same time.
  */
 export interface TimelineMoment {
     id: MomentId;
