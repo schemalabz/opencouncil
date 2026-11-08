@@ -27,7 +27,7 @@ Deep dives into specific features — architecture, data flow, and implementatio
 - **[guides/editing-interface.md](./guides/editing-interface.md)** — Transcript editing mode: lifecycle, keyboard shortcuts, speaker management, timestamp adjustment
 - **[guides/consultations.md](./guides/consultations.md)** — Public consultation feature: regulation viewer, comments, geo-editor, JSON schema
 - **[guides/meeting-highlights.md](./guides/meeting-highlights.md)** — Video highlight generation: multi-page flow, video formats (16:9, 9:16), rendering
-- **[guides/subject-images.md](./guides/subject-images.md)** — AI-generated illustration per subject: the `@opencouncil/subject-images` library, the image route, pipeline triggers, the placeholder, admin replace, and the backfill script
+- **Subject images** — One AI-generated illustration per subject. Start at [`src/lib/subjectImages.ts`](../src/lib/subjectImages.ts), which wires the library `packages/subject-images` to the app. The image route, the `processAgenda` and `summarize` result handlers, and `scripts/backfill-subject-images.ts` call it. The variables are in [environment-variables.md](./environment-variables.md).
 - **[guides/og-images.md](./guides/og-images.md)** — Open Graph and story images: the shared frame, where each image renders, how pictures reach the renderer
 - **[guides/qr-campaigns.md](./guides/qr-campaigns.md)** — QR code redirect system with UTM tracking and analytics
 - **[guides/embed-widgets.md](./guides/embed-widgets.md)** — Iframe widgets for external sites: the meetings, hot subjects and meeting summary widgets, their params, theming, caching and the configurator

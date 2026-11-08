@@ -71,7 +71,8 @@ export const env = createEnv({
     // is generated and every subject shows the topic-coloured fallback.
     GEMINI_API_KEY: z.string().optional(),
     // Folder inside DO_SPACES_BUCKET that holds the subject illustrations. The
-    // folder names the style, so a restyle can write a sibling folder.
+    // folder names the style. A restyle points production at a new folder and
+    // draws it with scripts/backfill-subject-images.ts; the old folder stays.
     SUBJECT_IMAGES_PREFIX: z.string().min(1).default('subject-images/8bit'),
     // YouTube Data API v3 key (used by the poll-livestreams cron to find meeting
     // livestreams). Optional — when unset, the cron no-ops.
