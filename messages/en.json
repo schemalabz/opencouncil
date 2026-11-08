@@ -24,6 +24,7 @@
             "label": "AI-generated content",
             "title": "Made with artificial intelligence",
             "body": "The picture is an imaginary illustration the AI drew from the subject's title, not a photograph. The summary was written by AI from the meeting's transcript.",
+            "bodyText": "The text was written by AI from the meeting's transcript and can contain mistakes. The recording is the authoritative record.",
             "learnMore": "How it works"
         },
         "skipToContent": "Skip to main content",
