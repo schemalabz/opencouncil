@@ -18,7 +18,8 @@ import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
 import { AI_SUBSECTIONS, OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
-import { ExplainReader, type NavGroup } from "./ExplainReader";
+import { ExplainReader } from "./ExplainReader";
+import { TocTree, type TocGroup } from "@/components/explain/TocTree";
 import { ExplainFeatures } from "./ExplainFeatures";
 import { AiLiteracySection } from "./AiLiteracySection";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
@@ -45,8 +46,8 @@ const NAV_GROUPS = [
 
 const AI_SECTION_TITLE = OPENCOUNCIL_SUBSECTIONS.find((s) => s.id === "oc-ai")?.title ?? OPENCOUNCIL_TITLE;
 
-/** The same tree for the mobile contents drawer, with the AI parts under their section. */
-const NAV_TREE: NavGroup[] = NAV_GROUPS.map((g) => ({
+/** The table of contents, column and drawer alike, with the AI parts under their section. */
+const NAV_TREE: TocGroup[] = NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.map((it) =>
         it.id === "oc-ai" ? { ...it, children: AI_SUBSECTIONS.map((s) => ({ id: s.id, title: s.nav })) } : it,
@@ -225,46 +226,7 @@ export default async function ExplainPage() {
                     <h2 className="mb-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground !text-left">
                         Περιεχόμενα
                     </h2>
-                    <ol className="space-y-5">
-                        {NAV_GROUPS.map((g) => (
-                            <li key={g.id} data-toc-group={g.id}>
-                                <a
-                                    href={`#${g.id}`}
-                                    data-toc-grouphead
-                                    className="block py-1 text-sm font-bold text-foreground/80 transition-colors hover:text-orange aria-[current=true]:text-orange"
-                                >
-                                    {g.title}
-                                </a>
-                                <ol className="mt-1.5 space-y-0.5">
-                                    {g.items.map((it) => (
-                                        <li key={it.id} data-toc-subgroup={it.id === "oc-ai" ? it.id : undefined}>
-                                            <a
-                                                href={`#${it.id}`}
-                                                data-toc-subhead={it.id === "oc-ai" ? "" : undefined}
-                                                className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
-                                            >
-                                                {it.title}
-                                            </a>
-                                            {it.id === "oc-ai" && (
-                                                <ol className="space-y-0.5">
-                                                    {AI_SUBSECTIONS.map((sub) => (
-                                                        <li key={sub.id}>
-                                                            <a
-                                                                href={`#${sub.id}`}
-                                                                className="block border-l-2 border-border py-1 pl-7 text-[13px] leading-snug text-muted-foreground/80 transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:text-orange"
-                                                            >
-                                                                {sub.nav}
-                                                            </a>
-                                                        </li>
-                                                    ))}
-                                                </ol>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ol>
-                            </li>
-                        ))}
-                    </ol>
+                    <TocTree groups={NAV_TREE} />
                 </aside>
 
                 {/* two high-level parts */}

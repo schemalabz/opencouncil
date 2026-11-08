@@ -3,21 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUp, List } from "lucide-react";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
-
-interface Section {
-    id: string;
-    title: string;
-}
+import { TocTree, type TocGroup, type TocSection as Section } from "@/components/explain/TocTree";
 
 /** The drawer's "top of the page" target. */
 const TOP = "__top__";
-
-/** The table of contents as a tree: a part, its sections, and the parts of a section that has them. */
-export interface NavGroup {
-    id: string;
-    title: string;
-    items: (Section & { children?: Section[] })[];
-}
 
 /**
  * Client-side reading enhancements for the single-page /explain guide:
@@ -37,7 +26,7 @@ export function ExplainReader({
 }: {
     sections: Section[];
     /** The table of contents, for the mobile drawer. */
-    groups: NavGroup[];
+    groups: TocGroup[];
     /** Section id → its top-level part title, shown above the sticky subtitle. */
     sectionParents?: Record<string, string>;
     /** Page main title — the fallback shown above top-level parts that have no parent. */
@@ -194,10 +183,6 @@ export function ExplainReader({
     // Only surfaces once the reader is inside an article.
     if (active < 0) return null;
 
-    const current = (id: string) => (id === activeId ? "true" : undefined);
-    /** A part is current while any entry under it is. */
-    const holds = (ids: string[]) => (activeId && ids.includes(activeId) ? "true" : undefined);
-
     return (
         <>
             {stickySection && (
@@ -292,50 +277,7 @@ export function ExplainReader({
                     </div>
                     <DrawerDescription className="sr-only">Όλες οι ενότητες της σελίδας. Πατήστε μία για να πάτε εκεί.</DrawerDescription>
                     <div ref={tocListRef} className="overflow-y-auto overscroll-contain px-4 pb-8">
-                        <ol className="space-y-5">
-                            {groups.map((g) => (
-                                <li key={g.id}>
-                                    <a
-                                        href={`#${g.id}`}
-                                        aria-current={current(g.id) ?? holds(g.items.flatMap((it) => [it.id, ...(it.children?.map((c) => c.id) ?? [])]))}
-                                        onClick={(e) => { e.preventDefault(); goFromToc(g.id); }}
-                                        className="block py-1 text-sm font-bold text-foreground/80 aria-[current=true]:text-orange"
-                                    >
-                                        {g.title}
-                                    </a>
-                                    <ol className="mt-1.5 space-y-0.5">
-                                        {g.items.map((it) => (
-                                            <li key={it.id}>
-                                                <a
-                                                    href={`#${it.id}`}
-                                                    aria-current={current(it.id) ?? holds(it.children?.map((c) => c.id) ?? [])}
-                                                    onClick={(e) => { e.preventDefault(); goFromToc(it.id); }}
-                                                    className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
-                                                >
-                                                    {it.title}
-                                                </a>
-                                                {it.children && (
-                                                    <ol className="space-y-0.5">
-                                                        {it.children.map((sub) => (
-                                                            <li key={sub.id}>
-                                                                <a
-                                                                    href={`#${sub.id}`}
-                                                                    aria-current={current(sub.id)}
-                                                                    onClick={(e) => { e.preventDefault(); goFromToc(sub.id); }}
-                                                                    className="block border-l-2 border-border py-1 pl-7 text-[13px] leading-snug text-muted-foreground/80 aria-[current=true]:border-orange aria-[current=true]:text-orange"
-                                                                >
-                                                                    {sub.title}
-                                                                </a>
-                                                            </li>
-                                                        ))}
-                                                    </ol>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </li>
-                            ))}
-                        </ol>
+                        <TocTree groups={groups} activeId={activeId} onSelect={goFromToc} />
                     </div>
                 </DrawerContent>
             </Drawer>

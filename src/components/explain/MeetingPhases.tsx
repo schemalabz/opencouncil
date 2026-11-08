@@ -1,6 +1,6 @@
 import { LANE_LABEL, TIMELINE_MOMENTS, type Lane } from "@/lib/explain/aiLiteracy";
 
-const LANES: readonly Lane[] = ["municipality", "opencouncil", "citizens"];
+const LANES = Object.keys(LANE_LABEL) as Lane[];
 
 /**
  * The six phases of a meeting as a list: the phase on the left, and on the
