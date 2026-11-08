@@ -24,7 +24,7 @@ import {
  * needs for the national AI registry, and a change log.
  */
 
-/** Who answers for what. The AI is a tool, so it is not a card here. */
+/** Who is responsible for what. The AI is a tool, so it is not a card here. */
 const RESPONSIBILITIES: { actor: Actor; title: string; items: string[] }[] = [
     {
         actor: "opencouncil",
@@ -167,9 +167,6 @@ export function AiLiteracySection() {
             </p>
 
             <Sub id="oc-ai-who" />
-            <p className="mt-3 leading-relaxed text-muted-foreground">
-                Η τεχνητή νοημοσύνη είναι εργαλείο. Δεν ευθύνεται για τίποτα: ευθύνονται όσοι τη χρησιμοποιούν.
-            </p>
             <div className="not-prose mt-4 grid gap-3 sm:grid-cols-2">
                 {RESPONSIBILITIES.map(({ actor, title, items }) => {
                     const Icon = ACTOR_ICON[actor];
