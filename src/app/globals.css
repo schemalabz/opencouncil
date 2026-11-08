@@ -124,6 +124,19 @@ h2:not(.prose h2) {
   100% { stroke: #d4d4d8; }
 }
 
+/* /explain: the AI label on the specimen card glows three times when the
+   card scrolls into view, so the eye lands on the label the section explains. */
+@keyframes ai-label-flash {
+  0%, 100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; }
+  50% { background-color: hsl(var(--orange) / 0.16); box-shadow: 0 0 0 6px hsl(var(--orange) / 0.16); }
+}
+.ai-label-flash {
+  animation: ai-label-flash 1.3s ease-in-out 0.4s 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-label-flash { animation: none; }
+}
+
 /* Playback dock geometry shared across files: the layout's bottom reservation
    and the floating player's anchor must clear the dock exactly. The dock's own
    internal heights live in src/components/meetings/bar/geometry.ts. */

@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/routing";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
+import { AiLabelSpecimen } from "@/components/explain/AiLabelSpecimen";
 import { ACTOR_ICON } from "@/components/explain/actorIcons";
 import { RegistryDownloadButton } from "@/components/explain/RegistryDownloadButton";
 import { REGISTRY_ITEMS, REGISTRY_LAW } from "@/lib/explain/registry";
@@ -145,17 +146,7 @@ export function AiLiteracySection() {
                 Κάθε κείμενο που έγραψε η ΤΝ χωρίς να το ελέγξει άνθρωπος έχει δίπλα του την ένδειξη «Κείμενο από ΤΝ».
                 Έτσι φαίνεται σε μια σύνοψη θέματος:
             </p>
-            {/* the summary block of a subject page, as it is: heading, badge beside it, text under it */}
-            <figure className="not-prose mt-4 max-w-xl rounded-xl border border-border bg-muted/30 px-5 py-4">
-                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                    <p className="text-base font-semibold tracking-[.01em] text-foreground">Σύνοψη</p>
-                    <AIGeneratedBadge />
-                </div>
-                <p className="mt-2 max-w-[70ch] text-[14.5px] leading-[1.65] text-foreground/85">
-                    Το συμβούλιο ενέκρινε τη μελέτη για τον πεζόδρομο της οδού Ερμού, με αντίρρηση της μειοψηφίας
-                    για το κόστος.
-                </p>
-            </figure>
+            <AiLabelSpecimen />
             <p className="mt-4 leading-relaxed text-muted-foreground">
                 Θα τη δείτε στις συνόψεις των θεμάτων, στις τοποθετήσεις ανά ομιλητή, στις εικόνες και σε άλλα
                 σημεία. Η ελεγμένη απομαγνητοφώνηση δεν την έχει, επειδή την έχει διαβάσει άνθρωπος. Τα μηνύματα ενημέρωσης στο
