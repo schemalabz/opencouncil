@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowUp, ArrowRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, ArrowUp, List } from "lucide-react";
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 
 interface Section {
     id: string;
     title: string;
+}
+
+/** The drawer's "top of the page" target. */
+const TOP = "__top__";
+
+/** The table of contents as a tree: a part, its sections, and the parts of a section that has them. */
+export interface NavGroup {
+    id: string;
+    title: string;
+    items: (Section & { children?: Section[] })[];
 }
 
 /**
@@ -15,14 +26,18 @@ interface Section {
  *  - keeps the URL hash in sync with the active section (/explain#<id>) so any
  *    section is deep-linkable and shareable;
  *  - highlights the matching link in the sticky desktop table of contents;
- *  - renders the mobile prev/next navigator fixed to the bottom of the screen.
+ *  - renders the mobile navigator fixed to the bottom of the screen: previous
+ *    and next section, and a button that opens the full table of contents.
  */
 export function ExplainReader({
     sections,
+    groups,
     sectionParents,
     mainTitle,
 }: {
     sections: Section[];
+    /** The table of contents, for the mobile drawer. */
+    groups: NavGroup[];
     /** Section id → its top-level part title, shown above the sticky subtitle. */
     sectionParents?: Record<string, string>;
     /** Page main title — the fallback shown above top-level parts that have no parent. */
@@ -132,7 +147,45 @@ export function ExplainReader({
         document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
+    const [tocOpen, setTocOpen] = useState(false);
+    const tocListRef = useRef<HTMLDivElement>(null);
+
+    // Open on the entry the reader is at, not at the top of the list.
+    useEffect(() => {
+        if (!tocOpen) return;
+        const frame = requestAnimationFrame(() => {
+            const list = tocListRef.current;
+            const link = list?.querySelector<HTMLElement>('a[aria-current="true"]');
+            if (list && link) list.scrollTop = link.offsetTop - list.clientHeight / 2;
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [tocOpen]);
+
+    // Close first, scroll once the drawer has let go of the page. While it is
+    // open, vaul pins the body (position: fixed), so a scroll does nothing;
+    // as it closes, vaul unpins the body and, one frame later, puts the page
+    // scroll back where it was. Wait for the unpin, then two frames.
+    const goFromToc = (id: string) => {
+        setTocOpen(false);
+        const started = performance.now();
+        const scroll = () => {
+            if (id === TOP) window.scrollTo({ top: 0, behavior: "smooth" });
+            else go(id);
+        };
+        const tick = () => {
+            const pinned = document.body.style.position === "fixed";
+            if (pinned && performance.now() - started < 3000) {
+                requestAnimationFrame(tick);
+                return;
+            }
+            requestAnimationFrame(() => requestAnimationFrame(scroll));
+        };
+        requestAnimationFrame(tick);
+    };
+
+    const prev = active > 0 ? sections[active - 1] : null;
     const next = active >= 0 && active < sections.length - 1 ? sections[active + 1] : null;
+    const activeId = active >= 0 ? sections[active].id : null;
 
     const stickySection = stickyIdx >= 0 ? sections[stickyIdx] : null;
     // the section's parent part, or the page's main title for top-level parts
@@ -140,6 +193,10 @@ export function ExplainReader({
 
     // Only surfaces once the reader is inside an article.
     if (active < 0) return null;
+
+    const current = (id: string) => (id === activeId ? "true" : undefined);
+    /** A part is current while any entry under it is. */
+    const holds = (ids: string[]) => (activeId && ids.includes(activeId) ? "true" : undefined);
 
     return (
         <>
@@ -160,36 +217,128 @@ export function ExplainReader({
                 aria-label="Πλοήγηση άρθρων"
                 className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/90 backdrop-blur lg:hidden"
             >
-            <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2">
-                <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    aria-label="Πάνω"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange text-white transition-colors hover:bg-orange/90"
-                >
-                    <ArrowUp className="h-5 w-5" />
-                </button>
-                {next ? (
+                <div className="mx-auto flex max-w-6xl items-center gap-1 px-2 py-1.5">
+                    {prev ? (
+                        <button
+                            type="button"
+                            onClick={() => go(prev.id)}
+                            className="flex min-w-0 flex-1 items-center gap-2 px-1.5 py-1.5 text-left"
+                        >
+                            <ArrowLeft className="h-5 w-5 shrink-0 text-orange" aria-hidden="true" />
+                            <span className="min-w-0">
+                                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    Προηγούμενο
+                                </span>
+                                <span className="line-clamp-2 text-[13px] font-semibold leading-tight [overflow-wrap:anywhere]">
+                                    {prev.title}
+                                </span>
+                            </span>
+                        </button>
+                    ) : (
+                        <span className="flex-1" />
+                    )}
                     <button
                         type="button"
-                        onClick={() => go(next.id)}
-                        className="flex min-w-0 flex-1 flex-row-reverse items-center gap-2 px-1 py-2 text-right"
+                        onClick={() => setTocOpen(true)}
+                        aria-label="Περιεχόμενα"
+                        aria-haspopup="dialog"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange text-white transition-colors hover:bg-orange/90"
                     >
-                        <ArrowRight className="h-5 w-5 shrink-0 text-orange" />
-                        <span className="min-w-0">
-                            <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                                Επόμενο
-                            </span>
-                            <span className="block text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
-                                {next.title}
-                            </span>
-                        </span>
+                        <List className="h-5 w-5" aria-hidden="true" />
                     </button>
-                ) : (
-                    <span className="flex-1" />
-                )}
-            </div>
+                    {next ? (
+                        <button
+                            type="button"
+                            onClick={() => go(next.id)}
+                            className="flex min-w-0 flex-1 flex-row-reverse items-center gap-2 px-1.5 py-1.5 text-right"
+                        >
+                            <ArrowRight className="h-5 w-5 shrink-0 text-orange" aria-hidden="true" />
+                            <span className="min-w-0">
+                                <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    Επόμενο
+                                </span>
+                                <span className="line-clamp-2 text-[13px] font-semibold leading-tight [overflow-wrap:anywhere]">
+                                    {next.title}
+                                </span>
+                            </span>
+                        </button>
+                    ) : (
+                        <span className="flex-1" />
+                    )}
+                </div>
             </nav>
+
+            {/* vaul skips putting the page scroll back when the URL changed while the
+                drawer was open, and the scroll-spy changes the hash. Always put it back. */}
+            <Drawer open={tocOpen} onOpenChange={setTocOpen} preventScrollRestoration={false}>
+                <DrawerContent
+                    className="flex max-h-[85vh] flex-col"
+                    onOpenAutoFocus={(event) => event.preventDefault()}
+                    // Focus going back to the bar's button would cut the scroll to the tapped entry short.
+                    onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                    <div className="flex items-center justify-between px-4 pb-2 pt-2">
+                        <DrawerTitle className="!m-0 !text-left !text-xs !font-bold !leading-none uppercase tracking-wider !text-muted-foreground">
+                            Περιεχόμενα
+                        </DrawerTitle>
+                        <button
+                            type="button"
+                            onClick={() => goFromToc(TOP)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground"
+                        >
+                            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                            Αρχή σελίδας
+                        </button>
+                    </div>
+                    <DrawerDescription className="sr-only">Όλες οι ενότητες της σελίδας. Πατήστε μία για να πάτε εκεί.</DrawerDescription>
+                    <div ref={tocListRef} className="overflow-y-auto overscroll-contain px-4 pb-8">
+                        <ol className="space-y-5">
+                            {groups.map((g) => (
+                                <li key={g.id}>
+                                    <a
+                                        href={`#${g.id}`}
+                                        aria-current={current(g.id) ?? holds(g.items.flatMap((it) => [it.id, ...(it.children?.map((c) => c.id) ?? [])]))}
+                                        onClick={(e) => { e.preventDefault(); goFromToc(g.id); }}
+                                        className="block py-1 text-sm font-bold text-foreground/80 aria-[current=true]:text-orange"
+                                    >
+                                        {g.title}
+                                    </a>
+                                    <ol className="mt-1.5 space-y-0.5">
+                                        {g.items.map((it) => (
+                                            <li key={it.id}>
+                                                <a
+                                                    href={`#${it.id}`}
+                                                    aria-current={current(it.id) ?? holds(it.children?.map((c) => c.id) ?? [])}
+                                                    onClick={(e) => { e.preventDefault(); goFromToc(it.id); }}
+                                                    className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
+                                                >
+                                                    {it.title}
+                                                </a>
+                                                {it.children && (
+                                                    <ol className="space-y-0.5">
+                                                        {it.children.map((sub) => (
+                                                            <li key={sub.id}>
+                                                                <a
+                                                                    href={`#${sub.id}`}
+                                                                    aria-current={current(sub.id)}
+                                                                    onClick={(e) => { e.preventDefault(); goFromToc(sub.id); }}
+                                                                    className="block border-l-2 border-border py-1 pl-7 text-[13px] leading-snug text-muted-foreground/80 aria-[current=true]:border-orange aria-[current=true]:text-orange"
+                                                                >
+                                                                    {sub.title}
+                                                                </a>
+                                                            </li>
+                                                        ))}
+                                                    </ol>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ol>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                </DrawerContent>
+            </Drawer>
         </>
     );
 }

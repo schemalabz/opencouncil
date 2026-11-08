@@ -18,7 +18,7 @@ import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
 import { AI_SUBSECTIONS, OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
-import { ExplainReader } from "./ExplainReader";
+import { ExplainReader, type NavGroup } from "./ExplainReader";
 import { ExplainFeatures } from "./ExplainFeatures";
 import { AiLiteracySection } from "./AiLiteracySection";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
@@ -44,6 +44,14 @@ const NAV_GROUPS = [
 ];
 
 const AI_SECTION_TITLE = OPENCOUNCIL_SUBSECTIONS.find((s) => s.id === "oc-ai")?.title ?? OPENCOUNCIL_TITLE;
+
+/** The same tree for the mobile contents drawer, with the AI parts under their section. */
+const NAV_TREE: NavGroup[] = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.map((it) =>
+        it.id === "oc-ai" ? { ...it, children: AI_SUBSECTIONS.map((s) => ({ id: s.id, title: s.nav })) } : it,
+    ),
+}));
 
 /** Full scroll-spy / mobile-nav order (top → bottom of the page). The AI parts follow their section. */
 const NAV_SECTIONS = [
@@ -306,7 +314,7 @@ export default async function ExplainPage() {
             <hr className="mt-16 border-t border-border" />
             <SubstackCarousel id="substack" posts={SUBSTACK_POSTS} heading={SUBSTACK_HEADING} />
 
-            <ExplainReader sections={NAV_SECTIONS} sectionParents={SECTION_PARENTS} mainTitle={PAGE_TITLE} />
+            <ExplainReader sections={NAV_SECTIONS} groups={NAV_TREE} sectionParents={SECTION_PARENTS} mainTitle={PAGE_TITLE} />
         </div>
     );
 }
