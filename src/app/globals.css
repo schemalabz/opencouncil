@@ -124,17 +124,28 @@ h2:not(.prose h2) {
   100% { stroke: #d4d4d8; }
 }
 
-/* /explain: the AI label on the specimen card glows three times when the
-   card scrolls into view, so the eye lands on the label the section explains. */
-@keyframes ai-label-flash {
+/* /explain: the AI label on the specimen card keeps pulsing once the card has
+   scrolled into view: a soft glow behind it, and the label itself grows a
+   little and turns orange, so the eye lands on the thing the part explains. */
+@keyframes ai-label-glow {
   0%, 100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; }
-  50% { background-color: hsl(var(--orange) / 0.16); box-shadow: 0 0 0 6px hsl(var(--orange) / 0.16); }
+  50% { background-color: hsl(var(--orange) / 0.14); box-shadow: 0 0 0 6px hsl(var(--orange) / 0.14); }
+}
+@keyframes ai-label-lift {
+  0%, 100% { color: hsl(var(--muted-foreground)); transform: scale(1); }
+  50% { color: hsl(var(--orange)); transform: scale(1.08); }
 }
 .ai-label-flash {
-  animation: ai-label-flash 1.3s ease-in-out 0.4s 3;
+  animation: ai-label-glow 2.2s ease-in-out 0.4s infinite;
+}
+.ai-label-flash > div {
+  transform-origin: left center;
+  animation: ai-label-lift 2.2s ease-in-out 0.4s infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .ai-label-flash { animation: none; }
+  .ai-label-flash,
+  .ai-label-flash > div { animation: none; }
+  .ai-label-flash > div { color: hsl(var(--orange)); }
 }
 
 /* Playback dock geometry shared across files: the layout's bottom reservation

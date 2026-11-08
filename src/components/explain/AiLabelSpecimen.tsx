@@ -14,9 +14,9 @@ const SUMMARY =
 /**
  * The summary block of a subject page, as a specimen: the heading, the AI
  * label beside it and the text under it, in the subject page's own sizes.
- * The label glows a few times when the card scrolls into view, so the eye
- * finds the thing the section is about. Once per page load, and never
- * under prefers-reduced-motion (globals.css).
+ * Once the card scrolls into view, the label keeps pulsing: a glow behind
+ * it, and the label grows a little and turns orange. Reduced motion shows
+ * it orange and still (globals.css).
  */
 export function AiLabelSpecimen() {
     const ref = useRef<HTMLElement>(null);
@@ -43,6 +43,9 @@ export function AiLabelSpecimen() {
             ref={ref}
             className="not-prose mx-auto mt-6 max-w-xl rounded-2xl border border-border bg-background px-6 py-5 shadow-sm sm:px-7 sm:py-6"
         >
+            <figcaption className="mb-3.5 inline-flex items-center rounded-full bg-orange/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-orange">
+                Υποθετικό παράδειγμα
+            </figcaption>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <p className="text-base font-semibold tracking-[.01em] text-foreground">Σύνοψη</p>
                 <span className={cn("-mx-1.5 -my-0.5 inline-flex rounded-md px-1.5 py-0.5", seen && "ai-label-flash")}>

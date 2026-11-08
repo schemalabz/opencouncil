@@ -253,8 +253,8 @@ export function AiLiteracySection() {
             </p>
             <ul className="not-prose mt-3 space-y-1.5 text-sm text-muted-foreground">
                 {CHANGELOG.map((c) => (
-                    <li key={c.date} className="flex gap-3">
-                        <time dateTime={c.date} className="shrink-0 font-mono text-xs text-foreground/70">
+                    <li key={c.date} className="flex items-baseline gap-3">
+                        <time dateTime={c.date} className="shrink-0 text-sm tabular-nums text-foreground/70">
                             {formatDate(new Date(c.date))}
                         </time>
                         <span>{c.text}</span>
