@@ -145,16 +145,16 @@ export function AiLiteracySection() {
                 Κάθε κείμενο που έγραψε η ΤΝ χωρίς να το ελέγξει άνθρωπος έχει δίπλα του την ένδειξη «Κείμενο από ΤΝ».
                 Έτσι φαίνεται σε μια σύνοψη θέματος:
             </p>
-            <figure className="not-prose mt-4 max-w-md rounded-xl border border-border bg-background p-4 shadow-sm">
-                <p className="text-sm font-semibold text-foreground">Σύνοψη</p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            {/* the summary block of a subject page, as it is: heading, badge beside it, text under it */}
+            <figure className="not-prose mt-4 max-w-xl rounded-xl border border-border bg-muted/30 px-5 py-4">
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                    <p className="text-base font-semibold tracking-[.01em] text-foreground">Σύνοψη</p>
+                    <AIGeneratedBadge />
+                </div>
+                <p className="mt-2 max-w-[70ch] text-[14.5px] leading-[1.65] text-foreground/85">
                     Το συμβούλιο ενέκρινε τη μελέτη για τον πεζόδρομο της οδού Ερμού, με αντίρρηση της μειοψηφίας
                     για το κόστος.
                 </p>
-                <div className="mt-3 flex items-center justify-between border-t border-border pt-2">
-                    <span className="text-xs text-muted-foreground">παράδειγμα</span>
-                    <AIGeneratedBadge />
-                </div>
             </figure>
             <p className="mt-4 leading-relaxed text-muted-foreground">
                 Θα τη δείτε στις συνόψεις των θεμάτων, στις τοποθετήσεις ανά ομιλητή, στις εικόνες και σε άλλα
