@@ -126,8 +126,9 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `ANTHROPIC_API_KEY` | API key for Claude. | Yes | - |
-| `GEMINI_API_KEY` | Gemini key for the subject illustrations. When unset, no image is generated and subjects show the topic-coloured fallback. | No | - |
+| `GEMINI_API_KEY` | Gemini key for the subject illustrations. Generation also needs `SUBJECT_IMAGES_FALLBACK_PREFIX` to be unset, which is true in production only. When no image is generated, subjects show the topic-coloured placeholder. | No | - |
 | `SUBJECT_IMAGES_PREFIX` | Folder inside `DO_SPACES_BUCKET` that holds the subject illustrations. The folder names the style. | No | `subject-images/8bit` |
+| `SUBJECT_IMAGES_FALLBACK_PREFIX` | Production's folder of subject illustrations, read through `CDN_URL` without a key when this deployment has no image for a subject. Where it is set, no image is generated. Derived from `DEPLOYMENT_ENV`, so no deployment sets it: unset in production, production's folder everywhere else. A value set in production is refused at start-up. | No | `subject-images/prod/8bit` outside production |
 
 ### Search Configuration
 | Variable | Description | Required | Default |
@@ -145,8 +146,8 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `DO_SPACES_ENDPOINT` | Storage endpoint. | Yes | - |
-| `DO_SPACES_KEY` | Storage access key. | Yes | - |
-| `DO_SPACES_SECRET` | Storage secret key. | Yes | - |
+| `DO_SPACES_KEY` | Storage access key. Set it together with `DO_SPACES_SECRET`. Both may be empty outside production: the app then writes nothing to the bucket and uploads fail. Contributors get no key. | In production | - |
+| `DO_SPACES_SECRET` | Storage secret key. See `DO_SPACES_KEY`. | In production | - |
 | `DO_SPACES_BUCKET` | Storage bucket name. | Yes | - |
 | `CDN_URL` | CDN URL for serving static assets from storage. | Yes | - |
 

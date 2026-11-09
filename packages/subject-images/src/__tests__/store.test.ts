@@ -81,6 +81,77 @@ describe('resolve', () => {
     });
 });
 
+describe('resolve without a storage key', () => {
+    const url = 'https://cdn.example/subject-images/8bit/abc.webp';
+
+    function fakeFetch(answer: Response | Error): jest.Mock {
+        return answer instanceof Error ? jest.fn().mockRejectedValue(answer) : jest.fn().mockResolvedValue(answer);
+    }
+
+    it('asks the public URL with an unsigned HEAD and uses its ETag as the cache-buster', async () => {
+        const fetch = fakeFetch(new Response(null, { status: 200, headers: { ETag: '"etag123"' } }));
+        const result = await resolve('abc', { ...deps, client: null, fetch });
+        expect(result).toEqual({ url: `${url}?v=etag123` });
+        expect(fetch).toHaveBeenCalledTimes(1);
+        const [requested, init] = fetch.mock.calls[0];
+        expect(requested).toMatch(new RegExp(`^${url}\\?lookup=[0-9a-f-]{36}$`));
+        expect(init).toMatchObject({ method: 'HEAD', cache: 'no-store', redirect: 'manual' });
+        expect(init.headers).toBeUndefined();
+        expect(init.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    // The CDN keeps an object's answer for a year; a query it has not seen makes it ask the bucket.
+    it('asks with a query no earlier lookup used, so the CDN cannot answer with a replaced image', async () => {
+        const fetch = jest.fn().mockImplementation(async () => new Response(null, { status: 200, headers: { ETag: '"e"' } }));
+        await resolve('abc', { ...deps, client: null, fetch });
+        await resolve('abc', { ...deps, client: null, fetch });
+        expect(fetch.mock.calls[0][0]).not.toBe(fetch.mock.calls[1][0]);
+    });
+
+    it('throws on a redirect rather than trust another origin', async () => {
+        const fetch = fakeFetch(new Response(null, { status: 302, headers: { Location: 'https://elsewhere.example/x' } }));
+        await expect(resolve('abc', { ...deps, client: null, fetch })).rejects.toThrow(`HEAD ${url} answered 302`);
+    });
+
+    it('drops the weak marker a proxy may add to the ETag', async () => {
+        const fetch = fakeFetch(new Response(null, { status: 200, headers: { ETag: 'W/"etag123"' } }));
+        expect(await resolve('abc', { ...deps, client: null, fetch })).toEqual({ url: `${url}?v=etag123` });
+    });
+
+    it('returns null for a 404, and for the 403 Spaces answers when the object is not there', async () => {
+        for (const status of [404, 403]) {
+            const fetch = fakeFetch(new Response(null, { status }));
+            expect(await resolve('abc', { ...deps, client: null, fetch })).toBeNull();
+        }
+    });
+
+    it('rethrows a server error and a network error', async () => {
+        await expect(resolve('abc', { ...deps, client: null, fetch: fakeFetch(new Response(null, { status: 503 })) }))
+            .rejects.toThrow(`HEAD ${url} answered 503`);
+        const networkError = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND cdn.example') });
+        await expect(resolve('abc', { ...deps, client: null, fetch: fakeFetch(networkError) }))
+            .rejects.toThrow(`HEAD ${url} failed: getaddrinfo ENOTFOUND cdn.example`);
+        // A refused connection: an AggregateError with an empty message, and a code.
+        const refused = new TypeError('fetch failed', { cause: Object.assign(new AggregateError([], ''), { code: 'ECONNREFUSED' }) });
+        await expect(resolve('abc', { ...deps, client: null, fetch: fakeFetch(refused) }))
+            .rejects.toThrow(`HEAD ${url} failed: ECONNREFUSED`);
+    });
+
+    it('refuses a bad id before any request', async () => {
+        const fetch = jest.fn();
+        await expect(resolve('../../logo', { ...deps, client: null, fetch })).rejects.toThrow('Not a subject image id');
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('never asks the public URL when a key is configured', async () => {
+        const fetch = jest.fn();
+        const send = jest.fn().mockResolvedValue({ ETag: '"etag123"' });
+        await resolve('abc', { ...deps, client: fakeClient(send), fetch });
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
 describe('store', () => {
     it('writes a public WebP object at the subject key', async () => {
         const send = jest.fn().mockResolvedValue({});

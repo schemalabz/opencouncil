@@ -34,10 +34,21 @@ export interface StoreDeps {
     prefix: string;
 }
 
-export interface ResolveDeps extends StoreDeps {
+export interface ResolveDeps extends Omit<StoreDeps, 'client'> {
+    /**
+     * Signs the lookup against the bucket. `null` asks the public URL instead,
+     * which serves the same objects without a key: for a deployment without a
+     * storage key, and for a folder this deployment only reads.
+     */
+    client: S3Client | null;
     /** Public origin the objects are served from, without a trailing slash (the CDN, or the bucket itself). */
     publicBaseUrl: string;
+    /** The unsigned lookup's HTTP client; tests pass a fake. */
+    fetch?: typeof fetch;
 }
+
+/** An unsigned lookup that hangs must not hold up the page that asked. */
+const PUBLIC_HEAD_TIMEOUT_MS = 5000;
 
 export interface ResolvedImage {
     url: string;
@@ -66,14 +77,22 @@ export function isS3NotFound(error: unknown): boolean {
  * a new URL and no CDN or browser cache keeps serving the old one.
  */
 export async function resolve(subjectId: string, deps: ResolveDeps): Promise<ResolvedImage | null> {
+    const key = objectKey(subjectId, deps.prefix);
+    // A no-op for the ids the guard admits; it keeps the URL right if that pattern ever widens.
+    const url = `${deps.publicBaseUrl}/${key.split('/').map(encodeURIComponent).join('/')}`;
+    const etag = deps.client
+        ? await signedETag(deps.client, deps.bucket, key)
+        : await publicETag(url, deps.fetch ?? fetch);
+    if (etag === null) return null;
+    const version = etag?.replace(/^W\//, '').replace(/"/g, '');
+    return { url: `${url}${version ? `?v=${encodeURIComponent(version)}` : ''}` };
+}
+
+/** The object's ETag from a signed HeadObject, `undefined` when it has none, `null` when there is no object. */
+async function signedETag(client: S3Client, bucket: string, key: string): Promise<string | undefined | null> {
     try {
-        const key = objectKey(subjectId, deps.prefix);
-        const head = await deps.client.send(new HeadObjectCommand({ Bucket: deps.bucket, Key: key }));
-        const version = head.ETag?.replace(/"/g, '');
-        // A no-op for the ids the guard admits; it keeps the URL right if that pattern ever widens.
-        const path = key.split('/').map(encodeURIComponent).join('/');
-        const url = `${deps.publicBaseUrl}/${path}${version ? `?v=${version}` : ''}`;
-        return { url };
+        const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+        return head.ETag;
     } catch (error) {
         if (isS3NotFound(error)) return null;
         // A key that may read and write objects but not list the bucket gets
@@ -85,6 +104,38 @@ export async function resolve(subjectId: string, deps: ResolveDeps): Promise<Res
         if (asS3Error(error)?.$metadata?.httpStatusCode === 403) return null;
         throw error;
     }
+}
+
+/**
+ * The same answer from an unsigned HEAD on the public URL. The bucket does not
+ * let the public list it, so Spaces answers 403, not 404, for an object that is
+ * not there; both read as a miss. Any other status, a timeout and a network
+ * error throw, as a bucket that cannot be read does on the signed path.
+ *
+ * The CDN in front of the bucket caches an object's answer for a year
+ * (`immutable`), so a HEAD on the bare URL would keep a replaced object's old
+ * ETag. A query that no one has asked before makes the CDN ask the bucket.
+ * A redirect is not followed: it throws below, as a wrong origin should.
+ */
+async function publicETag(url: string, fetchImpl: typeof fetch): Promise<string | undefined | null> {
+    let response: Response;
+    try {
+        response = await fetchImpl(`${url}?lookup=${crypto.randomUUID()}`, {
+            method: 'HEAD',
+            cache: 'no-store',
+            redirect: 'manual',
+            signal: AbortSignal.timeout(PUBLIC_HEAD_TIMEOUT_MS),
+        });
+    } catch (error) {
+        // fetch says only "fetch failed" and keeps the reason (DNS, refused, timeout) in `cause`; the alert shows the message.
+        // A refused connection is an AggregateError with an empty message; its code says why.
+        const cause = error instanceof Error ? error.cause : undefined;
+        const reason = cause instanceof Error ? cause.message || (cause as { code?: string }).code || String(cause) : String(error);
+        throw new Error(`HEAD ${url} failed: ${reason}`, { cause: error });
+    }
+    if (response.status === 404 || response.status === 403) return null;
+    if (!response.ok) throw new Error(`HEAD ${url} answered ${response.status}`);
+    return response.headers.get('etag') ?? undefined;
 }
 
 /** The subjects that have an object under the prefix: one request per 1,000 keys. */

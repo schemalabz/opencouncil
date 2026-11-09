@@ -5,9 +5,11 @@ import { UnreadableImageError } from '@opencouncil/subject-images';
 import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
 import { GET, POST } from '../route';
 import { getCurrentUser } from '@/lib/auth';
+import { isStorageConfigured } from '@/lib/s3';
 import {
     generateImageForSubject,
     generateImageForSubjectInBackground,
+    generationOffReason,
     isSubjectImageGenerationEnabled,
     reportLookupFailure,
     resolveSubjectImage,
@@ -33,9 +35,12 @@ jest.mock('@/lib/db/subject', () => ({
     subjectIsPublic: (...args: unknown[]) => mockSubjectIsPublic(...args),
 }));
 
+jest.mock('@/lib/s3', () => ({ isStorageConfigured: jest.fn() }));
+
 jest.mock('@/lib/subjectImages', () => ({
     generateImageForSubject: jest.fn(),
     generateImageForSubjectInBackground: jest.fn().mockResolvedValue(undefined),
+    generationOffReason: jest.fn(),
     isSubjectImageGenerationEnabled: jest.fn(),
     reportLookupFailure: jest.fn().mockResolvedValue(undefined),
     resolveSubjectImage: jest.fn(),
@@ -55,6 +60,8 @@ const mockEnabled = isSubjectImageGenerationEnabled as jest.MockedFunction<typeo
 const mockReportLookupFailure = reportLookupFailure as jest.MockedFunction<typeof reportLookupFailure>;
 const mockResolve = resolveSubjectImage as jest.MockedFunction<typeof resolveSubjectImage>;
 const mockStore = storeSubjectImage as jest.MockedFunction<typeof storeSubjectImage>;
+const mockCanStore = isStorageConfigured as jest.MockedFunction<typeof isStorageConfigured>;
+const mockOffReason = generationOffReason as jest.MockedFunction<typeof generationOffReason>;
 
 const context = { params: Promise.resolve({ subjectId: 'subj-1' }) };
 const url = 'http://localhost/api/subject/subj-1/image';
@@ -62,6 +69,7 @@ const url = 'http://localhost/api/subject/subj-1/image';
 beforeEach(() => {
     jest.clearAllMocks();
     mockEnabled.mockReturnValue(true);
+    mockOffReason.mockReturnValue(null);
 });
 
 describe('GET /api/subject/[subjectId]/image', () => {
@@ -173,6 +181,7 @@ describe('POST /api/subject/[subjectId]/image', () => {
 
     beforeEach(() => {
         mockSubjectExists.mockResolvedValue(true);
+        mockCanStore.mockReturnValue(true);
     });
 
     it('rejects a non-superadmin with 403', async () => {
@@ -227,13 +236,15 @@ describe('POST /api/subject/[subjectId]/image', () => {
         expect(await res.json()).toEqual({ error: 'Image was not regenerated (in-flight)', outcome: 'in-flight' });
     });
 
-    it('returns 503 for generate mode when generation is off', async () => {
+    it('returns 503 for generate mode when generation is off, with the reason', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
-        mockEnabled.mockReturnValue(false);
+        mockOffReason.mockReturnValue('GEMINI_API_KEY is not set');
 
         const res = await POST(generateRequest(), context);
 
         expect(res.status).toBe(503);
+        expect(await res.json()).toEqual({ error: 'Image generation is off: GEMINI_API_KEY is not set' });
+        expect(mockGenerate).not.toHaveBeenCalled();
     });
 
     it('turns a generation failure into a 500 that does not carry its message', async () => {
@@ -255,6 +266,19 @@ describe('POST /api/subject/[subjectId]/image', () => {
         expect(res.status).toBe(200);
         expect(mockStore).toHaveBeenCalledWith('subj-1', expect.any(Buffer));
         expect(Buffer.from(mockStore.mock.calls[0][1])).toEqual(Buffer.from([1, 2, 3]));
+    });
+
+    it('answers 503 for an upload where no storage key is configured, before reading it', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
+        mockCanStore.mockReturnValue(false);
+        const file = new File([new Uint8Array([1, 2, 3])], 'photo.png', { type: 'image/png' });
+        const request = uploadRequest(file);
+
+        const res = await POST(request, context);
+
+        expect(res.status).toBe(503);
+        expect(request.bodyUsed).toBe(false);
+        expect(mockStore).not.toHaveBeenCalled();
     });
 
     it('answers 400 with the reason when the bytes are not an image the library reads', async () => {
