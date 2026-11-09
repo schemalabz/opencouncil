@@ -153,6 +153,8 @@ export const startTaskToolInput = z.object({
     videoUrl: webUrl().optional()
         .meta({ description: 'transcribe only: the video to transcribe. Defaults to the youtubeUrl of the meeting. '
             + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds' }),
+    fast: z.boolean().optional()
+        .meta({ description: 'transcribe only: skip loudness normalization for a sooner transcript; the video keeps its original loudness' }),
     agendaUrl: webUrl().optional()
         .meta({ description: 'processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting' }),
     additionalInstructions: z.string().min(1).optional()
@@ -160,7 +162,7 @@ export const startTaskToolInput = z.object({
 }).superRefine((args, ctx) => {
     // An option of another step would be dropped without a word,
     // and the caller would believe it was used.
-    const belongsTo = { videoUrl: 'transcribe', agendaUrl: 'processAgenda', additionalInstructions: 'summarize' } as const;
+    const belongsTo = { videoUrl: 'transcribe', fast: 'transcribe', agendaUrl: 'processAgenda', additionalInstructions: 'summarize' } as const;
     for (const [option, step] of Object.entries(belongsTo)) {
         if (args[option as keyof typeof belongsTo] !== undefined && args.type !== step) {
             ctx.addIssue({ code: 'custom', path: [option], message: `${option} applies to ${step} only` });

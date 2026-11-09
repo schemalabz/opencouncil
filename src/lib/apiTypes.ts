@@ -50,6 +50,8 @@ export interface TranscribeRequest extends TaskRequest {
     youtubeUrl: string;
     voiceprints?: Voiceprint[];
     cityLanguage: CityLanguage;
+    /** Trade output quality for a sooner transcript: the video keeps its original loudness. */
+    fast?: boolean;
 }
 
 export type TranscriptWithUtteranceDrifts = Transcript & {

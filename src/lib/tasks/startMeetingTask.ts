@@ -63,7 +63,7 @@ export async function startMeetingTask(
                 if (!videoUrl) {
                     throw new BadRequestError('The meeting has no video URL. Pass videoUrl, or set youtubeUrl with update_meeting.');
                 }
-                return await requestTranscribeInternal(videoUrl, meetingId, cityId, { force });
+                return await requestTranscribeInternal(videoUrl, meetingId, cityId, { force, fast: request.fast });
             }
             case 'fixTranscript': {
                 if (!transcribed) throw new BadRequestError('The meeting has no transcript to fix. Start transcribe first.');
