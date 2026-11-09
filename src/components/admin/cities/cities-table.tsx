@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { City, CityStatus, Realm } from "@prisma/client";
 import { useLocale, useTranslations } from "next-intl";
 import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
-import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
+import { ALL_REALMS, getRealmBaseUrl, getRealmDisplayName } from "@/lib/realm";
 import { getLanguageDisplayName } from "@/i18n/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,6 +25,8 @@ type CityRow = City & { _count: CityCounts };
 
 interface CitiesAdminTableProps {
     cities: CityRow[];
+    /** Per-realm base URL from `realmBaseUrl`: one admin page lists cities of every realm. */
+    realmBaseUrls: Record<Realm, string>;
 }
 
 const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = {
@@ -33,7 +35,7 @@ const STATUS_VARIANT: Record<CityStatus, "default" | "secondary" | "outline"> = 
     pending: "outline",
 };
 
-export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
+export function CitiesAdminTable({ cities, realmBaseUrls }: CitiesAdminTableProps) {
     const t = useTranslations("admin.cities");
     const locale = useLocale();
     const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +59,11 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
     }, [filteredCities]);
 
     const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
+    // A preview or localhost serves one realm per host, so name the realm to see the city in its own realm.
+    const cityHref = (city: CityRow) => {
+        const base = realmBaseUrls[city.realm];
+        return base === getRealmBaseUrl(city.realm) ? `${base}/${city.id}` : `${base}/${city.id}?realm=${city.realm}`;
+    };
     const languageLabel = (language: City["language"]) => getLanguageDisplayName(language, locale);
 
     return (
@@ -116,7 +123,7 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                                             <TableCell className="font-medium">{city.name}</TableCell>
                                             <TableCell>
                                                 <a
-                                                    href={`/${city.id}`}
+                                                    href={cityHref(city)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="text-primary hover:underline"

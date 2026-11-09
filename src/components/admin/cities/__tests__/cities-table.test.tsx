@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { City, CityStatus, Realm } from "@prisma/client";
 import { CitiesAdminTable } from "../cities-table";
+import { ALL_REALMS, getRealmBaseUrl } from "@/lib/realm";
 
 // Translations render as their keys; realm labels come from Intl.DisplayNames
 // via useLocale, so pin the locale to make them assertable.
@@ -22,6 +23,10 @@ jest.mock("@/components/FormSheet", () => ({
 jest.mock("@/components/admin/cities/CouncilQrStripsButton", () => ({
     CouncilQrStripsButton: () => null,
 }));
+
+const productionBaseUrls = Object.fromEntries(
+    ALL_REALMS.map((realm) => [realm, getRealmBaseUrl(realm)]),
+) as Record<Realm, string>;
 
 type CityRow = City & { _count: { persons: number; parties: number; councilMeetings: number } };
 
@@ -61,7 +66,7 @@ describe("CitiesAdminTable realm grouping", () => {
     );
 
     it("renders a group with a distinct label for every realm", () => {
-        render(<CitiesAdminTable cities={cities} />);
+        render(<CitiesAdminTable cities={cities} realmBaseUrls={productionBaseUrls} />);
         for (const realm of Object.values(Realm)) {
             expect(screen.getByText(`Πόλη ${realm}`)).toBeInTheDocument();
         }
@@ -71,5 +76,22 @@ describe("CitiesAdminTable realm grouping", () => {
         expect(screen.getByText("Greece")).toBeInTheDocument();
         expect(screen.getByText("France")).toBeInTheDocument();
         expect(screen.getByText("Cyprus")).toBeInTheDocument();
+    });
+
+    it("links each city to its own realm's domain", () => {
+        render(<CitiesAdminTable cities={cities} realmBaseUrls={productionBaseUrls} />);
+        expect(screen.getByText("greece-city").closest("a")).toHaveAttribute("href", "https://opencouncil.gr/greece-city");
+        expect(screen.getByText("france-city").closest("a")).toHaveAttribute("href", "https://opencouncil.fr/france-city");
+    });
+
+    it("names the realm when every realm shares one preview host", () => {
+        const previewBaseUrls = Object.fromEntries(
+            ALL_REALMS.map((realm) => [realm, "https://pr-7.opencouncil.dev"]),
+        ) as Record<Realm, string>;
+        render(<CitiesAdminTable cities={cities} realmBaseUrls={previewBaseUrls} />);
+        expect(screen.getByText("france-city").closest("a")).toHaveAttribute(
+            "href",
+            "https://pr-7.opencouncil.dev/france-city?realm=france",
+        );
     });
 });
