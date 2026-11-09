@@ -122,6 +122,8 @@
       "agendaUrlPlaceholder": "https://...",
       "topicPlaceholder": "Topic {number}",
       "force": "Force",
+      "fast": "Fast",
+      "fastDescription": "Skips loudness normalization so the transcript arrives sooner. The video keeps its original loudness.",
       "forceDescription": {
         "transcribe": "Deletes all speaker segments, utterances, and summaries for this meeting, then re-transcribes from scratch.",
         "processAgenda": "Subjects still on the agenda are kept and updated; subjects no longer on it are deleted. Non-agenda subjects are deleted — re-run summarize to restore them. Auto-generated highlights are deleted; user-created highlights are kept.",
