@@ -122,7 +122,7 @@
       "agendaUrlPlaceholder": "https://...",
       "topicPlaceholder": "Θέμα {number}",
       "force": "Force",
-      "fast": "Γρήγορα",
+      "fast": "Fast",
       "fastDescription": "Παραλείπει την κανονικοποίηση έντασης ήχου, ώστε η απομαγνητοφώνηση να βγει νωρίτερα. Το βίντεο κρατά την αρχική του ένταση.",
       "forceDescription": {
         "transcribe": "Διαγράφει όλα τα speaker segments, utterances και summaries αυτής της συνεδρίασης και απομαγνητοφωνεί από την αρχή.",

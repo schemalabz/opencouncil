@@ -122,7 +122,7 @@
       "agendaUrlPlaceholder": "https://...",
       "topicPlaceholder": "Sujet {number}",
       "force": "Force",
-      "fast": "Rapide",
+      "fast": "Fast",
       "fastDescription": "Ignore la normalisation du volume pour obtenir la transcription plus tôt. La vidéo garde son volume d'origine.",
       "forceDescription": {
         "transcribe": "Supprime tous les segments d'intervenant, les énoncés et les résumés de cette séance, puis relance la transcription depuis le début.",

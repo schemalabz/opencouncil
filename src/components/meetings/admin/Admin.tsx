@@ -382,28 +382,23 @@ export default function AdminActions({
                                 onUrlChange={(url) => setMediaUrl(url)}
                                 config={{ cityId: meeting.cityId, identifier: meeting.id, kind: 'recording', councilMeetingId: meeting.id }}
                             />
-                            <div className="flex items-center justify-between space-x-2 w-full">
-                                <div className="flex items-center space-x-4">
-                                    <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id="force-transcribe"
-                                            checked={forceTranscribe}
-                                            onCheckedChange={setForceTranscribe}
-                                        />
-                                        <Label htmlFor="force-transcribe">{t('forms.force')}</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id="fast-transcribe"
-                                            checked={fastTranscribe}
-                                            onCheckedChange={setFastTranscribe}
-                                        />
-                                        <Label htmlFor="fast-transcribe">{t('forms.fast')}</Label>
-                                    </div>
+                            <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="force-transcribe"
+                                        checked={forceTranscribe}
+                                        onCheckedChange={setForceTranscribe}
+                                    />
+                                    <Label htmlFor="force-transcribe">{t('forms.force')}</Label>
                                 </div>
-                                <Button onClick={handleTranscribe} disabled={isTranscribing}>
-                                    {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
-                                </Button>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="fast-transcribe"
+                                        checked={fastTranscribe}
+                                        onCheckedChange={setFastTranscribe}
+                                    />
+                                    <Label htmlFor="fast-transcribe">{t('forms.fast')}</Label>
+                                </div>
                             </div>
                             {forceTranscribe && (
                                 <p className="text-xs text-muted-foreground">{t('forms.forceDescription.transcribe')}</p>
@@ -411,6 +406,11 @@ export default function AdminActions({
                             {fastTranscribe && (
                                 <p className="text-xs text-muted-foreground">{t('forms.fastDescription')}</p>
                             )}
+                            <div className="flex justify-end">
+                                <Button onClick={handleTranscribe} disabled={isTranscribing}>
+                                    {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
+                                </Button>
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>
