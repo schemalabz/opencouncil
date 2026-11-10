@@ -1,8 +1,9 @@
 import { getMeetingsNeedingReview, getReviewers, type ReviewListItem } from '@/lib/db/reviews';
 import { getMeetingUploadLists } from '@/lib/db/meetings';
+import { getSuperAdmins } from '@/lib/db/meetingReviewers';
 import { ExpandableMetricCard } from '@/components/admin/reviews/ExpandableMetricCard';
 import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
-import { ReviewFilters } from '@/components/admin/reviews/ReviewFilters';
+import { ReviewFilters, type ReviewSort } from '@/components/admin/reviews/ReviewFilters';
 import { ReviewVolumeChart } from '@/components/admin/reviews/ReviewVolumeChart';
 import { Last30DaysFilter } from '@/components/admin/reviews/Last30DaysFilter';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,7 +16,23 @@ interface PageProps {
     show?: 'needsAttention' | 'all' | 'completed';
     reviewerId?: string;
     last30Days?: string;
+    sort?: ReviewSort;
   }>;
+}
+
+/**
+ * Longest wait first puts the transcripts that still wait above the ones whose
+ * wait a review stopped, and orders each group by wait. The default order is
+ * the meeting date, newest first, from the query.
+ */
+function sortReviews(reviews: ReviewListItem[], sort: ReviewSort): ReviewListItem[] {
+  if (sort !== 'longestWait') return reviews;
+  return [...reviews].sort((a, b) => {
+    const aDone = a.reviewedAt !== null;
+    const bDone = b.reviewedAt !== null;
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return (b.reviewWaitMs ?? 0) - (a.reviewWaitMs ?? 0);
+  });
 }
 
 function filterReviewsByShow(reviews: ReviewListItem[], show: 'needsAttention' | 'all' | 'completed'): ReviewListItem[] {
@@ -56,18 +73,19 @@ export default async function ReviewsPage(props: PageProps) {
   // layout guard does not re-run on RSC navigation, so gate here too.
   await withUserAuthorizedToEdit({});
   const searchParams = await props.searchParams;
-  const { show = 'needsAttention', reviewerId, last30Days } = searchParams;
+  const { show = 'needsAttention', reviewerId, last30Days, sort = 'date' } = searchParams;
   const last30DaysBool = last30Days !== 'false';
 
   // Fetch all meetings once (with reviewerId filter if specified), then filter client-side
-  const [allReviews, reviewers, uploadLists] = await Promise.all([
+  const [allReviews, reviewers, superAdmins, uploadLists] = await Promise.all([
     getMeetingsNeedingReview({ show: 'all', reviewerId, last30Days: last30DaysBool }),
     getReviewers(),
+    getSuperAdmins(),
     getMeetingUploadLists(last30DaysBool)
   ]);
 
   // Filter for table display
-  const reviews = filterReviewsByShow(allReviews, show);
+  const reviews = sortReviews(filterReviewsByShow(allReviews, show), sort);
 
   // Calculate metrics from all reviews (not filtered by show, but respects reviewerId)
   const reviewMetrics = calculateReviewMetrics(allReviews);
@@ -132,10 +150,11 @@ export default async function ReviewsPage(props: PageProps) {
           show={show}
           reviewerId={reviewerId}
           reviewers={reviewers}
+          sort={sort}
         />
       </div>
 
-      <ReviewsTable reviews={reviews} />
+      <ReviewsTable reviews={reviews} superAdmins={superAdmins} />
     </div>
   );
 }

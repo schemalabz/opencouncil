@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
 import { formatDurationMs, formatNumericDate } from '@/lib/formatters/time';
 import { ExternalLink, AlertCircle, Clock, Info, Eye, CheckCircle, Loader2 } from 'lucide-react';
 import {
@@ -32,12 +31,15 @@ import {
 import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
 import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
 import { SendTranscriptButton } from './SendTranscriptButton';
+import { ReviewerSelect } from './ReviewerSelect';
+import type { ReviewerUser } from '@/lib/db/meetingReviewers';
 
 interface ReviewsTableProps {
   reviews: ReviewListItem[];
+  superAdmins: ReviewerUser[];
 }
 
-export function ReviewsTable({ reviews }: ReviewsTableProps) {
+export function ReviewsTable({ reviews, superAdmins }: ReviewsTableProps) {
   const [selectedReviewId, setSelectedReviewId] = useState<{cityId: string, meetingId: string} | null>(null);
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<ReviewDetail | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -115,8 +117,25 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </div>
             </TableHead>
             <TableHead>Edits</TableHead>
-            <TableHead>Primary Reviewer</TableHead>
-            <TableHead>Time to review</TableHead>
+            <TableHead className="w-48">Reviewer</TableHead>
+            <TableHead>
+              <div className="flex items-center gap-1">
+                Waiting
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs text-xs">
+                        Time since the latest transcription finished. For a completed review,
+                        the time from transcription until the review was marked complete.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -209,53 +228,17 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </TableCell>
               
               <TableCell>
-                {review.primaryReviewer ? (
-                  <div>
-                    <div className="text-sm font-medium">
-                      {review.primaryReviewer.userName || review.primaryReviewer.userEmail}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {review.primaryReviewer.editCount} edit{review.primaryReviewer.editCount !== 1 ? 's' : ''}
-                    </div>
-                    {review.reviewers.length > 1 && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="text-xs text-muted-foreground cursor-help">
-                              +{review.reviewers.length - 1} other{review.reviewers.length > 2 ? 's' : ''}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="text-xs space-y-1">
-                              {review.reviewers.slice(1).map(r => (
-                                <div key={r.userId}>
-                                  {r.userName || r.userEmail}: {r.editCount} edit{r.editCount !== 1 ? 's' : ''}
-                                </div>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground">No edits yet</span>
-                )}
+                <ReviewerSelect review={review} superAdmins={superAdmins} />
               </TableCell>
               
               <TableCell>
                 <div className="space-y-0.5">
                   <div className="text-sm">
-                    {review.reviewDurationMs !== null ? formatDurationMs(review.reviewDurationMs) : '-'}
+                    {review.reviewWaitMs !== null ? formatDurationMs(review.reviewWaitMs) : '-'}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {review.lastEditAt
-                        ? formatDistanceToNow(new Date(review.lastEditAt), { addSuffix: true })
-                        : 'Never'}
-                    </span>
-                  </div>
+                  {review.reviewedAt && (
+                    <div className="text-xs text-muted-foreground">until review</div>
+                  )}
                 </div>
               </TableCell>
               
@@ -381,7 +364,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             <MarkReviewCompleteButton
               cityId={selectedReviewDetail.cityId}
               meetingId={selectedReviewDetail.meetingId}
-              isCompleted={selectedReviewDetail.status === 'completed'}
+              isCompleted={selectedReviewDetail.reviewedAt !== null}
               onSuccess={handleCloseDetail}
             />
 

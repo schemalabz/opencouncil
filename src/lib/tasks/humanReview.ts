@@ -130,7 +130,19 @@ export async function markHumanReviewComplete(
     await withUserAuthorizedToEdit({ cityId });
 
     const idempotency = await checkTaskIdempotency('humanReview', cityId, meetingId);
-    const existingReview = idempotency.proceed ? null : idempotency.existingTask;
+    const newestReview = idempotency.proceed ? null : idempotency.existingTask;
+    // A review counts for the transcript it looked at. After a re-transcription
+    // the newest review is older than the new transcript, so this review needs
+    // a record of its own. A retry still reuses the record it wrote, because
+    // that record is the newest one and it came after the transcription.
+    const latestTranscribe = newestReview && await prisma.taskStatus.findFirst({
+        where: { cityId, councilMeetingId: meetingId, type: 'transcribe', status: 'succeeded' },
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+    });
+    const existingReview = newestReview && !(latestTranscribe && newestReview.updatedAt < latestTranscribe.updatedAt)
+        ? newestReview
+        : null;
 
     // Get meeting details for the Discord alert and the follow-up task context
     const meeting = await prisma.councilMeeting.findUnique({

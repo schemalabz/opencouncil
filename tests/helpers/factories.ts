@@ -157,6 +157,8 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
     requestBody?: string
     responseBody?: string | null
     createdAt?: Date
+    /** When the task reached its status. A real task sets it when the callback marks it succeeded. */
+    updatedAt?: Date
     /** The task server's version, which a real callback writes before the handler runs. */
     version?: number
 }) {
@@ -167,6 +169,7 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
             requestBody: data?.requestBody ?? '{}',
             responseBody: data?.responseBody ?? null,
             createdAt: data?.createdAt,
+            updatedAt: data?.updatedAt,
             version: data?.version,
             councilMeetingId: meetingId,
             cityId,
