@@ -1,4 +1,4 @@
-import { PrismaClient, type CityStatus } from '@prisma/client'
+import { PrismaClient, type CityStatus, type DocumentKind, type Prisma } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { env } from '@/env.mjs'
@@ -479,16 +479,43 @@ async function seedCities(cities: any[]) {
   track('Cities', cityData.length)
 }
 
+/** A document send setting as generate_seed_dump writes it: JSON, so the date is a string, and no addresses. */
+type DumpedDocumentSendSetting = {
+  kind: DocumentKind
+  enabledAt: string
+}
+
 /**
  * Seed administrative bodies
  */
 async function seedAdministrativeBodies(bodies: any[]) {
   console.log(`Seeding ${bodies.length} administrative bodies...`)
 
+  // A dump carries the documents of a body without their addresses, so each
+  // comes back switched off: the body form keeps a document on only with a To
+  // address, and a seeded switch left on would block every save of the body.
+  // A developer switches it on with an address to try a send. A dump from
+  // before #874 carries the contactEmails column instead, which gives the
+  // transcript a row, off, and keeps its addresses out of the database too.
+  const rows = bodies.map(({ contactEmails, documentSendSettings, ...body }) => body)
   await prisma.administrativeBody.createMany({
-    data: bodies,
+    data: rows,
     skipDuplicates: true,
   })
+  const settings = bodies.flatMap((body): Prisma.DocumentSendSettingCreateManyInput[] => Array.isArray(body.documentSendSettings)
+    ? (body.documentSendSettings as DumpedDocumentSendSetting[]).map(setting => ({
+      administrativeBodyId: body.id,
+      kind: setting.kind,
+      enabled: false,
+      enabledAt: new Date(setting.enabledAt),
+      recipientEmails: [],
+    }))
+    : Array.isArray(body.contactEmails) && body.contactEmails.length > 0
+      ? [{ administrativeBodyId: body.id, kind: 'transcript' as const, enabled: false, recipientEmails: [] }]
+      : [])
+  if (settings.length > 0) {
+    await prisma.documentSendSetting.createMany({ data: settings, skipDuplicates: true })
+  }
   track('Administrative Bodies', bodies.length)
 }
 

@@ -1,7 +1,7 @@
-import { Prisma } from '@prisma/client';
-import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
-import { TAKES_PLACE_WHERE } from '@/lib/meetingLifecycleRules';
-import { getPollableMeetingDateRange, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
+import { Prisma, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
+import { CUSTOMER_CITY_WHERE, isCustomer } from '@/lib/cityStatus';
+import { TAKES_PLACE_WHERE, takesPlace } from '@/lib/meetingLifecycleRules';
+import { getPollableMeetingDateRange, takesNoDecisions, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
 
 /**
  * Which subjects can carry a decision — the single definition, shared by every
@@ -28,6 +28,13 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
     ],
 } satisfies Prisma.SubjectWhereInput;
 
+/**
+ * The subjects of the record, withdrawn ones included: the SQL twin of
+ * `isRecordSubject`. The minutes list a withdrawn item, so an agenda whose
+ * every item was withdrawn is still an agenda, with nothing left to decide.
+ */
+export const RECORD_SUBJECT_WHERE = { OR: DECISION_ELIGIBLE_SUBJECT_WHERE.OR } satisfies Prisma.SubjectWhereInput;
+
 // A meeting still waiting on decisions: a decision-eligible subject without
 // one, and not a meeting that takes no decisions (see takesNoDecisions). What the cron and
 // follow-up polls both require before polling a meeting. A postponed or
@@ -51,4 +58,25 @@ export function decisionPollCandidateWhere(now: Date = new Date()) {
         dateTime: getPollableMeetingDateRange(now),
         city: { diavgeiaUid: { not: null }, ...CUSTOMER_CITY_WHERE },
     } satisfies Prisma.CouncilMeetingWhereInput;
+}
+
+/**
+ * `decisionPollCandidateWhere` in memory, for a meeting that is waiting on
+ * decisions: whether the cron polls it on its own. The minutes wait for such
+ * a poll and nothing else; a meeting no poll will reach must not wait for one.
+ * Keep the two in step, as the eligibility pair above.
+ */
+export function isPolledOnItsOwn(meeting: {
+    dateTime: Date;
+    scheduleStatus: MeetingScheduleStatus;
+    kind: MeetingKind | null;
+    continuationOf: { kind: MeetingKind | null } | null;
+    city: { diavgeiaUid: string | null; status: CityStatus };
+}, now: Date = new Date()): boolean {
+    const window = getPollableMeetingDateRange(now);
+    return takesPlace(meeting)
+        && !takesNoDecisions(meeting)
+        && meeting.dateTime >= window.gte && meeting.dateTime <= window.lte
+        && meeting.city.diavgeiaUid !== null
+        && isCustomer(meeting.city.status);
 }

@@ -111,7 +111,7 @@ describe('sendEmail through the resend SDK', () => {
         nextReply = { status: 422, body: JSON.stringify({ statusCode: 422, name: 'validation_error', message: 'Invalid `to` field.' }) };
 
         await expect(sendEmail({ from: 'notifications', to: 'not-an-address', subject: 's', html: '<p/>' }))
-            .resolves.toEqual({ success: false, message: 'Failed to send email' });
+            .resolves.toEqual({ success: false, message: 'Failed to send email', outcome: 'rejected' });
         expect(requests).toHaveLength(1);
     });
 
@@ -119,7 +119,7 @@ describe('sendEmail through the resend SDK', () => {
         nextReply = { status: 502, body: '<html>Bad gateway</html>', contentType: 'text/html' };
 
         await expect(sendEmail({ from: 'notifications', to: 'anna@example.com', subject: 's', html: '<p/>' }))
-            .resolves.toEqual({ success: false, message: 'Failed to send email' });
+            .resolves.toEqual({ success: false, message: 'Failed to send email', outcome: 'unknown' });
     });
 });
 

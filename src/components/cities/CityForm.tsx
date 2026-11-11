@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
 import { City, CityMessage } from '@prisma/client'
-import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
+import type { AdministrativeBodyWithSendSettings } from '@/lib/db/types'
 import { Loader2, Trash2 } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -68,7 +68,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const t = useTranslations('CityForm')
     const validationMessage = useValidationMessage()
     const locale = useLocale()
-    const [administrativeBodies, setAdministrativeBodies] = useState<AdministrativeBodyWithSettings[]>([])
+    const [administrativeBodies, setAdministrativeBodies] = useState<AdministrativeBodyWithSendSettings[]>([])
     const [boundary, setBoundary] = useState<GeoJSON.Polygon | GeoJSON.MultiPolygon | null>(null)
 
     // Message data for form submission - only stored when message component updates

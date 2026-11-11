@@ -205,12 +205,45 @@ automatically.
 - `src/lib/youtube.ts` — YouTube Data API client + channel-id resolution
 - `src/lib/cache/valkey.ts` — shared Valkey client used for dedup + listing cache
 
+### Document Sends
+
+The `send-documents` cron emails the documents that a body's back office receives (#874). A city admin chooses the documents and the addresses for each administrative body, in the "Αποστολή Εγγράφων" section of the body form. The cron is the authority on the automatic sends. Three other places run the same rule to make a send immediate: the end of a `pollDecisions` callback, the end of a `summarize` callback, and the completion of the human review. They run it through `after()`, so nobody waits for the DOCX.
+
+**Endpoint:** `GET /api/cron/send-documents`
+**Authentication:** `Authorization: Bearer <CRON_SECRET>`
+
+**What it does (each run):**
+1. Releases the claims of dead senders: a `DocumentSend` row that is `pending` for more than 30 minutes becomes `failed` with the reason `stale`. A row in `sending` stays as it is, because its email may have gone out.
+2. Reads the candidate meetings of each automatic document, 200 at a time, oldest first. A candidate took place and has a complete human review. It is a first part, and it is at most 120 days old. Its body has the document switched on. No send of the document is pending or sent, automatic or by hand.
+3. Evaluates each candidate with `evaluateReadiness` (`src/lib/documents/readiness.ts`) and sends what is ready. The run sends at most 10 documents. It reads the next page until the batch is full, so meetings that wait never hide a newer meeting that is ready. The run skips a document after 3 failed automatic attempts (`MAX_AUTOMATIC_ATTEMPTS`). The decisions page of the meeting shows that send as failed. A superadmin sends it by hand after the fault is fixed. The sender reads the meeting again and evaluates the rule right before it claims the send, so the email, the record and the DOCX describe the same moment. A meeting waits while a decision poll writes its results, for at most 15 minutes (`CLAIM_REPLAY_AFTER_MS`). The poll links the decisions before it writes their excerpts, votes and attendance. A meeting also waits while a summarize runs after an earlier one, for at most 30 minutes since its last report. That summarize rewrites the subjects discussed outside the agenda. The hook of each task sends the minutes after its writes.
+4. Posts a Discord alert for each send and each failure.
+
+**The rule for the minutes:** the complete minutes go out when every eligible subject has its decision. The provisional minutes go out after 5 calendar days (`MINUTES_THRESHOLD_DAYS`) if a subject still has no decision. Their email lists the subjects that have no decision. The days count in the city's timezone, from the midnight that starts the meeting's day. Thus a meeting on 1 Oct is due at 00:00 on 6 Oct, local time, and the daily run of 6 Oct sends it. Before that moment, the minutes wait. Every form of the minutes also waits for a summarize that succeeded, because the summarize adds the subjects discussed outside the agenda and the discussion of each subject. When the minutes are due and a subject still has no decision, they wait for one decision poll that starts after the latest summarize and ends. The summarize hook starts that poll, and the poll hook sends. This wait applies only to a meeting that the poll cron reaches (`isPolledOnItsOwn`, the twin of `decisionPollCandidateWhere`). A meeting that takes no decisions (a λογοδοσία) is complete once summarized. A meeting that takes decisions and has no agenda subject waits for its agenda. The decisions page says so. An agenda whose every item was withdrawn leaves nothing to decide, so its minutes are complete.
+
+The transcript is not a cron document. The reviewer sends it at the review completion. The body setting only controls whether the checkbox shows. The switch-on date of a setting (`enabledAt`) applies only to the automatic sends. Thus switching the minutes on never emails the archive. A reviewer, or a superadmin by hand, can still send the document of an older meeting.
+
+**A send happens once.** The sender inserts a `pending` row before it renders anything. It marks the row `sending` right before it hands the email to the provider, and `sent` or `failed` after. An email that the provider refuses makes the row `failed`. When the provider gives no clear answer, the row stays `sending`. A row that stays `sending` may have gone out. Nothing sends it again on its own, and the decisions page shows it as unconfirmed. Every claim of one meeting and document takes the same transaction lock. An automatic claim then sends nothing when a send of the document is pending or sent, automatic or by hand. A partial unique index also allows only one row per meeting and document that is not `failed` and not manual. A send by hand (trigger `manual`) may repeat, for example the complete minutes after a provisional send. The row records the subjects that a provisional email named (`DocumentSendMissingSubject`). For a send by hand, it also records who sent it (`createdById`). A send by hand closes the meeting for the automatic paths. After it, the cron, the hooks and the review completion send nothing of that document.
+
+**Setup:** alongside the `poll-decisions` trigger, schedule:
+```bash
+# Once a day
+0 6 * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/send-documents
+```
+
+**Key files:**
+- `src/app/api/cron/send-documents/route.ts` — cron API route
+- `src/lib/documents/automatic.ts` — `sendDueDocuments()` (cron logic), `sendReadyDocuments()` (the poll and summarize callbacks and the review completion)
+- `src/lib/documents/readiness.ts` — the pure rule, one entry per document
+- `src/lib/documents/registry.ts` — the renderer and the email of each document
+- `src/lib/documents/send.ts` — the claim, the email and the record of one send
+- `src/lib/db/documentSends.ts` — the `DocumentSendSetting` and `DocumentSend` queries
+
 ### Adding New Cron Tasks
 
 To add a new cron-triggered task:
 1. Create a new API route under `src/app/api/cron/<task-name>/route.ts`
 2. Authenticate with `CRON_SECRET` (see the poll-decisions route for the pattern)
-3. Call `startTask()` for each unit of work — the rest of the task lifecycle (execution, callbacks, result handling) follows the standard flow described below
+3. Call `startTask()` for each unit of work — the rest of the task lifecycle (execution, callbacks, result handling) follows the standard flow described below. A cron that needs no task server, such as `send-documents`, does its work in the app and records it in its own table.
 
 ## 4. The Lifecycle of a Task
 

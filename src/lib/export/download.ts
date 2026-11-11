@@ -31,7 +31,7 @@ export async function downloadFromUrl(url: string, fileName: string): Promise<vo
 
 /**
  * Saves a meeting's transcript .docx. The server builds it, so it is the same
- * document the municipality receives (sendTranscriptToMunicipality). A 404
+ * document the municipality receives (sendTranscript in src/lib/documents/transcript.ts). A 404
  * DownloadError means the meeting has no transcript yet.
  */
 export function downloadTranscriptDocx(cityId: string, meetingId: string): Promise<void> {
@@ -45,8 +45,21 @@ export function downloadTranscriptDocx(cityId: string, meetingId: string): Promi
  * takes no characters outside Latin-1.
  */
 export function generateMeetingFileName(cityId: string, meetingId: string, format: 'pdf' | 'docx' | 'mp3'): string {
-  const safe = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, '');
-  return `${safe(cityId)}_council_meeting_${safe(meetingId)}.${format}`;
+  return `${safeFileId(cityId)}_council_meeting_${safeFileId(meetingId)}.${format}`;
+}
+
+/**
+ * An id as a file name may carry it: letters, digits, `_` and `-` only. The
+ * name goes into a Content-Disposition header, which takes no characters
+ * outside Latin-1.
+ */
+export function safeFileId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+/** Name of a meeting's minutes DOCX: the decisions page export and the minutes email attach it under this name. */
+export function generateMinutesFileName(cityId: string, meetingId: string): string {
+  return `minutes-${safeFileId(cityId)}-${safeFileId(meetingId)}.docx`;
 }
 
 /** Name of a highlight's saved video file, without the extension. */

@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
 import AdministrativeBodiesList from '@/components/cities/AdministrativeBodiesList';
-import type { AdministrativeBodyWithSettings } from '@/lib/db/types';
+import type { AdministrativeBodyWithSendSettings } from '@/lib/db/types';
 import enMain from '../../../../messages/en.json';
 import enAdmin from '../../../../messages/en/admin.json';
 import enValidation from '../../../../messages/en/validation.json';
@@ -37,7 +37,7 @@ function renderList(ui: React.ReactElement) {
 
 // A body as GET /administrative-bodies answers it to an editor: the server
 // read the stored conventions and gives the anchors their current names.
-const BODY: AdministrativeBodyWithSettings = {
+const BODY: AdministrativeBodyWithSendSettings = {
     id: 'b1',
     cityId: 'athens',
     name: 'Δημοτικό Συμβούλιο',
@@ -47,10 +47,10 @@ const BODY: AdministrativeBodyWithSettings = {
     place: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-    contactEmails: ['secretary@example.org'],
     notificationBehavior: 'NOTIFICATIONS_APPROVAL',
     showUnreviewedTranscript: true,
     diavgeiaUnitIds: ['81689'],
+    documentSendSettings: [],
     decisionConventions: {
         version: 1,
         rollCallLayout: 'present_and_absent',
@@ -82,7 +82,25 @@ describe('AdministrativeBodiesList', () => {
         const [url, init] = fetchMock.mock.calls[0];
         expect(url).toBe('/api/cities/athens/administrative-bodies/b1');
         expect(init.method).toBe('PUT');
-        expect(JSON.parse(init.body)).toMatchObject({ name: 'Δημοτικό Συμβούλιο', contactEmails: ['secretary@example.org'], diavgeiaUnitIds: '81689' });
+        expect(JSON.parse(init.body)).toMatchObject({ name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: '81689' });
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('keeps an invalid address in view after its document is switched off, and saves nothing', async () => {
+        renderList(<AdministrativeBodiesList cityId="athens" bodies={[BODY]} onUpdate={jest.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
+
+        const minutes = await screen.findByRole('switch', { name: 'Minutes' });
+        fireEvent.click(minutes);
+        fireEvent.change(screen.getByPlaceholderText('grammateia@municipality.gr'), { target: { value: 'not-an-address' } });
+        fireEvent.click(minutes);
+        expect(screen.queryByPlaceholderText('grammateia@municipality.gr')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Update' }));
+
+        // The check fails on the hidden field: the field comes back with its message
+        expect(await screen.findByPlaceholderText('grammateia@municipality.gr')).toHaveValue('not-an-address');
+        expect(screen.getByText(enValidation.invalidEmail)).toBeInTheDocument();
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });
