@@ -90,9 +90,9 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
                 )}
             </div>
 
-            {send}
-
             <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground">{tPage('rail.minutesProvenance')}</p>
+
+            {send}
         </RailCard>
     );
 }
