@@ -179,17 +179,21 @@ export async function requestGenerateVoiceprint(personId: string): Promise<{ ok:
 }
 
 /**
- * Start the voiceprint task for a person. The caller has authorized and
- * checked the consent.
+ * Start the voiceprint task for a person from their longest source. The caller
+ * has authorized and checked the consent.
  */
 async function startVoiceprintGeneration(personId: string) {
-    // Find the longest speaker segment for this person
-    const segment = await findLongestSpeakerSegmentForPerson(personId);
+    const [segment] = await findVoiceprintSources(personId);
 
     if (!segment) {
         throw new BadRequestError("No speaker segments found for this person");
     }
 
+    return startVoiceprintTask(personId, segment);
+}
+
+/** Start the voiceprint task for a segment. The caller has authorized and checked the consent. */
+async function startVoiceprintTask(personId: string, segment: SpeakerSegment) {
     // Check if the segment is long enough for a voiceprint
     const segmentDuration = segment.endTimestamp - segment.startTimestamp;
     if (segmentDuration < VOICEPRINT_DURATION) {
@@ -205,67 +209,54 @@ async function startVoiceprintGeneration(personId: string) {
         throw new BadRequestError("Meeting not found");
     }
 
-    const mediaUrl = meeting.audioUrl || meeting.videoUrl;
+    const mediaUrl = voiceprintMediaUrl(meeting);
     if (!mediaUrl) {
         throw new BadRequestError("The meeting has no media to cut a voiceprint from");
     }
-
-    // Calculate a segment centered on the midpoint
-    const segmentMidpoint = segment.startTimestamp + segmentDuration / 2;
-
-    // Take VOICEPRINT_DURATION seconds centered on the midpoint, ensuring we stay within segment bounds
-    const halfDuration = VOICEPRINT_DURATION / 2;
-    const startTimestamp = Math.max(segment.startTimestamp, segmentMidpoint - halfDuration);
-    const endTimestamp = Math.min(segment.endTimestamp, startTimestamp + VOICEPRINT_DURATION);
 
     // Create the request
     const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
         mediaUrl,
         personId,
         segmentId: segment.id,
-        startTimestamp,
-        endTimestamp,
+        ...voiceprintWindow(segment),
         cityId: segment.cityId,
     };
 
     return startTask("generateVoiceprint", request, segment.meetingId, segment.cityId);
 }
 
+/** The media a voiceprint is cut from. */
+function voiceprintMediaUrl(meeting: { audioUrl: string | null; videoUrl: string | null }): string | null {
+    return meeting.audioUrl || meeting.videoUrl;
+}
+
 /**
- * Find the longest speaker segment for a given person
+ * The VOICEPRINT_DURATION seconds at the middle of a segment: what the
+ * voiceprint is cut from.
  */
-export async function findLongestSpeakerSegmentForPerson(personId: string): Promise<SpeakerSegment | null> {
-    try {
-        const person = await prisma.person.findUnique({
-            where: { id: personId },
-            include: {
-                speakerTags: {
-                    include: voiceprintCandidateTagInclude,
-                },
+function voiceprintWindow(segment: Pick<SpeakerSegment, "startTimestamp" | "endTimestamp">) {
+    const midpoint = (segment.startTimestamp + segment.endTimestamp) / 2;
+    const startTimestamp = Math.max(segment.startTimestamp, midpoint - VOICEPRINT_DURATION / 2);
+    const endTimestamp = Math.min(segment.endTimestamp, startTimestamp + VOICEPRINT_DURATION);
+    return { startTimestamp, endTimestamp };
+}
+
+/** The segments a person's voiceprint may be cut from (voiceprintSourceSegments), longest first. */
+export async function findVoiceprintSources(personId: string): Promise<SpeakerSegment[]> {
+    const person = await prisma.person.findUnique({
+        where: { id: personId },
+        include: {
+            speakerTags: {
+                include: voiceprintCandidateTagInclude,
             },
-        });
+        },
+    });
 
-        if (!person) {
-            return null;
-        }
-
-        // Every segment of the tags whose audio may be used
-        const allSegments = voiceprintSourceSegments(person.speakerTags);
-
-        if (allSegments.length === 0) {
-            return null;
-        }
-
-        // Find the longest segment based on duration (endTimestamp - startTimestamp)
-        const longestSegment = allSegments.reduce((longest, current) => {
-            const currentDuration = current.endTimestamp - current.startTimestamp;
-            const longestDuration = longest.endTimestamp - longest.startTimestamp;
-            return currentDuration > longestDuration ? current : longest;
-        }, allSegments[0]);
-
-        return longestSegment;
-    } catch (error) {
-        console.error("Error finding longest speaker segment:", error);
-        return null;
+    if (!person) {
+        return [];
     }
+
+    const duration = (segment: SpeakerSegment) => segment.endTimestamp - segment.startTimestamp;
+    return voiceprintSourceSegments(person.speakerTags).sort((a, b) => duration(b) - duration(a));
 }
