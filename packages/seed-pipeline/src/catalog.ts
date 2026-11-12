@@ -1,9 +1,20 @@
 import { Client } from 'pg';
 import { type CatalogFk, type PgSyncObjects, PGSYNC_TRIGGER_FUNCTION, PGSYNC_VIEW, quoteIdent } from './normalize';
 
+/**
+ * node-postgres reads `sslmode=require` as verify-full, so it refuses a managed
+ * cluster whose certificate a private CA signed, as DigitalOcean's are. psql and
+ * Prisma, which carry the restore, read it as libpq does: encrypt, but do not
+ * verify the certificate. `uselibpqcompat` gives node-postgres the same reading;
+ * `verify-full` still verifies.
+ */
+export function libpqCompatibleUrl(url: string): string {
+    return /[?&]sslmode=/.test(url) && !/[?&]uselibpqcompat=/.test(url) ? `${url}&uselibpqcompat=true` : url;
+}
+
 /** Open a connection to `url`, run `fn`, and close the connection in every case. */
 export async function withClient<T>(url: string, fn: (client: Client) => Promise<T>): Promise<T> {
-    const client = new Client({ connectionString: url });
+    const client = new Client({ connectionString: libpqCompatibleUrl(url) });
     // A server that goes away under an open client (the scratch cluster that a
     // Ctrl-C stops) makes pg emit 'error'. Without a listener Node exits at once,
     // before the cleanup removes the cluster. The pending query rejects anyway.

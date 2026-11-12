@@ -6,7 +6,7 @@
  *   npm run seed -- setup              (`npm run db:deploy:seed` runs `prisma generate` first, then this)
  *   npm run seed -- restore --db postgresql://opencouncil@localhost:5432/opencouncil
  *   npm run seed -- fixtures --db postgresql://opencouncil@localhost:5432/opencouncil
- *   npm run seed -- reset --db postgresql://opencouncil@localhost:5432/opencouncil
+ *   npm run seed -- reset --db postgresql://opencouncil@localhost:5432/opencouncil   (keeps the private rows; --drop-private drops them)
  *   npm run seed -- status --db postgresql://opencouncil@localhost:5432/opencouncil --json
  *   npm run seed -- fetch --full --from <the private location of the full set>
  *
@@ -30,7 +30,7 @@ import { restoreArchive } from '@opencouncil/seed-pipeline/restore';
 import { setupDatabase } from '@opencouncil/seed-pipeline/setup';
 import { assertLocalTarget } from '@opencouncil/seed-pipeline/target-guard';
 import { formatError } from '@opencouncil/seed-pipeline/errors';
-import { schemaPath } from '@opencouncil/seed-pipeline/tables';
+import { loadTablesConfig, privateTables, schemaPath } from '@opencouncil/seed-pipeline/tables';
 
 const CACHE_DIR = defaultCacheDir();
 const SCHEMA_PATH = schemaPath();
@@ -126,15 +126,18 @@ yargs(hideBin(process.argv))
             await restoreArchive({ tarPath: await fetchFrom(argv.from, argv.full), databaseUrl, schemaPath: SCHEMA_PATH, trustedHosts: argv.trustHost, log });
             log('restored; `npm run seed -- fixtures` adds the test accounts');
         })
-    .command('reset', 'Replace everything in the local database with the artifact, then add the fixtures', (y) => y.option('db', dbOption).option('from', fromOption).option('full', fullOption).option('json', jsonOption),
+    .command('reset', 'Replace the data with the artifact, keep the private rows (accounts, rights, tokens), then add the fixtures', (y) => y.option('db', dbOption).option('from', fromOption).option('full', fullOption).option('json', jsonOption)
+        .option('drop-private', { type: 'boolean', default: false, describe: 'Drop the private rows too, and the rows that an earlier reset kept' }),
         async (argv) => {
             const databaseUrl = localDatabase(argv.db, argv.trustHost);
             // The download and every check come first, and the drop runs inside the
             // restore's transaction: a failed download, check, or restore keeps the
-            // database as it was. A branch migration that fails afterwards leaves the
-            // artifact in place, and a second reset starts again.
+            // database as it was. A branch migration or a carry that fails afterwards
+            // leaves the artifact in place and the private rows in seed_keep, and a
+            // second reset starts again.
             const tarPath = await fetchFrom(argv.from, argv.full);
-            await restoreArchive({ tarPath, databaseUrl, schemaPath: SCHEMA_PATH, trustedHosts: argv.trustHost, log, replace: true });
+            const keep = argv.dropPrivate ? undefined : privateTables(loadTablesConfig());
+            await restoreArchive({ tarPath, databaseUrl, schemaPath: SCHEMA_PATH, trustedHosts: argv.trustHost, log, replace: true, keep });
             report(await withPrisma(databaseUrl, ensureFixtures), argv.json);
         })
     .command('fixtures', 'Add the Serbian review city and the test accounts, or put back what a refresh removed', (y) => y.option('db', dbOption).option('json', jsonOption),

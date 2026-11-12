@@ -7,6 +7,8 @@ import { assertLocalTarget } from './target-guard';
 import { fileFailures, POST_RESTORE_FILE, unpackArtifact } from './artifact';
 import { withClient } from './catalog';
 import { MANIFEST_FILE, readManifest } from './manifest';
+import { quoteLiteral } from './normalize';
+import { carryKeptRows, describeKeptRows, DROP_KEPT_ROWS_SQL, GRANT_AGAIN_SQL, KEEP_SCHEMA, keepPrivateRowsSql, LOCK_TIMEOUT } from './keep';
 import { binary, childEnv, prismaMigrate, run, tailLines } from './process';
 
 export type RestoreOptions = {
@@ -21,10 +23,19 @@ export type RestoreOptions = {
      * Replace the objects in public (not the extensions; see REPLACE_SQL), inside the
      * transaction of the restore. A failed restore keeps the data it would have
      * replaced. `prisma migrate deploy` runs after the commit, so a branch migration
-     * that fails leaves the artifact in place, and deployMigrations names the way
-     * out. Without `replace`, a database with tables is refused.
+     * that fails leaves the artifact in place (and the kept private rows in
+     * seed_keep), and the error names the way out. Without `replace`, a database
+     * with tables is refused.
      */
     replace?: boolean;
+    /**
+     * With `replace`: the private tables whose rows the replace keeps (see keep.ts).
+     * Without it, a replace drops their rows, and the rows that an earlier reset
+     * kept, too. Either way the grants on public's objects come back.
+     */
+    keep?: readonly string[];
+    /** Receives one line on the kept rows. */
+    log?: (line: string) => void;
 };
 
 /**
@@ -123,7 +134,8 @@ export async function deployMigrations(databaseUrl: string, schemaPath: string):
  * The one consumer flow: an empty database (or one that `replace` empties in the
  * same transaction), the artifact's schema and data,
  * the constraints the dump cannot carry, then `prisma migrate deploy`, which is
- * a no-op on main and applies only a branch's own migrations. Returns the
+ * a no-op on main and applies only a branch's own migrations. With `keep`, the
+ * private rows that the replace set aside come back last. Returns the
  * directory that holds the unpacked dump.
  *
  * Each restore unpacks into its own directory in `workDir`, so two restores that
@@ -131,12 +143,66 @@ export async function deployMigrations(databaseUrl: string, schemaPath: string):
  */
 export async function restoreArtifact(o: RestoreOptions): Promise<string> {
     assertLocalTarget(o.databaseUrl, o.trustedHosts);
+    if (o.replace) await assertReplaceableDatabase(o.databaseUrl);
     fs.mkdirSync(o.workDir, { recursive: true });
     const dir = await unpackArtifact(o.tarPath, fs.mkdtempSync(path.join(o.workDir, 'artifact-')));
     if (!o.replace) await assertEmptyDatabase(o.databaseUrl);
-    await restoreInOneTransaction(o.databaseUrl, dir, { replace: o.replace, trustedHosts: o.trustedHosts });
-    await deployMigrations(o.databaseUrl, o.schemaPath);
+    await restoreInOneTransaction(o.databaseUrl, dir, { replace: o.replace, keep: o.keep, trustedHosts: o.trustedHosts });
+    try {
+        await deployMigrations(o.databaseUrl, o.schemaPath);
+    } catch (error) {
+        if (!(o.replace && o.keep)) throw error;
+        throw new Error(`the private rows wait in the schema ${KEEP_SCHEMA}: after the fix, \`npm run seed -- reset\` or \`npm run seed -- setup\` brings them back`, { cause: error });
+    }
+    // After the migrations: the kept rows have the columns of the database before the reset.
+    if (o.replace) {
+        const kept = await carryKeptRows(o.databaseUrl);
+        if (kept && o.keep) o.log?.(describeKeptRows(kept));
+    }
     return dir;
+}
+
+/**
+ * Before a replace writes anything. The cluster that holds staging also holds
+ * production, so a URL that names the wrong database on a trusted host would
+ * replace production. The server's own name decides, so a pool name cannot hide
+ * it. The connection also proves that node-postgres reaches the database, which
+ * the carry of the kept rows needs after the commit.
+ */
+export async function assertReplaceableDatabase(databaseUrl: string): Promise<void> {
+    const name = await withClient(databaseUrl, async (client) =>
+        (await client.query<{ name: string }>('SELECT current_database() AS name')).rows[0].name);
+    if (name === 'production') throw new Error('refusing to replace the database named production');
+}
+
+type LockHolder = { pid: number; usename: string | null; state: string | null; wait_event: string | null; seconds: number | null; tables: string };
+
+/** The sessions that hold a lock on a table or view in public or KEEP_SCHEMA, for the error of a replace that waited too long. */
+async function lockHolders(databaseUrl: string): Promise<LockHolder[]> {
+    return withClient(databaseUrl, async (client) => (await client.query<LockHolder>(`
+        SELECT a.pid, a.usename, a.state, a.wait_event, extract(epoch FROM now() - a.xact_start)::int AS seconds,
+               string_agg(DISTINCT c.oid::regclass::text, ', ') AS tables
+        FROM pg_locks l
+        JOIN pg_class c ON c.oid = l.relation
+        JOIN pg_stat_activity a ON a.pid = l.pid
+        WHERE l.granted AND l.pid <> pg_backend_pid() AND c.relkind IN ('r', 'p', 'v', 'm')
+          AND c.relnamespace IN ('public'::regnamespace, to_regnamespace('${KEEP_SCHEMA}'))
+          AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
+        GROUP BY a.pid, a.usename, a.state, a.wait_event, a.xact_start
+        ORDER BY a.xact_start NULLS LAST`)).rows);
+}
+
+async function lockTimeoutError(databaseUrl: string, timeout: string, cause: unknown): Promise<Error> {
+    // The holders explain the failure. When they cannot be read, the failure itself still must reach the caller.
+    const holders = await lockHolders(databaseUrl).catch(() => null);
+    const sessions = holders?.map((h) =>
+        `pid ${h.pid} (${h.usename ?? '?'}, ${h.state ?? '?'}${h.wait_event ? ` ${h.wait_event}` : ''}, transaction open ${h.seconds ?? '?'} s) on ${h.tables}`);
+    const next = sessions === undefined
+        ? 'The sessions that hold locks could not be read.'
+        : sessions.length
+            ? `Sessions that hold locks on its tables now:\n${sessions.join('\n')}\nWhen one of them is stuck, \`SELECT pg_terminate_backend(<pid>)\` ends it. Then run the reset again.`
+            : 'No session holds one now: run the reset again.';
+    return new Error(`the replace waited more than ${timeout} for a lock on a table, so it changed nothing. ${next}`, { cause });
 }
 
 /**
@@ -154,7 +220,8 @@ export async function restoreArtifact(o: RestoreOptions): Promise<string> {
  * COMMIT of its own, and that COMMIT would end this transaction early. The
  * artifacts hold none.
  */
-export async function restoreInOneTransaction(databaseUrl: string, dumpDir: string, o: { replace?: boolean; trustedHosts?: readonly string[] } = {}): Promise<void> {
+export async function restoreInOneTransaction(databaseUrl: string, dumpDir: string, o: { replace?: boolean; keep?: readonly string[]; trustedHosts?: readonly string[]; lockTimeout?: string } = {}): Promise<void> {
+    const lockTimeout = o.lockTimeout ?? LOCK_TIMEOUT;
     if (o.replace) assertLocalTarget(databaseUrl, o.trustedHosts);
     const toc = (await run(binary('pg_restore'), ['-l', dumpDir])).stdout;
     if (/^[^;].*\s(BLOBS?|BLOB METADATA)\s/m.test(toc)) {
@@ -173,7 +240,14 @@ export async function restoreInOneTransaction(databaseUrl: string, dumpDir: stri
     };
     async function* script(): AsyncGenerator<string | Buffer> {
         yield 'BEGIN;\n';
-        if (o.replace) yield REPLACE_SQL;
+        if (o.replace) {
+            // The dump sets lock_timeout to 0 again, but only after the drops, which are the statements that wait for other sessions.
+            yield `SET LOCAL lock_timeout = ${quoteLiteral(lockTimeout)};\n`;
+            // Without keep, rows that an earlier reset kept go too; the grants are recorded either way.
+            if (!o.keep) yield DROP_KEPT_ROWS_SQL;
+            yield keepPrivateRowsSql(o.keep ?? []);
+            yield REPLACE_SQL;
+        }
         yield* restore.stdout;
         const code = await exited;
         // psql then reaches the end of its input without a COMMIT, and the server rolls back.
@@ -181,6 +255,7 @@ export async function restoreInOneTransaction(databaseUrl: string, dumpDir: stri
         // The dump empties search_path, and post-restore.sql names its tables without a schema.
         yield 'RESET search_path;\n';
         yield* fs.createReadStream(path.join(dumpDir, POST_RESTORE_FILE));
+        if (o.replace) yield `\n${GRANT_AGAIN_SQL}`;
         yield '\nCOMMIT;\n';
     }
     try {
@@ -188,6 +263,7 @@ export async function restoreInOneTransaction(databaseUrl: string, dumpDir: stri
     } catch (error) {
         // psql can stop on a script that pg_restore cut short. Its cause is pg_restore's error.
         if (restore.exitCode !== null && restore.exitCode !== 0) throw failure(restore.exitCode, error);
+        if (o.replace && /canceling statement due to lock timeout/.test(String(error))) throw await lockTimeoutError(databaseUrl, lockTimeout, error);
         throw error;
     } finally {
         // psql stopped on an error, so nothing reads pg_restore's output any more.

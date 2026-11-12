@@ -1,5 +1,6 @@
 import type { Client } from 'pg';
-import { listForeignKeys, type RawFkRow, unindexedForeignKeys } from './catalog';
+import { parse } from 'pg-connection-string';
+import { libpqCompatibleUrl, listForeignKeys, type RawFkRow, unindexedForeignKeys } from './catalog';
 import type { CatalogFk } from './normalize';
 
 /** A minimal stand-in for `pg.Client`, exposing only the `query` method `listForeignKeys` calls. */
@@ -55,5 +56,18 @@ describe('unindexedForeignKeys', () => {
             { table: 'Decision', columns: ['subjectId', 'taskId'] },
         ];
         expect(unindexedForeignKeys(fks, indexes).map((k) => k.constraint)).toEqual(['Decision_taskId_fkey']);
+    });
+});
+
+// psql and Prisma read sslmode=require as libpq does; node-postgres must too, or the carry of a staging refresh fails after the commit.
+describe('libpqCompatibleUrl', () => {
+    test('sslmode=require encrypts without verifying the certificate, as libpq does', () => {
+        const ssl = parse(libpqCompatibleUrl('postgresql://u:p@db.example:25060/staging?sslmode=require')).ssl;
+        expect(ssl).toEqual(expect.objectContaining({ rejectUnauthorized: false }));
+    });
+
+    test('verify-full still verifies, and a URL without sslmode is unchanged', () => {
+        expect(parse(libpqCompatibleUrl('postgresql://u:p@db.example:25060/staging?sslmode=verify-full')).ssl).toEqual({});
+        expect(libpqCompatibleUrl('postgresql://dev@localhost:5432/opencouncil?host=/tmp/x')).toBe('postgresql://dev@localhost:5432/opencouncil?host=/tmp/x');
     });
 });

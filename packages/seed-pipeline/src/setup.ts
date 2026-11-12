@@ -1,4 +1,5 @@
 import { fetchArtifact } from './fetch';
+import { carryKeptRows, describeKeptRows } from './keep';
 import { assertRestoreTools, deployMigrations, restoreArchive } from './restore';
 import { withClient } from './catalog';
 import { assertLocalTarget } from './target-guard';
@@ -49,6 +50,9 @@ export async function setupDatabase(o: SetupOptions): Promise<SetupOutcome> {
     assertLocalTarget(o.databaseUrl, o.trustedHosts);
     if (await hasMigrationsTable(o.databaseUrl)) {
         await deployMigrations(o.databaseUrl, o.schemaPath);
+        // A reset whose migration failed left the private rows in seed_keep.
+        const kept = await carryKeptRows(o.databaseUrl);
+        if (kept) o.log(describeKeptRows(kept));
         if ((await countSupportedMeetings(o.databaseUrl)) === 0) {
             o.log('this database has migrations but no meetings in a supported city: `npm run seed -- reset` replaces it with the seed artifact');
         }

@@ -1,9 +1,5 @@
 import { MaskingRule } from './tables';
-import { quoteIdent } from './normalize';
-
-function literal(value: string): string {
-    return `'${value.replace(/'/g, "''")}'`;
-}
+import { quoteIdent, quoteLiteral as literal } from './normalize';
 
 /** A PostgreSQL text[] literal. Every element is double-quoted, so `,`, `{`, and `}` stay inside it. */
 function textArrayLiteral(elements: string[]): string {

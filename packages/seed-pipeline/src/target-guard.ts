@@ -34,9 +34,10 @@ function decode(raw: string): string {
 }
 
 /**
- * Every seed command writes to a scratch or a developer database. The Nix shell
- * exports a remote DATABASE_URL from .env, so this check is what stands between
- * a typo and staging.
+ * Every seed command writes to a scratch or a developer database, unless the
+ * caller trusts a remote host on purpose (`--trust-host`, as a staging refresh
+ * does). The Nix shell exports a remote DATABASE_URL from .env, so this check is
+ * what stands between a typo and staging.
  *
  * The URL is accepted only in a form that every tool reads as the same single
  * local database: one loopback host or one socket directory (`?host=/path`), the
@@ -48,8 +49,10 @@ function decode(raw: string): string {
  * Returns the connection that the URL names.
  *
  * `trustedHosts` adds host names that the caller knows are local, such as `db`,
- * the database service of docker-compose.yml. Only a caller that set up that
- * host passes it; a URL alone never makes a host local.
+ * the database service of docker-compose.yml, or chose on purpose, such as the
+ * cluster that holds staging. Only a caller that knows that host passes it; a URL
+ * alone never makes a host local. That cluster also holds production, so a
+ * replace checks the database's name too (assertReplaceableDatabase).
  */
 export function parseLocalTarget(url: string, trustedHosts: readonly string[] = []): LocalTarget {
     // libpq reads `#` as text, so `?host=/tmp/x#&host=staging` would reach staging
