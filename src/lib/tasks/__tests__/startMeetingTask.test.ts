@@ -46,10 +46,10 @@ describe('startMeetingTask', () => {
 
     it('transcribes the video of the meeting by default, or the one passed', async () => {
         await startMeetingTask('athens', 'm1', { type: 'transcribe' });
-        expect(requestTranscribeInternal).toHaveBeenCalledWith('https://youtu.be/abc', 'm1', 'athens', { force: false });
+        expect(requestTranscribeInternal).toHaveBeenCalledWith('https://youtu.be/abc', 'm1', 'athens', { force: false, fast: undefined });
 
-        await startMeetingTask('athens', 'm1', { type: 'transcribe', videoUrl: 'https://example.com/v.mp4', force: true });
-        expect(requestTranscribeInternal).toHaveBeenLastCalledWith('https://example.com/v.mp4', 'm1', 'athens', { force: true });
+        await startMeetingTask('athens', 'm1', { type: 'transcribe', videoUrl: 'https://example.com/v.mp4', force: true, fast: true });
+        expect(requestTranscribeInternal).toHaveBeenLastCalledWith('https://example.com/v.mp4', 'm1', 'athens', { force: true, fast: true });
     });
 
     it('refuses to transcribe without a video', async () => {

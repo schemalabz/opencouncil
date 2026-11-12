@@ -52,6 +52,7 @@ export default function AdminActions({
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
+    const [fastTranscribe, setFastTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isReleased, setIsReleased] = React.useState(meeting.released);
@@ -94,7 +95,7 @@ export default function AdminActions({
     const handleTranscribe = async () => {
         setIsTranscribing(true);
         try {
-            const result = await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
+            const result = await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe, fast: fastTranscribe });
             if (!result.ok) {
                 toast({
                     title: t('toasts.errorRequestingTranscription.title'),
@@ -381,7 +382,7 @@ export default function AdminActions({
                                 onUrlChange={(url) => setMediaUrl(url)}
                                 config={{ cityId: meeting.cityId, identifier: meeting.id, kind: 'recording', councilMeetingId: meeting.id }}
                             />
-                            <div className="flex items-center justify-between space-x-2 w-full">
+                            <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
                                     <Switch
                                         id="force-transcribe"
@@ -390,13 +391,26 @@ export default function AdminActions({
                                     />
                                     <Label htmlFor="force-transcribe">{t('forms.force')}</Label>
                                 </div>
-                                <Button onClick={handleTranscribe} disabled={isTranscribing}>
-                                    {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
-                                </Button>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="fast-transcribe"
+                                        checked={fastTranscribe}
+                                        onCheckedChange={setFastTranscribe}
+                                    />
+                                    <Label htmlFor="fast-transcribe">{t('forms.fast')}</Label>
+                                </div>
                             </div>
                             {forceTranscribe && (
                                 <p className="text-xs text-muted-foreground">{t('forms.forceDescription.transcribe')}</p>
                             )}
+                            {fastTranscribe && (
+                                <p className="text-xs text-muted-foreground">{t('forms.fastDescription')}</p>
+                            )}
+                            <div className="flex justify-end">
+                                <Button onClick={handleTranscribe} disabled={isTranscribing}>
+                                    {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
+                                </Button>
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>

@@ -1,7 +1,7 @@
 /** @jest-environment node */
 // The schemas load without the write layer: no mock of Prisma, env.mjs or
 // adminData is necessary here.
-import { createMeetingToolInput, createTopicsToolInput, MAX_TOPICS_PER_CALL, updateMeetingToolInput } from '@/lib/mcp/adminToolSchemas';
+import { createMeetingToolInput, createTopicsToolInput, MAX_TOPICS_PER_CALL, startTaskToolInput, updateMeetingToolInput } from '@/lib/mcp/adminToolSchemas';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { createTopicSchema } from '@/lib/zod-schemas/topic';
 
@@ -92,5 +92,15 @@ describe('create_topics and the topic form of /admin/topics', () => {
         expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: many(MAX_TOPICS_PER_CALL) }).success).toBe(true);
         expect(createTopicsToolInput.safeParse({ realm: 'south_africa', topics: many(MAX_TOPICS_PER_CALL + 1) }).success).toBe(false);
         expect(createTopicsToolInput.safeParse({ realm: 'atlantis', topics: [topic] }).success).toBe(false);
+    });
+});
+
+describe('start_task', () => {
+    it('takes fast on transcribe only', () => {
+        const base = { cityId: 'chania', meetingId: 'm1' };
+        expect(startTaskToolInput.safeParse({ ...base, type: 'transcribe', fast: true }).success).toBe(true);
+        const summarize = startTaskToolInput.safeParse({ ...base, type: 'summarize', fast: true });
+        expect(summarize.success).toBe(false);
+        expect(summarize.error?.issues[0]).toMatchObject({ path: ['fast'], message: 'fast applies to transcribe only' });
     });
 });

@@ -34,7 +34,7 @@ export async function requestTranscribe(
     youtubeUrl: string,
     councilMeetingId: string,
     cityId: string,
-    options: { force?: boolean } = {},
+    options: { force?: boolean; fast?: boolean } = {},
 ) {
     return transcribe(youtubeUrl, councilMeetingId, cityId, options);
 }

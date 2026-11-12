@@ -10,6 +10,6 @@ export type StartableMeetingTask = (typeof STARTABLE_MEETING_TASKS)[number];
 
 export type MeetingTaskRequest =
     | { type: 'processAgenda'; agendaUrl?: string; force?: boolean }
-    | { type: 'transcribe'; videoUrl?: string; force?: boolean }
+    | { type: 'transcribe'; videoUrl?: string; force?: boolean; fast?: boolean }
     | { type: 'fixTranscript'; force?: boolean }
     | { type: 'summarize'; additionalInstructions?: string; force?: boolean };
