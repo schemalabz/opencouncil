@@ -506,7 +506,7 @@
     },
     "previewMinutes": "Preview",
     "debugClassification": "Debug: show classification",
-    "exportDocx": "Export DOCX",
+    "exportDocx": "Download DOCX",
     "factsArrivalsDepartures": "Arrivals / departures",
     "factsChangeAt": "at {label}",
     "factsMore": "and {n} more",
@@ -530,7 +530,7 @@
         "sent": "Minutes: sent {date} to {to}.",
         "sentIncomplete": "Minutes: sent as provisional {date} to {to}, {n, plural, one {# subject} other {# subjects}} without a decision.",
         "pending": "Minutes: the send is in progress.",
-        "unconfirmed": "Minutes: the send was not confirmed. Check whether they arrived before you send them again.",
+        "unconfirmed": "Minutes: the send was not confirmed, so they may already have reached the secretariat.",
         "failed": "Minutes: the last send failed.",
         "earlier": "An earlier send went out {date}.",
         "waitReview": "Minutes: sent on their own once the review of the transcript is complete.",
@@ -539,7 +539,7 @@
         "waitPoll": "Minutes: sent on their own after one more check for their decisions on Diavgeia.",
         "waitAgenda": "Minutes: sent on their own once the subjects of the meeting are entered.",
         "unsent": "Minutes: not sent.",
-        "byHandOnly": "Minutes: not sent on their own, because the meeting was held before their send was switched on. You can send them from here.",
+        "byHandOnly": "Minutes: not sent on their own, because the meeting was held before their send was switched on.",
         "send": "Send to the secretariat"
       }
     },

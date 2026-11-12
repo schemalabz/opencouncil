@@ -506,7 +506,7 @@
     },
     "previewMinutes": "Aperçu",
     "debugClassification": "Débogage : afficher la classification",
-    "exportDocx": "Exporter en DOCX",
+    "exportDocx": "Télécharger le DOCX",
     "factsArrivalsDepartures": "Arrivées / départs",
     "factsChangeAt": "au {label}",
     "factsMore": "et {n} de plus",
@@ -530,7 +530,7 @@
         "sent": "Procès-verbal : envoyé le {date} à {to}.",
         "sentIncomplete": "Procès-verbal : envoyé provisoire le {date} à {to}, {n, plural, one {# point} other {# points}} sans décision.",
         "pending": "Procès-verbal : l'envoi est en cours.",
-        "unconfirmed": "Procès-verbal : l'envoi n'a pas été confirmé. Vérifiez s'il est arrivé avant de l'envoyer à nouveau.",
+        "unconfirmed": "Procès-verbal : l'envoi n'a pas été confirmé, il est donc peut-être déjà arrivé au secrétariat.",
         "failed": "Procès-verbal : le dernier envoi a échoué.",
         "earlier": "Un envoi précédent est parti le {date}.",
         "waitReview": "Procès-verbal : envoyé automatiquement une fois la relecture de la transcription terminée.",
@@ -539,7 +539,7 @@
         "waitPoll": "Procès-verbal : envoyé automatiquement après une nouvelle recherche de ses décisions sur Diavgeia.",
         "waitAgenda": "Procès-verbal : envoyé automatiquement une fois les points de la séance saisis.",
         "unsent": "Procès-verbal : non envoyé.",
-        "byHandOnly": "Procès-verbal : non envoyé automatiquement, car la séance a eu lieu avant l'activation de son envoi. Vous pouvez l'envoyer d'ici.",
+        "byHandOnly": "Procès-verbal : non envoyé automatiquement, car la séance a eu lieu avant l'activation de son envoi.",
         "send": "Envoyer au secrétariat"
       }
     },
