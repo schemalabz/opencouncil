@@ -3,7 +3,7 @@
 const mockPersonFindUnique = jest.fn();
 const mockPersonFindMany = jest.fn();
 const mockTaskFindUnique = jest.fn();
-const mockGetConsentedPersonIds = jest.fn();
+const mockHasVoicePrintConsent = jest.fn();
 const mockCreateVoicePrintDirect = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 
@@ -24,14 +24,12 @@ jest.mock('@/lib/db/voiceprintsCreate', () => ({ createVoicePrintDirect: (...arg
 const mockDeleteVoiceData = jest.fn();
 jest.mock('@/lib/db/voiceprintsDelete', () => ({ deleteVoiceData: (...args: unknown[]) => mockDeleteVoiceData(...args) }));
 jest.mock('@/lib/db/personConsent', () => ({
-    voicePrintConsentInForce: { voicePrintConsents: { some: { withdrawnAt: null } } },
-    getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args),
+    hasVoicePrintConsent: (...args: unknown[]) => mockHasVoicePrintConsent(...args),
 }));
 
-import { findEligiblePeopleForVoiceprintGeneration, requestGenerateVoiceprint } from '../generateVoiceprint';
+import { voicePrintConsentInForce } from '@/lib/db/voicePrintConsentRule';
+import { findEligiblePeopleForVoiceprintGeneration, requestGenerateVoiceprint, requestGenerateVoiceprintsForCity } from '../generateVoiceprint';
 import { handleGenerateVoiceprintResult } from '../generateVoiceprintInternal';
-
-const consented = (...ids: string[]) => mockGetConsentedPersonIds.mockResolvedValue(new Set(ids));
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -39,35 +37,51 @@ beforeEach(() => {
     mockDeleteVoiceData.mockResolvedValue([]);
 });
 
-describe('requestGenerateVoiceprint', () => {
-    it('authorizes on the person\'s city before it reads the consent', async () => {
-        mockPersonFindUnique.mockResolvedValueOnce({ cityId: 'chania' });
+describe('the voiceprint actions are a superadmin\'s', () => {
+    it('authorizes a superadmin before it reads the person or the consent', async () => {
         mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Forbidden'));
 
         await expect(requestGenerateVoiceprint('p1')).rejects.toThrow('Forbidden');
+        await expect(findEligiblePeopleForVoiceprintGeneration('chania')).rejects.toThrow('Forbidden');
+        await expect(requestGenerateVoiceprintsForCity('chania')).rejects.toThrow('Forbidden');
 
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'chania' });
-        expect(mockGetConsentedPersonIds).not.toHaveBeenCalled();
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledTimes(3);
+        for (const call of mockWithUserAuthorizedToEdit.mock.calls) expect(call).toEqual([{}]);
+        expect(mockPersonFindUnique).not.toHaveBeenCalled();
+        expect(mockPersonFindMany).not.toHaveBeenCalled();
+        expect(mockHasVoicePrintConsent).not.toHaveBeenCalled();
     });
+});
 
-    it('refuses a person whose voiceprint consent is not in force, before any segment search', async () => {
-        mockPersonFindUnique.mockResolvedValueOnce({ cityId: 'chania' });
-        consented();
+describe('requestGenerateVoiceprint', () => {
+    it('refuses, as a value, a person whose voiceprint consent is not in force, before any segment search', async () => {
+        mockPersonFindUnique.mockResolvedValueOnce({ id: 'p1' });
+        mockHasVoicePrintConsent.mockResolvedValue(false);
 
-        await expect(requestGenerateVoiceprint('p1')).rejects.toThrow('no voiceprint consent in force');
+        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({
+            ok: false,
+            message: expect.stringContaining('no voiceprint consent in force'),
+        });
 
-        // The person lookup for the city, and nothing after the refusal.
+        // The person lookup, and nothing after the refusal.
         expect(mockPersonFindUnique).toHaveBeenCalledTimes(1);
     });
 
+    it('refuses, as a value, a person who does not exist', async () => {
+        mockPersonFindUnique.mockResolvedValueOnce(null);
+
+        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({ ok: false, message: 'Person not found' });
+        expect(mockHasVoicePrintConsent).not.toHaveBeenCalled();
+    });
+
     it('goes on for a person with a consent in force', async () => {
-        consented('p1');
+        mockHasVoicePrintConsent.mockResolvedValue(true);
         // The second lookup is the segment search; no tags means the next refusal, which proves the gates passed.
         mockPersonFindUnique
-            .mockResolvedValueOnce({ cityId: 'chania' })
+            .mockResolvedValueOnce({ id: 'p1' })
             .mockResolvedValueOnce({ speakerTags: [] });
 
-        await expect(requestGenerateVoiceprint('p1')).rejects.toThrow('No speaker segments');
+        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({ ok: false, message: 'No speaker segments found for this person' });
     });
 });
 
@@ -78,7 +92,7 @@ describe('findEligiblePeopleForVoiceprintGeneration', () => {
         await findEligiblePeopleForVoiceprintGeneration('chania');
 
         expect(mockPersonFindMany).toHaveBeenCalledWith(expect.objectContaining({
-            where: expect.objectContaining({ cityId: 'chania', voicePrintConsents: { some: { withdrawnAt: null } } }),
+            where: expect.objectContaining({ cityId: 'chania', ...voicePrintConsentInForce }),
         }));
     });
 });
@@ -91,7 +105,7 @@ describe('handleGenerateVoiceprintResult', () => {
 
     it('stores the embedding while the consent is in force', async () => {
         mockTaskFindUnique.mockResolvedValue(task);
-        consented('p1');
+        mockHasVoicePrintConsent.mockResolvedValue(true);
 
         await handleGenerateVoiceprintResult('task-1', result);
 
@@ -108,11 +122,28 @@ describe('handleGenerateVoiceprintResult', () => {
 
     it('fails the task, stores nothing and removes the clip when the consent closed while the task ran', async () => {
         mockTaskFindUnique.mockResolvedValue(task);
-        consented();
+        mockHasVoicePrintConsent.mockResolvedValue(false);
 
         await expect(handleGenerateVoiceprintResult('task-1', result)).rejects.toThrow('no voiceprint consent in force');
 
         expect(mockCreateVoicePrintDirect).not.toHaveBeenCalled();
         expect(mockDeleteVoiceData).toHaveBeenCalledWith({ voicePrintIds: [], clipUrls: [result.audioUrl], folders: [] }, 'voiceprint of task task-1 refused');
+    });
+
+    it('keeps the consent reason when the clip cannot be removed', async () => {
+        mockTaskFindUnique.mockResolvedValue(task);
+        mockHasVoicePrintConsent.mockResolvedValue(false);
+        mockDeleteVoiceData.mockResolvedValue([{ clip: 'b/voiceprints/chania/p1/clip.mp3', error: 'AccessDenied' }]);
+
+        await expect(handleGenerateVoiceprintResult('task-1', result)).rejects.toThrow('no voiceprint consent in force');
+    });
+});
+
+describe('requestGenerateVoiceprintsForCity', () => {
+    it('reports an empty list as a value, so the dialog can say why', async () => {
+        mockPersonFindMany.mockResolvedValue([]);
+        await expect(requestGenerateVoiceprintsForCity('chania', ['p1'])).resolves.toEqual({
+            results: [], errors: [], totalRequested: 0, successful: 0, failed: 0,
+        });
     });
 });

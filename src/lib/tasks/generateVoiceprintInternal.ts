@@ -1,20 +1,14 @@
 /**
- * The generateVoiceprint result handler, and the consent check it shares with
- * the request. Not in a "use server" file: the handler writes a voiceprint
- * with no session to gate on. Only the task-server callback and the admin's
- * reprocess reach it, through the registry.
+ * The generateVoiceprint result handler. Not in a "use server" file: it
+ * writes a voiceprint with no session to gate on. Only the task-server
+ * callback and the admin's reprocess reach it, through the registry.
  */
 import "server-only";
 import prisma from "@/lib/db/prisma";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "@/lib/apiTypes";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
-import { getConsentedPersonIds } from "@/lib/db/personConsent";
+import { hasVoicePrintConsent } from "@/lib/db/personConsent";
 import { deleteVoiceData } from "@/lib/db/voiceprintsDelete";
-
-/** Whether the person's voiceprint consent is in force now. */
-export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
-    return (await getConsentedPersonIds([personId])).has(personId);
-}
 
 /**
  * Store the embedding of a generateVoiceprint task as the person's voiceprint.

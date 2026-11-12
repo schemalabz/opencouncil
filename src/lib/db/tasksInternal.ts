@@ -8,7 +8,7 @@
 import "server-only";
 import type { Prisma, TaskStatus } from '@prisma/client';
 import prisma from "./prisma";
-import { TASK_CONFIG } from '@/lib/tasks/types';
+import { SUPERADMIN_TASK_TYPES, TASK_CONFIG } from '@/lib/tasks/types';
 import { MEDIA_FAILURE_RESPONSE_PREFIX } from '@/lib/tasks/taskResponse';
 import { readMediaFailureResponse } from '@/lib/tasks/mediaMetadata';
 import type { MediaFailure, ProcessAgendaResult, Subject } from '@/lib/apiTypes';
@@ -95,6 +95,7 @@ export type MeetingTaskRow = Prisma.TaskStatusGetPayload<{ select: typeof meetin
 export const MEETING_TASKS_PER_TYPE = 5;
 
 const MEETING_TASK_TYPES = Object.keys(TASK_CONFIG);
+const NON_SUPERADMIN_TASK_TYPES = MEETING_TASK_TYPES.filter((type) => !(SUPERADMIN_TASK_TYPES as string[]).includes(type));
 
 /**
  * The tasks of a meeting, newest first, capped per type, with the failure
@@ -102,12 +103,14 @@ const MEETING_TASK_TYPES = Object.keys(TASK_CONFIG);
  * with a canonical failure envelope add structured recovery guidance.
  *
  * No user gate: the MCP server authorizes with a token before it calls this.
+ * The caller says whether the reader is a superadmin: a superadmin-scope task
+ * (a voiceprint) is left out for anyone else, as in getTasksForMeeting.
  */
-export async function getTasksForMeetingDirect(cityId: string, councilMeetingId: string): Promise<MeetingTaskRow[]> {
+export async function getTasksForMeetingDirect(cityId: string, councilMeetingId: string, reader: { superadmin: boolean }): Promise<MeetingTaskRow[]> {
     // One bounded, indexed read per type instead of the whole history: a
     // meeting polled for decisions on a schedule holds hundreds of rows.
     const perType = await Promise.all(
-        MEETING_TASK_TYPES.map(type => prisma.taskStatus.findMany({
+        (reader.superadmin ? MEETING_TASK_TYPES : NON_SUPERADMIN_TASK_TYPES).map(type => prisma.taskStatus.findMany({
             where: { cityId, councilMeetingId, type },
             select: meetingTaskSelect,
             orderBy: { createdAt: 'desc' },

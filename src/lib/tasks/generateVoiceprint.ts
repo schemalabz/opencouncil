@@ -5,10 +5,10 @@ import { getCouncilMeeting } from "@/lib/db/meetings";
 import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest } from "../apiTypes";
-import { Prisma, SpeakerSegment } from "@prisma/client";
-import { ForbiddenError, NotFoundError } from "@/lib/api/errors";
-import { voicePrintConsentInForce } from "@/lib/db/personConsent";
-import { hasVoicePrintConsent } from "./generateVoiceprintInternal";
+import { Prisma, SpeakerSegment, TaskStatus } from "@prisma/client";
+import { BadRequestError } from "@/lib/api/errors";
+import { voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
+import { hasVoicePrintConsent } from "@/lib/db/personConsent";
 
 const VOICEPRINT_DURATION = 30;
 
@@ -66,12 +66,16 @@ function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegmen
  * VOICEPRINT_DURATION, and they don't already have a voiceprint. The query
  * loads every segment of the people it reads, so pass the ids whenever the
  * caller has them.
+ *
+ * The voiceprint actions are a superadmin's, as the people page that calls
+ * them: the answer tells whether a person consented, and consent is not
+ * public.
  */
 export async function findEligiblePeopleForVoiceprintGeneration(cityId: string, personIds?: string[]): Promise<{
     eligiblePeople: Array<{ id: string; name: string }>;
     count: number;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({});
     // A server action has no runtime types: check what the browser sent.
     if (personIds !== undefined && !(Array.isArray(personIds) && personIds.every(id => typeof id === "string"))) {
         throw new Error("personIds must be an array of strings");
@@ -115,13 +119,9 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string, 
  * so a page that went stale cannot ask for more than the rule allows.
  */
 export async function requestGenerateVoiceprintsForCity(cityId: string, personIds?: string[]) {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({});
 
     const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId, personIds);
-
-    if (eligiblePeople.length === 0) {
-        throw new Error("No eligible people found for voiceprint generation");
-    }
 
     const results = [];
     const errors = [];
@@ -156,40 +156,45 @@ export async function requestGenerateVoiceprintsForCity(cityId: string, personId
 }
 
 /**
- * Request to generate a voiceprint for a person. Authorizes on the person's
- * city before it reads anything else: consent is not public, and the refusal
- * below would otherwise tell any caller whether the person consented.
+ * Request to generate a voiceprint for a person. A superadmin's action (see
+ * findEligiblePeopleForVoiceprintGeneration), authorized before it reads
+ * anything. A refusal comes back as a value: production Next hides the
+ * message of an error that a Server Action throws.
  */
-export async function requestGenerateVoiceprint(personId: string) {
-    const person = await prisma.person.findUnique({ where: { id: personId }, select: { cityId: true } });
-    if (!person) {
-        throw new NotFoundError("Person not found");
-    }
-    await withUserAuthorizedToEdit({ cityId: person.cityId });
+export async function requestGenerateVoiceprint(personId: string): Promise<{ ok: true; task: TaskStatus } | { ok: false; message: string }> {
+    await withUserAuthorizedToEdit({});
 
+    if (!await prisma.person.findUnique({ where: { id: personId }, select: { id: true } })) {
+        return { ok: false, message: "Person not found" };
+    }
     if (!await hasVoicePrintConsent(personId)) {
-        throw new ForbiddenError("This person has no voiceprint consent in force. No voiceprint is generated or used without one.");
+        return { ok: false, message: "This person has no voiceprint consent in force. No voiceprint is generated or used without one." };
     }
 
-    return startVoiceprintGeneration(personId);
+    try {
+        return { ok: true, task: await startVoiceprintGeneration(personId) };
+    } catch (error) {
+        if (error instanceof BadRequestError) return { ok: false, message: error.message };
+        throw error;
+    }
 }
 
 /**
- * Start the voiceprint task for a person. The caller has authorized on the
- * person's city and checked the consent.
+ * Start the voiceprint task for a person. The caller has authorized and
+ * checked the consent.
  */
 async function startVoiceprintGeneration(personId: string) {
     // Find the longest speaker segment for this person
     const segment = await findLongestSpeakerSegmentForPerson(personId);
 
     if (!segment) {
-        throw new Error("No speaker segments found for this person");
+        throw new BadRequestError("No speaker segments found for this person");
     }
 
     // Check if the segment is long enough for a voiceprint
     const segmentDuration = segment.endTimestamp - segment.startTimestamp;
     if (segmentDuration < VOICEPRINT_DURATION) {
-        throw new Error(
+        throw new BadRequestError(
             `Speaker segment is too short (${segmentDuration.toFixed(1)}s). At least ${VOICEPRINT_DURATION}s of audio is required for a voiceprint.`,
         );
     }
@@ -198,12 +203,12 @@ async function startVoiceprintGeneration(personId: string) {
     const meeting = await getCouncilMeeting(segment.cityId, segment.meetingId);
 
     if (!meeting) {
-        throw new Error("Meeting not found");
+        throw new BadRequestError("Meeting not found");
     }
 
     const mediaUrl = meeting.audioUrl || meeting.videoUrl;
     if (!mediaUrl) {
-        throw new Error("Meeting media URL not found");
+        throw new BadRequestError("The meeting has no media to cut a voiceprint from");
     }
 
     // Calculate a segment centered on the midpoint

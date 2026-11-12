@@ -94,7 +94,12 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
     const handleGenerateVoiceprint = async () => {
         setIsLoading(true);
         try {
-            const task = await requestGenerateVoiceprint(personId);
+            const outcome = await requestGenerateVoiceprint(personId);
+            if (!outcome.ok) {
+                toast({ title: "Voiceprint not generated", description: outcome.message, variant: "destructive" });
+                return;
+            }
+            const { task } = outcome;
 
             // Set pending task to automatically start polling
             setLatestPendingTask(task);

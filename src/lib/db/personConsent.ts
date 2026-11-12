@@ -4,10 +4,8 @@ import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
 import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
-import { openPeriodWhere, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
+import { openPeriodWhere } from "@/lib/db/voicePrintConsentRule";
 import { deleteVoiceDataWithoutConsent } from "@/lib/db/voiceprintsDelete";
-
-export { voicePrintConsentInForce };
 
 const openPeriod = (personId: string) => ({ personId, ...openPeriodWhere });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
@@ -132,6 +130,11 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
         select: openPeriodSelect,
     });
     if (open) await closePeriod(tx, open);
+}
+
+/** Whether the person's voiceprint consent is in force now. */
+export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
+    return (await getConsentedPersonIds([personId])).has(personId);
 }
 
 /** The ids among `personIds` with a consent in force. */

@@ -51,6 +51,11 @@ export default function People({ cityLanguage, people, consents, currentCityName
         () => new Set(people.filter(person => person.voicePrints.length === 0).map(person => person.id)),
         [people],
     );
+    // The voiceprint button counts only those with a consent in force too.
+    const mayGetVoiceprint = useMemo(
+        () => new Set([...withoutVoiceprint].filter(id => id in consents)),
+        [withoutVoiceprint, consents],
+    );
     const selectable = (id: string) => qrEligible.has(id) || withoutVoiceprint.has(id);
 
     // The bodies people sit on now, as /admin/meetings offers its bodies.
@@ -72,8 +77,8 @@ export default function People({ cityLanguage, people, consents, currentCityName
     const visibleIds = useMemo(() => filteredPeople.map(p => p.id), [filteredPeople]);
     const qrScope = useMemo(() => bulkActionScope(selected, visibleIds, qrEligible), [selected, visibleIds, qrEligible]);
     const voiceprintScope = useMemo(
-        () => bulkActionScope(selected, visibleIds, withoutVoiceprint),
-        [selected, visibleIds, withoutVoiceprint],
+        () => bulkActionScope(selected, visibleIds, mayGetVoiceprint),
+        [selected, visibleIds, mayGetVoiceprint],
     );
 
     const visibleSelectable = visibleIds.filter(selectable);

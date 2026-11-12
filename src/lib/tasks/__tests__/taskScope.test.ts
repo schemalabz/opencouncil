@@ -3,10 +3,16 @@ import { TASK_CONFIG, taskScope } from '../types';
 describe('taskScope', () => {
     const meetingTypes = Object.entries(TASK_CONFIG).filter(([, config]) => config.scope === 'meeting').map(([type]) => type);
     const cityTypes = Object.entries(TASK_CONFIG).filter(([, config]) => config.scope === 'city').map(([type]) => type);
+    const superadminTypes = Object.entries(TASK_CONFIG).filter(([, config]) => config.scope === 'superadmin').map(([type]) => type);
 
     it('gives the meeting scope to the tasks that a body admin runs, and no other', () => {
         expect(meetingTypes.sort()).toEqual(['fixTranscript', 'generateHighlight', 'processAgenda', 'summarize', 'transcribe']);
-        expect(cityTypes.sort()).toEqual(['generateVoiceprint', 'humanReview', 'pollDecisions']);
+        expect(cityTypes.sort()).toEqual(['humanReview', 'pollDecisions']);
+        expect(superadminTypes).toEqual(['generateVoiceprint']);
+    });
+
+    it('leaves a superadmin task without a scope, so only a superadmin replays, reads or deletes it', () => {
+        expect(taskScope({ type: 'generateVoiceprint', cityId: 'c', councilMeetingId: 'm' })).toEqual({});
     });
 
     it.each(meetingTypes)('scopes a %s task to its meeting', (type) => {

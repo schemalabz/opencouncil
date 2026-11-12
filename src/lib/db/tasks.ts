@@ -1,8 +1,8 @@
 'use server'
-import { withUserAuthorizedToEdit } from "../auth";
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
-import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
+import { CORE_PROCESSING_TASKS, MeetingTaskType, SUPERADMIN_TASK_TYPES, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
 import { findVoiceprintTasks } from "./voiceprintTasks";
 
@@ -37,13 +37,20 @@ export async function getRecentTasks(offset: number = 0): Promise<{ tasks: TaskS
     return { tasks: tasks.slice(0, RECENT_TASKS_PAGE_SIZE), hasMore };
 }
 
+/**
+ * The tasks of a meeting, with their bodies. A superadmin-scope task (a
+ * voiceprint) is left out for anyone but a superadmin: its body holds a
+ * person's voice, and its existence tells that the person consented.
+ */
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
     await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId: cityId })
+    const superadmin = await isUserAuthorizedToEdit({});
     try {
         const tasks = await prisma.taskStatus.findMany({
             where: {
                 cityId: cityId,
                 councilMeetingId: meetingId,
+                ...(superadmin ? {} : { type: { notIn: SUPERADMIN_TASK_TYPES } }),
             },
             orderBy: {
                 createdAt: 'desc',
@@ -127,10 +134,12 @@ export async function getGenerateHighlightTasksForHighlight(cityId: string, meet
 }
 
 /**
- * Get voiceprint generation tasks for a specific person
+ * The voiceprint tasks of a person, with their bodies. A superadmin's read,
+ * as the voiceprint dialog that calls it: the bodies hold the person's
+ * voice, and a task tells that the person consented.
  */
 export async function getVoiceprintTasksForPerson(personId: string): Promise<TaskStatus[]> {
-    await withUserAuthorizedToEdit({ personId });
+    await withUserAuthorizedToEdit({});
     try {
         return (await findVoiceprintTasks({ personId })).map(({ task }) => task);
     } catch (error) {

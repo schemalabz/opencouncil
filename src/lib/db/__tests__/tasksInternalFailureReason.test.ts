@@ -42,7 +42,7 @@ describe('failure reason readers', () => {
                     ? [{ ...row, id: 't1' }, { ...row, id: 't2' }]
                     : []));
 
-        const tasks = await getTasksForMeetingDirect('city-1', 'meeting-1');
+        const tasks = await getTasksForMeetingDirect('city-1', 'meeting-1', { superadmin: true });
 
         expect(tasks.find(t => t.id === 't1')?.error).toBe('Error: handler bug');
         expect(tasks.find(t => t.id === 't2')?.error).toBe('video unavailable');
@@ -66,7 +66,7 @@ it('does not fetch any response body when only successful transcribes are polled
         where.type === 'transcribe' ? [{ id: 'success', type: 'transcribe', status: 'succeeded',
             stage: null, percentComplete: 100, version: 6, createdAt: new Date(), updatedAt: new Date() }] : []
     ));
-    const tasks = await getTasksForMeetingDirect('city-1', 'meeting-1');
+    const tasks = await getTasksForMeetingDirect('city-1', 'meeting-1', { superadmin: true });
     expect(tasks[0]).not.toHaveProperty('mediaSource');
     expect(mockQueryRaw).not.toHaveBeenCalled();
     for (const [args] of mockFindMany.mock.calls) expect(args.select).not.toHaveProperty('responseBody');

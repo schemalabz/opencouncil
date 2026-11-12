@@ -69,6 +69,11 @@ export function BulkVoiceprintDialog({ cityId, currentCityName, personIds }: Bul
             const result = await requestGenerateVoiceprintsForCity(cityId, eligibleIds);
             setResult(result);
             setIsLoading(false);
+            if (result.totalRequested === 0) {
+                // The people changed since the check, a withdrawal among them.
+                toast({ title: "No voiceprint generated", description: `Nobody you chose can get a voiceprint now. ${VOICEPRINT_RULE}`, variant: "destructive" });
+                return;
+            }
 
             toast({
                 title: "Voiceprint generation started",
@@ -118,8 +123,8 @@ export function BulkVoiceprintDialog({ cityId, currentCityName, personIds }: Bul
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                {/* Off when everyone in scope has a voiceprint, so the dialog never
-                    opens on a check that can only say none. */}
+                {/* Off when nobody in scope has a consent in force and no voiceprint,
+                    so the dialog never opens on a check that can only say none. */}
                 <Button variant="outline" size="sm" className="gap-2" disabled={personIds.length === 0}>
                     <Volume2 className="h-4 w-4" />
                     Generate Voiceprints
