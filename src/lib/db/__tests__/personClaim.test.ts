@@ -66,7 +66,7 @@ describe('claimPerson', () => {
         mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => { const r = await fn(tx); order.push('commit'); return r; });
         mockDeleteVoiceDataWithoutConsent.mockImplementation(async () => { order.push('delete'); return []; });
         await claimPerson('user-1', 'person-1');
-        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' }, expect.any(String));
         expect(order).toEqual(['commit', 'delete']);
     });
 

@@ -85,7 +85,7 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
         }
         if (open) await closePeriod(tx, open);
     });
-    if (!consent) await deleteVoiceDataWithoutConsent(personId);
+    if (!consent) await deleteVoiceDataWithoutConsent({ personId }, `consent of person ${personId} withdrawn`);
 }
 
 /**
@@ -112,7 +112,7 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
         }
         if (open) await closePeriod(tx, open);
     });
-    if (!consent) await deleteVoiceDataWithoutConsent(personId);
+    if (!consent) await deleteVoiceDataWithoutConsent({ personId }, `consent of person ${personId} withdrawn`);
 }
 
 /**
@@ -130,16 +130,6 @@ export async function closeAppConsent(tx: Prisma.TransactionClient, personId: st
         select: openPeriodSelect,
     });
     if (open) await closePeriod(tx, open);
-}
-
-/** Whether the person's voiceprint consent is in force now. */
-export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
-    return (await getConsentedPersonIds([personId])).has(personId);
-}
-
-/** The ids among `personIds` with a consent in force. */
-export async function getConsentedPersonIds(personIds: string[]): Promise<Set<string>> {
-    return new Set((await getVoicePrintConsents(personIds)).keys());
 }
 
 /**

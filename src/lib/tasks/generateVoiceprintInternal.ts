@@ -7,8 +7,8 @@ import "server-only";
 import prisma from "@/lib/db/prisma";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "@/lib/apiTypes";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
-import { hasVoicePrintConsent } from "@/lib/db/personConsent";
-import { deleteVoiceData } from "@/lib/db/voiceprintsDelete";
+import { hasVoicePrintConsent } from "@/lib/db/voicePrintConsentRule";
+import { deleteVoiceDataWithoutConsent } from "@/lib/db/voiceprintsDelete";
 
 /**
  * Store the embedding of a generateVoiceprint task as the person's voiceprint.
@@ -28,8 +28,8 @@ export async function handleGenerateVoiceprintResult(taskId: string, result: Gen
     const requestBody = JSON.parse(taskStatus.requestBody) as GenerateVoiceprintRequest;
 
     if (!await hasVoicePrintConsent(requestBody.personId)) {
-        // Logs and alerts a clip that cannot be removed; the refusal below stands either way.
-        await deleteVoiceData({ voicePrintIds: [], clipUrls: [result.audioUrl], folders: [] }, `voiceprint of task ${taskId} refused`);
+        // The clip that the task uploaded is in the person's folder; the refusal stands whatever happens to it.
+        await deleteVoiceDataWithoutConsent({ personId: requestBody.personId }, `voiceprint of task ${taskId} refused`);
         throw new Error(`Voiceprint not stored: person ${requestBody.personId} has no voiceprint consent in force`);
     }
 

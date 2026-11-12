@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
+import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
@@ -161,5 +162,6 @@ export async function DELETE(request: Request, props: { params: Promise<{ cityId
         return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     await deleteCity(params.cityId);
+    await deleteVoiceDataWithoutConsent({ cityId: params.cityId }, `city ${params.cityId} deleted`);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

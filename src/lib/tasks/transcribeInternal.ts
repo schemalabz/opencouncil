@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { transcriptionRefusal } from "@/lib/meetingLifecycleRules";
 import prisma from "../db/prisma";
 import { getPeopleWhoMaySpeak } from "@/lib/db/people";
-import { getConsentedPersonIds } from "@/lib/db/personConsent";
+import { getConsentedPersonIds } from "@/lib/db/voicePrintConsentRule";
 import { getRoleTypePriority } from "../utils";
 import { voiceprintPriorityGroup } from "./voiceprintPriority";
 import { getStatisticsFor } from "../statistics";

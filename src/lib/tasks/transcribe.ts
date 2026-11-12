@@ -12,7 +12,7 @@ import { meetingLabelInCity } from '@/lib/meetingName';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { webUrl } from '@/lib/zod-schemas/primitives';
 import { PipelineBusyError, TaskAlreadyExistsError, taskScope } from './types';
-import { getConsentedPersonIds } from "@/lib/db/personConsent";
+import { getConsentedPersonIds } from "@/lib/db/voicePrintConsentRule";
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
 // payload; 4 significant figures is far finer than the ASR signal warrants.

@@ -1,18 +1,16 @@
-import { Prisma } from "@prisma/client";
-
 /**
  * The one spelling of "a voiceprint consent is in force": a period that is
- * given and not withdrawn. Every reader of consent derives from here, so
- * these cannot disagree:
- * - the transcribe request sends only the voiceprints of people with one;
- * - the transcribe result keeps a voiceprint match only for them;
- * - voiceprint generation starts, and stores its result, only for them;
- * - when a consent ends, the person's voice data is deleted (voiceprintsDelete.ts).
+ * given and not withdrawn. Every reader of consent derives from here: the
+ * transcribe request and result, voiceprint generation, and the deletion of
+ * voice data when a consent ends.
  *
- * Pure constants, in a module of their own: personConsent.ts writes the
- * periods, voiceprintsDelete.ts deletes what a closed period leaves, and the
- * first calls the second.
+ * A module of its own: personConsent.ts writes the periods and calls
+ * voiceprintsDelete.ts, and both read the rule.
  */
+import "server-only";
+import { Prisma } from "@prisma/client";
+import prisma from "@/lib/db/prisma";
+
 export const openPeriodWhere = { withdrawnAt: null } satisfies Prisma.VoicePrintConsentWhereInput;
 
 /** The people whose voice the platform may process: those with an open period, whoever recorded it. */
@@ -24,3 +22,18 @@ export const voicePrintConsentInForce = {
 export const voicePrintsWithoutConsentWhere = {
     person: { voicePrintConsents: { none: openPeriodWhere } },
 } satisfies Prisma.VoicePrintWhereInput;
+
+/** The ids among `personIds` with a consent in force. */
+export async function getConsentedPersonIds(personIds: string[]): Promise<Set<string>> {
+    if (personIds.length === 0) return new Set();
+    const periods = await prisma.voicePrintConsent.findMany({
+        where: { personId: { in: personIds }, ...openPeriodWhere },
+        select: { personId: true },
+    });
+    return new Set(periods.map((period) => period.personId));
+}
+
+/** Whether the person's voiceprint consent is in force now. */
+export async function hasVoicePrintConsent(personId: string): Promise<boolean> {
+    return (await getConsentedPersonIds([personId])).has(personId);
+}

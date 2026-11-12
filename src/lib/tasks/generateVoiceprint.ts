@@ -7,8 +7,7 @@ import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest } from "../apiTypes";
 import { Prisma, SpeakerSegment, TaskStatus } from "@prisma/client";
 import { BadRequestError } from "@/lib/api/errors";
-import { voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
-import { hasVoicePrintConsent } from "@/lib/db/personConsent";
+import { hasVoicePrintConsent, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
 
 const VOICEPRINT_DURATION = 30;
 

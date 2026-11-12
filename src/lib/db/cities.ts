@@ -8,7 +8,6 @@ import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
-import { deleteVoiceData, findVoiceData } from "./voiceprintsDelete";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -40,10 +39,13 @@ export type CityWithCounts = City & {
 };
 
 
+/**
+ * Delete a city. The cascade deletes the voiceprint rows, not the clips in
+ * the bucket: the caller runs deleteVoiceDataWithoutConsent after this, as
+ * the city API route does.
+ */
 export async function deleteCity(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
-    // Read before the delete: the rows and the tasks that name the clips go with the city.
-    const voiceData = await findVoiceData({ cityId: id });
     try {
         await prisma.city.delete({
             where: { id },
@@ -52,7 +54,6 @@ export async function deleteCity(id: string): Promise<void> {
         console.error('Error deleting city:', error);
         throw new Error('Failed to delete city');
     }
-    await deleteVoiceData(voiceData, `city ${id} deleted`);
 }
 
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {

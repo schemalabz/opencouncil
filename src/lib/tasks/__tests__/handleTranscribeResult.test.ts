@@ -44,7 +44,7 @@ jest.mock('../../discord', () => ({
   sendTaskAdminAlert: (...args: unknown[]) => mockSendAutoFixAlert(...args),
 }));
 const mockGetConsentedPersonIds = jest.fn();
-jest.mock('../../db/personConsent', () => ({
+jest.mock('../../db/voicePrintConsentRule', () => ({
   getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args),
 }));
 

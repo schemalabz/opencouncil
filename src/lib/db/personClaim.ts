@@ -84,7 +84,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
         },
     );
-    if (result.status === "linked") await deleteVoiceDataWithoutConsent(personId);
+    if (result.status === "linked") await deleteVoiceDataWithoutConsent({ personId }, `person ${personId} claimed`);
     return result;
 }
 

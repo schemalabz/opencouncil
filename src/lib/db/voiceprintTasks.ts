@@ -1,41 +1,26 @@
 import "server-only";
 import { TaskStatus } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
-import type { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "@/lib/apiTypes";
+import type { GenerateVoiceprintRequest } from "@/lib/apiTypes";
 
-export type VoiceprintTask = {
-    task: TaskStatus;
-    request: GenerateVoiceprintRequest;
-    result: GenerateVoiceprintResult | null;
-};
-
-function parse<T>(body: string | null): T | null {
-    if (body === null) return null;
+function requestPersonId(body: string): string | null {
     try {
-        return JSON.parse(body) as T;
+        return (JSON.parse(body) as GenerateVoiceprintRequest).personId;
     } catch {
         return null;
     }
 }
 
 /**
- * The generateVoiceprint tasks of one person, or of every person of a city,
- * newest first, with their request and result read from the stored JSON. The
- * person filter is a text match on the request body, so the database returns
- * only candidate rows; the parsed `personId` decides.
+ * The generateVoiceprint tasks of one person, newest first. The person
+ * filter is a text match on the request body, so the database returns only
+ * candidate rows; the parsed `personId` decides, so that p1 does not get
+ * the tasks of p10.
  */
-export async function findVoiceprintTasks(scope: { personId: string } | { cityId: string }): Promise<VoiceprintTask[]> {
+export async function findVoiceprintTasks(personId: string): Promise<TaskStatus[]> {
     const tasks = await prisma.taskStatus.findMany({
-        where: {
-            type: "generateVoiceprint",
-            ...("cityId" in scope ? { cityId: scope.cityId } : { requestBody: { contains: scope.personId } }),
-        },
+        where: { type: "generateVoiceprint", requestBody: { contains: personId } },
         orderBy: { createdAt: "desc" },
     });
-    return tasks.flatMap((task) => {
-        const request = parse<GenerateVoiceprintRequest>(task.requestBody);
-        if (!request) return [];
-        if ("personId" in scope && request.personId !== scope.personId) return [];
-        return [{ task, request, result: parse<GenerateVoiceprintResult>(task.responseBody) }];
-    });
+    return tasks.filter((task) => requestPersonId(task.requestBody) === personId);
 }

@@ -18,7 +18,7 @@ jest.mock('../../db/prisma', () => ({
     },
 }));
 jest.mock('@/lib/db/people', () => ({ getPeopleWhoMaySpeak: (...args: unknown[]) => mockGetPeopleWhoMaySpeak(...args) }));
-jest.mock('@/lib/db/personConsent', () => ({ getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args) }));
+jest.mock('@/lib/db/voicePrintConsentRule', () => ({ getConsentedPersonIds: (...args: unknown[]) => mockGetConsentedPersonIds(...args) }));
 jest.mock('../tasks', () => ({ startTask: (...args: unknown[]) => mockStartTask(...args) }));
 jest.mock('../../statistics', () => ({ getStatisticsFor: jest.fn().mockResolvedValue({ people: [] }) }));
 

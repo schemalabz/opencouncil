@@ -21,7 +21,6 @@ jest.mock('@/lib/s3', () => ({
     listObjectKeys: jest.fn(),
     isStorageConfigured: () => true,
 }));
-jest.mock('@/lib/db/voiceprintTasks', () => ({ findVoiceprintTasks: jest.fn() }));
 jest.mock('@/lib/discord-core', () => ({ sendErrorAdminAlert: jest.fn() }));
 
 import { deleteVoicePrint } from '../voiceprints';

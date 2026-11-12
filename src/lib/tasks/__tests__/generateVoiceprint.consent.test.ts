@@ -22,8 +22,9 @@ jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: (...args: unknown[]) 
 jest.mock('../tasks', () => ({ startTask: jest.fn() }));
 jest.mock('@/lib/db/voiceprintsCreate', () => ({ createVoicePrintDirect: (...args: unknown[]) => mockCreateVoicePrintDirect(...args) }));
 const mockDeleteVoiceData = jest.fn();
-jest.mock('@/lib/db/voiceprintsDelete', () => ({ deleteVoiceData: (...args: unknown[]) => mockDeleteVoiceData(...args) }));
-jest.mock('@/lib/db/personConsent', () => ({
+jest.mock('@/lib/db/voiceprintsDelete', () => ({ deleteVoiceDataWithoutConsent: (...args: unknown[]) => mockDeleteVoiceData(...args) }));
+jest.mock('@/lib/db/voicePrintConsentRule', () => ({
+    ...jest.requireActual('@/lib/db/voicePrintConsentRule'),
     hasVoicePrintConsent: (...args: unknown[]) => mockHasVoicePrintConsent(...args),
 }));
 
@@ -127,13 +128,13 @@ describe('handleGenerateVoiceprintResult', () => {
         await expect(handleGenerateVoiceprintResult('task-1', result)).rejects.toThrow('no voiceprint consent in force');
 
         expect(mockCreateVoicePrintDirect).not.toHaveBeenCalled();
-        expect(mockDeleteVoiceData).toHaveBeenCalledWith({ voicePrintIds: [], clipUrls: [result.audioUrl], folders: [] }, 'voiceprint of task task-1 refused');
+        expect(mockDeleteVoiceData).toHaveBeenCalledWith({ personId: 'p1' }, 'voiceprint of task task-1 refused');
     });
 
     it('keeps the consent reason when the clip cannot be removed', async () => {
         mockTaskFindUnique.mockResolvedValue(task);
         mockHasVoicePrintConsent.mockResolvedValue(false);
-        mockDeleteVoiceData.mockResolvedValue([{ clip: 'b/voiceprints/chania/p1/clip.mp3', error: 'AccessDenied' }]);
+        mockDeleteVoiceData.mockResolvedValue([{ item: 'b/voiceprints/chania/p1/clip.mp3', error: 'AccessDenied' }]);
 
         await expect(handleGenerateVoiceprintResult('task-1', result)).rejects.toThrow('no voiceprint consent in force');
     });

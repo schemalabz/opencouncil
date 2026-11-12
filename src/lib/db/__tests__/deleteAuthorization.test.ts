@@ -4,9 +4,6 @@
  * Scoped admins keep their edit rights.
  */
 const mockAuth = jest.fn();
-const mockFindVoiceData = jest.fn();
-const mockDeleteVoiceData = jest.fn();
-jest.mock('@/lib/db/voiceprintsDelete', () => ({ findVoiceData: (...args: unknown[]) => mockFindVoiceData(...args), deleteVoiceData: (...args: unknown[]) => mockDeleteVoiceData(...args) }));
 jest.mock('@/auth', () => ({ auth: () => mockAuth() }));
 
 const mockPrisma = {
@@ -52,8 +49,6 @@ describe.each(admins)('a %s', (_label, scope) => {
         signInAs(false, [scope]);
         await expect(deletePerson(PERSON)).rejects.toThrow('Not authorized');
         expect(mockPrisma.person.delete).not.toHaveBeenCalled();
-        expect(mockFindVoiceData).not.toHaveBeenCalled();
-        expect(mockDeleteVoiceData).not.toHaveBeenCalled();
     });
 
     it('cannot delete a party', async () => {
@@ -77,9 +72,6 @@ describe('a superadmin', () => {
         await deleteAdministrativeBody(BODY);
         expect(mockPrisma.administrativeBody.delete).toHaveBeenCalledWith({ where: { id: BODY } });
         expect(mockPrisma.person.delete).toHaveBeenCalledWith({ where: { id: PERSON } });
-        // The person's voice data is read before the delete and deleted after it.
-        expect(mockFindVoiceData).toHaveBeenCalledWith({ personId: PERSON });
-        expect(mockDeleteVoiceData).toHaveBeenCalledTimes(1);
         expect(mockPrisma.party.delete).toHaveBeenCalledWith({ where: { id: PARTY } });
     });
 });

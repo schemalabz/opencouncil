@@ -85,7 +85,7 @@ describe('setVoicePrintConsent', () => {
         await setVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
         expect(txCreate).not.toHaveBeenCalled();
-        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' }, expect.any(String));
         expect(order).toEqual(['commit', 'delete']);
     });
 
@@ -93,7 +93,7 @@ describe('setVoicePrintConsent', () => {
         mockGetCurrentUser.mockResolvedValue(owner);
         await setVoicePrintConsent('person-1', false);
         expect(txUpdate).not.toHaveBeenCalled();
-        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' }, expect.any(String));
     });
 
     it('closes a period at its grant time when the clock of this instance is behind', async () => {
@@ -216,7 +216,7 @@ describe('recordVoicePrintConsent', () => {
         mockDeleteVoiceDataWithoutConsent.mockImplementation(async () => { order.push('delete'); return []; });
         await recordVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
-        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith('person-1');
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' }, expect.any(String));
         expect(order).toEqual(['commit', 'delete']);
     });
 

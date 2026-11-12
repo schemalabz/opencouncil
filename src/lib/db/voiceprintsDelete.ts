@@ -2,8 +2,14 @@
  * Deletion of a person's voice data: the voiceprint rows and the audio clips
  * that the task server cut for them.
  *
- * Not a "use server" file: the withdrawals, the claim, the person and city
- * deletes and the cleanup script call it with no session to gate on. The
+ * One model serves every caller: list the clip folders in the bucket, keep
+ * the clips of people with a consent in force, and delete the rest with the
+ * rows of the people without one. A person who no longer exists has no
+ * consent, so a person delete and a city delete use the same model. The
+ * withdrawals, the claim and the deletes call deleteVoiceDataWithoutConsent;
+ * the cleanup script calls planVoiceDataDeletion and runVoiceDataDeletion.
+ *
+ * Not a "use server" file: its callers have no session to gate on. The
  * admin's Delete button goes through deleteVoicePrint in voiceprints.ts,
  * which authorizes first.
  */
@@ -13,282 +19,214 @@ import prisma from "@/lib/db/prisma";
 import { env } from "@/env.mjs";
 import { deleteFile, isStorageConfigured, listObjectKeys } from "@/lib/s3";
 import { spacesObjectFromUrl, type SpacesObject } from "@/lib/utils/spacesUrl";
-import { voicePrintConsentInForce, voicePrintsWithoutConsentWhere } from "@/lib/db/voicePrintConsentRule";
-import { findVoiceprintTasks } from "@/lib/db/voiceprintTasks";
+import { getConsentedPersonIds, voicePrintsWithoutConsentWhere } from "@/lib/db/voicePrintConsentRule";
+import { errorMessage } from "@/lib/utils/errors";
 import { sendErrorAdminAlert } from "@/lib/discord-core";
 
 /**
  * Where the task server puts every clip: `voiceprints/{cityId}/{personId}/{random}_v1.mp3`
- * (opencouncil-tasks, generateVoiceprint.ts). A person's folder holds all of
- * their clips, also those that no row names any more.
+ * (opencouncil-tasks, generateVoiceprint.ts). The cityId is the city of the
+ * meeting that the clip was cut from.
  */
 const CLIP_ROOT = "voiceprints/";
 const KEY_PART = /^[A-Za-z0-9_-]+$/;
 
-/**
- * `voiceprints/{cityId}/` or `voiceprints/{cityId}/{personId}/`. The parts
- * are checked: an empty or a `/` part would widen the folder to other people.
- * The trailing `/` keeps person `p1` from matching `p10`.
- */
-export function voiceprintClipFolder(cityId: string, personId?: string): string {
-    for (const part of personId === undefined ? [cityId] : [cityId, personId]) {
-        if (!KEY_PART.test(part)) throw new Error(`Not a part of a voiceprint clip key: "${part}"`);
-    }
-    return `${CLIP_ROOT}${cityId}/${personId === undefined ? "" : `${personId}/`}`;
+/** Whether `part` can be a city or a person part of a clip key. */
+export const isClipKeyPart = (part: string) => KEY_PART.test(part);
+
+type ClipKey = { cityId: string; personId: string };
+
+/** The city and the person of a clip key, or null for a key of another shape. */
+function parseClipKey(key: string): ClipKey | null {
+    const [root, cityId, personId, file] = key.split("/");
+    if (`${root}/` !== CLIP_ROOT || !file || !isClipKeyPart(cityId ?? "") || !isClipKeyPart(personId ?? "")) return null;
+    return { cityId, personId };
 }
 
-export type ClipFailure = { clip: string; error: string };
+const clipOwner = (key: string) => parseClipKey(key)?.personId ?? null;
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+/**
+ * Clips are deleted only on production. Elsewhere the bucket setting can
+ * name the production bucket (the previews, a developer's .env), and the
+ * people carry production ids (the seed artifact), so a test withdrawal
+ * would delete a production clip. The rows are deleted everywhere.
+ */
+const deletesClips = () => env.DEPLOYMENT_ENV === "production";
+
+export type ClipFailure = { item: string; error: string };
 
 const unique = <T,>(values: T[]) => [...new Set(values)];
 
-const bucketOf = (url: string) => spacesObjectFromUrl(url, { bucket: env.DO_SPACES_BUCKET, cdnUrl: env.CDN_URL })?.bucket;
+const objectOf = (url: string) => spacesObjectFromUrl(url, { bucket: env.DO_SPACES_BUCKET, cdnUrl: env.CDN_URL });
 
 async function deleteObject({ bucket, key }: SpacesObject): Promise<ClipFailure | null> {
     try {
         await deleteFile(bucket, key);
         return null;
     } catch (error) {
-        return { clip: `${bucket}/${key}`, error: errorText(error) };
+        return { item: `${bucket}/${key}`, error: errorMessage(error) };
     }
 }
 
-/**
- * Remove a clip from the bucket that its URL names: the task server writes
- * to its own bucket, which on a preview is not the app's. Only an object in
- * the clip folder is touched; any other URL is nobody's to delete. Returns the
- * failure instead of throwing, so no caller can forget the catch.
- */
-export async function deleteClip(sourceAudioUrl: string): Promise<ClipFailure | null> {
-    const object = spacesObjectFromUrl(sourceAudioUrl, { bucket: env.DO_SPACES_BUCKET, cdnUrl: env.CDN_URL });
-    if (!object || !object.key.startsWith(CLIP_ROOT)) {
-        console.warn(`Voiceprint clip ${sourceAudioUrl} is not in the clip folder of a bucket; nothing to delete`);
-        return null;
-    }
-    return deleteObject(object);
-}
-
-/** What a deletion removes, read before any of it goes: the rows and the tasks are what name the clips. */
-export type VoiceData = {
-    voicePrintIds: string[];
-    clipUrls: string[];
-    folders: SpacesObject[];
-};
-
-/**
- * The voice data of one person, or of every person of a city: their rows,
- * the clips that the rows and the generateVoiceprint tasks name, and the clip
- * folders in each bucket that those clips are in.
- */
-export async function findVoiceData(scope: { personId: string } | { cityId: string }): Promise<VoiceData> {
-    const byPerson = "personId" in scope;
-    const [rows, tasks, person] = await Promise.all([
-        prisma.voicePrint.findMany({
-            where: byPerson ? { personId: scope.personId } : { person: { cityId: scope.cityId } },
-            select: { id: true, sourceAudioUrl: true },
-        }),
-        findVoiceprintTasks(scope),
-        byPerson ? prisma.person.findUnique({ where: { id: scope.personId }, select: { cityId: true } }) : null,
-    ]);
-    const clipUrls = unique([
-        ...rows.map((row) => row.sourceAudioUrl),
-        ...tasks.flatMap(({ result }) => (result?.audioUrl ? [result.audioUrl] : [])),
-    ]);
-    const buckets = unique([env.DO_SPACES_BUCKET, ...clipUrls.flatMap((url) => bucketOf(url) ?? [])]);
-    const folderKeys = byPerson
-        ? unique([...(person ? [person.cityId] : []), ...tasks.flatMap(({ request }) => (typeof request.cityId === "string" ? [request.cityId] : []))])
-            .map((cityId) => voiceprintClipFolder(cityId, scope.personId))
-        : [voiceprintClipFolder(scope.cityId)];
-    return {
-        voicePrintIds: rows.map((row) => row.id),
-        clipUrls,
-        folders: buckets.flatMap((bucket) => folderKeys.map((key) => ({ bucket, key }))),
-    };
-}
-
-async function reportFailures(failures: ClipFailure[], context: string): Promise<void> {
-    if (failures.length === 0) return;
-    console.error(`Voice data not fully deleted (${context}):`, failures);
-    try {
-        await sendErrorAdminAlert({
-            source: "Voiceprint deletion",
-            error: `${failures.length} item(s) not deleted. For a person without a consent in force, the dry run of npm run voiceprints:delete-without-consent lists what is left.`,
-            context: { context, first: `${failures[0].clip}: ${failures[0].error}` },
-        });
-    } catch (error) {
-        console.error("Could not send the voiceprint deletion alert:", error);
-    }
-}
-
-/**
- * Delete what findVoiceData found. The rows go first: a voiceprint that is
- * no longer in the table is one the transcribe request cannot send, whatever
- * happens to the clips after. If the rows cannot go, the clips stay, so that
- * no stored row names a missing clip. Then everything in the folders, and
- * last any named clip that the folders did not hold.
- *
- * Never throws: it runs after a withdrawal, a claim or a delete that has
- * committed, and that must stand. A failure is logged and alerted.
- */
-export async function deleteVoiceData(data: VoiceData, context: string): Promise<ClipFailure[]> {
-    const failures: ClipFailure[] = [];
-    try {
-        if (data.voicePrintIds.length > 0) {
-            await prisma.voicePrint.deleteMany({ where: { id: { in: data.voicePrintIds } } });
-        }
-    } catch (error) {
-        failures.push({ clip: "voiceprint rows", error: errorText(error) });
-        await reportFailures(failures, context);
-        return failures;
-    }
-    if (!isStorageConfigured()) {
-        if (data.clipUrls.length > 0) console.warn(`No storage keys: ${data.clipUrls.length} voiceprint clip(s) left in place (${context})`);
-        return failures;
-    }
-
-    const deleted = new Set<string>();
-    for (const folder of data.folders) {
-        let keys: string[];
-        try {
-            keys = await listObjectKeys(folder.bucket, folder.key);
-        } catch (error) {
-            failures.push({ clip: `${folder.bucket}/${folder.key}`, error: errorText(error) });
-            continue;
-        }
-        for (const key of keys) {
-            deleted.add(`${folder.bucket}/${key}`);
-            const failure = await deleteObject({ bucket: folder.bucket, key });
-            if (failure) failures.push(failure);
-        }
-    }
-    for (const url of data.clipUrls) {
-        const object = spacesObjectFromUrl(url, { bucket: env.DO_SPACES_BUCKET, cdnUrl: env.CDN_URL });
-        if (object && deleted.has(`${object.bucket}/${object.key}`)) continue;
-        const failure = await deleteClip(url);
-        if (failure) failures.push(failure);
-    }
-    await reportFailures(failures, context);
-    return failures;
-}
-
-/**
- * After a consent ends (a withdrawal, or a claim that closed one): delete the
- * person's voice data, if no consent is in force. A no-op while a period is
- * open: a superadmin's recorded period, for instance, survives the app's
- * tick. Call it after the consent change has committed, never inside its
- * transaction: this reads with the global client, so inside the transaction
- * it would still see the open period and delete nothing.
- */
-export async function deleteVoiceDataWithoutConsent(personId: string): Promise<ClipFailure[]> {
-    const context = `consent of person ${personId} ended`;
-    try {
-        // An empty id would drop the person filter below: refuse it before any read.
-        if (!KEY_PART.test(personId)) throw new Error(`Not a person id: "${personId}"`);
-        if (await prisma.person.count({ where: { id: personId, ...voicePrintConsentInForce } }) > 0) return [];
-        return await deleteVoiceData(await findVoiceData({ personId }), context);
-    } catch (error) {
-        const failures = [{ clip: `voice data of person ${personId}`, error: errorText(error) }];
-        await reportFailures(failures, context);
-        return failures;
-    }
-}
-
-/**
- * The admin's Delete button: one voiceprint, with its clip. A failed row
- * delete throws, so the admin sees that the voiceprint is still there.
- */
-export async function deleteVoicePrintById(voicePrintId: string): Promise<ClipFailure[]> {
-    const row = await prisma.voicePrint.findUnique({ where: { id: voicePrintId }, select: { sourceAudioUrl: true } });
-    if (!row) return [];
-    await prisma.voicePrint.deleteMany({ where: { id: voicePrintId } });
-    return deleteVoiceData({ voicePrintIds: [], clipUrls: [row.sourceAudioUrl], folders: [] }, `voiceprint ${voicePrintId} deleted`);
-}
-
-const sweepRowSelect = {
-    id: true,
-    sourceAudioUrl: true,
-    person: { select: { name: true, cityId: true } },
-} satisfies Prisma.VoicePrintSelect;
-
-export type SweepRow = Prisma.VoicePrintGetPayload<{ select: typeof sweepRowSelect }>;
-
-export type Sweep = {
-    /** The rows of people without a consent in force. */
-    voicePrints: SweepRow[];
-    /** Every object in the clip folder of a person without a consent in force, or of a person who no longer exists. */
-    clips: SpacesObject[];
-    /** Buckets that could not be listed: their clips are not in `clips`. */
-    listFailures: ClipFailure[];
-};
-
-/** The person a key in the clip folder belongs to, or null for a key of another shape. */
-function clipOwner(key: string): string | null {
-    const [root, cityId, personId, file] = key.split("/");
-    if (`${root}/` !== CLIP_ROOT || !file || !KEY_PART.test(cityId ?? "") || !KEY_PART.test(personId ?? "")) return null;
-    return personId;
-}
-
-/** The ids among `personIds` with a consent in force. */
-async function consentedAmong(personIds: string[]): Promise<Set<string>> {
-    if (personIds.length === 0) return new Set();
-    const people = await prisma.person.findMany({ where: { id: { in: personIds }, ...voicePrintConsentInForce }, select: { id: true } });
-    return new Set(people.map((person) => person.id));
-}
-
-/** The clips whose owner has no consent in force (or no longer exists). */
-async function clipsWithoutConsent(clips: SpacesObject[]): Promise<SpacesObject[]> {
-    const consented = await consentedAmong(unique(clips.flatMap(({ key }) => clipOwner(key) ?? [])));
+/** The clips whose owner has no consent in force; a person who no longer exists has none. */
+async function clipsWithoutConsent<T extends SpacesObject>(clips: T[]): Promise<T[]> {
+    const consented = await getConsentedPersonIds(unique(clips.flatMap(({ key }) => clipOwner(key) ?? [])));
     return clips.filter(({ key }) => {
         const owner = clipOwner(key);
         return owner !== null && !consented.has(owner);
     });
 }
 
-/**
- * What the cleanup script deletes, in every city or in one: the rows of the
- * people without a consent in force, and every clip whose folder belongs to
- * such a person or to a person who no longer exists. The clips are found by
- * listing the folders, so a clip that no row names is found too. Reads only.
- */
-export async function planVoiceDataSweep({ cityId }: { cityId?: string } = {}): Promise<Sweep> {
-    const prefix = cityId === undefined ? CLIP_ROOT : voiceprintClipFolder(cityId);
-    const voicePrints = await prisma.voicePrint.findMany({
-        where: { AND: [voicePrintsWithoutConsentWhere, ...(cityId === undefined ? [] : [{ person: { cityId } }])] },
-        select: sweepRowSelect,
-        orderBy: [{ person: { cityId: "asc" } }, { createdAt: "asc" }],
-    });
-    if (!isStorageConfigured()) {
-        return { voicePrints, clips: [], listFailures: [{ clip: "every bucket", error: "No storage keys: the clips were not listed" }] };
-    }
-    const urls = await prisma.voicePrint.findMany({ select: { sourceAudioUrl: true } });
-    const buckets = unique([env.DO_SPACES_BUCKET, ...urls.flatMap((row) => bucketOf(row.sourceAudioUrl) ?? [])]);
+const planRowSelect = {
+    id: true,
+    sourceAudioUrl: true,
+    person: { select: { name: true, cityId: true } },
+} satisfies Prisma.VoicePrintSelect;
 
-    const listed: SpacesObject[] = [];
-    const listFailures: ClipFailure[] = [];
-    for (const bucket of buckets) {
-        try {
-            for (const key of await listObjectKeys(bucket, prefix)) listed.push({ bucket, key });
-        } catch (error) {
-            listFailures.push({ clip: `${bucket}/${prefix}`, error: errorText(error) });
-        }
-    }
-    return { voicePrints, clips: await clipsWithoutConsent(listed), listFailures };
+export type VoiceDataPlan = {
+    /** The rows of people without a consent in force. */
+    voicePrints: Prisma.VoicePrintGetPayload<{ select: typeof planRowSelect }>[];
+    /** The clips in the folders of people without a consent in force. */
+    clips: SpacesObject[];
+    /** False when the clips were not listed: no storage keys, or `listClips: false`. */
+    listed: boolean;
+    /** Buckets that could not be listed: their clips are not in `clips`. */
+    listFailures: ClipFailure[];
+};
+
+type Scope = { personId?: string; cityId?: string };
+
+/**
+ * The listed clips that `scope` covers. A person's clips sit in the folder
+ * of the meeting's city, which can be another city than the person's. So a
+ * city covers the clips in its folder and the clips of every person who no
+ * longer exists: after a city delete, its people's clips in the folders of
+ * other cities.
+ */
+async function clipsInScope(clips: (SpacesObject & ClipKey)[], scope: Scope): Promise<(SpacesObject & ClipKey)[]> {
+    if (scope.personId !== undefined) return clips.filter((clip) => clip.personId === scope.personId);
+    if (scope.cityId === undefined) return clips;
+    const existing = await prisma.person.findMany({
+        where: { id: { in: unique(clips.map((clip) => clip.personId)) } },
+        select: { id: true },
+    });
+    const exists = new Set(existing.map((person) => person.id));
+    return clips.filter((clip) => clip.cityId === scope.cityId || !exists.has(clip.personId));
 }
 
 /**
- * Delete what planVoiceDataSweep found: the rows first, then the clips. Both
- * are checked against the consent again, so a consent given since the plan
- * keeps its voiceprint and its clips.
+ * What a deletion removes, for one person, one city, or every person: the
+ * rows of the people without a consent in force, and every clip in their
+ * folders. The folders are found by listing `voiceprints/`, so a clip that
+ * no row names is found too. Reads only. With `listClips: false`, or
+ * without storage keys, it plans the rows only.
  */
-export async function runVoiceDataSweep(sweep: Sweep): Promise<ClipFailure[]> {
-    await prisma.voicePrint.deleteMany({
-        where: { AND: [{ id: { in: sweep.voicePrints.map((row) => row.id) } }, voicePrintsWithoutConsentWhere] },
+export async function planVoiceDataDeletion(scope: Scope = {}, { listClips = true } = {}): Promise<VoiceDataPlan> {
+    const voicePrints = await prisma.voicePrint.findMany({
+        where: {
+            AND: [
+                voicePrintsWithoutConsentWhere,
+                ...(scope.personId === undefined ? [] : [{ personId: scope.personId }]),
+                ...(scope.cityId === undefined ? [] : [{ person: { cityId: scope.cityId } }]),
+            ],
+        },
+        select: planRowSelect,
+        orderBy: [{ person: { cityId: "asc" } }, { createdAt: "asc" }],
     });
+    if (!listClips || !isStorageConfigured()) return { voicePrints, clips: [], listed: false, listFailures: [] };
+
+    const urls = await prisma.voicePrint.findMany({ select: { sourceAudioUrl: true } });
+    const buckets = unique([env.DO_SPACES_BUCKET, ...urls.flatMap((row) => objectOf(row.sourceAudioUrl)?.bucket ?? [])]);
+
+    const listedClips: (SpacesObject & ClipKey)[] = [];
+    const listFailures: ClipFailure[] = [];
+    for (const bucket of buckets) {
+        try {
+            for (const key of await listObjectKeys(bucket, CLIP_ROOT)) {
+                const clip = parseClipKey(key);
+                if (clip) listedClips.push({ bucket, key, ...clip });
+            }
+        } catch (error) {
+            listFailures.push({ item: `${bucket}/${CLIP_ROOT}`, error: errorMessage(error) });
+        }
+    }
+    const clips = await clipsWithoutConsent(await clipsInScope(listedClips, scope));
+    return { voicePrints, clips: clips.map(({ bucket, key }) => ({ bucket, key })), listed: true, listFailures };
+}
+
+/**
+ * Delete what planVoiceDataDeletion found: the rows first, so the transcribe
+ * request cannot send them whatever happens to the clips after, then the
+ * clips. Both are checked against the consent again, so a consent given
+ * since the plan keeps its voiceprint and its clips. A failed row delete
+ * throws and keeps every clip.
+ */
+export async function runVoiceDataDeletion(plan: VoiceDataPlan): Promise<ClipFailure[]> {
+    if (plan.voicePrints.length > 0) {
+        await prisma.voicePrint.deleteMany({
+            where: { AND: [{ id: { in: plan.voicePrints.map((row) => row.id) } }, voicePrintsWithoutConsentWhere] },
+        });
+    }
+    if (plan.clips.length === 0) return [];
+    if (!deletesClips()) {
+        console.warn(`Not on production: ${plan.clips.length} voiceprint clip(s) left in place`);
+        return [];
+    }
     const failures: ClipFailure[] = [];
-    for (const clip of await clipsWithoutConsent(sweep.clips)) {
+    for (const clip of await clipsWithoutConsent(plan.clips)) {
         const failure = await deleteObject(clip);
         if (failure) failures.push(failure);
     }
     return failures;
+}
+
+async function reportFailures(failures: ClipFailure[], context: string): Promise<void> {
+    if (failures.length === 0) return;
+    console.error(`Voice data not fully deleted (${context}):`, failures);
+    await sendErrorAdminAlert({
+        source: "Voiceprint deletion",
+        error: `${failures.length} item(s) not deleted. The dry run of npm run voiceprints:delete-without-consent lists what is left.`,
+        context: { context, first: `${failures[0].item}: ${failures[0].error}` },
+    });
+}
+
+/**
+ * Delete the voice data of the people in `scope` who have no consent in
+ * force: after a withdrawal, after a claim that closed a consent, after a
+ * refused voiceprint result, and after a person or a city delete. Call it
+ * after the change has committed: it reads with the global client, so
+ * inside the change's transaction it would still see the open period.
+ *
+ * Never throws: the change that caused it must stand. A failure is logged
+ * and alerted, and the cleanup script removes what is left.
+ */
+export async function deleteVoiceDataWithoutConsent(scope: { personId: string } | { cityId: string }, context: string): Promise<ClipFailure[]> {
+    let failures: ClipFailure[];
+    try {
+        // A missing id would widen the scope to every person.
+        if (typeof ("personId" in scope ? scope.personId : scope.cityId) !== "string") throw new Error("No person or city id");
+        // Where no clip is deleted, a listing would only raise alerts.
+        const plan = await planVoiceDataDeletion(scope, { listClips: deletesClips() });
+        failures = [...plan.listFailures, ...await runVoiceDataDeletion(plan)];
+    } catch (error) {
+        failures = [{ item: `voice data (${context})`, error: errorMessage(error) }];
+    }
+    await reportFailures(failures, context);
+    return failures;
+}
+
+/**
+ * The admin's Delete button: one voiceprint, whatever the consent, with the
+ * clip that it names. A failed row delete throws, so the admin sees that the
+ * voiceprint is still there.
+ */
+export async function deleteVoicePrintById(voicePrintId: string): Promise<void> {
+    const row = await prisma.voicePrint.findUnique({ where: { id: voicePrintId }, select: { sourceAudioUrl: true } });
+    if (!row) return;
+    await prisma.voicePrint.deleteMany({ where: { id: voicePrintId } });
+    if (!deletesClips() || !isStorageConfigured()) return;
+    const object = objectOf(row.sourceAudioUrl);
+    if (!object || !object.key.startsWith(CLIP_ROOT)) return;
+    const failure = await deleteObject(object);
+    if (failure) await reportFailures([failure], `voiceprint ${voicePrintId} deleted`);
 }
