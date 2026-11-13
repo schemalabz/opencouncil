@@ -21,10 +21,12 @@ export interface TaskConfig {
    * Who starts, replays and deletes the task (#828). 'meeting': the editors
    * of its meeting, the admin of the meeting's body among them. 'city': the
    * city's admins only, because the task takes a step that a body admin may
-   * not: human review and the transcript it sends, decision polling, and
-   * voiceprints. A new task type does not compile until it decides.
+   * not: human review and the transcript it sends, and decision polling.
+   * 'superadmin': superadmins only, because the task holds a person's voice
+   * and its outcome tells whether the person consented, which is not public.
+   * A new task type does not compile until it decides.
    */
-  scope: 'meeting' | 'city';
+  scope: 'meeting' | 'city' | 'superadmin';
   discordAlertMode?: DiscordAlertMode;
   /**
    * The task runs per highlight, per person or per poll, so two of them on
@@ -62,7 +64,7 @@ export const TASK_CONFIG = {
     concurrentRuns: true,
   },
   generateVoiceprint: {
-    scope: 'city',
+    scope: 'superadmin',
     requiredForPipeline: false,
     concurrentRuns: true,
   },
@@ -77,17 +79,27 @@ export const TASK_CONFIG = {
 // Derive MeetingTaskType from the configuration
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
 
+/**
+ * The task types that only a superadmin sees, replays or deletes (scope
+ * 'superadmin'). The meeting's task list leaves them out for anyone else.
+ */
+export const SUPERADMIN_TASK_TYPES = (Object.keys(TASK_CONFIG) as MeetingTaskType[])
+    .filter((type) => TASK_CONFIG[type].scope === 'superadmin');
+
 function isMeetingTaskType(type: string): type is MeetingTaskType {
     return type in TASK_CONFIG;
 }
 
 /**
  * The authorization scope of a task, from the scope of its type (TaskConfig):
- * its meeting for a task that a body admin runs, and its city otherwise. The
- * entry points that start a task and the replay and delete paths all read it.
+ * its meeting for a task that a body admin runs, no scope (a superadmin) for
+ * a superadmin's task, and its city otherwise. The entry points that start a
+ * task and the replay, read and delete paths all read it.
  */
-export function taskScope(task: { type: string; cityId: string; councilMeetingId: string | null }): { cityId: string; councilMeetingId?: string } {
-    return task.councilMeetingId && isMeetingTaskType(task.type) && TASK_CONFIG[task.type].scope === 'meeting'
+export function taskScope(task: { type: string; cityId: string; councilMeetingId: string | null }): { cityId?: string; councilMeetingId?: string } {
+    const scope = isMeetingTaskType(task.type) ? TASK_CONFIG[task.type].scope : 'city';
+    if (scope === 'superadmin') return {};
+    return task.councilMeetingId && scope === 'meeting'
         ? { cityId: task.cityId, councilMeetingId: task.councilMeetingId }
         : { cityId: task.cityId };
 }

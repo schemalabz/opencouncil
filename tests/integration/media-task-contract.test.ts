@@ -24,7 +24,7 @@ beforeEach(async () => {
     await createMeeting('media-city', { id: 'media-meeting' });
 });
 const makeTask = () => createTaskStatus('media-meeting', 'media-city', { type: 'transcribe', requestBody: '{"youtubeUrl":"https://video.test/watch?v=public"}' });
-const summaries = async () => (await getTasksForMeetingDirect('media-city', 'media-meeting')).map(mcpTaskSummary);
+const summaries = async () => (await getTasksForMeetingDirect('media-city', 'media-meeting', { superadmin: true })).map(mcpTaskSummary);
 const success = { status: 'success', stage: 'finished', progressPercent: 100, version: 6, result: { source: fixture.source, transcript: 'kept' } } as const;
 const failure = fixture.permanentUpdate as TaskUpdate<never>;
 const progress = { status: 'processing', stage: 'late progress', progressPercent: 1, version: 1 } as const;
@@ -150,7 +150,7 @@ it('polls no transcript bodies and safely ignores malformed legacy failure bodie
     for (const body of ['not JSON', '[null]', '"legacy text"', '{"source":', '{"source":{"kind":"wrong"}}']) {
         await createTaskStatus('media-meeting', 'media-city', { type: 'transcribe', status: 'failed', responseBody: body });
     }
-    const tasks = await getTasksForMeetingDirect('media-city', 'media-meeting');
+    const tasks = await getTasksForMeetingDirect('media-city', 'media-meeting', { superadmin: true });
     expect(tasks).toHaveLength(MEETING_TASKS_PER_TYPE);
     for (const row of tasks) {
         expect(row).not.toHaveProperty('responseBody');
@@ -159,7 +159,7 @@ it('polls no transcript bodies and safely ignores malformed legacy failure bodie
         expect(mcpTaskSummary(row)).not.toHaveProperty('mediaFailure');
     }
     const newest = await createTaskStatus('media-meeting', 'media-city', { type: 'transcribe', status: 'succeeded', createdAt: new Date(Date.now() + 1000), responseBody: JSON.stringify({ source: fixture.source, transcript: 'x'.repeat(1_000_000) }) });
-    const bounded = await getTasksForMeetingDirect('media-city', 'media-meeting');
+    const bounded = await getTasksForMeetingDirect('media-city', 'media-meeting', { superadmin: true });
     expect(bounded).toHaveLength(MEETING_TASKS_PER_TYPE);
     expect(bounded.find(row => row.id === newest.id)).not.toHaveProperty('mediaSource');
     expect(JSON.stringify(bounded).length).toBeLessThan(10000);
@@ -196,7 +196,7 @@ it('seed masking deletes failure envelopes without touching malformed legacy pro
 
 it.each(['\u0000', '\ud800'])('ignores JSONB-incompatible transcript text safely: %j', async transcript => {
     const task = await createTaskStatus('media-meeting', 'media-city', { type: 'transcribe', status: 'failed', responseBody: JSON.stringify({ transcript, source: fixture.source }) });
-    const tasks = await getTasksForMeetingDirect('media-city', 'media-meeting');
+    const tasks = await getTasksForMeetingDirect('media-city', 'media-meeting', { superadmin: true });
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).not.toHaveProperty('mediaSource');
     expect(tasks[0].mediaFailure).toBeUndefined();

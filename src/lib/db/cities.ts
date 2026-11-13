@@ -39,6 +39,11 @@ export type CityWithCounts = City & {
 };
 
 
+/**
+ * Delete a city. The cascade deletes the voiceprint rows, not the clips in
+ * the bucket: the caller runs deleteVoiceDataWithoutConsent after this, as
+ * the city API route does.
+ */
 export async function deleteCity(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
     try {

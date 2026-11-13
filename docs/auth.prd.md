@@ -104,7 +104,9 @@ A body admin cannot do these things:
   create notifications. The notification behavior of the body decides what
   happens with them, and only a superadmin sets it.
 - Poll decisions.
-- Run or delete voiceprint tasks.
+- Run, see, replay or delete voiceprint tasks. Only a superadmin does that:
+  the task scope of `generateVoiceprint` is `superadmin`, because a voiceprint
+  task holds a person's voice and tells that the person consented.
 - Edit parties.
 - Edit a person who has a role outside the bodies of the admin.
 

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
 import { closeAppConsent } from "@/lib/db/personConsent";
+import { deleteVoiceDataWithoutConsent } from "@/lib/db/voiceprintsDelete";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 
 /**
@@ -34,9 +35,11 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  * account counts as onboarded. A councillor must not meet a second
  * registration form after the flow told them they are done.
  *
- * The claim closes a consent that an earlier account gave in the app. The
+ * The claim closes a consent that another account gave in the app. The
  * flow asks the question next, and the person answers for themselves. A
- * consent recorded on paper stays, and the flow skips the question.
+ * consent recorded on paper, or given by this account before the claim,
+ * stays, and the flow skips the question. Once no consent is in force, the
+ * person's voice data is deleted after the commit, as on any withdrawal.
  *
  * The check and the write run through `serializableOnce`, so two people who
  * scan the same QR at the same moment cannot both win. The partial unique
@@ -44,7 +47,7 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  * was written meanwhile, by another account or by a second submit of this one.
  */
 export async function claimPerson(userId: string, personId: string): Promise<PersonClaimResult> {
-    return serializableOnce<PersonClaimResult>(
+    const result = await serializableOnce<PersonClaimResult>(
         async (tx) => {
             const person = await tx.person.findUnique({
                 where: { id: personId },
@@ -65,7 +68,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             } else {
                 await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
             }
-            await closeAppConsent(tx, personId);
+            await closeAppConsent(tx, personId, userId);
             const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });
             await tx.user.update({
                 where: { id: userId },
@@ -81,6 +84,8 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
         },
     );
+    if (result.status === "linked") await deleteVoiceDataWithoutConsent({ personId }, `person ${personId} claimed`);
+    return result;
 }
 
 /**

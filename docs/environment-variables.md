@@ -140,7 +140,7 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 ### Deployment
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `DEPLOYMENT_ENV` | Deployment target: `development`, `preview`, `staging`, or `production`. Set by the preview service (`preview`) and the staging app (`staging`); everywhere else it defaults from `NODE_ENV`. Gates dev tooling and orphaned-search-hit alerting. | No | from `NODE_ENV` |
+| `DEPLOYMENT_ENV` | Deployment target: `development`, `preview`, `staging`, or `production`. Set by the preview service (`preview`) and the staging app (`staging`); everywhere else it defaults from `NODE_ENV`. Gates dev tooling, orphaned-search-hit alerting, and the deletion of voiceprint clips (`src/lib/db/voiceprintsDelete.ts`). Production leaves it unset, so a production build without it counts as production. For example, `npm run start` on a laptop with the production storage keys deletes voiceprint clips in the production bucket. | No | from `NODE_ENV` |
 
 ### Storage (e.g., Digital Ocean Spaces)
 | Variable | Description | Required | Default |

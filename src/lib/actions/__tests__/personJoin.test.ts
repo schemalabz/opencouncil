@@ -5,7 +5,7 @@ jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
 const mockClaimPerson = jest.fn();
 jest.mock('@/lib/db/personClaim', () => ({ claimPerson: (...args: unknown[]) => mockClaimPerson(...args) }));
 const mockConsents = jest.fn();
-jest.mock('@/lib/db/personConsent', () => ({ getVoicePrintConsents: (...args: unknown[]) => mockConsents(...args) }));
+jest.mock('@/lib/db/personConsent', () => ({ getVoicePrintConsentStatuses: (...args: unknown[]) => mockConsents(...args) }));
 const mockAlert = jest.fn();
 jest.mock('@/lib/discord', () => ({ sendPersonClaimedAdminAlert: (...args: unknown[]) => mockAlert(...args) }));
 const mockSignIn = jest.fn();
@@ -46,14 +46,18 @@ describe('claimWithToken', () => {
     it('says when a consent answers for the person, so the flow asks nothing more', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
         mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
-        mockConsents.mockResolvedValue(new Map([['person-1', 'ADMIN']]));
+        const consent = (source: 'ADMIN' | 'PERSON', userId: string) => new Map([['person-1', { personId: 'person-1', source, userId }]]);
+        mockConsents.mockResolvedValue(consent('ADMIN', 'admin-1'));
         expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('consented');
         expect(mockConsents).toHaveBeenCalledWith(['person-1']);
         expect(mockAlert).toHaveBeenCalledTimes(1);
 
-        // After a new claim, only a paper consent answers for the person: one
-        // given in the app this instant is a delegate's, and the person is asked.
-        mockConsents.mockResolvedValue(new Map([['person-1', 'PERSON']]));
+        // After a new claim, a consent that this account gave before the claim
+        // answers for the person too: the claim left it open.
+        mockConsents.mockResolvedValue(consent('PERSON', 'user-1'));
+        expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('consented');
+        // One given in the app this instant by another account is a delegate's, and the person is asked.
+        mockConsents.mockResolvedValue(consent('PERSON', 'assistant'));
         expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('linked');
         // On a second scan of their own code, any consent in force does.
         mockClaimPerson.mockResolvedValue({ status: 'already_yours' });

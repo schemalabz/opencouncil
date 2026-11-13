@@ -545,7 +545,9 @@ enum VoicePrintConsentSource {
 /// carries the whole row, and consent is not public. A deleted person drops
 /// its periods with its voiceprints. A deleted account keeps the periods,
 /// with the user set to null: the proof outlives the account.
-/// Recorded only for now: nothing reads it before generation or transcription.
+/// An open period is what lets the platform process the person's voice: see
+/// src/lib/db/voicePrintConsentRule.ts. A withdrawal keeps the period as the
+/// proof and deletes the person's voice data.
 model VoicePrintConsent {
   id          String                  @id @default(cuid())
   personId    String

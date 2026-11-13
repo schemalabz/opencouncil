@@ -441,7 +441,9 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         hasTranscript(cityId, meetingId),
         getMeetingTaskStatus(cityId, meetingId),
         Promise.resolve(visible.editor ?? canSeeUnreleased(identity, cityId))
-            .then(editor => editor ? getTasksForMeetingDirect(cityId, meetingId) : null),
+            .then(async editor => editor && identity
+                ? getTasksForMeetingDirect(cityId, meetingId, { superadmin: (await getUserCityRights(identity.userId)).all })
+                : null),
     ]);
     // The rule of the public meeting stage (stageSignalsFromMeetingData in
     // lib/meetingStage.ts): a succeeded summarize task, or the marks the

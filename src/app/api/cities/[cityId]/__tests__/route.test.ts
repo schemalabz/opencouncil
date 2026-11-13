@@ -16,10 +16,15 @@ jest.mock('@/lib/db/cityMessages', () => ({
     deleteCityMessage: jest.fn(),
 }));
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn().mockResolvedValue({ url: 'https://cdn.example.com/logo.png' }) }));
+const order: string[] = [];
+jest.mock('@/lib/db/voiceprintsDelete', () => ({
+    deleteVoiceDataWithoutConsent: jest.fn(async () => { order.push('voice data'); return []; }),
+}));
 
-import { PUT } from '@/app/api/cities/[cityId]/route';
+import { DELETE, PUT } from '@/app/api/cities/[cityId]/route';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
-import { editCity } from '@/lib/db/cities';
+import { deleteCity, editCity } from '@/lib/db/cities';
+import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
 
@@ -131,5 +136,28 @@ describe('PUT /api/cities/[cityId]', () => {
         const response = await put({ logoImage: new File(['x'], 'logo.png', { type: 'image/png' }) });
         expect(response.status).toBe(200);
         expect(editCity).toHaveBeenCalledWith('athens', { logoImage: 'https://cdn.example.com/logo.png' });
+    });
+});
+
+describe('DELETE /api/cities/[cityId]', () => {
+    const remove = () => DELETE(new Request('http://localhost/api/cities/athens', { method: 'DELETE' }), { params: Promise.resolve({ cityId: 'athens' }) });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        order.length = 0;
+        jest.mocked(deleteCity).mockImplementation(async () => { order.push('city'); });
+    });
+
+    it("deletes the city, then the voice data in the city's clip folder", async () => {
+        const response = await remove();
+        expect(response.status).toBe(200);
+        expect(deleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ cityId: 'athens' }, expect.any(String));
+        expect(order).toEqual(['city', 'voice data']);
+    });
+
+    it('deletes no voice data when the city delete fails', async () => {
+        jest.mocked(deleteCity).mockRejectedValueOnce(new Error('Failed to delete city'));
+        await expect(remove()).rejects.toThrow('Failed to delete city');
+        expect(deleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
     });
 });

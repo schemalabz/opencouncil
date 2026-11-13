@@ -22,6 +22,10 @@ jest.mock('@/lib/db/prisma', () => ({
 
 const mockCloseAppConsent = jest.fn();
 jest.mock('@/lib/db/personConsent', () => ({ closeAppConsent: (...args: unknown[]) => mockCloseAppConsent(...args) }));
+const mockDeleteVoiceDataWithoutConsent = jest.fn();
+jest.mock('@/lib/db/voiceprintsDelete', () => ({
+    deleteVoiceDataWithoutConsent: (...args: unknown[]) => mockDeleteVoiceDataWithoutConsent(...args),
+}));
 
 import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '../personClaim';
 
@@ -39,19 +43,31 @@ const person = (administrators: { id: string; userId: string; claimedAt: Date | 
 });
 
 beforeEach(() => {
-    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst, mockCloseAppConsent]) m.mockReset();
+    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst, mockCloseAppConsent, mockDeleteVoiceDataWithoutConsent]) m.mockReset();
+    mockDeleteVoiceDataWithoutConsent.mockResolvedValue([]);
     mockUserFindUnique.mockResolvedValue({ name: null });
     // Run the callback against the fake client, as the real $transaction does.
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
 });
 
 describe('claimPerson', () => {
-    it('claims a person nobody has claimed, and closes a consent an earlier account gave in the app', async () => {
+    it('claims a person nobody has claimed, and closes a consent that another account gave in the app', async () => {
         mockFindUnique.mockResolvedValue(person([]));
         const result = await claimPerson('user-1', 'person-1');
         expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
-        expect(mockCloseAppConsent).toHaveBeenCalledWith(tx, 'person-1');
+        // The claimer is named, so a consent that this account gave itself stays.
+        expect(mockCloseAppConsent).toHaveBeenCalledWith(tx, 'person-1', 'user-1');
         expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
+    });
+
+    it('deletes the voiceprints a closed app consent leaves behind, after the claim has committed', async () => {
+        mockFindUnique.mockResolvedValue(person([]));
+        const order: string[] = [];
+        mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => { const r = await fn(tx); order.push('commit'); return r; });
+        mockDeleteVoiceDataWithoutConsent.mockImplementation(async () => { order.push('delete'); return []; });
+        await claimPerson('user-1', 'person-1');
+        expect(mockDeleteVoiceDataWithoutConsent).toHaveBeenCalledWith({ personId: 'person-1' }, expect.any(String));
+        expect(order).toEqual(['commit', 'delete']);
     });
 
     it('completes the account: the confirmed name when it has none, and onboarded', async () => {
@@ -91,6 +107,7 @@ describe('claimPerson', () => {
         expect(await claimPerson('user-1', 'person-1')).toEqual({ status: 'already_linked' });
         expect(mockCreate).not.toHaveBeenCalled();
         expect(mockUpdate).not.toHaveBeenCalled();
+        expect(mockDeleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
     });
 
     it('is a no-op for a second scan by the same account', async () => {

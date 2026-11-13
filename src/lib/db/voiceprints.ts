@@ -2,11 +2,10 @@
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { revalidatePath } from "next/cache";
+import { deleteVoicePrintById } from "./voiceprintsDelete";
 
-// Creating a voiceprint lives in voiceprintsCreate.ts (server-only): its sole
-// caller is the task-server callback path, which has no session, so the
-// function cannot carry a user gate and must stay off the Server Action
-// surface instead.
+// Creating and deleting a voiceprint without a session live in the
+// server-only voiceprintsCreate.ts and voiceprintsDelete.ts.
 
 export async function deleteVoicePrint(voicePrintId: string): Promise<void> {
     try {
@@ -26,9 +25,7 @@ export async function deleteVoicePrint(voicePrintId: string): Promise<void> {
 
         await withUserAuthorizedToEdit({ cityId: voicePrint.person.cityId });
 
-        await prisma.voicePrint.delete({
-            where: { id: voicePrintId },
-        });
+        await deleteVoicePrintById(voicePrintId);
         revalidatePath(`/admin/people`, "page");
     } catch (error) {
         console.error("Error deleting voice print:", error);

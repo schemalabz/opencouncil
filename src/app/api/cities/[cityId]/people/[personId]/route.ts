@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
+import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete'
 import { validatePersonRoles } from '@/lib/db/personRoles'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personUpdateFormDataSchema, type PersonUpdateFormDataOutput } from '@/lib/zod-schemas/person'
@@ -100,6 +101,7 @@ export async function DELETE(
     }
     try {
         await deletePerson(params.personId)
+        await deleteVoiceDataWithoutConsent({ personId: params.personId }, `person ${params.personId} deleted`)
         revalidateTag(`city:${params.cityId}:people`, 'max');
         revalidateTag(`city:${params.cityId}:parties`, 'max');
         // The city row carries the roster counts the overview reads to decide
