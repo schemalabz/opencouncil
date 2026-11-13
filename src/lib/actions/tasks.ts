@@ -7,6 +7,7 @@ import { requestProcessAgenda as processAgenda } from "@/lib/tasks/processAgenda
 import { requestFixTranscript as fixTranscript } from "@/lib/tasks/fixTranscript";
 import {
     requestGenerateVoiceprint as generateVoiceprint,
+    getVoiceprintSamples as voiceprintSamples,
     requestGenerateVoiceprintsForCity as generateVoiceprintsForCity,
     findEligiblePeopleForVoiceprintGeneration as findEligiblePeople,
 } from "@/lib/tasks/generateVoiceprint";
@@ -18,7 +19,7 @@ import {
  * The task modules are server-only: next to each request they hold the
  * handler of the task server's result, which a browser must not reach. Every
  * request below gates on withUserAuthorizedToEdit for the meeting, the city
- * or the person before it starts a task.
+ * or the person before it starts a task or returns data.
  */
 
 /** Reprocess for the admin task list. processTaskResponse gates on the task's own city. */
@@ -66,8 +67,12 @@ export async function requestFixTranscript(
     return fixTranscript(councilMeetingId, cityId, options);
 }
 
-export async function requestGenerateVoiceprint(personId: string) {
-    return generateVoiceprint(personId);
+export async function requestGenerateVoiceprint(personId: string, segmentId: string) {
+    return generateVoiceprint(personId, segmentId);
+}
+
+export async function getVoiceprintSamples(personId: string) {
+    return voiceprintSamples(personId);
 }
 
 export async function requestGenerateVoiceprintsForCity(cityId: string, personIds?: string[]) {

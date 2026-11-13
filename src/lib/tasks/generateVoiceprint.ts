@@ -1,13 +1,14 @@
 import "server-only";
 
 import prisma from "@/lib/db/prisma";
-import { getCouncilMeeting } from "@/lib/db/meetings";
 import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest } from "../apiTypes";
 import { Prisma, SpeakerSegment, TaskStatus } from "@prisma/client";
-import { BadRequestError } from "@/lib/api/errors";
 import { hasVoicePrintConsent, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
+import { meetingNameSelect } from "@/lib/db/types";
+import { meetingLabelInCity } from "@/lib/meetingName";
+import { interleaveBy } from "@/lib/utils/interleave";
 
 const VOICEPRINT_DURATION = 30;
 
@@ -58,11 +59,19 @@ function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegmen
         .flatMap(tag => tag.speakerSegments.map(({ meeting: _meeting, ...segment }) => segment));
 }
 
+function segmentDuration(segment: Pick<SpeakerSegment, "startTimestamp" | "endTimestamp">): number {
+    return segment.endTimestamp - segment.startTimestamp;
+}
+
+function isLongEnoughForVoiceprint(segment: Pick<SpeakerSegment, "startTimestamp" | "endTimestamp">): boolean {
+    return segmentDuration(segment) >= VOICEPRINT_DURATION;
+}
+
 /**
  * Find the people of a city who are eligible for voiceprint generation: all of
  * them, or only those in `personIds`. Eligible means: their voiceprint consent
- * is in force, they have at least one speaker segment longer than
- * VOICEPRINT_DURATION, and they don't already have a voiceprint. The query
+ * is in force, they have at least one source segment of VOICEPRINT_DURATION
+ * or longer, and they don't already have a voiceprint. The query
  * loads every segment of the people it reads, so pass the ids whenever the
  * caller has them.
  *
@@ -99,11 +108,8 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string, 
         }
     });
 
-    // Filter to only those with a usable segment longer than VOICEPRINT_DURATION
     const eligiblePeople = peopleWithoutVoiceprints.filter(person =>
-        voiceprintSourceSegments(person.speakerTags).some(segment =>
-            segment.endTimestamp - segment.startTimestamp >= VOICEPRINT_DURATION
-        )
+        voiceprintSourceSegments(person.speakerTags).some(isLongEnoughForVoiceprint)
     );
 
     return {
@@ -155,12 +161,13 @@ export async function requestGenerateVoiceprintsForCity(cityId: string, personId
 }
 
 /**
- * Request to generate a voiceprint for a person. A superadmin's action (see
- * findEligiblePeopleForVoiceprintGeneration), authorized before it reads
- * anything. A refusal comes back as a value: production Next hides the
- * message of an error that a Server Action throws.
+ * Request to generate a voiceprint for a person from one of their samples: the
+ * one the admin chose in the dialog (getVoiceprintSamples). A superadmin's action
+ * (see findEligiblePeopleForVoiceprintGeneration), authorized before it reads
+ * anything. A refusal comes back as a value: production Next hides the message
+ * of an error that a Server Action throws.
  */
-export async function requestGenerateVoiceprint(personId: string): Promise<{ ok: true; task: TaskStatus } | { ok: false; message: string }> {
+export async function requestGenerateVoiceprint(personId: string, segmentId: string): Promise<{ ok: true; task: TaskStatus } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit({});
 
     if (!await prisma.person.findUnique({ where: { id: personId }, select: { id: true } })) {
@@ -170,51 +177,32 @@ export async function requestGenerateVoiceprint(personId: string): Promise<{ ok:
         return { ok: false, message: "This person has no voiceprint consent in force. No voiceprint is generated or used without one." };
     }
 
-    try {
-        return { ok: true, task: await startVoiceprintGeneration(personId) };
-    } catch (error) {
-        if (error instanceof BadRequestError) return { ok: false, message: error.message };
-        throw error;
+    // The same list the dialog shows, so a page that went stale cannot choose
+    // audio that the rule no longer allows.
+    const sample = (await findVoiceprintSamples(personId)).find(candidate => candidate.segment.id === segmentId);
+    if (!sample) {
+        return { ok: false, message: "This segment cannot become the person's voiceprint. Reopen the dialog to hear the current samples." };
     }
+
+    return { ok: true, task: await startVoiceprintTask(personId, sample) };
 }
 
 /**
- * Start the voiceprint task for a person from their longest source. The caller
- * has authorized and checked the consent.
+ * Start the voiceprint task for a person from their first sample, the longest
+ * source that has media. The caller has authorized and checked the consent.
  */
 async function startVoiceprintGeneration(personId: string) {
-    const [segment] = await findVoiceprintSources(personId);
+    const [sample] = await findVoiceprintSamples(personId);
 
-    if (!segment) {
-        throw new BadRequestError("No speaker segments found for this person");
+    if (!sample) {
+        throw new Error(`No segment of at least ${VOICEPRINT_DURATION}s in a meeting with media can become this person's voiceprint`);
     }
 
-    return startVoiceprintTask(personId, segment);
+    return startVoiceprintTask(personId, sample);
 }
 
-/** Start the voiceprint task for a segment. The caller has authorized and checked the consent. */
-async function startVoiceprintTask(personId: string, segment: SpeakerSegment) {
-    // Check if the segment is long enough for a voiceprint
-    const segmentDuration = segment.endTimestamp - segment.startTimestamp;
-    if (segmentDuration < VOICEPRINT_DURATION) {
-        throw new BadRequestError(
-            `Speaker segment is too short (${segmentDuration.toFixed(1)}s). At least ${VOICEPRINT_DURATION}s of audio is required for a voiceprint.`,
-        );
-    }
-
-    // Get meeting details
-    const meeting = await getCouncilMeeting(segment.cityId, segment.meetingId);
-
-    if (!meeting) {
-        throw new BadRequestError("Meeting not found");
-    }
-
-    const mediaUrl = voiceprintMediaUrl(meeting);
-    if (!mediaUrl) {
-        throw new BadRequestError("The meeting has no media to cut a voiceprint from");
-    }
-
-    // Create the request
+/** Start the voiceprint task for a sample. The caller has authorized and checked the consent. */
+async function startVoiceprintTask(personId: string, { segment, mediaUrl }: VoiceprintSample) {
     const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
         mediaUrl,
         personId,
@@ -226,14 +214,14 @@ async function startVoiceprintTask(personId: string, segment: SpeakerSegment) {
     return startTask("generateVoiceprint", request, segment.meetingId, segment.cityId);
 }
 
-/** The media a voiceprint is cut from. */
+/** The media a voiceprint is cut from, and its sample played from. */
 function voiceprintMediaUrl(meeting: { audioUrl: string | null; videoUrl: string | null }): string | null {
     return meeting.audioUrl || meeting.videoUrl;
 }
 
 /**
  * The VOICEPRINT_DURATION seconds at the middle of a segment: what the
- * voiceprint is cut from.
+ * voiceprint is cut from, and what its sample plays.
  */
 function voiceprintWindow(segment: Pick<SpeakerSegment, "startTimestamp" | "endTimestamp">) {
     const midpoint = (segment.startTimestamp + segment.endTimestamp) / 2;
@@ -242,7 +230,10 @@ function voiceprintWindow(segment: Pick<SpeakerSegment, "startTimestamp" | "endT
     return { startTimestamp, endTimestamp };
 }
 
-/** The segments a person's voiceprint may be cut from (voiceprintSourceSegments), longest first. */
+/**
+ * The segments a person's voiceprint may be cut from (voiceprintSourceSegments)
+ * that are long enough for one, in sample order (orderVoiceprintSources).
+ */
 export async function findVoiceprintSources(personId: string): Promise<SpeakerSegment[]> {
     const person = await prisma.person.findUnique({
         where: { id: personId },
@@ -257,6 +248,87 @@ export async function findVoiceprintSources(personId: string): Promise<SpeakerSe
         return [];
     }
 
-    const duration = (segment: SpeakerSegment) => segment.endTimestamp - segment.startTimestamp;
-    return voiceprintSourceSegments(person.speakerTags).sort((a, b) => duration(b) - duration(a));
+    return orderVoiceprintSources(
+        voiceprintSourceSegments(person.speakerTags)
+            .filter(isLongEnoughForVoiceprint),
+    );
+}
+
+/** A meeting's key: its id is unique only within its city. */
+function meetingKey(row: { cityId: string; meetingId: string }): string {
+    return `${row.cityId}/${row.meetingId}`;
+}
+
+/**
+ * Order a person's voiceprint sources as the admin hears them, one sample at a
+ * time: each meeting's longest segment before any meeting's second longest, so
+ * that "another one" moves to another recording while there is one. Bad audio
+ * is usually a property of the recording. The meetings come in the order of
+ * their longest segment, so the first is the longest of all.
+ */
+export function orderVoiceprintSources(segments: SpeakerSegment[]): SpeakerSegment[] {
+    const longestFirst = [...segments].sort((a, b) => segmentDuration(b) - segmentDuration(a));
+    return interleaveBy(longestFirst, meetingKey);
+}
+
+/** A voiceprint source with the media it would be cut from. */
+interface VoiceprintSample {
+    segment: SpeakerSegment;
+    mediaUrl: string;
+    meetingName: string;
+}
+
+/**
+ * Every source of the person whose meeting has media, in sample order. The one
+ * list behind the dialog's samples, the request for a chosen sample and the bulk
+ * generation.
+ */
+async function findVoiceprintSamples(personId: string): Promise<VoiceprintSample[]> {
+    const sources = await findVoiceprintSources(personId);
+    if (sources.length === 0) {
+        return [];
+    }
+
+    const meetingIds = new Map(sources.map(source => [meetingKey(source), { cityId: source.cityId, id: source.meetingId }]));
+    const meetings = await prisma.councilMeeting.findMany({
+        where: { OR: [...meetingIds.values()] },
+        select: {
+            id: true,
+            cityId: true,
+            audioUrl: true,
+            videoUrl: true,
+            ...meetingNameSelect,
+            city: { select: { timezone: true } },
+        },
+    });
+    const meetingsByKey = new Map(meetings.map(meeting => [meetingKey({ cityId: meeting.cityId, meetingId: meeting.id }), meeting]));
+
+    return sources.flatMap(segment => {
+        const meeting = meetingsByKey.get(meetingKey(segment));
+        const mediaUrl = meeting && voiceprintMediaUrl(meeting);
+        if (!meeting || !mediaUrl) return [];
+        return [{ segment, mediaUrl, meetingName: meetingLabelInCity(meeting, "el") }];
+    });
+}
+
+const MAX_VOICEPRINT_SAMPLES = 10;
+
+/**
+ * The samples a person's voiceprint is chosen from, for the dialog: the window
+ * that each would be cut from, and the media to play it from. A superadmin's
+ * action, as the requests above. It does not check the consent: a sample makes
+ * no voiceprint, and requestGenerateVoiceprint checks the consent before it
+ * makes one.
+ */
+export async function getVoiceprintSamples(personId: string) {
+    await withUserAuthorizedToEdit({});
+
+    return (await findVoiceprintSamples(personId))
+        .slice(0, MAX_VOICEPRINT_SAMPLES)
+        .map(({ segment, mediaUrl, meetingName }) => ({
+            segmentId: segment.id,
+            meetingName,
+            mediaUrl,
+            ...voiceprintWindow(segment),
+        }));
 }
