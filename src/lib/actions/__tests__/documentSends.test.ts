@@ -20,7 +20,7 @@ const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000); // before the
 function facts(overrides: Parameters<typeof readinessFacts>[0] = {}) {
     return readinessFacts({
         dateTime: twoDaysAgo,
-        administrativeBody: { documentSendSettings: [setting('transcript', { recipientEmails: ['to@x.org'] }), setting('minutes', { recipientEmails: ['to@x.org'] })] },
+        administrativeBody: { type: 'council' as const, documentSendSettings: [setting('transcript', { recipientEmails: ['to@x.org'] }), setting('minutes', { recipientEmails: ['to@x.org'] })] },
         ...overrides,
     });
 }
@@ -113,7 +113,7 @@ describe('getDocumentState', () => {
     });
 
     it('returns null for a document the body does not send, and for a missing meeting', async () => {
-        mockFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { enabled: false })] } }));
+        mockFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabled: false })] } }));
         expect(await getDocumentState('c1', 'm1', 'minutes')).toBeNull();
         mockFacts.mockResolvedValue(null);
         expect(await getDocumentState('c1', 'm1', 'minutes')).toBeNull();

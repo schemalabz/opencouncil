@@ -3,6 +3,7 @@
  */
 import type { AdministrativeBodyType } from "@prisma/client";
 import type { CoverageRow } from "@/lib/db/coverage";
+import { ADMIN_BODY_TYPE_ORDER as BODY_TYPE_ORDER } from "@/lib/utils/administrativeBodies";
 import { TEAM_MEMBERS } from "@/components/about/config";
 import elAbout from "../../messages/el/about.json";
 
@@ -15,8 +16,6 @@ const memberNames: Record<string, string> = elAbout.team.members;
 export const BROCHURE_TEAM: Array<{ name: string; image: string }> = TEAM_MEMBERS.map(
     member => ({ name: memberNames[member.id], image: member.image })
 );
-
-const BODY_TYPE_ORDER: AdministrativeBodyType[] = ["council", "committee", "community"];
 
 /**
  * Administrative body types with at least one released past meeting, per
@@ -43,17 +42,19 @@ export function coveredBodyTypesByCity(
  *   [council, committee]           → "Δημοτικά συμβούλια και επιτροπές"
  *   [council, committee, community]→ "Δημοτικά συμβούλια, επιτροπές και κοινότητες"
  *   [committee, community]         → "Δημοτικές επιτροπές και κοινότητες … πιο ανοιχτές"
+ *   [council, youthCouncil]        → "Δημοτικά συμβούλια και συμβούλια νέων"
  * Mixed-gender lists take the neuter adjective (standard Greek); a list
- * without συμβούλια is feminine-only.
+ * without συμβούλια (of either kind) is feminine-only.
  */
 export function bodyTypesPhrase(types: AdministrativeBodyType[]): {
     subject: string;
     feminine: boolean;
 } {
     const ordered = BODY_TYPE_ORDER.filter(t => types.includes(t));
-    const feminine = !ordered.includes("council");
+    const feminine = !ordered.some(t => t === "council" || t === "youthCouncil");
     const labels = ordered.map((t, i) => {
         if (t === "council") return "Δημοτικά συμβούλια";
+        if (t === "youthCouncil") return i === 0 ? "Δημοτικά συμβούλια νέων" : "συμβούλια νέων";
         const bare = t === "committee" ? "επιτροπές" : "κοινότητες";
         return i === 0 ? `Δημοτικές ${bare}` : bare;
     });

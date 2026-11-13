@@ -4,7 +4,9 @@ import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "..
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
 import { getCity } from "../db/cities";
-import { getCouncilMeeting } from "../db/meetings";
+import { getCouncilMeeting, setMeetingReleaseDirect } from "../db/meetings";
+import { meetingHasSucceededTask } from "../db/tasksInternal";
+import { pipelineRunsUnattended } from "@/lib/utils/bodyTier";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, getTopicsByName, saveSubjectsForMeeting } from "../db/utils";
@@ -157,6 +159,25 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // callback must not wait on Gemini, and minutes of Gemini calls must
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
+
+    // A pipeline that runs with no operator (#829) releases the meeting
+    // itself, once: the first summary is in, so the meeting goes public. It
+    // goes public before the task reads as succeeded, so the notifications
+    // that follow (see notifySubscribersOfTask) find it released, and a
+    // reader who opens their link finds the page. A hidden meeting that has
+    // a summary already was hidden by an admin after it: a later summary
+    // does not undo that choice. A primary body's meeting waits for an admin.
+    // A failure here must not fail the task: the summary is saved, and an
+    // admin can release the meeting by hand.
+    if (pipelineRunsUnattended(councilMeeting.administrativeBody) && !councilMeeting.released
+        && !(await meetingHasSucceededTask(councilMeeting.cityId, councilMeeting.id, 'summarize'))) {
+        try {
+            await setMeetingReleaseDirect(councilMeeting.cityId, councilMeeting.id, true);
+            console.log(`Released ${councilMeeting.cityId}/${councilMeeting.id} after its summary (unattended pipeline)`);
+        } catch (error) {
+            console.error(`Failed to release ${councilMeeting.cityId}/${councilMeeting.id} after its summary:`, error);
+        }
+    }
 
     // The minutes waited for these subjects (#874). When they are due with
     // subjects still missing, one poll first looks for the decisions of the

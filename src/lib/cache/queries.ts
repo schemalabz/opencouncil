@@ -1,7 +1,7 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -55,6 +55,19 @@ export async function getAllCityIdsCached(realm: Realm) {
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Whether a city is public through a secondary body (#829). Keyed per city
+ * under its meetings tag, which a release busts — the one event that changes
+ * the answer.
+ */
+export async function getCityPublicThroughSecondaryCached(cityId: string): Promise<boolean> {
+  return createCache(
+    () => isCityPublicThroughSecondary(cityId),
+    ['city', cityId, 'publicThroughSecondary'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
 
@@ -116,12 +129,14 @@ export async function getCouncilMeetingsForCityPublicCached(cityId: string, opti
  * drifts from the query it stands for stays invisible until the day it serves
  * another filter's rows.
  */
-export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }: {
+export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds, tier }: {
   administrativeBodyTypes?: AdministrativeBodyType[];
   administrativeBodyIds?: string[];
+  tier?: 'all';
 }): string[] {
+  // No type means the primary tier, not every body (see meetingListQuery).
   return [
-    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
+    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : tier === 'all' ? 'types:all' : 'types:primary',
     administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
   ];
 }

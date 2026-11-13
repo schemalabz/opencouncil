@@ -42,8 +42,8 @@ type ScopedEntities = { cityIds: string[]; partyIds: string[]; personIds: string
 /**
  * The party with the most roles, the person with the most speaker segments, and
  * the body with the most meetings in each city, so the party, person, and body
- * admin pages have content. The body is one other than the council when the city
- * has one: the city admin's rights already cover the council. The person is one
+ * admin pages have content. The body is one other than the council: the city admin's rights
+ * already cover the council. The person is one
  * that no other account has claimed: the person admin claims it, and a person has
  * at most one claim (`Administers_claimed_person_key`). On staging, councillors
  * claim their own pages. A city with no party, no speaking person that is free to
@@ -68,7 +68,7 @@ async function busiestEntities(db: PrismaClient, cityIds: string[]): Promise<Sco
         GROUP BY p.id, p."cityId"
         ORDER BY count(*) DESC, p.id`;
     const bodies = await db.administrativeBody.findMany({
-        where: { cityId: { in: cityIds } },
+        where: { cityId: { in: cityIds }, type: { not: 'council' } },
         select: { id: true, cityId: true, type: true },
         orderBy: [{ meetings: { _count: 'desc' } }, { id: 'asc' }],
     });
@@ -77,8 +77,7 @@ async function busiestEntities(db: PrismaClient, cityIds: string[]): Promise<Sco
         for (const row of rows) if (!seen.has(row.cityId)) seen.set(row.cityId, row.id);
         return cityIds.flatMap((cityId) => seen.get(cityId) ?? []);
     };
-    const councilsLast = [...bodies.filter((b) => b.type !== 'council'), ...bodies.filter((b) => b.type === 'council')];
-    return { cityIds, partyIds: firstPerCity(parties), personIds: firstPerCity(persons), bodyIds: firstPerCity(councilsLast) };
+    return { cityIds, partyIds: firstPerCity(parties), personIds: firstPerCity(persons), bodyIds: firstPerCity(bodies) };
 }
 
 function grantsFor(adminType: TestUserAdminType, scope: ScopedEntities): Grant[] {
