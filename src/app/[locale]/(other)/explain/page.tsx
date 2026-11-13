@@ -17,9 +17,11 @@ import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getRealmBaseUrl } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import { ARTICLES, SECTIONS } from "@/lib/explain/articles";
-import { OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
+import { AI_SUBSECTIONS, OPENCOUNCIL_SUBSECTIONS } from "@/lib/explain/subsections";
 import { ExplainReader } from "./ExplainReader";
+import { TocTree, type TocGroup } from "@/components/explain/TocTree";
 import { ExplainFeatures } from "./ExplainFeatures";
+import { AiLiteracySection } from "./AiLiteracySection";
 import { SubstackCarousel } from "@/components/embeds/SubstackCarousel";
 import { SUBSTACK_POSTS } from "@/lib/explain/substackPosts";
 import { getOgLocale } from '@/i18n/config';
@@ -42,12 +44,22 @@ const NAV_GROUPS = [
     { id: "opencouncil", title: OPENCOUNCIL_TITLE, items: OPENCOUNCIL_SUBSECTIONS },
 ];
 
-/** Full scroll-spy / mobile-nav order (top → bottom of the page). */
+const AI_SECTION_TITLE = OPENCOUNCIL_SUBSECTIONS.find((s) => s.id === "oc-ai")?.title ?? OPENCOUNCIL_TITLE;
+
+/** The table of contents, column and drawer alike, with the AI parts under their section. */
+const NAV_TREE: TocGroup[] = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.map((it) =>
+        it.id === "oc-ai" ? { ...it, children: AI_SUBSECTIONS.map((s) => ({ id: s.id, title: s.nav })) } : it,
+    ),
+}));
+
+/** Full scroll-spy / mobile-nav order (top → bottom of the page). The AI parts follow their section. */
 const NAV_SECTIONS = [
     { id: "greek-municipalities", title: GREEK_MUNICIPALITIES_TITLE },
     ...LOCAL_GOV_SECTIONS,
     { id: "opencouncil", title: OPENCOUNCIL_TITLE },
-    ...OPENCOUNCIL_SUBSECTIONS,
+    ...OPENCOUNCIL_SUBSECTIONS.flatMap((s) => (s.id === "oc-ai" ? [s, ...AI_SUBSECTIONS] : [s])),
     { id: "substack", title: SUBSTACK_HEADING },
 ];
 
@@ -55,6 +67,7 @@ const NAV_SECTIONS = [
 const SECTION_PARENTS: Record<string, string> = {
     ...Object.fromEntries(LOCAL_GOV_SECTIONS.map((s) => [s.id, GREEK_MUNICIPALITIES_TITLE])),
     ...Object.fromEntries(OPENCOUNCIL_SUBSECTIONS.map((s) => [s.id, OPENCOUNCIL_TITLE])),
+    ...Object.fromEntries(AI_SUBSECTIONS.map((s) => [s.id, AI_SECTION_TITLE])),
 };
 
 const PAGE_TITLE = "Η τοπική αυτοδιοίκηση, απλά";
@@ -213,31 +226,7 @@ export default async function ExplainPage() {
                     <h2 className="mb-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground !text-left">
                         Περιεχόμενα
                     </h2>
-                    <ol className="space-y-5">
-                        {NAV_GROUPS.map((g) => (
-                            <li key={g.id} data-toc-group={g.id}>
-                                <a
-                                    href={`#${g.id}`}
-                                    data-toc-grouphead
-                                    className="block py-1 text-sm font-bold text-foreground/80 transition-colors hover:text-orange aria-[current=true]:text-orange"
-                                >
-                                    {g.title}
-                                </a>
-                                <ol className="mt-1.5 space-y-0.5">
-                                    {g.items.map((it) => (
-                                        <li key={it.id}>
-                                            <a
-                                                href={`#${it.id}`}
-                                                className="block border-l-2 border-border py-1.5 pl-3.5 text-sm leading-snug text-muted-foreground transition-colors hover:text-foreground aria-[current=true]:border-orange aria-[current=true]:font-semibold aria-[current=true]:text-orange"
-                                            >
-                                                {it.title}
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ol>
-                            </li>
-                        ))}
-                    </ol>
+                    <TocTree groups={NAV_TREE} />
                 </aside>
 
                 {/* two high-level parts */}
@@ -278,7 +267,7 @@ export default async function ExplainPage() {
                             </div>
                         )}
                         {/* Product showcase (diagram + feature demos + coverage/pricing/CTA) */}
-                        <ExplainFeatures realm={realm} coverage={cityCoverage} pricing={pricing} />
+                        <ExplainFeatures realm={realm} coverage={cityCoverage} pricing={pricing} aiSection={<AiLiteracySection />} />
                     </section>
                 </div>
             </div>
@@ -287,7 +276,7 @@ export default async function ExplainPage() {
             <hr className="mt-16 border-t border-border" />
             <SubstackCarousel id="substack" posts={SUBSTACK_POSTS} heading={SUBSTACK_HEADING} />
 
-            <ExplainReader sections={NAV_SECTIONS} sectionParents={SECTION_PARENTS} mainTitle={PAGE_TITLE} />
+            <ExplainReader sections={NAV_SECTIONS} groups={NAV_TREE} sectionParents={SECTION_PARENTS} mainTitle={PAGE_TITLE} />
         </div>
     );
 }
