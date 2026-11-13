@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AudioLines, Loader2, Play, Trash } from "lucide-react";
 import { deleteVoicePrint } from "@/lib/db/voiceprints";
 import { requestGenerateVoiceprint } from "@/lib/actions/tasks";
+import { VoiceprintSampleChooser } from "./voiceprint-sample-chooser";
 import { deleteTaskStatus, getVoiceprintTasksForPerson } from "@/lib/db/tasks";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -36,7 +37,7 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [tasks, setTasks] = useState<TaskStatus[]>([]);
     const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [latestPendingTask, setLatestPendingTask] = useState<TaskStatus | null>(null);
     const { toast } = useToast();
 
@@ -76,11 +77,11 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
         fetchTaskStatuses();
     }, [isDialogOpen, fetchTaskStatuses]);
 
-    // reset loading state when voiceprint changes
+    // reset deleting state when voiceprint changes
     // this is useful because we get a new voiceprint
     // state from the main page
     useEffect(() => {
-        setIsLoading(false);
+        setIsDeleting(false);
         setLatestPendingTask(null);
     }, [voicePrint]);
 
@@ -91,10 +92,9 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
         return () => clearInterval(intervalId);
     }, [isDialogOpen, latestPendingTask, fetchTaskStatuses]);
 
-    const handleGenerateVoiceprint = async () => {
-        setIsLoading(true);
+    const handleGenerateVoiceprint = async (segmentId: string) => {
         try {
-            const outcome = await requestGenerateVoiceprint(personId);
+            const outcome = await requestGenerateVoiceprint(personId, segmentId);
             if (!outcome.ok) {
                 toast({ title: "Voiceprint not generated", description: outcome.message, variant: "destructive" });
                 return;
@@ -120,8 +120,6 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
                         : "Failed to generate voiceprint. Please try again.",
                 variant: "destructive",
             });
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -154,7 +152,7 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
 
     const handleDeleteVoicePrint = async () => {
         if (!voicePrint) return;
-        setIsLoading(true);
+        setIsDeleting(true);
         try {
             await deleteVoicePrint(voicePrint.id);
             toast({
@@ -174,7 +172,8 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
         }
     };
 
-    const canGenerateVoiceprint = consentGiven && !voicePrint && !latestPendingTask;
+    // Wait for the task list: a pending task found there hides the samples.
+    const canGenerateVoiceprint = consentGiven && !voicePrint && !latestPendingTask && !isLoadingTasks;
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -205,7 +204,7 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
                 <div className='space-y-4 my-4'>
                     <h4 className='text-lg font-semibold mb-4'>Voiceprint</h4>
 
-                    {isLoading ? (
+                    {isDeleting ? (
                         <div className='flex justify-center items-center py-6'>
                             <Loader2 className='h-8 w-8 animate-spin text-slate-400' />
                         </div>
@@ -238,24 +237,21 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
                                 </p>
                             ) : consentGiven ? (
                                 <p className='text-sm text-slate-600'>
-                                    No voiceprint has been created for this person yet. Generate a voiceprint to enable
-                                    speaker identification.
+                                    No voiceprint has been created for this person yet. Listen to a sample of their
+                                    voice and use it if the audio is clear: only their voice, without noise.
                                 </p>
                             ) : null}
 
                             <div className='flex flex-col space-y-2 mt-4'>
                                 {canGenerateVoiceprint && (
-                                    <Button onClick={handleGenerateVoiceprint} disabled={isLoading} className='w-full'>
-                                        <AudioLines className='mr-2 h-4 w-4' />
-                                        Generate Voiceprint
-                                    </Button>
+                                    <VoiceprintSampleChooser personId={personId} onUse={handleGenerateVoiceprint} />
                                 )}
 
                                 {voicePrint && (
                                     <Button
                                         variant='outline'
                                         onClick={handlePlayAudio}
-                                        disabled={isLoading}
+                                        disabled={isDeleting}
                                         className='w-full'
                                     >
                                         <Play className='mr-2 h-4 w-4' />
@@ -270,13 +266,13 @@ export function VoiceprintActions({ personId, personName, voicePrint, consentGiv
                 <DialogFooter className='flex justify-between'>
                     <div>
                         {voicePrint && (
-                            <Button variant='destructive' onClick={handleDeleteVoicePrint} disabled={isLoading}>
+                            <Button variant='destructive' onClick={handleDeleteVoicePrint} disabled={isDeleting}>
                                 <Trash className='mr-2 h-4 w-4' />
                                 Delete Voiceprint
                             </Button>
                         )}
                     </div>
-                    <Button variant='outline' onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
+                    <Button variant='outline' onClick={() => setIsDialogOpen(false)} disabled={isDeleting}>
                         Close
                     </Button>
                 </DialogFooter>

@@ -2,6 +2,7 @@ import type { MeetingKind, MeetingScheduleStatus } from "@prisma/client";
 import { takesPlace } from "@/lib/meetingLifecycleRules";
 import { takesNoDecisions, pollDueAt } from "./pollDecisionsBackoff";
 import { MeetingDecisionCounts } from "../db/decisions";
+import { interleaveBy } from "@/lib/utils/interleave";
 
 export type PollSkipReason = "notTakingPlace" | "noDecisions" | "noEligibleSubjects";
 
@@ -107,18 +108,5 @@ export function orderForPolling<T extends { cityId: string; firstPollAt: Date | 
  * duplicate work.
  */
 export function interleaveByCity<T extends { cityId: string }>(meetings: T[]): T[] {
-    const byCity = new Map<string, T[]>();
-    for (const m of meetings) {
-        const queue = byCity.get(m.cityId);
-        if (queue) queue.push(m);
-        else byCity.set(m.cityId, [m]);
-    }
-    const queues = [...byCity.values()];
-    const out: T[] = [];
-    for (let round = 0; out.length < meetings.length; round++) {
-        for (const queue of queues) {
-            if (round < queue.length) out.push(queue[round]);
-        }
-    }
-    return out;
+    return interleaveBy(meetings, m => m.cityId);
 }

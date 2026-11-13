@@ -29,7 +29,7 @@ jest.mock('@/lib/db/voicePrintConsentRule', () => ({
 }));
 
 import { voicePrintConsentInForce } from '@/lib/db/voicePrintConsentRule';
-import { findEligiblePeopleForVoiceprintGeneration, requestGenerateVoiceprint, requestGenerateVoiceprintsForCity } from '../generateVoiceprint';
+import { findEligiblePeopleForVoiceprintGeneration, getVoiceprintSamples, requestGenerateVoiceprint, requestGenerateVoiceprintsForCity } from '../generateVoiceprint';
 import { handleGenerateVoiceprintResult } from '../generateVoiceprintInternal';
 
 beforeEach(() => {
@@ -42,11 +42,12 @@ describe('the voiceprint actions are a superadmin\'s', () => {
     it('authorizes a superadmin before it reads the person or the consent', async () => {
         mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Forbidden'));
 
-        await expect(requestGenerateVoiceprint('p1')).rejects.toThrow('Forbidden');
+        await expect(requestGenerateVoiceprint('p1', 's1')).rejects.toThrow('Forbidden');
         await expect(findEligiblePeopleForVoiceprintGeneration('chania')).rejects.toThrow('Forbidden');
         await expect(requestGenerateVoiceprintsForCity('chania')).rejects.toThrow('Forbidden');
+        await expect(getVoiceprintSamples('p1')).rejects.toThrow('Forbidden');
 
-        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledTimes(3);
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledTimes(4);
         for (const call of mockWithUserAuthorizedToEdit.mock.calls) expect(call).toEqual([{}]);
         expect(mockPersonFindUnique).not.toHaveBeenCalled();
         expect(mockPersonFindMany).not.toHaveBeenCalled();
@@ -59,7 +60,7 @@ describe('requestGenerateVoiceprint', () => {
         mockPersonFindUnique.mockResolvedValueOnce({ id: 'p1' });
         mockHasVoicePrintConsent.mockResolvedValue(false);
 
-        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({
+        await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({
             ok: false,
             message: expect.stringContaining('no voiceprint consent in force'),
         });
@@ -71,7 +72,7 @@ describe('requestGenerateVoiceprint', () => {
     it('refuses, as a value, a person who does not exist', async () => {
         mockPersonFindUnique.mockResolvedValueOnce(null);
 
-        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({ ok: false, message: 'Person not found' });
+        await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({ ok: false, message: 'Person not found' });
         expect(mockHasVoicePrintConsent).not.toHaveBeenCalled();
     });
 
@@ -82,7 +83,10 @@ describe('requestGenerateVoiceprint', () => {
             .mockResolvedValueOnce({ id: 'p1' })
             .mockResolvedValueOnce({ speakerTags: [] });
 
-        await expect(requestGenerateVoiceprint('p1')).resolves.toEqual({ ok: false, message: 'No speaker segments found for this person' });
+        await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({
+            ok: false,
+            message: expect.stringContaining('cannot become the person\'s voiceprint'),
+        });
     });
 });
 
