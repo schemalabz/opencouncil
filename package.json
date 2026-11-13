@@ -104,7 +104,7 @@
     "date-fns-tz": "^3.2.0",
     "docx": "^9.15.2",
     "dompurify": "^3.4.17",
-    "dotenv": "^16.4.5",
+    "dotenv": "^18.0.10",
     "feed": "^6.0.0",
     "framer-motion": "^14.9.1",
     "greek-name-klitiki": "^1.0.4",
