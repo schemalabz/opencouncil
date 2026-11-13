@@ -4,11 +4,11 @@ import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { assignSpeaker } from '@/lib/actions/speakerTags';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
+import { applyUtteranceDeletions, restoreUtteranceDeletions } from '@/lib/utils/utterance-deletion';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 
 // Actions are mutations + getters that don't depend on transcript identity.
@@ -24,6 +24,7 @@ export interface CouncilMeetingActions {
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     addUtteranceToSegment: (segmentId: string) => Promise<string>;
     deleteUtterance: (utteranceId: string) => Promise<void>;
+    deleteUtterances: (utteranceIds: string[]) => Promise<void>;
     updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => void;
     addHighlight: (highlight: HighlightWithUtterances) => void;
     updateHighlight: (highlightId: string, updates: Partial<HighlightWithUtterances>) => void;
@@ -196,23 +197,33 @@ export function CouncilMeetingDataProvider({ children, data }: {
         setSpeakerTags(prev => [...prev]);
     }, [cityId]);
 
+    // Ids of utterances whose deletion the server confirmed. A segment the
+    // server returns can still hold one of them when its request reached the
+    // server before the deletion committed, so we filter them out.
+    const deletedUtteranceIdsRef = useRef(new Set<string>());
+    const withoutDeletedUtterances = useCallback(<TSegment extends Transcript[number]>(segment: TSegment): TSegment => {
+        const deleted = new Set(segment.utterances.filter(u => deletedUtteranceIdsRef.current.has(u.id)).map(u => u.id));
+        if (deleted.size === 0) return segment;
+        return applyUtteranceDeletions([segment], new Map([[segment.id, deleted]]))[0];
+    }, []);
+
     const updateSpeakerSegmentDataAction = useCallback(async (segmentId: string, editData: EditableSpeakerSegmentData) => {
         console.log(`Updating speaker segment ${segmentId} data`);
         const updatedSegment = await updateSpeakerSegmentData(segmentId, editData, cityId);
         setTranscript(prev => prev.map(segment =>
-            segment.id === segmentId ? updatedSegment : segment
+            segment.id === segmentId ? withoutDeletedUtterances(updatedSegment) : segment
         ));
-    }, [cityId]);
+    }, [cityId, withoutDeletedUtterances]);
 
     const addUtteranceToSegmentAction = useCallback(async (segmentId: string) => {
         console.log(`Adding utterance to segment ${segmentId}`);
         const updatedSegment = await addUtteranceToSegment(segmentId, cityId);
         setTranscript(prev => prev.map(segment =>
-            segment.id === segmentId ? updatedSegment : segment
+            segment.id === segmentId ? withoutDeletedUtterances(updatedSegment) : segment
         ));
         const newUtterance = updatedSegment.utterances[updatedSegment.utterances.length - 1];
         return newUtterance?.id || '';
-    }, [cityId]);
+    }, [cityId, withoutDeletedUtterances]);
 
     const extractSpeakerSegmentAction = useCallback(async (segmentId: string, startUtteranceId: string, endUtteranceId: string) => {
         const newSegments = await extractSpeakerSegment(cityId, meetingId, segmentId, startUtteranceId, endUtteranceId);
@@ -231,21 +242,61 @@ export function CouncilMeetingDataProvider({ children, data }: {
         });
     }, [cityId, meetingId]);
 
-    const deleteUtteranceAction = useCallback(async (utteranceId: string) => {
-        console.log(`Deleting utterance ${utteranceId}`);
-        const { segmentId, remainingUtterances } = await deleteUtterance(utteranceId);
-        setTranscript(prev => prev.map(segment => {
-            if (segment.id === segmentId) {
-                const updatedUtterances = segment.utterances.filter(u => u.id !== utteranceId);
-                if (remainingUtterances === 0) {
-                    return { ...segment, utterances: [] };
+    // Bulk + single delete share the same API endpoint and optimistic-update
+    // path. `deleteUtteranceAction` delegates so we have one implementation.
+    const transcriptRef = useRef(transcript);
+    transcriptRef.current = transcript;
+
+    const deleteUtterancesAction = useCallback(async (utteranceIds: string[]) => {
+        const uniqueIds = Array.from(new Set(utteranceIds));
+        if (uniqueIds.length === 0) return;
+
+        // Read the removed utterances from a ref instead of inside the
+        // setTranscript updater: updaters can run more than once under
+        // StrictMode/concurrent mode, and the rollback needs them.
+        const idSet = new Set(uniqueIds);
+        const deletionsBySegment = new Map<string, Set<string>>();
+        const removedBySegment = new Map<string, Transcript[number]['utterances']>();
+        for (const segment of transcriptRef.current) {
+            for (const utterance of segment.utterances) {
+                if (idSet.has(utterance.id)) {
+                    const set = deletionsBySegment.get(segment.id) ?? new Set<string>();
+                    set.add(utterance.id);
+                    deletionsBySegment.set(segment.id, set);
+                    removedBySegment.set(segment.id, [...(removedBySegment.get(segment.id) ?? []), utterance]);
                 }
-                const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
-                return { ...segment, utterances: updatedUtterances, ...newTimestamps };
             }
-            return segment;
-        }));
-    }, [recalculateSegmentTimestamps]);
+        }
+        setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
+        // Another deletion of the same utterance may have succeeded meanwhile;
+        // a confirmed deletion never comes back.
+        const rollback = () => setTranscript(prev =>
+            restoreUtteranceDeletions(prev, removedBySegment).map(withoutDeletedUtterances));
+
+        let response: Response;
+        try {
+            response = await fetch('/api/utterances', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: uniqueIds }),
+            });
+        } catch (error) {
+            rollback();
+            throw error;
+        }
+        if (!response.ok) {
+            rollback();
+            throw new Error('Failed to delete utterances');
+        }
+        // A segment the server returned while the request was in flight may
+        // have put a deleted utterance back. Remove it again.
+        uniqueIds.forEach(id => deletedUtteranceIdsRef.current.add(id));
+        setTranscript(prev => prev.map(withoutDeletedUtterances));
+    }, [withoutDeletedUtterances]);
+
+    const deleteUtteranceAction = useCallback((utteranceId: string) => {
+        return deleteUtterancesAction([utteranceId]);
+    }, [deleteUtterancesAction]);
 
     const updateUtterance = useCallback((segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
         setTranscript(prev => prev.map(segment => {
@@ -281,6 +332,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         updateHighlight,
         removeHighlight,
         extractSpeakerSegment: extractSpeakerSegmentAction,
+        deleteUtterances: deleteUtterancesAction,
     }), [
         assignSpeakerAction,
         createEmptySegmentAfter,
@@ -291,6 +343,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         updateSpeakerSegmentDataAction,
         addUtteranceToSegmentAction,
         deleteUtteranceAction,
+        deleteUtterancesAction,
         updateUtterance,
         addHighlight,
         updateHighlight,

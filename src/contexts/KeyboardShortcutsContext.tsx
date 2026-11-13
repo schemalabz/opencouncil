@@ -90,6 +90,11 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
         id: 'SKIP_FORWARD',
         description: 'Skip forward by interval',
         keys: ['Shift+ArrowRight']
+    },
+    DELETE_SELECTION: {
+        id: 'DELETE_SELECTION',
+        description: 'Delete selected utterances',
+        keys: ['Delete', 'Backspace']
     }
 };
 
@@ -148,6 +153,12 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                 return;
             }
             if (event.target instanceof HTMLElement && event.target.isContentEditable) {
+                return;
+            }
+            // Don't hijack keystrokes inside open Radix dialogs: Enter/Space on
+            // Cancel or Delete buttons must reach the native button handler
+            // instead of firing EDIT_NEXT_UTTERANCE / PLAY_PAUSE.
+            if (event.target instanceof HTMLElement && event.target.closest('[role="dialog"], [role="alertdialog"]')) {
                 return;
             }
             const inPlaybackDock = event.target instanceof HTMLElement
