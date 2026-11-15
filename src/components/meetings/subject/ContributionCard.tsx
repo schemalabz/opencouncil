@@ -23,6 +23,7 @@ import { AgendaStateChip } from "@/components/subject/AgendaStateChip";
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { ContributionShareButton } from '@/components/sharing/ContributionShareButton';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { UnverifiedSpeakerLabel } from '@/components/persons/UnverifiedSpeakerLabel';
 
 interface UtteranceTimeRange {
     startTimestamp: number;
@@ -62,6 +63,11 @@ interface ContributionCardProps {
     isIntroducer?: boolean;
     /** Which page renders the card — the analytics discriminator. */
     sourcePage?: 'subject' | 'person' | 'party';
+    /**
+     * The meeting's transcript is not reviewed yet, so the speaker comes from
+     * the AI. The card then labels a named speaker as unverified (issue #982).
+     */
+    speakerUnverified?: boolean;
 }
 
 /**
@@ -84,6 +90,7 @@ export const ContributionCard = memo(function ContributionCard({
     showSpeaker = true,
     isIntroducer = false,
     sourcePage = 'subject',
+    speakerUnverified = false,
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
     const roleTitles = useRoleTitles(cityLanguage);
@@ -136,6 +143,7 @@ export const ContributionCard = memo(function ContributionCard({
     const cityRole = speaker ? filterActiveRoles(speaker.roles).find(r => getRoleKind(r) === 'city') : undefined;
     const cityRoleName = cityRole ? getRoleTitle(cityRole, roleTitles) : null;
     const speakerLine = [cityRoleName, party?.name].filter(Boolean).join(' · ');
+    const unverifiedLabel = speakerUnverified && (speaker || contribution.speakerName) ? <UnverifiedSpeakerLabel /> : null;
 
     const chips = utteranceInfo ? (
         <span className="flex flex-wrap items-center gap-2 sm:gap-1.5">
@@ -223,6 +231,7 @@ export const ContributionCard = memo(function ContributionCard({
                         {t("unknownSpeaker")}
                     </span>
                 )}
+                {unverifiedLabel}
                 {isIntroducer && (
                     <span className="inline-flex h-[18px] shrink-0 items-center rounded bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">
                         {t("introducer")}
@@ -313,6 +322,8 @@ export const ContributionCard = memo(function ContributionCard({
                             {' · '}
                             {formatDate(contextHeader.meetingDate)}
                         </span>
+                        {/* The page itself names the speaker (a person's own page), so the label goes here. */}
+                        {!showSpeaker && unverifiedLabel}
                     </div>
                 </div>
                 {shareButton}

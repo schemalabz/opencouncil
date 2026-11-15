@@ -1,4 +1,4 @@
-import { hasPendingSpeakerSuggestion, isReviewerAssignment, listSpeakerSuggestions, MethodIdentification, reconcileSpeakerIdentifications, speakerIdentificationsDisagree, speakerIdentificationsStatus } from '../speakerIdentifications';
+import { hasPendingSpeakerSuggestion, isReviewerAssignment, speakerIsUnverified, listSpeakerSuggestions, MethodIdentification, reconcileSpeakerIdentifications, speakerIdentificationsDisagree, speakerIdentificationsStatus } from '../speakerIdentifications';
 
 const voiceprint = (personId: string): MethodIdentification => ({ method: 'voiceprint', personId, actionable: true });
 /** A name the transcript task would act on by itself, unless said otherwise. */
@@ -129,5 +129,25 @@ describe('speakerIdentificationsStatus', () => {
         expect(speakerIdentificationsStatus([voiceprint('anna')])).toBe('voiceprintOnly');
         expect(speakerIdentificationsStatus([transcript('babis', TENTATIVE)])).toBe('transcriptOnly');
         expect(speakerIdentificationsStatus([])).toBeNull();
+    });
+});
+
+describe('speakerIsUnverified', () => {
+    it('marks a name that a method assigned before the review', () => {
+        expect(speakerIsUnverified({ personSetBy: 'voiceprint' }, false)).toBe(true);
+        expect(speakerIsUnverified({ personSetBy: 'transcript' }, false)).toBe(true);
+        expect(speakerIsUnverified({ personSetBy: 'both' }, false)).toBe(true);
+    });
+
+    it('does not mark a name that a reviewer assigned', () => {
+        expect(speakerIsUnverified({ personSetBy: 'user' }, false)).toBe(false);
+    });
+
+    it('does not mark a tag with no recorded source', () => {
+        expect(speakerIsUnverified({ personSetBy: null }, false)).toBe(false);
+    });
+
+    it('does not mark any name after the review', () => {
+        expect(speakerIsUnverified({ personSetBy: 'voiceprint' }, true)).toBe(false);
     });
 });

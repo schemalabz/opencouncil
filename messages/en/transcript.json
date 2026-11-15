@@ -72,6 +72,10 @@
         "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated soon.",
         "descriptionUntil": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated by {deadline}."
     },
+    "unverifiedSpeaker": {
+        "label": "unverified",
+        "description": "The speaker was identified automatically and has not been checked yet."
+    },
     "emptySegment": {
         "noUtterances": "No utterances in this segment",
         "addUtterance": "Add Utterance",

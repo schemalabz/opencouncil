@@ -3,7 +3,7 @@ import prisma from './prisma';
 import { AdministrativeBodyType, Prisma, Topic } from '@prisma/client';
 import { getUnreleasedScope } from '@/lib/auth';
 import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
-import { ContributionForPerson, contributionSubjectSelect, roleWithRelationsInclude } from './types';
+import { ContributionForPerson, contributionSubjectSelect, humanReviewSucceededWhere, roleWithRelationsInclude } from './types';
 
 async function unreleasedScopeForPerson(personId: string): Promise<UnreleasedScope | undefined> {
     const person = await prisma.person.findUnique({
@@ -39,7 +39,7 @@ function buildMeetingFilter(
         // that haven't passed human review.
         NOT: {
             administrativeBody: { showUnreviewedTranscript: false },
-            taskStatuses: { none: { type: 'humanReview', status: 'succeeded' } },
+            taskStatuses: { none: humanReviewSucceededWhere },
         },
     };
 }
@@ -69,6 +69,10 @@ export async function getDistinctTopicsForSpeakerContributions(
         .map(s => s.topic)
         .filter((t): t is Topic => t !== null)
         .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function withReviewState<T extends { subject: { councilMeeting: { _count: { taskStatuses: number } } } }>(contribution: T): T & { transcriptReviewed: boolean } {
+    return { ...contribution, transcriptReviewed: contribution.subject.councilMeeting._count.taskStatuses > 0 };
 }
 
 export async function getLatestContributionsForSpeaker(
@@ -108,7 +112,7 @@ export async function getLatestContributionsForSpeaker(
         prisma.speakerContribution.count({ where: whereClause }),
     ]);
 
-    return { results: contributions, total };
+    return { results: contributions.map(withReviewState), total };
 }
 
 export async function getLatestContributionsForParty(
@@ -152,5 +156,5 @@ export async function getLatestContributionsForParty(
         prisma.speakerContribution.count({ where: whereClause }),
     ]);
 
-    return { results: contributions, total };
+    return { results: contributions.map(withReviewState), total };
 }
