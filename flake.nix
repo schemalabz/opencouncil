@@ -1694,10 +1694,12 @@ EOF
             doInstallCheck = true;
             installCheckPhase = ''
               node $out/lib/seed.cjs --help > /dev/null
+              # `reset` reads it from SEED_PIPELINE_HOME to know which tables to keep; --help does not.
+              test -f $out/lib/tables.json
             '';
             installPhase = ''
               mkdir -p $out/lib/node_modules/@prisma $out/lib/node_modules/.prisma $out/prisma
-              cp dist/seed.cjs $out/lib/
+              cp dist/seed.cjs packages/seed-pipeline/config/tables.json $out/lib/
               cp -r node_modules/@prisma/client $out/lib/node_modules/@prisma/
               cp -r node_modules/.prisma/client $out/lib/node_modules/.prisma/
               cp prisma/schema.prisma $out/prisma/
