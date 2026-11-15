@@ -25,6 +25,7 @@ import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { ALL_SCOPE } from '@/lib/utils/bodyTier';
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -1678,7 +1679,7 @@ export async function getNotificationForView(id: string) {
         // Fetch statistics for each subject
         const { getStatisticsFor } = await import('@/lib/statistics');
         const subjectStatsPromises = notification.subjects.map(ns =>
-            getStatisticsFor({ subjectId: ns.subject.id }, ['party']).catch(() => null)
+            getStatisticsFor({ subjectId: ns.subject.id, scope: ALL_SCOPE }, ['party']).catch(() => null)
         );
         const subjectStats = await Promise.all(subjectStatsPromises);
 

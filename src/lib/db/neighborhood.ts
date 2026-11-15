@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import type { Prisma } from '@prisma/client';
+import { publicMeetingWhere } from '@/lib/cityStatus';
 
 /**
  * Real council subjects surfaced in the interactive neighbourhood illustration on
@@ -38,7 +39,7 @@ const THEMES: ThemeQuery[] = [
 async function findThemeSubject(theme: ThemeQuery): Promise<NeighborhoodSubject | null> {
     const where: Prisma.SubjectWhereInput = {
         withdrawn: false,
-        councilMeeting: { released: true, city: { realm: 'greece' } },
+        councilMeeting: publicMeetingWhere('greece'),
         ...('topicId' in theme
             ? { topicId: theme.topicId }
             : { name: { contains: theme.nameContains, mode: 'insensitive' } }),

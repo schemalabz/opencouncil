@@ -5,6 +5,7 @@ import { PersonWithRelations } from "./db/people";
 import { getPartyFromRoles } from "./utils";
 import { unreleasedMeetingWhere, type UnreleasedScope } from "./unreleased";
 import { roleWithRelationsInclude } from "@/lib/db/types";
+import { bodyScopeWhere, type BodyScope } from "@/lib/utils/bodyTier";
 
 export interface Stat<T> {
     item: T;
@@ -35,18 +36,26 @@ type SpeakerSegmentInfo = SpeakerSegment & {
     })[];
 }
 
+export interface StatisticsFilter {
+    personId?: Person["id"],
+    partyId?: Party["id"],
+    meetingId?: CouncilMeeting["id"],
+    cityId?: City["id"],
+    subjectId?: Subject["id"],
+    administrativeBodyId?: string | null,
+    includeUnreleased?: boolean,
+    /** The unreleased meetings the viewer may see, when not all of them. */
+    unreleased?: UnreleasedScope,
+    /**
+     * Which bodies' meetings count (see BodyScope). Absent, the primary tier,
+     * as every reader total. A caller that names one person, meeting, subject
+     * or body passes ALL_SCOPE: the reader asked for that one item.
+     */
+    scope?: BodyScope,
+}
+
 export async function getStatisticsFor(
-    { personId, partyId, meetingId, cityId, subjectId, administrativeBodyId, includeUnreleased, unreleased }: {
-        personId?: Person["id"],
-        partyId?: Party["id"],
-        meetingId?: CouncilMeeting["id"],
-        cityId?: City["id"],
-        subjectId?: Subject["id"],
-        administrativeBodyId?: string | null,
-        includeUnreleased?: boolean,
-        /** The unreleased meetings the viewer may see, when not all of them. */
-        unreleased?: UnreleasedScope,
-    },
+    { personId, partyId, meetingId, cityId, subjectId, administrativeBodyId, includeUnreleased, unreleased, scope }: StatisticsFilter,
     groupBy: ("person" | "topic" | "party")[]
 ): Promise<Statistics> {
     let transcript: SpeakerSegmentInfo[];
@@ -103,8 +112,9 @@ export async function getStatisticsFor(
         cityId: cityId,
         speakerTag: { personId: personId },
         meeting: {
-            ...(includeUnreleased ? {} : unreleasedMeetingWhere(unreleased)),
-            ...(administrativeBodyId ? { administrativeBodyId } : {})
+            ...(administrativeBodyId ? { administrativeBodyId } : {}),
+            // Both can be an OR, so they meet under AND.
+            AND: [includeUnreleased ? {} : unreleasedMeetingWhere(unreleased), bodyScopeWhere(scope)],
         },
         NOT: { summary: { type: "procedural" as const } }
     };

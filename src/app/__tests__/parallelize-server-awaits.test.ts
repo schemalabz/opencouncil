@@ -372,7 +372,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(hotCards.getHotSubjectCardsCached).not.toHaveBeenCalled();
 
-        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', realm: 'greece' });
+        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', realm: 'greece', _count: { councilMeetings: 1 } });
         await flushMicrotasks();
 
         expect(hotCards.getHotSubjectCardsCached).toHaveBeenCalledTimes(1);

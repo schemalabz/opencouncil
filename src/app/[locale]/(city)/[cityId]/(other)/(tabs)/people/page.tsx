@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser, getRoleLimitForCity } from "@/lib/auth";
-import { isSecondaryBody, readTier, type TierScope } from "@/lib/utils/bodyTier";
+import { ALL_SCOPE, isSecondaryBody, readTier, tabTier } from "@/lib/utils/bodyTier";
 import CityPeople from "@/components/cities/CityPeople";
 import { countPeopleOfCityCached, getPartiesForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached, listPeopleOfCityCached } from "@/lib/cache";
 import { Metadata } from "next";
@@ -100,17 +100,20 @@ export default async function PeoplePage(
     }
 
     const canEdit = roleLimit === null || roleLimit.size > 0;
-    // The members of a secondary body show on request, or to whoever
-    // administers such a body (#829). A city whose every person sits on a
-    // secondary body shows them from the start, as the meetings tab does:
-    // an empty roster would ask the reader for a choice they cannot know.
     // The server reads the tier, so the browser gets the people on show only.
     const secondaryAvailable = secondaryCount > 0;
-    const administersSecondary = roleLimit !== null && administrativeBodies.some(body => roleLimit.has(body.id) && isSecondaryBody(body));
-    const tier: TierScope = !secondaryAvailable
-        ? 'primary'
-        : readTier(search.tier) ?? (administersSecondary || city._count.persons === 0 ? 'all' : 'primary');
-    const people = await listPeopleOfCityCached(cityId, { tier });
+    const tier = tabTier({
+        requested: readTier(search.tier),
+        secondaryAvailable,
+        administersSecondary: roleLimit !== null && administrativeBodies.some(body => roleLimit.has(body.id) && isSecondaryBody(body)),
+        primaryEmpty: city._count.persons === 0,
+    });
+    // The superadmin tools order every member of a body, whatever the tier on
+    // show. The same cache entry serves both when the tab shows every tier.
+    const [people, superAdminRoster] = await Promise.all([
+        listPeopleOfCityCached(cityId, { tier }),
+        currentUser?.isSuperAdmin ? listPeopleOfCityCached(cityId, ALL_SCOPE) : null,
+    ]);
 
     return (
         <CityPeople
@@ -120,7 +123,7 @@ export default async function PeoplePage(
             cityId={cityId}
             cityLanguage={city.language}
             canEdit={canEdit}
-            isSuperAdmin={!!currentUser?.isSuperAdmin}
+            superAdminRoster={superAdminRoster}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}
             secondaryTier={{ available: secondaryAvailable, shown: tier !== 'primary' }}
         />

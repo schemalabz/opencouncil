@@ -148,7 +148,8 @@ describe('pollLivestreamsForRecentMeetings', () => {
         });
     });
 
-    it('takes a meeting of a body whose pipeline runs unattended without the agenda task (#829)', async () => {
+    // No operator follows it, so the operators' channel gets no alert, as on its creation.
+    it('takes a meeting of a body whose pipeline runs unattended without the agenda task, and sends no alert (#829)', async () => {
         mockMeetingFindMany.mockResolvedValue([meeting({
             administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil', youtubeChannelUrl: CHANNEL },
             subjects: [],
@@ -160,6 +161,7 @@ describe('pollLivestreamsForRecentMeetings', () => {
 
         expect(summary.candidates).toBe(1);
         expect(mockRequestTranscribeInternal).toHaveBeenCalledWith('https://www.youtube.com/watch?v=v1', 'm1', 'athens');
+        expect(mockMatchedAlert).not.toHaveBeenCalled();
     });
 
     it('leaves a meeting of an unattended body with a saved recording to the unattended pass (#829)', async () => {

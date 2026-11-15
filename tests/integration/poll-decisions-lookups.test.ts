@@ -39,7 +39,11 @@ describe('requestPollDecisions', () => {
                 data: { type: 'pollDecisions', requestBody: '{}', councilMeetingId: meetingId, cityId: city },
                 // Matches taskStatusWithMeetingInclude in lib/tasks/tasks.ts: startTask's real
                 // return shape, so the mock satisfies the same type without an `any` escape hatch.
-                include: { councilMeeting: { select: { ...meetingNameSelect, city: { select: { name_en: true, timezone: true } } } } },
+                include: { councilMeeting: { select: {
+                    ...meetingNameSelect,
+                    administrativeBody: { select: { ...meetingNameSelect.administrativeBody.select, type: true } },
+                    city: { select: { name_en: true, timezone: true } },
+                } } },
             }))
         await createCity({ id: cityId, diavgeiaUid: '6104' })
         const body = await createAdministrativeBody(cityId, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })

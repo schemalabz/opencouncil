@@ -8,6 +8,7 @@ import { CouncilBand } from "@/components/cities/overview/CouncilBand";
 import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, listPeopleOfCityCached } from "@/lib/cache";
 import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, isBeyondPeriod, readPeriod, readScope, type HotScope } from "@/lib/utils/hotTopicFilters";
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
+import { isSecondaryBody, tabTier } from "@/lib/utils/bodyTier";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -145,10 +146,17 @@ export default async function CityOverviewPage(
     // `CouncilMeeting.administrativeBodyId` is nullable, so a city can have public
     // meetings and still no body of the default scope's type — which would rank
     // nothing at all. Widen to every body and let the picker show what applies.
-    const scope = availableScopes.includes(requestedScope) ? requestedScope : 'all';
+    // A city with public content of the secondary tier alone widens to that tier.
+    const fallbackTier = tabTier({
+        requested: null,
+        secondaryAvailable: bodies.some(isSecondaryBody),
+        administersSecondary: false,
+        primaryEmpty: city._count.councilMeetings === 0,
+    });
+    const scope = availableScopes.includes(requestedScope) ? requestedScope : fallbackTier === 'all' ? 'secondary' : 'all';
     const hotSubjects = scope === requestedScope
         ? hotCards
-        : await getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS, months: HOT_PERIODS[period].months });
+        : await getHotSubjectCardsCached(cityId, { limit: HOT_SUBJECTS, scope: HOT_SCOPES[scope].scope, months: HOT_PERIODS[period].months });
 
     // The ranking falls back to the most recent meetings when the chosen period
     // holds none — say so rather than letting the dates quietly contradict the

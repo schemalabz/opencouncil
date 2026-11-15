@@ -15,7 +15,7 @@ import { TAKES_PLACE_WHERE, takesPlace } from "@/lib/meetingLifecycleRules";
 
 import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 
-import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
+import { AWAITING_DECISIONS_MEETING_WHERE, PUBLISHES_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
 import { isCustomer } from "@/lib/cityStatus";
 import { upsertDecision, deleteDecision, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
@@ -27,7 +27,7 @@ import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } f
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
 import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, type BackoffTier } from "./pollDecisionsBackoff";
 import { orderForPolling } from "./pollableMeetings";
-import { isSecondaryBody, primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 import { normalizeAda } from "@/lib/utils/ada";
@@ -1010,7 +1010,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 // to one that takes no decisions, or to a meeting of a secondary
                 // body, which publishes no decisions (#829). Such a meeting must
                 // neither receive a decision nor block an otherwise unambiguous heal.
-                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE, ...primaryMeetingWhere },
+                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE, ...PUBLISHES_DECISIONS_MEETING_WHERE },
                 select: { id: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },
             })).map(m => ({

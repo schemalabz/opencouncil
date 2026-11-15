@@ -9,22 +9,24 @@ const mockRevalidateAfterResponse = jest.fn();
 const mockSyncMeetingToCalendar = jest.fn();
 const mockUpdateMeetingRecord = jest.fn();
 const mockGetCouncilMeetingDirect = jest.fn();
+const mockCreateMeetingRecord = jest.fn();
+const mockMeetingCreatedAlert = jest.fn();
 
 jest.mock('server-only', () => ({}));
 jest.mock('next/server', () => ({ after: jest.fn() }));
 jest.mock('@/lib/db/citiesAdmin', () => ({ getCityNameEnAndTimezone: jest.fn().mockResolvedValue({ name_en: 'Chania', timezone: 'Europe/Athens' }) }));
 jest.mock('@/lib/db/meetings', () => ({
-    generateUniqueMeetingId: jest.fn(),
+    generateUniqueMeetingId: jest.fn().mockResolvedValue('oct9_2026'),
     getCouncilMeetingDirect: (...args: unknown[]) => mockGetCouncilMeetingDirect(...args),
     upcomingMeetingsTag: (realm: string) => `realm:${realm}:upcoming-meetings`,
 }));
 jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
 jest.mock('@/lib/db/meetingLifecycle', () => ({
-    createMeetingRecord: jest.fn(),
+    createMeetingRecord: (...args: unknown[]) => mockCreateMeetingRecord(...args),
     updateMeetingRecord: (...args: unknown[]) => mockUpdateMeetingRecord(...args),
 }));
-jest.mock('@/lib/discord', () => ({ sendMeetingCreatedAdminAlert: jest.fn() }));
+jest.mock('@/lib/discord', () => ({ sendMeetingCreatedAdminAlert: (...args: unknown[]) => mockMeetingCreatedAlert(...args) }));
 jest.mock('@/lib/google-calendar', () => ({ syncMeetingToCalendar: (...args: unknown[]) => mockSyncMeetingToCalendar(...args) }));
 jest.mock('@/lib/tasks/processAgendaInternal', () => ({ requestProcessAgendaInternal: jest.fn() }));
 jest.mock('@/lib/cache/afterResponse', () => ({ revalidateAfterResponse: (...args: unknown[]) => mockRevalidateAfterResponse(...args) }));
@@ -33,10 +35,12 @@ jest.mock('@/lib/db/tasksInternal', () => ({ meetingHasSucceededTask: jest.fn().
 jest.mock('@/lib/reportFailure', () => ({ reportFailure: jest.fn() }));
 jest.mock('@/lib/tasks/transcribeInternal', () => ({ requestTranscribeInternal: jest.fn() }));
 
-import { updateMeetingWithEffects } from '../meetingWrites';
+import { createMeetingWithEffects, updateMeetingWithEffects } from '../meetingWrites';
 
 const council = { id: 'council', type: 'council', tier: 'primary', name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', place: null };
 const youth = { id: 'youth', type: 'youthCouncil', tier: 'secondary', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', place: null };
+const promoted = { ...youth, id: 'promoted', tier: 'primary' };
+const company = { ...council, id: 'company', tier: 'secondary', name: 'Ζήρεια Α.Ε.', name_en: 'Zireia S.A.' };
 
 function row(body: typeof council, released: boolean, overrides: Record<string, unknown> = {}) {
     return {
@@ -90,5 +94,23 @@ describe('updateMeetingWithEffects on a change of tier', () => {
         await updateMeetingWithEffects('chania', 'oct9_2026', { place: 'Αίθουσα' });
         expect(tags()).not.toContain('cities:all');
         expect(mockSyncMeetingToCalendar).toHaveBeenCalledWith('chania', 'oct9_2026', { allowCreate: false });
+    });
+});
+
+// The operators' channel follows the operator rule (pipelineRunsUnattended),
+// as the task, agenda and livestream alerts do. The calendar follows the tier.
+describe('createMeetingWithEffects on the operators\' channel and the calendar', () => {
+    it.each([
+        ['a council', council, true, true],
+        ['a youth council at its default tier', youth, false, false],
+        ['a youth council set to primary', promoted, false, true],
+        ['a council set to secondary', company, true, false],
+    ])('for %s: alert %s, calendar event %s', async (_name, body, alerted, calendar) => {
+        mockCreateMeetingRecord.mockResolvedValue(row(body, false, { kind: 'ordinary' }));
+
+        await createMeetingWithEffects('chania', { date: new Date('2026-10-01T16:00:00Z'), administrativeBodyId: body.id });
+
+        expect(mockMeetingCreatedAlert).toHaveBeenCalledTimes(alerted ? 1 : 0);
+        expect(mockSyncMeetingToCalendar).toHaveBeenCalledTimes(calendar ? 1 : 0);
     });
 });

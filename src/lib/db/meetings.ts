@@ -17,7 +17,7 @@ import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
-import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
@@ -29,6 +29,7 @@ import { meetingNameSelect, meetingWithAdminBodyInclude } from "./types/meeting"
 import { cityListTags } from "./cityListing";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 import { notifySubscribersOnRelease } from "@/lib/notifications/meetingNotifications";
+import { findFirstCouncilMeetingId } from './meetingsList';
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
@@ -316,24 +317,10 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
     }
 }
 
+/** The next released meeting of the primary tier that takes place, or else the latest one. */
 export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise<string | null> {
-    const now = new Date();
-
-    const upcoming = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, dateTime: { gt: now }, ...TAKES_PLACE_WHERE, ...primaryMeetingWhere },
-        orderBy: { dateTime: 'asc' },
-        select: { id: true },
-    });
-
-    if (upcoming) return upcoming.id;
-
-    const latest = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, ...TAKES_PLACE_WHERE, ...primaryMeetingWhere },
-        orderBy: { dateTime: 'desc' },
-        select: { id: true },
-    });
-
-    return latest?.id ?? null;
+    return await findFirstCouncilMeetingId(cityId, { timeFilter: 'upcoming', takesPlace: true })
+        ?? await findFirstCouncilMeetingId(cityId, { takesPlace: true });
 }
 
 export interface MeetingListItem {
@@ -373,8 +360,9 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
 
     const [needsUpload, scheduled] = await Promise.all([
         // Needs upload: past meetings without transcribe succeeded
-        // (date filter reuses the shared last-30-days utility). A secondary
-        // body uploads its own recordings, so its meetings are not ours to chase.
+        // (date filter reuses the shared last-30-days utility). A body whose
+        // pipeline runs unattended uploads its own recordings, so its meetings
+        // are not ours to chase.
         prisma.councilMeeting.findMany({
             where: {
                 AND: [
@@ -383,7 +371,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
                     // a meeting by circulation takes no transcription.
                     TAKES_PLACE_WHERE,
                     PUBLIC_RECORDING_WHERE,
-                    primaryMeetingWhere,
+                    { NOT: unattendedMeetingWhere },
                     {
                         NOT: {
                             taskStatuses: {
@@ -406,6 +394,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
                 dateTime: { gt: now },
                 city: CUSTOMER_CITY_WHERE,
                 ...TAKES_PLACE_WHERE,
+                NOT: unattendedMeetingWhere,
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

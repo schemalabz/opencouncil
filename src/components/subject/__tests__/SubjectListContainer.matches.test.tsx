@@ -102,7 +102,7 @@ describe.each(['row', 'card'] as const)('SubjectListContainer variant=%s', (vari
 describe('SubjectListContainer rosters', () => {
     it('fetches the city rosters for the card, which draws speakers and parties', async () => {
         await renderList('card', makeSubject());
-        expect(global.fetch).toHaveBeenCalledWith('/api/cities/athens/people');
+        expect(global.fetch).toHaveBeenCalledWith('/api/cities/athens/people?tier=all');
         expect(global.fetch).toHaveBeenCalledWith('/api/cities/athens/parties');
     });
 

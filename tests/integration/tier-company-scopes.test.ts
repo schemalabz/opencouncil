@@ -36,14 +36,16 @@ describe('the default scopes read the stored tier, not the type', () => {
         }
     })
 
-    test('upcoming meetings, review queue and subject count leave the company out', async () => {
+    // The review queue reads the operator rule, not the tier: the company's
+    // pipeline has an operator, and its transcript stays hidden until a review.
+    test('upcoming meetings and subject count leave the company out, and the review queue keeps it', async () => {
         expect((await getUpcomingMeetings('greece')).map(m => m.id)).toEqual(['council_next'])
         for (const meetingId of ['council_past', 'company_past']) {
             await createTaskStatus(meetingId, CITY, { type: 'transcribe', status: 'succeeded' })
             const subject = await createSubject(meetingId, CITY, { id: `s_${meetingId}`, name: `Θέμα ${meetingId}` })
             await prisma.speakerContribution.create({ data: { subjectId: subject.id, text: 'Τοποθέτηση', speakerName: 'Ομιλητής' } })
         }
-        expect((await getMeetingsNeedingReview({ show: 'all' })).map(m => m.meetingId)).toEqual(['council_past'])
+        expect((await getMeetingsNeedingReview({ show: 'all' })).map(m => m.meetingId).sort()).toEqual(['company_past', 'council_past'])
         expect(await getSubjectCountForCity(CITY)).toBe(1)
     })
 

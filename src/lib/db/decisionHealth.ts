@@ -2,7 +2,7 @@ import prisma from './prisma';
 import { Prisma } from '@prisma/client';
 import { localCalendarDate } from '../formatters/time';
 import { DECISION_KIND_SELECT, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
-import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
+import { DECISION_ELIGIBLE_SUBJECT_WHERE, PUBLISHES_DECISIONS_MEETING_WHERE } from './decisionEligibility';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 import { getConflictingCandidates } from './decisionCandidates';
 import { groupOrphanRows, unplaceableKind } from './decisionHealthState';
@@ -142,7 +142,9 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
             select: cityFactsSelect,
         }),
         prisma.councilMeeting.findMany({
-            where: cityId ? { cityId } : { city: cityWhere },
+            // A secondary body's meetings take no decisions from Diavgeia, so
+            // their subjects are never unlinked and no document belongs there.
+            where: { ...(cityId ? { cityId } : { city: cityWhere }), ...PUBLISHES_DECISIONS_MEETING_WHERE },
             select: meetingFactsSelect,
         }),
         prisma.decision.findMany({

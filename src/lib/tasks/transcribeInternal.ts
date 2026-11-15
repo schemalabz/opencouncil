@@ -8,6 +8,7 @@ import { getPeopleWhoMaySpeak } from "@/lib/db/people";
 import { getConsentedPersonIds } from "@/lib/db/voicePrintConsentRule";
 import { getRoleTypePriority } from "../utils";
 import { voiceprintPriorityGroup } from "./voiceprintPriority";
+import { ALL_SCOPE } from "@/lib/utils/bodyTier";
 import { getStatisticsFor } from "../statistics";
 
 /**
@@ -130,7 +131,7 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
     // party leaders, etc.), with speaking time as tiebreaker.
     const MAX_VOICEPRINTS = 50;
     if (peopleWithVoiceprints.length > MAX_VOICEPRINTS) {
-        const stats = await getStatisticsFor({ cityId }, ["person"]);
+        const stats = await getStatisticsFor({ cityId, scope: ALL_SCOPE }, ["person"]);
         const speakingByPerson = new Map(
             (stats.people ?? []).map(s => [s.item.id, s.speakingSeconds])
         );

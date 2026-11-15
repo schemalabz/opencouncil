@@ -3,7 +3,7 @@ import type { BodyTier } from "@prisma/client";
 import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE, findMeetingIdsMatching } from "@/lib/db/meetingsList";
-import { isSecondaryBody, readTier, type BodyScope, type TierScope } from "@/lib/utils/bodyTier";
+import { isSecondaryBody, readTier, tabTier, type BodyScope } from "@/lib/utils/bodyTier";
 import CityMeetings from "@/components/cities/CityMeetings";
 import {
     getCityCached,
@@ -136,20 +136,14 @@ export default async function MeetingsPage(
         notFound();
     }
 
-    // The secondary tier (#829) loads on request, or for the admin of a body
-    // of it: their drafts must be reachable without a click they cannot know
-    // to make. A city admin keeps the primary tier and the checkbox. A city
-    // with no meeting of the primary tier shows the secondary tier at once:
-    // an empty tab would be its only page.
+    // A city admin keeps the primary tier and the checkbox.
     const secondaryAvailable = everyBody.some(isSecondaryBody);
-    const requestedTier = readTier(searchParams.tier);
-    const administersSecondary = !unreleased.all && editorBodies.some(isSecondaryBody);
-    const primaryEmpty = secondaryAvailable && requestedTier === null && !administersSecondary
-        ? (await countCouncilMeetingsCached(cityId)) === 0
-        : false;
-    const tier: TierScope = !secondaryAvailable
-        ? 'primary'
-        : requestedTier ?? (administersSecondary || primaryEmpty ? 'all' : 'primary');
+    const tier = tabTier({
+        requested: readTier(searchParams.tier),
+        secondaryAvailable,
+        administersSecondary: !unreleased.all && editorBodies.some(isSecondaryBody),
+        primaryEmpty: city._count.councilMeetings === 0,
+    });
     const showSecondary = tier !== 'primary';
     const onShow = <T extends { tier: BodyTier }>(body: T) => tier === 'all' || body.tier === tier;
     const administrativeBodies = everyBody.filter(onShow);

@@ -42,12 +42,18 @@ import { GET as getMeetingSubject } from '@/app/api/cities/[cityId]/meetings/[me
 import { GET as listCitySubjects } from '@/app/api/cities/[cityId]/subjects/route'
 import type { AdministrativeBody } from '@prisma/client'
 import type { BodyScope } from '@/lib/utils/bodyTier'
+import { getAboutPageStats } from '@/lib/db/cities'
+import { getCityCoverage } from '@/lib/db/coverage'
+import { getStatisticsFor } from '@/lib/statistics'
+import { GET as statisticsApi } from '@/app/api/statistics/route'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
-import { createAdministrativeBody, createCity, createMeeting, createSubject, signInAsSuperAdmin } from '../helpers/factories'
+import { createAdministrativeBody, createCity, createMeeting, createSpeakerSegment, createSpeakerTag, createSubject, signInAsSuperAdmin } from '../helpers/factories'
 
 const CITY = 'scope_city'
 const SQUARE = 'POLYGON((23 38, 23.1 38, 23.1 38.1, 23 38.1, 23 38))'
 const PAST = new Date(Date.now() - 86_400_000)
+// The youth council met first, so a total that counts it shows its date.
+const EARLIER = new Date(Date.now() - 2 * 86_400_000)
 
 // One body of each case, named by its role in the contract.
 const COUNCIL = 'council'   // council, primary
@@ -124,11 +130,14 @@ describe('the body scope of every reader builder (#829)', () => {
         }
         expect(bodies[YOUTH].tier).toBe('secondary')
         for (const [row, body] of Object.entries(bodies)) {
-            await createMeeting(CITY, { id: meetingOf(row), administrativeBodyId: body.id, released: true, dateTime: PAST })
+            await createMeeting(CITY, { id: meetingOf(row), administrativeBodyId: body.id, released: true, dateTime: row === YOUTH ? EARLIER : PAST })
             await createSubject(meetingOf(row), CITY, { id: subjectOf(row), name: `Θέμα ${row}` })
             await prisma.speakerContribution.create({ data: { subjectId: subjectOf(row), text: 'Τοποθέτηση', speakerName: 'Ομιλητής' } })
             await createPersonOf(row)
             await prisma.role.create({ data: { personId: personOf(row), cityId: CITY, administrativeBodyId: body.id } })
+            // One hour of the body's member speaking.
+            const tag = await createSpeakerTag({ personId: personOf(row) })
+            await createSpeakerSegment(meetingOf(row), CITY, { speakerTagId: tag.id, startTimestamp: 0, endTimestamp: 3600 })
         }
         await createPersonOf(MIXED)
         await prisma.role.create({ data: { personId: personOf(MIXED), cityId: CITY, administrativeBodyId: bodies[YOUTH].id } })
@@ -251,6 +260,32 @@ describe('the body scope of every reader builder (#829)', () => {
             { params: Promise.resolve({ cityId: CITY }) },
         ))
         expect(sorted(city.map((subject: { id: string }) => subject.id))).toEqual(sorted([COUNCIL, PROMOTED].map(subjectOf)))
+    })
+
+    // The reader totals count the primary tier, as the lists do.
+    test('the about page totals count the primary tier', async () => {
+        expect(await getAboutPageStats()).toMatchObject({ meetingCount: 2, subjectCount: 2, meetingHours: 2 })
+    })
+
+    test('the statistics of a city count the primary tier, and those of a person every tier', async () => {
+        const speakers = (statistics: { people?: { item: { id: string } }[] }) => sorted((statistics.people ?? []).map(stat => stat.item.id))
+        expect(speakers(await getStatisticsFor({ cityId: CITY }, ['person']))).toEqual(sorted([COUNCIL, PROMOTED].map(personOf)))
+        expect(speakers(await getStatisticsFor({ cityId: CITY, scope: { tier: 'all' } }, ['person']))).toEqual(sorted([COUNCIL, PROMOTED, YOUTH].map(personOf)))
+
+        const api = async (query: string) => (await statisticsApi(new NextRequest(`http://localhost/api/statistics?${query}`))).json()
+        expect(speakers(await api(`cityId=${CITY}`))).toEqual(sorted([COUNCIL, PROMOTED].map(personOf)))
+        expect(speakers(await api(`cityId=${CITY}&tier=secondary`))).toEqual([personOf(YOUTH)])
+        // The person page reads the statistics of the person it names, in every tier.
+        expect((await api(`cityId=${CITY}&personId=${personOf(YOUTH)}`)).speakingSeconds).toBe(3600)
+        expect((await api(`cityId=${CITY}&meetingId=${meetingOf(YOUTH)}`)).speakingSeconds).toBe(3600)
+    })
+
+    test('the coverage table lists the bodies of the primary tier', async () => {
+        const rows = await getCityCoverage('greece')
+        expect(rows.map(row => [row.bodyType, row.fromDate])).toEqual([
+            ['council', PAST.toISOString()],
+            ['youthCouncil', PAST.toISOString()],
+        ])
     })
 
     test('general subjects read the same scope', async () => {

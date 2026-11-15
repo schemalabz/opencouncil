@@ -68,7 +68,9 @@ export function SubjectListContainer({
         // Fetch all city and meeting data in parallel
         const dataPromises = cityIds.map(async (cityId) => {
           const [people, parties] = await Promise.all([
-            fetchFromApi<PersonWithRelations[]>(`/api/cities/${cityId}/people`),
+            // A lookup of the speakers, not a listing: a result of the secondary
+            // tier names its members too (#829).
+            fetchFromApi<PersonWithRelations[]>(`/api/cities/${cityId}/people?tier=all`),
             fetchFromApi<Party[]>(`/api/cities/${cityId}/parties`),
           ]);
           return [cityId, { people, parties }] as const;

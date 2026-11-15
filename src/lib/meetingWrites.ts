@@ -145,8 +145,10 @@ export async function createMeetingWithEffects(
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
 
-    // A secondary body runs its own meetings (#829): no alert to the operators'
-    // channel and no event on the municipal calendar.
+    // No operator follows a meeting whose pipeline runs unattended (#829), so
+    // the operators' channel gets no alert. The municipal calendar shows the
+    // primary tier only.
+    const unattended = pipelineRunsUnattended(meeting.administrativeBody);
     const secondary = isSecondaryBody(meeting.administrativeBody);
 
     // Fetch city data (should exist since meeting was created successfully)
@@ -155,7 +157,7 @@ export async function createMeetingWithEffects(
     if (city === null) {
         console.error(`City ${cityId} not found after meeting creation - this should not happen`);
         // Continue without city data - meeting was already created
-    } else if (!secondary) {
+    } else if (!unattended) {
         sendMeetingCreatedAdminAlert({
             cityName: city.name_en,
             meetingName: meetingLabel(meeting, 'en', city.timezone),

@@ -1,5 +1,5 @@
 import prisma from "../db/prisma";
-import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -200,7 +200,7 @@ export async function pollLivestreamsForRecentMeetings(
             // A youth council runs its own meetings wherever its city stands
             // (#829), as the unattended pass does: a youth council of a pending
             // city has no other way to its recordings.
-            AND: [{ OR: [{ city: CUSTOMER_CITY_WHERE }, { administrativeBody: { type: 'youthCouncil' } }] }],
+            AND: [{ OR: [{ city: CUSTOMER_CITY_WHERE }, unattendedMeetingWhere] }],
             // A postponed meeting in the window would take the stream of its
             // new meeting. A meeting by circulation has no stream.
             ...TAKES_PLACE_WHERE,
@@ -380,8 +380,9 @@ export async function pollLivestreamsForRecentMeetings(
                 // the duplicate alerts this key exists to prevent. Nothing is given up by blocking:
                 // the webhook transport logs HTTP and network failures without rejecting, so there
                 // is no delivery signal a non-blocking send could have acted on anyway.
+                // No operator follows a meeting whose pipeline runs unattended, as on its creation.
                 const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
-                if (!(await cacheHas(matchedAlertKey))) {
+                if (!pipelineRunsUnattended(meeting.administrativeBody) && !(await cacheHas(matchedAlertKey))) {
                     await sendLivestreamMatchedAlert({
                         cityId,
                         cityName: meeting.city.name,

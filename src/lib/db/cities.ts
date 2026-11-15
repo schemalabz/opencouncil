@@ -8,7 +8,7 @@ import { ApiError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, editCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE, PUBLIC_THROUGH_SECONDARY_WHERE } from "../cityStatus";
-import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { countMeetingHours, releasedMeetingsWhere } from "./meetingsList";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY, cityListTags } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -637,47 +637,31 @@ export interface AboutPageStats {
  * - Total subject count across all released meetings
  * - Total meeting hours (estimated from speaker segment timestamps)
  *
+ * The meetings are those of the primary tier (#829): a secondary body's
+ * meetings are not the municipalities' record that these totals describe.
+ *
  * Intentionally NOT realm-scoped: the about page is a marketing page that shows
  * platform-wide totals across all realms (so opencouncil.fr displays the same
  * achieved numbers as opencouncil.gr).
  */
 export async function getAboutPageStats(): Promise<AboutPageStats> {
     try {
-        const [municipalityCount, meetingCount, subjectCount, meetingDurations] = await Promise.all([
+        const meetings = releasedMeetingsWhere();
+        const [municipalityCount, meetingCount, subjectCount, meetingHours] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
                 where: CUSTOMER_CITY_WHERE
             }),
-            // Count published meetings
-            prisma.councilMeeting.count({
-                where: { released: true }
-            }),
-            // Count subjects in released meetings only
-            prisma.subject.count({
-                where: {
-                    councilMeeting: { released: true }
-                }
-            }),
-            // Get min/max timestamps per meeting to calculate duration
-            prisma.$queryRaw<Array<{ total_hours: number }>>`
-                SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
-                FROM (
-                    SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
-                    FROM "CouncilMeeting" cm
-                    JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                    WHERE cm.released = true
-                    GROUP BY cm.id, cm."cityId"
-                ) meetings
-            `
+            prisma.councilMeeting.count({ where: meetings }),
+            prisma.subject.count({ where: { councilMeeting: meetings } }),
+            countMeetingHours(meetings),
         ])
-
-        const totalHours = Number(meetingDurations[0]?.total_hours ?? 0)
 
         return {
             municipalityCount,
             meetingCount,
             subjectCount,
-            meetingHours: Math.round(totalHours)
+            meetingHours: Math.round(meetingHours)
         }
     } catch (error) {
         console.error('Error fetching about page stats:', error)

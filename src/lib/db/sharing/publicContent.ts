@@ -3,7 +3,7 @@ import type { Prisma, Realm } from '@prisma/client';
 import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
-import { ALL_SCOPE, pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE, pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {
@@ -76,8 +76,8 @@ export const TRANSCRIPT_PUBLIC_WHERE = {
     OR: [
         { administrativeBody: null },
         { administrativeBody: { showUnreviewedTranscript: true } },
-        // The twin of pipelineRunsUnattended: a youth council has no review step.
-        { administrativeBody: { type: 'youthCouncil' } },
+        // A body whose pipeline runs unattended has no review step.
+        unattendedMeetingWhere,
         { taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } } },
     ],
 } satisfies Prisma.CouncilMeetingWhereInput;

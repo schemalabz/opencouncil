@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
+import { ALL_SCOPE } from "@/lib/utils/bodyTier";
 import { getCurrentUser, getUnreleasedScope, getRoleLimitForCity } from "@/lib/auth";
 import { mayChangePersonImage } from "@/lib/db/personImage";
 import { Metadata } from "next";
@@ -110,7 +111,7 @@ export default async function PersonPage(
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getPublicAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId, unreleased }, ['topic']),
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId, unreleased, scope: ALL_SCOPE }, ['topic']),
         getDistinctTopicsForSpeakerContributions(params.personId),
     ]);
 

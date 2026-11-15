@@ -2,6 +2,7 @@
 
 import { handleProcessAgendaResult } from '../processAgenda';
 import { ProcessAgendaResult } from '../../apiTypes';
+import { sendTaskAdminAlert } from '@/lib/discord';
 
 /**
  * Tests for handleProcessAgendaResult subject-handling on empty / malformed
@@ -114,5 +115,26 @@ describe('handleProcessAgendaResult — empty / malformed subjects (issue #102)'
     expect(mockSubjectDeleteMany).not.toHaveBeenCalled();
     expect(mockHighlightDeleteMany).not.toHaveBeenCalled();
     expect(mockSaveSubjectsForMeeting).not.toHaveBeenCalled();
+  });
+});
+
+// The operators' channel follows the operator rule, as the meeting-create alert does (#829).
+describe('handleProcessAgendaResult — the alerts of a meeting whose pipeline runs unattended', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each([
+    ['a youth council at its default tier', { type: 'youthCouncil', tier: 'secondary' }, false],
+    ['a youth council set to primary', { type: 'youthCouncil', tier: 'primary' }, false],
+    ['a council set to secondary', { type: 'council', tier: 'secondary' }, true],
+  ])('for %s: alerts %s', async (_name, administrativeBody, alerted) => {
+    const task = await mockTaskStatusFindUnique();
+    mockTaskStatusFindUnique.mockResolvedValueOnce({ ...task, councilMeeting: { ...task.councilMeeting, administrativeBody } });
+
+    // A malformed payload still sends the success alert of the task.
+    await handleProcessAgendaResult(TASK_ID, {} as ProcessAgendaResult);
+
+    expect(sendTaskAdminAlert).toHaveBeenCalledTimes(alerted ? 1 : 0);
   });
 });

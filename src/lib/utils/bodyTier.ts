@@ -17,7 +17,9 @@ import { meetingBodyTypeWhere } from '@/lib/db/meetingBodyFilter';
  *   id of a body and not its tier, so search names the secondary bodies by id
  *   (see searchTierFilter in lib/search/query.ts).
  * - The rules that exist for youth councils read the type: the pipeline with no
- *   operator, and the own-account consent and photo of members under 18.
+ *   operator (and the operator surfaces that follow it: the review queue, the
+ *   upload dashboard, the Discord alerts), and the own-account consent and
+ *   photo of members under 18.
  *
  * Type-only Prisma imports, so this is safe in client components too.
  */
@@ -88,6 +90,16 @@ export function pipelineRunsUnattended(body: { type: AdministrativeBodyType } | 
 }
 
 /**
+ * The meetings whose pipeline runs with no operator, as a Prisma where clause:
+ * the twin of pipelineRunsUnattended. The operator surfaces (the review queue,
+ * the upload dashboard) leave them out with `NOT`, which keeps a meeting with
+ * no body.
+ */
+export const unattendedMeetingWhere = {
+    administrativeBody: { type: 'youthCouncil' as const },
+} satisfies Prisma.CouncilMeetingWhereInput;
+
+/**
  * The meetings of a city's primary bodies, as a Prisma where clause. It keeps
  * a meeting with no body: cities imported before bodies existed have many, and
  * they are the council's. A relation filter alone would drop them.
@@ -147,6 +159,26 @@ export function bodyScopeWhere(scope: BodyScope = {}): Prisma.CouncilMeetingWher
  */
 export function meetingListTier(tier: TierScope | undefined, seesUnreleased: boolean): TierScope {
     return tier ?? (seesUnreleased ? 'all' : 'primary');
+}
+
+/**
+ * The tier that a city surface opens on (#829): the meetings and people tabs,
+ * `/latest` and the ranking of the overview. A surface with nothing of the
+ * secondary tier shows the primary tier. Otherwise the tier in the URL
+ * decides. With none, the surface widens to every tier for the admin of a
+ * secondary body, whose drafts must be reachable without a click they cannot
+ * know to make, and for a city with no public content of the primary tier,
+ * whose surface would otherwise be empty. `primaryEmpty` reads the city counts
+ * (`city._count`), which count the primary tier.
+ */
+export function tabTier({ requested, secondaryAvailable, administersSecondary, primaryEmpty }: {
+    requested: TierScope | null;
+    secondaryAvailable: boolean;
+    administersSecondary: boolean;
+    primaryEmpty: boolean;
+}): TierScope {
+    if (!secondaryAvailable) return 'primary';
+    return requested ?? (administersSecondary || primaryEmpty ? 'all' : 'primary');
 }
 
 /**

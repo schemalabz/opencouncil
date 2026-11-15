@@ -127,7 +127,9 @@ A youth council runs its own meetings (#829). `pipelineRunsUnattended` in `src/l
 * The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
 * The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleaseDirect`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
 
-The notifications and the Discord alerts follow their own rules: a youth council, which is secondary by default, starts with its notifications off, and a failed trigger still alerts the operators.
+The operator surfaces read the same rule. `unattendedMeetingWhere` is its Prisma form. The review queue and the counts of its widget on `/admin` share one where (`reviewQueueWhere` in `src/lib/db/reviews.ts`), so the widget counts the meetings that the list shows. The upload dashboard leaves such meetings out. The Discord alerts of the meeting creation, of the tasks, of the agenda reading and of the livestream match are not sent for such a meeting. A failed auto-trigger still alerts the operators. The calendar reads the tier, not this rule.
+
+The notifications follow their own rule: a youth council, which is secondary by default, starts with its notifications off.
 
 ### The agenda as pasted text
 

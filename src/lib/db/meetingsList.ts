@@ -209,6 +209,32 @@ export async function countCouncilMeetings(cityId: string, options: MeetingListO
     return prisma.councilMeeting.count({ where });
 }
 
+/** The id of the first meeting that the options select, in the list's order. Null when there is none. */
+export async function findFirstCouncilMeetingId(cityId: string, options: MeetingListOptions = {}): Promise<string | null> {
+    const meeting = await prisma.councilMeeting.findFirst({ ...meetingListQuery(cityId, options), select: { id: true } });
+    return meeting?.id ?? null;
+}
+
+/**
+ * The released meetings of every city that a scope covers (absent, the
+ * primary tier): the platform totals that the about page and the brochure
+ * quote.
+ */
+export function releasedMeetingsWhere(scope?: BodyScope): Prisma.CouncilMeetingWhereInput {
+    return { released: true, AND: [bodyScopeWhere(scope)] };
+}
+
+/** The hours of the meetings that `where` selects, each from its first speaker segment to its last. */
+export async function countMeetingHours(where: Prisma.CouncilMeetingWhereInput): Promise<number> {
+    const meetings = await prisma.speakerSegment.groupBy({
+        by: ['cityId', 'meetingId'],
+        where: { meeting: where },
+        _min: { startTimestamp: true },
+        _max: { endTimestamp: true },
+    });
+    return meetings.reduce((hours, meeting) => hours + ((meeting._max.endTimestamp ?? 0) - (meeting._min.startTimestamp ?? 0)) / 3600, 0);
+}
+
 /** What a meeting is found by: the columns of its label, and its subjects' names. */
 const meetingSearchTextSelect = {
     id: true,

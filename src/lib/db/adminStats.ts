@@ -6,6 +6,7 @@ import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
 import { peopleOnly } from "@/lib/db/types";
 import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { countMeetingHours } from "./meetingsList";
 import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
@@ -91,13 +92,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         // There is no releasedAt column, so this counts meetings created this
         // week that are currently released — not release events this week.
         prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true, ...primaryMeetingWhere } }),
-        // One row per meeting: its length from the first segment to the last.
-        prisma.speakerSegment.groupBy({
-            by: ['cityId', 'meetingId'],
-            where: { meeting: { released: true, createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere } },
-            _min: { startTimestamp: true },
-            _max: { endTimestamp: true },
-        }),
+        countMeetingHours({ released: true, createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere }),
         prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
         prisma.searchQuery.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.searchQuery.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
@@ -129,7 +124,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         content: {
             meetingsAddedThisWeek,
             releasedOfThose,
-            meetingHoursThisWeek: Math.round(meetingHoursThisWeek.reduce((hours, meeting) => hours + ((meeting._max.endTimestamp ?? 0) - (meeting._min.startTimestamp ?? 0)) / 3600, 0)),
+            meetingHoursThisWeek: Math.round(meetingHoursThisWeek),
             supportedCities,
         },
         engagement,
