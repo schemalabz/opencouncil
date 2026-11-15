@@ -17,6 +17,7 @@ jest.mock('@/lib/search/core', () => ({
     searchSubjectsInRealm: jest.fn(),
 }))
 
+import { NextRequest } from 'next/server'
 import { Realm } from '@prisma/client'
 import prisma from '@/lib/db/prisma'
 import { countCouncilMeetings, getCouncilMeetingsForCity } from '@/lib/db/meetingsList'
@@ -26,8 +27,16 @@ import { publicMeetingWhere } from '@/lib/cityStatus'
 import { mcpListMeetings } from '@/lib/mcp/data'
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context'
 import { searchSubjectsInRealm } from '@/lib/search/core'
+import { buildFilters } from '@/lib/search/query'
+import type { QueryContainer } from '@/lib/search/types'
+import type { estypes } from '@elastic/elasticsearch'
+import { getSecondaryBodyIdsCached } from '@/lib/db/administrativeBodies'
 import { GET as mapSearch } from '@/app/api/map/search/route'
 import { GET as generalSubjects } from '@/app/api/map/general-subjects/route'
+import { GET as listMeetingSubjects } from '@/app/api/cities/[cityId]/meetings/[meetingId]/subjects/route'
+import { GET as getMeetingSubject } from '@/app/api/cities/[cityId]/meetings/[meetingId]/subjects/[subjectId]/route'
+import { GET as listCitySubjects } from '@/app/api/cities/[cityId]/subjects/route'
+import type { AdministrativeBody } from '@prisma/client'
 import type { BodyScope } from '@/lib/utils/bodyTier'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createSubject, signInAsSuperAdmin } from '../helpers/factories'
@@ -55,14 +64,43 @@ const subjectOf = (row: string) => `${row}_subject`
 const asRequest = <T>(fn: () => Promise<T>) => mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', null), fn)
 const subjectsOf = (rows: GeneralCityRow[]) => sorted(rows.flatMap(row => row.subjects.map(subject => subject.id)))
 
+// The body fields of an index document, and the clauses of buildFilters that
+// read them. A clause on another field passes: the test documents are released
+// subjects of the city, and only the body decides here.
+type IndexDocument = { administrative_body_id: string | null; administrative_body_type: string | null }
+const BODY_FIELDS = ['administrative_body_id', 'administrative_body_type']
+function admits(clause: QueryContainer, doc: IndexDocument): boolean {
+    const field = (fields: object) => Object.keys(fields)[0] as keyof IndexDocument
+    if (clause.term) {
+        const name = field(clause.term)
+        return !BODY_FIELDS.includes(name) || doc[name] === clause.term[name]
+    }
+    if (clause.terms) {
+        const name = field(clause.terms)
+        return !BODY_FIELDS.includes(name) || (clause.terms[name] as string[]).includes(doc[name] ?? '')
+    }
+    if (clause.exists) return doc[clause.exists.field as keyof IndexDocument] != null
+    if (clause.bool) {
+        const list = (value: estypes.QueryDslQueryContainer | estypes.QueryDslQueryContainer[] | undefined): QueryContainer[] =>
+            (Array.isArray(value) ? value : [value]).filter((inner): inner is QueryContainer => inner != null)
+        const should = list(clause.bool.should)
+        return list(clause.bool.filter).every(inner => admits(inner, doc))
+            && !list(clause.bool.must_not).some(inner => admits(inner, doc))
+            && (should.length === 0 || should.some(inner => admits(inner, doc)))
+    }
+    return true
+}
+
 describe('the body scope of every reader builder (#829)', () => {
+    let bodies: Record<string, AdministrativeBody>
+
     beforeAll(async () => {
         await ensureTestDb()
         await resetDatabase(prisma)
         await signInAsSuperAdmin()
         await createCity({ id: CITY, status: 'supported', realm: Realm.greece })
         await prisma.$executeRaw`UPDATE "City" SET geometry = ST_GeomFromText(${SQUARE}, 4326) WHERE id = ${CITY}`
-        const bodies = {
+        bodies = {
             [COUNCIL]: await createAdministrativeBody(CITY, { type: 'council', name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' }),
             [YOUTH]: await createAdministrativeBody(CITY, { type: 'youthCouncil', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council' }),
             [PROMOTED]: await createAdministrativeBody(CITY, { type: 'youthCouncil', tier: 'primary', name: 'Συμβούλιο Νέων Β', name_en: 'Youth Council B' }),
@@ -93,6 +131,15 @@ describe('the body scope of every reader builder (#829)', () => {
             expect(sorted(subjects.map(subject => subject.id))).toEqual(sorted(rows.map(subjectOf)))
             const hot = await getHotSubjectsCached('greece', { allTime: true, tier: scope?.tier, bodyTypes: scope?.types }, 10)
             expect(sorted(hot.map(subject => subject.id))).toEqual(sorted(rows.map(subjectOf)))
+        })
+
+        // The index holds the id and the type of a body, and not its tier.
+        test('the search filters', async () => {
+            const filters = buildFilters({ query: 'θέμα', tier: scope?.tier, administrativeBodyTypes: scope?.types }, await getSecondaryBodyIdsCached('greece'))
+            const found = Object.entries(bodies)
+                .filter(([, body]) => filters.every(clause => admits(clause, { administrative_body_id: body.id, administrative_body_type: body.type })))
+                .map(([row]) => row)
+            expect(sorted(found)).toEqual(sorted(rows))
         })
 
         test('the hot subjects of a city', async () => {
@@ -127,6 +174,37 @@ describe('the body scope of every reader builder (#829)', () => {
         // The same hit, unasked: the hydration keeps the reader default.
         const unasked = await (await mapSearch(new Request('http://localhost/api/map/search?q=θέμα'))).json()
         expect(subjectsOf(unasked.general)).toEqual([])
+    })
+
+    test('search keeps a subject with no body in the primary tier', async () => {
+        const secondaryIds = await getSecondaryBodyIdsCached('greece')
+        const noBody: IndexDocument = { administrative_body_id: null, administrative_body_type: null }
+        const found = (tier?: BodyScope['tier']) => buildFilters({ query: 'θέμα', tier }, secondaryIds).every(clause => admits(clause, noBody))
+        expect([found(), found('all'), found('secondary')]).toEqual([true, true, false])
+    })
+
+    // A meeting named in the URL is read in any tier, as its page reads it.
+    test('the subjects API reads a named secondary meeting, and keeps the city listing primary', async () => {
+        const read = async (response: Response) => {
+            expect(response.status).toBe(200)
+            return response.json()
+        }
+        const meetingId = meetingOf(YOUTH)
+        const listed = await read(await listMeetingSubjects(
+            new NextRequest(`http://localhost/api/cities/${CITY}/meetings/${meetingId}/subjects`),
+            { params: Promise.resolve({ cityId: CITY, meetingId }) },
+        ))
+        expect(listed.map((subject: { id: string }) => subject.id)).toEqual([subjectOf(YOUTH)])
+        const one = await read(await getMeetingSubject(
+            new NextRequest(`http://localhost/api/cities/${CITY}/meetings/${meetingId}/subjects/${subjectOf(YOUTH)}`),
+            { params: Promise.resolve({ cityId: CITY, meetingId, subjectId: subjectOf(YOUTH) }) },
+        ))
+        expect(one.id).toBe(subjectOf(YOUTH))
+        const city = await read(await listCitySubjects(
+            new NextRequest(`http://localhost/api/cities/${CITY}/subjects`),
+            { params: Promise.resolve({ cityId: CITY }) },
+        ))
+        expect(sorted(city.map((subject: { id: string }) => subject.id))).toEqual(sorted([COUNCIL, PROMOTED].map(subjectOf)))
     })
 
     test('general subjects read the same scope', async () => {

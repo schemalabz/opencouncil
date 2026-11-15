@@ -22,6 +22,7 @@ import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
 import { isIndependentCouncilMember, isMayorRole, type RoleTitles } from '@/lib/utils/roles';
+import { TIER_PARAM } from '@/lib/utils/bodyTier';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
@@ -159,6 +160,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         const params = new URLSearchParams();
         params.set('query', searchQuery);
         params.set('personId', person.id);
+        // The search covers the person in every tier, as the page of the person does.
+        params.set(TIER_PARAM, 'all');
         router.push(`/search?${params.toString()}`);
     };
 

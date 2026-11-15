@@ -5,6 +5,8 @@ import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 import { handleApiError } from '@/lib/api/errors';
 import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier';
+import { getCityRealm } from '@/lib/db/cityRealm';
+import { cityListTags } from '@/lib/db/cityListing';
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -56,6 +58,12 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
 
         revalidateTag(`city:${cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${cityId}/people`);
+        // Search reads the secondary bodies of the realm from a list under
+        // these tags (getSecondaryBodyIdsCached).
+        if (bodyTier === 'secondary') {
+            const realm = await getCityRealm(cityId);
+            if (realm) cityListTags(realm).forEach(tag => revalidateTag(tag, 'max'));
+        }
 
         return NextResponse.json(newBody, { status: 201 });
     } catch (error) {

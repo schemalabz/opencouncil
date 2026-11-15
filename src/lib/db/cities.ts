@@ -9,7 +9,7 @@ import { getRealm } from "../realm.server";
 import { createCityDirect, editCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE, PUBLIC_THROUGH_SECONDARY_WHERE } from "../cityStatus";
 import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
-import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY, cityListTags } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -397,7 +397,7 @@ export async function getListedCitiesCached(realm: Realm): Promise<CityWithCount
                 orderBy: CITY_ORDER_BY,
             }),
         ['cities', 'public', realm],
-        { revalidate: 900, tags: ['cities:all', `realm:${realm}:cities:all`] },
+        { revalidate: 900, tags: cityListTags(realm) },
     )();
 }
 

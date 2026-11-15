@@ -6,7 +6,7 @@ jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
 import { Realm } from '@prisma/client';
 import { buildApiSubjectWhere } from '@/lib/db/subjectsApi';
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
-import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE, bodyScopeWhere, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 describe('buildApiSubjectWhere', () => {
     describe('the public view', () => {
@@ -59,6 +59,16 @@ describe('buildApiSubjectWhere', () => {
         it('restricts to one meeting', () => {
             expect(buildApiSubjectWhere(Realm.greece, 'athens', { meetingId: 'm1' }))
                 .toMatchObject({ councilMeetingId: 'm1' });
+        });
+
+        it('reads the meeting it names in any tier, as its page does (#829)', () => {
+            const { councilMeeting } = buildApiSubjectWhere(Realm.greece, 'athens', { meetingId: 'm1' });
+
+            expect(councilMeeting).toEqual({
+                released: true,
+                city: { ...PUBLIC_CITY_WHERE, realm: Realm.greece },
+                AND: [bodyScopeWhere(ALL_SCOPE)],
+            });
         });
 
         it('restricts to one introducer', () => {

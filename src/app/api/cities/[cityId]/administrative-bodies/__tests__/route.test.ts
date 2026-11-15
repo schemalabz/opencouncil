@@ -14,9 +14,11 @@ jest.mock('@/lib/db/administrativeBodies', () => ({
     getPublicAdministrativeBodiesForCity: jest.fn(),
     createAdministrativeBody: jest.fn(),
 }));
+jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: jest.fn().mockResolvedValue('greece') }));
 
 import { GET, POST } from '../route';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { revalidateTag } from 'next/cache';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { createAdministrativeBody, getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies';
 
 const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
@@ -129,6 +131,7 @@ describe('POST /api/cities/[cityId]/administrative-bodies', () => {
 describe('POST of a body: its tier (#829)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        (withUserAuthorizedToEdit as jest.Mock).mockReset();
         mockCreate.mockResolvedValue({ ...FULL_BODY, id: 'b2' });
     });
 
@@ -139,7 +142,15 @@ describe('POST of a body: its tier (#829)', () => {
         expect(mockCreate).toHaveBeenLastCalledWith(expect.objectContaining({ tier: 'primary', notificationBehavior: 'NOTIFICATIONS_APPROVAL' }), undefined);
     });
 
-    it('keeps the tier the request sends, and starts a secondary council with its notifications off', async () => {
+    it('refreshes the list of secondary bodies that search reads for a secondary body, and not for a primary one', async () => {
+        await post('zografou', { name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' });
+        expect(revalidateTag).not.toHaveBeenCalledWith('cities:all', 'max');
+        await post('zografou', { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' });
+        expect(revalidateTag).toHaveBeenCalledWith('cities:all', 'max');
+        expect(revalidateTag).toHaveBeenCalledWith('realm:greece:cities:all', 'max');
+    });
+
+    it('keeps the tier that a superadmin sends, and starts a secondary council with its notifications off', async () => {
         await post('zografou', { name: 'Ζήρεια Α.Ε.', name_en: 'Ziria SA', type: 'council', tier: 'secondary' });
         expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ type: 'council', tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_DISABLED' }), undefined);
     });

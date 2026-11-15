@@ -18,15 +18,19 @@ export interface RelatedSubjectSeed {
 }
 
 /**
- * The tier clause of the related query (see bodyTier.ts). A municipal
- * subject never relates to a secondary body's. A secondary body's subject
- * relates to every body of its own municipality, and to the same kind of
- * body in the other municipalities.
+ * The tier clause of the related query (see bodyTier.ts), from the stored tier
+ * of the seed and the ids of the realm's secondary bodies. A municipal subject
+ * never relates to a secondary body's. A secondary body's subject relates to
+ * every body of its own municipality, and to the secondary bodies of the same
+ * type in the other municipalities.
  */
-function relatedTierFilters(seed: RelatedSubjectSeed, scope: RelatedScope): estypes.QueryDslQueryContainer[] {
-    if (seed.tier === 'primary') return [searchTierFilter('primary')!];
+function relatedTierFilters(seed: RelatedSubjectSeed, scope: RelatedScope, secondaryBodyIds: readonly string[]): estypes.QueryDslQueryContainer[] {
+    if (seed.tier === 'primary') {
+        const notSecondary = searchTierFilter('primary', secondaryBodyIds);
+        return notSecondary ? [notSecondary] : [];
+    }
     if (scope === 'city') return [];
-    const ofSecondary = searchTierFilter('secondary')!;
+    const ofSecondary = searchTierFilter('secondary', secondaryBodyIds)!;
     return seed.administrativeBodyType
         ? [ofSecondary, { term: { administrative_body_type: seed.administrativeBodyType } }]
         : [ofSecondary];
@@ -65,9 +69,10 @@ export function relatedScopeCityIds(seed: RelatedSubjectSeed, scope: RelatedScop
  * same municipality and the same programmes in other municipalities, where
  * more_like_this surfaced subjects that merely share municipal vocabulary.
  *
- * `cityIds` is the realm's municipalities, already capped by the caller. The
- * `city` scope narrows to the seed's own municipality; `other` drops it. The
- * city filter is always present, even when it is empty: an absent filter
+ * `cityIds` is the realm's municipalities, already capped by the caller, and
+ * `secondaryBodyIds` the ids of the realm's secondary bodies. The `city`
+ * scope narrows to the seed's own municipality; `other` drops it. The city
+ * filter is always present, even when it is empty: an absent filter
  * would search every realm, and an empty `terms` matches nothing, which is
  * the right answer for a realm with no other municipality.
  */
@@ -75,6 +80,7 @@ export function buildRelatedSubjectsQuery(
     seed: RelatedSubjectSeed,
     scope: RelatedScope,
     cityIds: string[],
+    secondaryBodyIds: readonly string[],
     profile: QueryProfile = DEFAULT_SCORE_PROFILE
 ): estypes.SearchRequest {
     const scopeCityIds = relatedScopeCityIds(seed, scope, cityIds);
@@ -102,7 +108,7 @@ export function buildRelatedSubjectsQuery(
                 filter: [
                     ...subjectVisibilityFilters(),
                     { terms: { city_id: scopeCityIds } },
-                    ...relatedTierFilters(seed, scope),
+                    ...relatedTierFilters(seed, scope, secondaryBodyIds),
                 ],
                 // The subject itself, and its siblings from the same meeting:
                 // the meeting page already lists those. A meeting id is a

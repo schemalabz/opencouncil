@@ -14,7 +14,6 @@ jest.mock('server-only', () => ({}));
 jest.mock('next/server', () => ({ after: jest.fn() }));
 jest.mock('@/lib/db/citiesAdmin', () => ({ getCityNameEnAndTimezone: jest.fn().mockResolvedValue({ name_en: 'Chania', timezone: 'Europe/Athens' }) }));
 jest.mock('@/lib/db/meetings', () => ({
-    cityListTags: (realm: string) => ['cities:all', `realm:${realm}:cities:all`],
     generateUniqueMeetingId: jest.fn(),
     getCouncilMeetingDirect: (...args: unknown[]) => mockGetCouncilMeetingDirect(...args),
     upcomingMeetingsTag: (realm: string) => `realm:${realm}:upcoming-meetings`,

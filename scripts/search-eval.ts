@@ -29,6 +29,11 @@ import { NO_EXTRACTED_FILTERS } from '../src/lib/search/filters';
 
 type Expectation = 'results' | 'empty';
 
+// The harness reads the index alone, never the database that .env names. With
+// no secondary body ids, the primary tier excludes nothing, so the eval ranks
+// the subjects of every tier.
+const NO_SECONDARY_BODY_IDS: string[] = [];
+
 interface EvalCase {
     query: string;
     expect: Expectation;
@@ -259,7 +264,7 @@ async function runQuery(
             semanticMinScore,
         },
     };
-    const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS, undefined, await resolveIndexProfile(client));
+    const q = buildSearchQuery(request, NO_SECONDARY_BODY_IDS, NO_EXTRACTED_FILTERS, undefined, await resolveIndexProfile(client));
 
     // Semantic-only mode: the semantic side is the second branch of the dis_max
     // under `must` (see buildSemanticFallbackQuery). Keep only that branch so
@@ -334,7 +339,7 @@ async function runRelated(subjectId: string, minScore?: number): Promise<void> {
         councilMeetingId: source.councilMeeting_id,
         administrativeBodyType: source.administrative_body_type ?? null,
         // The index holds no tier, and the harness reads no database: it
-        // measures the neighbours of a subject of the primary tier.
+        // measures the neighbours of a subject of the primary tier, in every tier.
         tier: 'primary',
     };
     console.log(`\n▶ related to "${seed.name}" (${source.city_name}, ${(source.meeting_date ?? '').slice(0, 10)})`);
@@ -349,7 +354,7 @@ async function runRelated(subjectId: string, minScore?: number): Promise<void> {
 
     for (const scope of ['city', 'other'] as RelatedScope[]) {
         const q = {
-            ...buildRelatedSubjectsQuery(seed, scope, cityIds, await resolveIndexProfile(client)),
+            ...buildRelatedSubjectsQuery(seed, scope, cityIds, NO_SECONDARY_BODY_IDS, await resolveIndexProfile(client)),
             ...(minScore !== undefined && { min_score: minScore }),
         };
         const res = await client.search<EvalSource>({
@@ -542,6 +547,7 @@ type TierRun = 'live' | 'bare';
 async function runTierQuery(queryText: string, run: TierRun): Promise<TierHit[]> {
     const q = buildSearchQuery(
         { query: queryText, config: { size: 100, enableSemanticSearch: run === 'live' } },
+        NO_SECONDARY_BODY_IDS,
         NO_EXTRACTED_FILTERS,
         undefined,
         await resolveIndexProfile(client)

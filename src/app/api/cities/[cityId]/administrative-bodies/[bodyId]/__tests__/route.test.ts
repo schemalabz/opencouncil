@@ -19,7 +19,6 @@ jest.mock('@/lib/db/administrativeBodies', () => ({
 }));
 jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/db/meetings', () => ({
-    cityListTags: (realm: string) => ['cities:all', `realm:${realm}:cities:all`],
     upcomingMeetingsTag: (realm: string) => `realm:${realm}:upcoming-meetings`,
 }));
 jest.mock('@/lib/db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));

@@ -13,9 +13,9 @@ import { meetingBodyTypeWhere } from '@/lib/db/meetingBodyFilter';
  *
  * What reads what:
  * - Where content shows, the counts, the notifications and Diavgeia read the tier.
- *   The type does not decide where content shows. Search is the one exception
- *   until it filters by body id: the index holds the type of a body and not
- *   its tier (see SECONDARY_INDEX_TYPES in lib/search/query.ts).
+ *   The type does not decide where content shows. The search index holds the
+ *   id of a body and not its tier, so search names the secondary bodies by id
+ *   (see searchTierFilter in lib/search/query.ts).
  * - The rules that exist for youth councils read the type: the pipeline with no
  *   operator, and the own-account consent and photo of members under 18.
  *

@@ -2,8 +2,10 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody, Prisma } from '@prisma/client';
+import { AdministrativeBody, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
+import { createCache } from "../cache/index";
+import { cityListTags } from "./cityListing";
 import { withUserAuthorizedToEdit } from "../auth";
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
@@ -128,6 +130,23 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
         console.error('Error fetching administrative bodies with public meetings:', error);
         throw new Error('Failed to fetch administrative bodies');
     }
+}
+
+/**
+ * The ids of the secondary bodies of a realm. The search index holds the id of
+ * a body and not its tier, so search reads the tier through these ids (see
+ * searchTierFilter). The paths that change the set refresh the city lists: a
+ * new secondary body, a change of tier, and a city that changes realm.
+ */
+export async function getSecondaryBodyIdsCached(realm: Realm): Promise<string[]> {
+    return createCache(
+        async () => (await prisma.administrativeBody.findMany({
+            where: { tier: 'secondary', city: { realm } },
+            select: { id: true },
+        })).map(body => body.id),
+        ['administrativeBodies', 'secondary', realm],
+        { revalidate: 900, tags: cityListTags(realm) },
+    )();
 }
 
 /**

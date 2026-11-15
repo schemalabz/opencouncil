@@ -601,21 +601,23 @@ function introducedOrSpokeFilter(
 }
 
 /**
- * The types that stand for the secondary tier in the index. The index carries
- * the type of a body and not its tier, so search reads the default tier of the
- * type until it filters by body id. Only the search modules read this list.
+ * The index clause of a tier, or null when the tier needs none. The index
+ * holds the id of a body and not its tier, so the clause names the realm's
+ * secondary bodies by id (getSecondaryBodyIdsCached). A must_not keeps the
+ * documents with no body, which are primary.
  */
-export const SECONDARY_INDEX_TYPES: readonly AdministrativeBodyType[] = ['youthCouncil'];
-
-/** The index clause of a tier, or null for every tier. */
-export function searchTierFilter(tier: TierScope): QueryContainer | null {
+export function searchTierFilter(tier: TierScope, secondaryBodyIds: readonly string[]): QueryContainer | null {
     if (tier === 'all') return null;
-    const ofSecondary: QueryContainer = { terms: { 'administrative_body_type': [...SECONDARY_INDEX_TYPES] } };
-    return tier === 'secondary' ? ofSecondary : { bool: { must_not: [ofSecondary] } };
+    const ofSecondary: QueryContainer = { terms: { 'administrative_body_id': [...secondaryBodyIds] } };
+    if (tier === 'secondary') return ofSecondary;
+    return secondaryBodyIds.length ? { bool: { must_not: [ofSecondary] } } : null;
 }
 
-// Build filters for the search query
-export function buildFilters(request: SearchRequest): QueryContainer[] {
+/**
+ * The filters of the search query. `secondaryBodyIds` are the ids of the
+ * secondary bodies of the realm, which the tier of the request reads.
+ */
+export function buildFilters(request: SearchRequest, secondaryBodyIds: readonly string[]): QueryContainer[] {
     const filters: QueryContainer[] = subjectVisibilityFilters();
 
     // Add city filter if specified
@@ -677,9 +679,8 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
             : ofTypes);
     }
 
-    // The tier (see BodyScope): primary when absent. Named bodies are in any
-    // tier. A must_not keeps the documents with no body, which are primary.
-    const tierFilter = request.administrativeBodyIds?.length ? null : searchTierFilter(request.tier ?? 'primary');
+    // The tier (see BodyScope): primary when absent. Named bodies are in any tier.
+    const tierFilter = request.administrativeBodyIds?.length ? null : searchTierFilter(request.tier ?? 'primary', secondaryBodyIds);
     if (tierFilter) filters.push(tierFilter);
 
     // Add topic filter if specified
@@ -1136,9 +1137,13 @@ function buildSemanticFallbackQuery(
     };
 }
 
-// Build the search query
+/**
+ * The search query. `secondaryBodyIds` are the ids of the secondary bodies of
+ * the realm (see buildFilters).
+ */
 export function buildSearchQuery(
     request: SearchRequest,
+    secondaryBodyIds: readonly string[],
     extractedFilters: ExtractedFilters,
     extractedLocations?: Location[],
     profile: QueryProfile = DEFAULT_SCORE_PROFILE
@@ -1154,7 +1159,7 @@ export function buildSearchQuery(
     // (they require a query) and return the filtered set newest-first. Used e.g.
     // for "everything a person spoke about" or "all subjects in a date range".
     const queryText = request.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
-    const filters = buildFilters(request);
+    const filters = buildFilters(request, secondaryBodyIds);
     if (!queryText) {
         // An extracted location only boosts, and with no text there is nothing
         // to extract from. A caller's place reaches this path as the

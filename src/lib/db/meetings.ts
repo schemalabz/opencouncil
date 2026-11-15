@@ -26,6 +26,7 @@ import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { meetingNameSelect, meetingWithAdminBodyInclude } from "./types/meeting";
+import { cityListTags } from "./cityListing";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 import { notifySubscribersOnRelease } from "@/lib/notifications/meetingNotifications";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
@@ -37,15 +38,6 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 }>;
 
 
-
-/**
- * The tags of the city lists. A released meeting of a secondary body can
- * make its city public, or take that away (see PUBLIC_THROUGH_SECONDARY_WHERE,
- * #829): the lists must learn it now, not at their TTL — the map's has none.
- */
-export function cityListTags(realm: Realm): string[] {
-    return ['cities:all', `realm:${realm}:cities:all`];
-}
 
 /**
  * What the extraction of a pasted agenda needs to know about the meeting
