@@ -69,25 +69,6 @@ export const C = {
 // Intrinsic size of public/logo.png, in px.
 const LOGO_W = 1606;
 const LOGO_H = 1354;
-export const LOGO_RATIO = LOGO_H / LOGO_W;
-
-/**
- * The OpenCouncil lockup: butterfly + wordmark. The wordmark is always
- * regular weight — never bold the logo lockup — and the butterfly stays
- * visually dominant over the letters (text ≈ 0.55 × logo width).
- */
-export function Brand({ size = 18, textScale = 0.55 }: { size?: number; textScale?: number }) {
-    return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: size * textScale * 0.69 }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
-            <Image
-                src={`${ASSET_BASE}/logo.png`}
-                style={{ width: size, height: size * LOGO_RATIO }}
-            />
-            <Text style={{ fontSize: size * textScale, color: C.ink }}>OpenCouncil</Text>
-        </View>
-    );
-}
 
 // Ink box of the butterfly inside public/logo.png, in px.
 const MARK_INK = { left: 414, right: 1191, top: 354, bottom: 1000 };
@@ -102,7 +83,8 @@ const WORDMARK_LSB_EM = 0.052;
  * 2025, pp. 14–15): the gap between the mark and the word is ½ × mark width,
  * and the word is 3 × mark width. All values refer to the visible ink. The
  * PNG is cropped to the ink of the mark, so the lockup box starts at the
- * left edge of the mark and the caller sets the clear space.
+ * left edge of the mark and the caller sets the clear space. The word is
+ * always regular weight: never bold the lockup.
  */
 export function BrandLockup({ markWidth }: { markWidth: number }) {
     const scale = markWidth / MARK_INK_W;

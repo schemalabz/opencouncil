@@ -15,7 +15,7 @@
  * Lazy-loaded by the sheet's download button, like the offer PDF.
  */
 import { Document, Page, View, Text } from "@react-pdf/renderer";
-import { Brand, C, LucideIcon, QRCode } from "@/components/pdf/shared";
+import { BrandLockup, C, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { QrStripPerson } from "@/lib/admin/councilQrStrips";
 import { CUTS, SHEET_HEIGHT, SHEET_WIDTH, cardFrame, namePieces, toSheets } from "./qrSheetLayout";
 
@@ -55,7 +55,8 @@ function Card({ person, cityName, labels }: { person: QrStripPerson; cityName: s
             }}
         >
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Brand size={16} />
+                {/* A word of about 8.8 pt, its size before the brand book fix. */}
+                <BrandLockup markWidth={17.2} />
                 <Text style={{ fontSize: 7.5, color: C.light }}>{cityName}</Text>
             </View>
 
