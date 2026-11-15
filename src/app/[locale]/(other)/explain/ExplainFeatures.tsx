@@ -1,11 +1,12 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Realm } from "@prisma/client";
 import { getRealmContactPhone, telHref } from "@/lib/realm";
 import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "@/i18n/routing";
-import HowItWorks from "@/components/about/HowItWorks";
 import { MeetingStagesFlow } from "@/components/explain/MeetingStagesFlow";
+import { MeetingPhases } from "@/components/explain/MeetingPhases";
 import { FeatureBlock } from "@/components/about/OpennessFeatures";
 import { OPENNESS_FEATURES } from "@/components/about/config";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
@@ -29,7 +30,7 @@ const fmt = (n: number) => n.toLocaleString("el-GR");
 /**
  * Product showcase reused from the /about page, rendered inside the
  * "Πως δουλεύει το OpenCouncil;" section of /explain (so it matches that
- * section's width): the "how it works" diagram followed by each openness
+ * section's width): the phases of a meeting followed by each openness
  * feature (Θέματα & Περιλήψεις, Αναζήτηση, Ενημερώσεις, Χάρτης θεμάτων) with
  * its interactive demo stacked below the text (rather than inline as on /about),
  * then the per-city coverage table, pricing and the closing call to action.
@@ -38,24 +39,16 @@ export function ExplainFeatures({
     realm,
     coverage,
     pricing,
+    aiSection,
 }: {
     realm: Realm;
     coverage: CoverageRow[];
     pricing: ExplainPricing;
+    /** The AI literacy section, rendered on the server and slotted in after the stages. */
+    aiSection: ReactNode;
 }) {
     return (
         <div className="mt-8 space-y-14 md:space-y-16">
-            {/* "Πώς δουλεύει" diagram. The desktop diagram is wider than the
-                article column, so it scrolls horizontally instead of being clipped
-                by the layout. Anchor ids match OPENCOUNCIL_SUBSECTIONS
-                (oc-how, oc-<featureId>). */}
-            <div id="oc-how" className="scroll-mt-24">
-                <div className="overflow-x-auto">
-                    {/* Change this to retitle the box on /explain. */}
-                    <HowItWorks title="Αναλυτικά" />
-                </div>
-            </div>
-
             {/* The public stages a meeting passes through. The chips on the
                 meeting pages and on every card deep-link to oc-stage-<stage>. */}
             <div id="oc-stages" className="scroll-mt-24">
@@ -63,24 +56,19 @@ export function ExplainFeatures({
                     <HeadingAnchor id="oc-stages">Η πορεία μιας συνεδρίασης</HeadingAnchor>
                 </h3>
                 <p className="mt-3 leading-relaxed text-muted-foreground">
-                    Οι συνεδριάσεις των συλλογικών οργάνων ανεβαίνουν στο OpenCouncil πριν ακόμα γίνουν: όταν ο
-                    δήμος δημοσιεύσει την ημερήσια διάταξη, δηλαδή την πρόσκληση, συνήθως 3-7 ημέρες πριν τη
-                    συνεδρίαση. Τα θέματα της ημερήσιας διάταξης φαίνονται από τότε στη σελίδα της συνεδρίασης, και
-                    αργότερα συμπληρώνονται με τα θέματα προ και εκτός ημερησίας διάταξης.
+                    Στο OpenCouncil, μία συνεδρίαση περνάει από έξι φάσεις, από την πρόσκληση μέχρι τα πρακτικά. Κάποια
+                    βήματα γίνονται με χρήση τεχνητής νοημοσύνης, κάποια από ανθρώπους της OpenCouncil, και κάποια από
+                    τον συνεργαζόμενο δήμο, συχνά την ίδια ώρα. Για κάθε φάση, παρακάτω φαίνεται τι κάνει ο δήμος, τι
+                    κάνει το OpenCouncil και τι βλέπουν οι δημότες.
                 </p>
-                <p className="mt-3 leading-relaxed text-muted-foreground">
-                    Αφότου γίνει μια συνεδρίαση, απομαγνητοφωνείται αυτόματα μέσα σε λίγες ώρες. Από εκείνη τη
-                    στιγμή η απομαγνητοφώνηση είναι διαθέσιμη, με μια προειδοποίηση ότι μπορεί να έχει ακόμη λάθη.
-                    Έπειτα, η ομάδα μας την ελέγχει ολόκληρη προσεκτικά, μέσα σε 48 ώρες από τη συνεδρίαση. Τέλος,
-                    τα θέματα, οι συνόψεις, οι τοποθεσίες και οι τοποθετήσεις των συμβούλων εξάγονται αυτόματα. Τότε
-                    η συνεδρίαση είναι έτοιμη, με μία εξαίρεση: τις αποφάσεις της Δι@ύγειας, που αναζητούνται και
-                    προστίθενται αυτόματα τις επόμενες ημέρες και εβδομάδες, καθώς τις αναρτά ο κάθε δήμος.
-                </p>
-                <p className="mt-3 leading-relaxed text-muted-foreground">
+                <MeetingPhases />
+                <p className="mt-6 leading-relaxed text-muted-foreground">
                     Μέσα στο OpenCouncil, το στάδιο στο οποίο βρίσκεται μια συνεδρίαση φαίνεται με τα εξής σύμβολα:
                 </p>
                 <MeetingStagesFlow />
             </div>
+
+            {aiSection}
             {OPENNESS_FEATURES.map((feature, index) => (
                 <div key={feature.id} id={`oc-${feature.id}`} className="scroll-mt-24">
                     <FeatureBlock
@@ -129,6 +117,10 @@ export function ExplainFeatures({
                           )} κατοίκους`}{" "}
                     και έως {fmt(pricing.topMonthly)} ευρώ το μήνα για δήμους με πάνω από{" "}
                     {fmt(pricing.topFrom ?? 0)} κατοίκους.
+                </p>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                    Η τιμή ανά ώρα περιλαμβάνει τον έλεγχο της απομαγνητοφώνησης από άνθρωπο. Δεν είναι προαιρετικός:
+                    τον πληρώνει κάθε δήμος που συνεργάζεται επίσημα μαζί μας.
                 </p>
                 <p className="mt-3 leading-relaxed text-muted-foreground">
                     Μπορείτε να αναζητήσετε τις ενεργές μας συμβάσεις ψάχνοντας στο ΚΗΜΔΗΣ για το ΑΦΜ μας{" "}

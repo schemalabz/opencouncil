@@ -124,6 +124,30 @@ h2:not(.prose h2) {
   100% { stroke: #d4d4d8; }
 }
 
+/* /explain: the AI label on the specimen card keeps pulsing while the card is
+   on screen: a soft glow behind it (.ai-label-glow on the wrapper), and the
+   label itself grows a little and turns orange (.ai-label-lift on the badge). */
+@keyframes ai-label-glow {
+  0%, 100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; }
+  50% { background-color: hsl(var(--orange) / 0.14); box-shadow: 0 0 0 6px hsl(var(--orange) / 0.14); }
+}
+@keyframes ai-label-lift {
+  0%, 100% { color: hsl(var(--muted-foreground)); transform: scale(1); }
+  50% { color: hsl(var(--orange)); transform: scale(1.08); }
+}
+.ai-label-glow {
+  animation: ai-label-glow 2.2s ease-in-out 0.4s infinite;
+}
+.ai-label-lift {
+  transform-origin: left center;
+  animation: ai-label-lift 2.2s ease-in-out 0.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-label-glow,
+  .ai-label-lift { animation: none; }
+  .ai-label-lift { color: hsl(var(--orange)); }
+}
+
 /* Playback dock geometry shared across files: the layout's bottom reservation
    and the floating player's anchor must clear the dock exactly. The dock's own
    internal heights live in src/components/meetings/bar/geometry.ts. */
