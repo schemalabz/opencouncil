@@ -1,7 +1,7 @@
-import { instrument } from '@posthog/mcp';
+import { instrument, encodeSessionId, newSessionId, MCP_SESSION_HEADER } from '@posthog/mcp';
 import type { UserIdentity } from '@posthog/mcp';
 import { PostHog } from 'posthog-node';
-import type { McpServer, AuthInfo } from '@modelcontextprotocol/server';
+import { isInitializeRequest, type McpServer, type AuthInfo } from '@modelcontextprotocol/server';
 import { env } from '@/env.mjs';
 import { identityFromAuthInfo, type McpIdentity } from './auth';
 import { currentBaseUrl, currentRealm } from './realm-context';
@@ -140,4 +140,33 @@ export function instrumentMcpAnalytics(server: McpServer): void {
             }
         },
     });
+}
+
+export { MCP_SESSION_HEADER };
+
+/**
+ * The PostHog session token for a request that opens a session, or null.
+ *
+ * Every request builds a fresh, stateless server, so the instance that serves
+ * a tool call never saw the client's initialize: without a token, each request
+ * is its own `$session_id` and only `$mcp_initialize` names the client. The
+ * token carries a session id and the client's name and version. The client
+ * replays it as `Mcp-Session-Id` on every later request, and the SDK decodes
+ * it there. The SDK can mint the token itself only when the transport builds
+ * the response headers after the handler runs, and our SSE responses send them
+ * first; so the route sets the header (see the @posthog/mcp README, "If you
+ * must stream"). The stateless transport ignores the header.
+ */
+export async function mcpSessionTokenFor(request: Request): Promise<string | null> {
+    if (!env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) return null;
+    if (request.method !== 'POST' || request.headers.has(MCP_SESSION_HEADER)) return null;
+    let body: unknown;
+    try {
+        body = await request.clone().json();
+    } catch {
+        return null;
+    }
+    if (!isInitializeRequest(body)) return null;
+    const { name, version } = body.params.clientInfo;
+    return encodeSessionId({ sessionId: newSessionId(), clientName: name, clientVersion: version });
 }

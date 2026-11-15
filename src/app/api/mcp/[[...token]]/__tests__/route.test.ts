@@ -8,7 +8,11 @@ jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 jest.mock('@/lib/db/mcpTokens', () => ({ validateUserMcpToken: jest.fn() }));
 jest.mock('@/lib/db/highlights-core', () => ({ getUserCityRights: jest.fn(), meetingHasBodyIn: jest.fn() }));
-jest.mock('@/lib/mcp/analytics', () => ({ instrumentMcpAnalytics: jest.fn() }));
+jest.mock('@/lib/mcp/analytics', () => ({
+    instrumentMcpAnalytics: jest.fn(),
+    mcpSessionTokenFor: jest.fn().mockResolvedValue(null),
+    MCP_SESSION_HEADER: 'mcp-session-id',
+}));
 jest.mock('@/lib/mcp/data', () => ({
     mcpListCities: jest.fn(), mcpGetCity: jest.fn(), mcpListPeople: jest.fn(), mcpGetPerson: jest.fn(),
     mcpGetParty: jest.fn(), mcpListMeetings: jest.fn(), mcpGetMeeting: jest.fn(), mcpGetSubject: jest.fn(),
