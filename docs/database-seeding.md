@@ -20,7 +20,7 @@ The artifact is the only source of development data. The run stops and says what
 - the artifact cannot be downloaded. Check the network, or pass `--from` with a local copy;
 - the artifact has a migration that your checkout does not have. Pull `main`, or pass `--from` with an older release from [the releases page](https://github.com/schemalabz/opencouncil-seed-data/releases).
 
-A restore that fails leaves the database empty, so the next run starts again from the beginning. A `reset` that fails keeps the data that it was to replace. `reset` applies the migrations of your checkout after the restore, so a migration that fails leaves the artifact in the database. Prisma then refuses every later run until you resolve the failed migration: run `npm run seed -- reset` again after you fix it, or run `npx prisma migrate resolve --rolled-back <migration>`. While a restore or a reset runs, a running app waits for the database.
+A restore that fails leaves the database empty, so the next run starts again from the beginning. A `reset` that fails keeps the data that it was to replace. `reset` applies the migrations of your checkout after the restore, so a migration that fails leaves the artifact in the database. The private rows then wait in the schema `seed_keep`. After the fix, `npm run seed -- reset` or `npm run seed -- setup` brings them back; `prisma migrate resolve` alone does not. A kept row that a new migration cannot take, such as one without a value for a new required column, stops every later carry: give the column a value in `seed_keep` by hand, or pass `--drop-private`. Prisma then refuses every later run until you resolve the failed migration: run `npm run seed -- reset` again after you fix it, or run `npx prisma migrate resolve --rolled-back <migration>`. While a restore or a reset runs, a running app waits for the database.
 
 The client tools must be version 16. The artifact is a PostgreSQL 16 dump, which `pg_restore` 15 cannot read. These combinations were tested with it:
 
@@ -38,7 +38,7 @@ npm run seed -- restore --db postgresql://opencouncil@localhost:5432/opencouncil
 npm run seed -- fixtures --db postgresql://opencouncil@localhost:5432/opencouncil
 ```
 
-- `npm run seed -- reset` replaces the tables, views, types, and functions in `public` with the artifact and adds the test accounts. It keeps the extensions, such as PostGIS.
+- `npm run seed -- reset` replaces the tables, views, types, and functions in `public` with the artifact and adds the test accounts. It keeps the extensions, such as PostGIS. It also keeps the rows of every table that `tables.json` marks as private: accounts, rights, MCP tokens, notification settings. An artifact holds none of them, so without this a reset would drop them. A kept row that points at content that the artifact does not have, such as a right to a city that only this database has, is left out. A reader's address is a content row (`Location`), so a reset drops the addresses that readers entered on this database. The run reports how many rows it kept and which tables lost rows. `--drop-private` drops the private rows too.
 - `--full` loads the full set: every content row of production, about 600 MB. The release does not hold it, so pass `--from` with the private location that the team uses.
 - `--from` takes a local archive, a directory that holds one, or the base URL of another published artifact. `SEED_ARTIFACT_URL` sets the default.
 - `npm run seed -- fetch` only downloads and checks. Downloads stay in `~/.cache/opencouncil/seed-artifacts/` (`$XDG_CACHE_HOME` when it is set). Every clone and worktree on the machine shares them, so a second restore of the same artifact reads nothing from the network. In Docker, the cache is in `.data/cache/` of the checkout.
@@ -159,6 +159,36 @@ npm run --silent seed -- status --db postgresql://opencouncil@localhost:5432/ope
 ```
 
 In development mode, a floating panel appears for instant user switching without email authentication.
+
+## Refreshing staging
+
+`scripts/seed/refresh-staging.sh` replaces staging's content with production's, from the newest SnapShooter dump. It keeps staging's accounts, rights, MCP tokens, and other private rows, as `reset` does. A refresh deletes the meetings and other content that people made on staging, and it leaves out the private rows that point at that content. The weekly run is manual for now.
+
+You need:
+
+- the Nix dev shell, which brings `rclone`, `greenmask`, and the PostgreSQL tools;
+- the read-only rclone remote `oc-backups` for the backup bucket. Run `nix develop --command bash .claude/skills/test-backup/setup-remote.sh` once;
+- `STAGING_DATABASE_URL`: the direct URL of staging's database (port 25060, not the pool), as a role that owns staging's objects and may create a schema;
+- a checkout of the commit that staging runs. The script refuses a checkout whose newest migration is not staging's.
+
+```bash
+nix develop --command scripts/seed/refresh-staging.sh
+```
+
+The script:
+
+1. makes a run directory `.data/staging-refresh.*` in the checkout, which only you can read, and downloads the newest production dump into it. It refuses a dump older than 30 hours, because SnapShooter runs every day;
+2. runs `produce`, then deletes the dump, and runs `verify` (about 30 minutes together);
+3. runs `seed reset --full` against staging (about 5 minutes);
+4. deletes the run directory. When the reset fails or you stop the run, it keeps the verified artifact and prints the command that resets from it. `--keep` always keeps the run directory. `--from <run directory>` skips the first two steps and resets from a verified artifact.
+
+A kept run directory holds production's content. Delete it after the next run succeeds. The script warns about each run directory that an earlier run left.
+
+While the reset runs, staging does not answer, and its private tables are empty for a few seconds: a person who signs in then gets a new account, and the kept one, with its rights, is left out. Run it when nobody uses staging. The run adds the test accounts and the Serbian review city, and a right to that city is left out, because the fixtures add the city after the kept rows come back. For the same reason, every run reports 5 `_NotificationLocation` rows as left out: they link the test accounts to the fixture locations, and the fixtures add them again.
+
+The reset waits at most one minute for each lock on a table. Then it stops and changes nothing. Its error lists the sessions that hold locks on its tables. A stalled app backend can hold a lock for hours: when the app does not answer, terminate that session (`SELECT pg_terminate_backend(<pid>)`). Then run the command that the script printed.
+
+Afterwards, check the line that the run prints: how many private rows it kept, and which rows it left out and why. `reset` refuses a database named `production`, which the same cluster holds.
 
 ## Resetting Local Database
 

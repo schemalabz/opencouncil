@@ -16,26 +16,11 @@ set -euo pipefail
 # script may read them.
 umask 077
 
-BUCKET="oc-backups:opencouncil-db-backups/snapshooter"
-
-# SnapShooter target directories. The hex prefix identifies a SnapShooter
-# connection, not the job, so a directory cannot be derived from a job name.
-declare -A TARGET_DIR=(
-  [main]="32a534c3-opencouncil-prod-db-do"
-  [notis]="07b9d0af-notis-prod-db-do"
-)
-declare -A DUMP_FILE=(
-  [main]="production.sql.gz"
-  [notis]="notis-production.sql.gz"
-)
 declare -A TEST_DB=(
   [main]="backup_test_main"
   [notis]="backup_test_notis"
 )
 
-# Both jobs run daily. An older newest dump means a job has stopped, and a
-# stopped job sends no failure notification.
-MAX_AGE_HOURS="${BACKUP_TEST_MAX_AGE_HOURS:-30}"
 
 DB_USER="opencouncil"
 
@@ -55,6 +40,9 @@ private_dir() {
 }
 
 REPO_ROOT="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
+# shellcheck source=scripts/backups/snapshooter.sh
+source "$REPO_ROOT/scripts/backups/snapshooter.sh"
+MAX_AGE_HOURS="${BACKUP_TEST_MAX_AGE_HOURS:-$SNAPSHOOTER_MAX_AGE_HOURS}"
 
 # Always a directory of its own, because private_dir restricts it to its owner.
 # The default sits next to the cluster: a stable path that `clean` can find,
@@ -126,23 +114,20 @@ declare -A DUMP=() SOURCE=() DUMPED_AT=()
 FETCHED=()
 
 fetch() {
-  local t="$1" dir="${TARGET_DIR[$1]}" file="${DUMP_FILE[$1]}" latest
-  latest="$(rclone lsf -R --files-only --include "$file" "$BUCKET/$dir/" | sort | tail -1)"
+  local t="$1" dir="${SNAPSHOOTER_DIR[$1]}" file="${SNAPSHOOTER_FILE[$1]}" latest
+  latest="$(snapshooter_newest "$t")"
   if [ -z "$latest" ]; then
     echo "  target $dir holds no $file. Targets in the bucket:"
-    rclone lsf "$BUCKET/" | sed 's/^/    /'
+    rclone lsf "$SNAPSHOOTER_BUCKET/" | sed 's/^/    /'
     return 1
   fi
   # Registered before the download starts, so that cleanup also deletes a file
   # that an interrupted run completed or left partial.
   FETCHED+=("$WORK_DIR/$file")
-  rclone copyto "$BUCKET/$dir/$latest" "$WORK_DIR/$file" || return 1
+  snapshooter_download "$t" "$latest" "$WORK_DIR/$file" || return 1
   DUMP[$t]="$WORK_DIR/$file"
   SOURCE[$t]="$dir/$latest"
-  # The path is YYYY/MM/DD/HH-MM/<file>, in UTC.
-  local y m d hm
-  IFS=/ read -r y m d hm _ <<< "$latest"
-  DUMPED_AT[$t]="$(date -u -d "$y-$m-$d ${hm/-/:}" +%s)"
+  DUMPED_AT[$t]="$(snapshooter_dumped_at "$latest")"
 }
 
 check_freshness() {
@@ -389,8 +374,7 @@ cmd_test() {
       DUMP[notis]="$notis_file"; SOURCE[notis]="$notis_file"; ts+=(notis)
     fi
   else
-    grep -qx "oc-backups:" <(rclone listremotes) \
-      || die "the rclone remote 'oc-backups' is missing. Run it yourself: nix develop --command bash .claude/skills/test-backup/setup-remote.sh"
+    snapshooter_require_remote || exit 1
     ts=(main)
     [ "$only_main" = 1 ] || ts+=(notis)
   fi
@@ -438,7 +422,7 @@ cmd_clean() {
   cluster_remove
   echo "removed the cluster at $CLUSTER_ROOT"
   local f
-  for f in "$WORK_DIR/${DUMP_FILE[main]}" "$WORK_DIR/${DUMP_FILE[notis]}"; do rm -f "$f" "$f".*.partial; done
+  for f in "$WORK_DIR/${SNAPSHOOTER_FILE[main]}" "$WORK_DIR/${SNAPSHOOTER_FILE[notis]}"; do rm -f "$f" "$f".*.partial; done
   # A failed restore can spill table rows into its error log.
   rm -f "$WORK_DIR"/*.restore-errors.log
   echo "removed downloaded dumps and restore logs from $WORK_DIR"

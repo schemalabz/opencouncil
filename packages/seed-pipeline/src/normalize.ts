@@ -11,6 +11,10 @@ export function quoteIdent(name: string): string {
     return `"${name.replace(/"/g, '""')}"`;
 }
 
+export function quoteLiteral(value: string): string {
+    return `'${value.replace(/'/g, "''")}'`;
+}
+
 export function nullOrphanColumnsSql(fks: ForeignKey[]): string[] {
     return fks.flatMap((fk) =>
         fk.columns.map((column) => `UPDATE public.${quoteIdent(fk.table)} SET ${quoteIdent(column)} = NULL WHERE ${quoteIdent(column)} IS NOT NULL;`),
