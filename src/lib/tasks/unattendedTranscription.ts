@@ -8,7 +8,7 @@ import "server-only";
 import prisma from "@/lib/db/prisma";
 import { requestTranscribeInternal } from "./transcribeInternal";
 import { PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE, UNATTENDED_START_DELAY_MS } from "@/lib/meetingLifecycleRules";
-import { pipelineRunsUnattended, unattendedMeetingWhere } from "@/lib/utils/bodyTier";
+import { pipelineRunsUnattended, unattendedMeetingWhere } from "@/lib/utils/youthCouncil";
 
 const HOUR_MS = 60 * 60 * 1000;
 export { UNATTENDED_START_DELAY_MS };
@@ -54,7 +54,7 @@ export async function transcribeUnattendedMeetings(
         orderBy: { dateTime: 'asc' },
         take: 50,
     });
-    // The where clause is the twin of the rule; the rule itself decides.
+    // unattendedMeetingWhere is the Prisma form of the rule; the rule itself decides.
     const unattended = meetings.filter(
         (meeting): meeting is typeof meeting & { youtubeUrl: string } =>
             meeting.youtubeUrl !== null && pipelineRunsUnattended(meeting.administrativeBody),

@@ -22,8 +22,10 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { meetingLabel } from '@/lib/meetingName';
 import { meetingsTabHrefForBody } from '@/lib/meetingsTab';
-import { isSecondaryBody, isYouthCouncil } from '@/lib/utils/bodyTier';
+import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { isRoleActive } from '@/lib/utils/roles';
+import { mayStartNewTerm } from '@/lib/utils/administrativeBodies';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
@@ -201,6 +203,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                 people={people}
                                 members={members}
                                 canEdit={canEdit}
+                                canStartNewTerm={mayStartNewTerm(body)}
                                 formBodies={formBodies}
                                 parties={parties}
                             />

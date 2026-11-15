@@ -100,15 +100,17 @@ A body admin can also do these things:
 
 A person whose every role is on a youth council consents to a voiceprint from
 their own account only (#829). The rule reads the body type, not the tier: a
-youth council can have members under 18. `voiceprintNeedsOwnConsent` in
-`src/lib/utils/bodyTier.ts` names the rule. A superadmin cannot record a
+youth council can have members under 18. `youthCouncilOnly` in
+`src/lib/utils/youthCouncil.ts` names the rule. A superadmin cannot record a
 consent for them, and no voiceprint task starts for them without that consent.
 The consent counts only from the account that claimed their page: a delegate
 that a superadmin added cannot give it, and a consent from any other account
 does not start a voiceprint. The same account alone adds their photo.
 `withPersonImageAuthorized` in `src/lib/db/personImage.ts` refuses a photo from
 any other account, and the member form of a youth council offers no photo
-field.
+field. `withPersonImageKept` applies the rule after a change of roles too: a
+change that makes a person who keeps a photo youth-only answers 409, unless
+the photo goes in the same save or the member's own account makes the change.
 - Change the YouTube channel and the document send settings of their body.
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.

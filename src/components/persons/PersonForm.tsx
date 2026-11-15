@@ -51,9 +51,9 @@ interface PersonFormProps {
     /** The start date of a new role before the editor touches it; see RolesList. */
     defaultRoleStart?: Date | null
     /**
-     * Whether the viewer may set the photo. A member of a secondary body
-     * alone adds their photo from their own account only (#829); the form of
-     * anyone else offers no photo field for them.
+     * Whether the viewer may set the photo. A person whose every role is on a
+     * youth council adds their photo from their own account only (#829); the
+     * form of anyone else offers no photo field for them.
      */
     canEditImage?: boolean
 }

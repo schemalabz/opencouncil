@@ -77,7 +77,7 @@ describe('setVoicePrintConsent', () => {
 
     // A youth council has members under 18: only the member, from the account
     // that claimed their page, says yes. A delegate a superadmin added cannot.
-    it('refuses a delegate for a member of a secondary body alone, and accepts the claimed account (#829)', async () => {
+    it('refuses a delegate for a person whose every role is on a youth council, and accepts the claimed account (#829)', async () => {
         txPersonFindUnique.mockResolvedValue(youthOnlyRoles);
         mockGetCurrentUser.mockResolvedValue(delegate);
         txAdministers.mockResolvedValue({ id: 'row-1', claimedAt: null });
@@ -202,7 +202,7 @@ describe('recordVoicePrintConsent', () => {
         mockPersonFindUnique.mockResolvedValue({ roles: [{ administrativeBody: { type: 'council' } }] });
     });
 
-    it('refuses to record a consent for a person whose every role is on a secondary body (#829)', async () => {
+    it('refuses to record a consent for a person whose every role is on a youth council (#829)', async () => {
         mockGetCurrentUser.mockResolvedValue(superadmin);
         mockPersonFindUnique.mockResolvedValue({ roles: [{ administrativeBody: { type: 'youthCouncil' } }] });
         await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow('own account');

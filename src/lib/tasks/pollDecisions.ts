@@ -15,7 +15,7 @@ import { TAKES_PLACE_WHERE, takesPlace } from "@/lib/meetingLifecycleRules";
 
 import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 
-import { AWAITING_DECISIONS_MEETING_WHERE, PUBLISHES_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
+import { AWAITING_DECISIONS_MEETING_WHERE, decisionPollCandidateWhere } from "@/lib/db/decisionEligibility";
 import { isCustomer } from "@/lib/cityStatus";
 import { upsertDecision, deleteDecision, DECISION_ELIGIBLE_SUBJECT_WHERE } from "@/lib/db/decisions";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
@@ -25,9 +25,8 @@ import { localCalendarDate } from "@/lib/formatters/time";
 import { dayBounds } from "@/lib/dates/dayBounds";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "@/lib/db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
-import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, type BackoffTier } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, DECISION_KIND_SELECT, type BackoffTier } from "./pollDecisionsBackoff";
 import { orderForPolling } from "./pollableMeetings";
-import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 import { normalizeAda } from "@/lib/utils/ada";
@@ -146,19 +145,14 @@ export async function pollDecisionsForMeeting(
     if (!takesPlace(councilMeeting)) {
         throw new Error("The meeting did not take place (postponed or cancelled), so it has no decisions to poll");
     }
+    // Here every poll arrives: the cron, the follow-ups, the admin batch and
+    // the subject page.
     if (takesNoDecisions(councilMeeting)) {
-        throw new Error("This kind of meeting takes no decisions");
+        throw new Error("This meeting takes no decisions on Diavgeia");
     }
 
     if (!councilMeeting.city.diavgeiaUid) {
         throw new Error("City does not have a Diavgeia UID configured");
-    }
-
-    // A secondary body publishes no decisions on Diavgeia (#829). The guard
-    // sits here, where every poll arrives: the cron, the follow-ups, the admin
-    // batch and the subject page.
-    if (isSecondaryBody(councilMeeting.administrativeBody)) {
-        throw new Error("Decisions are not polled for this administrative body");
     }
 
     if (councilMeeting.subjects.length === 0) {
@@ -433,7 +427,7 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             withdrawn: true,
             cityId: true,
             councilMeetingId: true,
-            councilMeeting: { select: { administrativeBody: { select: { tier: true } } } },
+            councilMeeting: { select: DECISION_KIND_SELECT },
         },
     });
 
@@ -447,8 +441,8 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             `nonAgendaReason=${subject?.nonAgendaReason ?? 'null'}, withdrawn=${subject?.withdrawn ?? 'n/a'})`,
         );
     }
-    if (isSecondaryBody(subject.councilMeeting.administrativeBody)) {
-        throw new Error('Decisions are not polled for this administrative body');
+    if (takesNoDecisions(subject.councilMeeting)) {
+        throw new Error('This meeting takes no decisions on Diavgeia');
     }
 
     // One poll per meeting at a time. Bounded by the task's own lifecycle rather
@@ -1007,10 +1001,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // it, midnight-stored meetings would shift a day.
             const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
                 // A decision never belongs to a meeting that did not take place,
-                // to one that takes no decisions, or to a meeting of a secondary
-                // body, which publishes no decisions (#829). Such a meeting must
-                // neither receive a decision nor block an otherwise unambiguous heal.
-                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE, ...PUBLISHES_DECISIONS_MEETING_WHERE },
+                // or to one that takes no decisions (a secondary body's among
+                // them, #829). Such a meeting must neither receive a decision
+                // nor block an otherwise unambiguous heal.
+                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE },
                 select: { id: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },
             })).map(m => ({

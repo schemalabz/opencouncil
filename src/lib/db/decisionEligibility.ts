@@ -2,7 +2,6 @@ import { Prisma, type BodyTier, type CityStatus, type MeetingKind, type MeetingS
 import { CUSTOMER_CITY_WHERE, isCustomer } from '@/lib/cityStatus';
 import { TAKES_PLACE_WHERE, takesPlace } from '@/lib/meetingLifecycleRules';
 import { getPollableMeetingDateRange, takesNoDecisions, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
-import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 /**
  * Which subjects can carry a decision — the single definition, shared by every
@@ -36,23 +35,15 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
  */
 export const RECORD_SUBJECT_WHERE = { OR: DECISION_ELIGIBLE_SUBJECT_WHERE.OR } satisfies Prisma.SubjectWhereInput;
 
-/**
- * The meetings whose decisions Diavgeia publishes: those of a primary body, or
- * of no body. A secondary body publishes no decisions (#829). The poll, the
- * decision matching and the decisions health read this one rule. Its in-memory
- * twin is the tier check in isPolledOnItsOwn.
- */
-export const PUBLISHES_DECISIONS_MEETING_WHERE = primaryMeetingWhere;
-
 // A meeting still waiting on decisions: a decision-eligible subject without
-// one, and not a meeting that takes no decisions (see takesNoDecisions). What the cron and
+// one, and not a meeting that takes no decisions (see takesNoDecisions, which
+// covers a secondary body's meeting). What the cron and
 // follow-up polls both require before polling a meeting. A postponed or
 // cancelled meeting took no decisions on its date.
 export const AWAITING_DECISIONS_MEETING_WHERE = {
     ...TAKES_DECISIONS_WHERE,
     ...TAKES_PLACE_WHERE,
     subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
-    ...PUBLISHES_DECISIONS_MEETING_WHERE,
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
@@ -87,8 +78,6 @@ export function isPolledOnItsOwn(meeting: {
     const window = getPollableMeetingDateRange(now);
     return takesPlace(meeting)
         && !takesNoDecisions(meeting)
-        // The twin of PUBLISHES_DECISIONS_MEETING_WHERE (#829).
-        && !isSecondaryBody(meeting.administrativeBody)
         && meeting.dateTime >= window.gte && meeting.dateTime <= window.lte
         && meeting.city.diavgeiaUid !== null
         && isCustomer(meeting.city.status);

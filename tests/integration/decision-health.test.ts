@@ -409,14 +409,20 @@ describe('per-body breakdown', () => {
     })
 
     // A secondary body publishes no decisions (#829): the poll never asks for
-    // them, so the dashboard counts none of its subjects as unlinked.
-    test('reads the rule of the poll, so a secondary body has no unlinked subject', async () => {
+    // them, so the dashboard counts none of its subjects as unlinked, and the
+    // body has no row of zeros.
+    test('reads the rule of the poll, so a secondary body has no unlinked subject and no row', async () => {
         const city = await seedCityWithBodies()
         const youth = await createAdministrativeBody(city.id, {
             id: 'b-youth', name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil',
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
         expect(youth.tier).toBe('secondary')
+        // The rule reads the tier: a youth council set to primary keeps its row.
+        await createAdministrativeBody(city.id, {
+            id: 'b-youth-primary', name: 'Δημοτικό Συμβούλιο Νέων Β', type: 'youthCouncil', tier: 'primary',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
         const m4 = await createMeeting(city.id, {
             id: 'm4', administrativeBodyId: youth.id, dateTime: new Date('2025-01-16T10:00:00Z'),
         })
@@ -426,7 +432,8 @@ describe('per-body breakdown', () => {
         expect(awaiting.map(m => m.id)).not.toContain('m4')
 
         const [row] = await getDecisionHealth(city.id)
-        expect(row.bodies.find(b => b.body?.id === 'b-youth')).toMatchObject({ meetings: 0, eligibleSubjects: 0, linkedSubjects: 0 })
+        expect(row.bodies.map(b => b.body?.id ?? null)).not.toContain('b-youth')
+        expect(row.bodies.map(b => b.body?.id ?? null)).toContain('b-youth-primary')
         expect(row).toMatchObject({ meetings: 3, eligibleSubjects: 4 })
         const detail = await getCityDecisionDetail(city.id)
         expect(JSON.stringify(detail)).not.toContain('"m4"')

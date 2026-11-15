@@ -1,5 +1,5 @@
 import prisma from "../db/prisma";
-import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -164,10 +164,10 @@ async function distinctFailureErrors(cityId: string, councilMeetingId: string): 
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
  * Candidate = processAgenda succeeded (or the body's pipeline runs unattended, #829), scheduled
- * within ±12h of now, in a supported city (a transcribe is a paid task) or of a secondary body in
- * any city (#829), the administrative body has a youtubeChannelUrl, and no transcribe is succeeded
- * or in flight (a failed-only meeting is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on
- * the same video).
+ * within ±12h of now, in a supported city (a transcribe is a paid task) or of a body whose pipeline
+ * runs unattended in any city (#829), the administrative body has a youtubeChannelUrl, and no
+ * transcribe is succeeded or in flight (a failed-only meeting is retried, up to
+ * MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -292,6 +292,11 @@ export async function pollLivestreamsForRecentMeetings(
         const cityId = meeting.cityId;
         const meetingId = meeting.id;
         const channelUrl = meeting.administrativeBody!.youtubeChannelUrl!;
+        // No operator follows a meeting whose pipeline runs unattended (#829),
+        // so it sends no alert to the operators' channel, as on its creation.
+        // The end of the retries needs no check: such a candidate has no saved
+        // recording, so no attempt on its video is counted.
+        const alertsOperators = !pipelineRunsUnattended(meeting.administrativeBody);
 
         try {
             const videos = await getChannelVideos(channelUrl);
@@ -380,9 +385,8 @@ export async function pollLivestreamsForRecentMeetings(
                 // the duplicate alerts this key exists to prevent. Nothing is given up by blocking:
                 // the webhook transport logs HTTP and network failures without rejecting, so there
                 // is no delivery signal a non-blocking send could have acted on anyway.
-                // No operator follows a meeting whose pipeline runs unattended, as on its creation.
                 const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
-                if (!pipelineRunsUnattended(meeting.administrativeBody) && !(await cacheHas(matchedAlertKey))) {
+                if (alertsOperators && !(await cacheHas(matchedAlertKey))) {
                     await sendLivestreamMatchedAlert({
                         cityId,
                         cityName: meeting.city.name,
@@ -400,11 +404,10 @@ export async function pollLivestreamsForRecentMeetings(
             } else if (decision.decision === 'multiple_meetings') {
                 multipleMeetings++;
                 const dedupKey = `oc:livestream:multi-alert:${cityId}:${meetingId}`;
-                const alreadyAlerted = await cacheHas(dedupKey);
 
                 if (dryRun) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'dry_run' });
-                } else if (alreadyAlerted) {
+                } else if (!alertsOperators || await cacheHas(dedupKey)) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'alerted_multiple_skipped' });
                 } else {
                     const videoUrl = matchedVideo ? watchUrl(matchedVideo.videoId) : undefined;

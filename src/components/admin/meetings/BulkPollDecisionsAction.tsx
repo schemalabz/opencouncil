@@ -30,7 +30,6 @@ const SKIP_REASON_LABELS = {
     notTakingPlace: 'postponed or cancelled',
     noDecisions: 'takes no decisions',
     noEligibleSubjects: 'no eligible subjects',
-    secondaryBody: 'no decisions for this body',
 } as const satisfies Record<PollSkipReason, string>;
 
 interface BulkPollDecisionsActionProps {

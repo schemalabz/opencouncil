@@ -34,6 +34,7 @@ function input(overrides: Omit<Partial<ReadinessInput>, 'meeting'> & { meeting?:
             continuationOfId: null,
             kind: 'ordinary',
             continuationOf: null,
+            administrativeBody: null,
             city: { timezone: 'Europe/Athens' },
             ...overrides.meeting,
         },
@@ -202,6 +203,12 @@ describe('evaluateReadiness', () => {
                 expect(evaluateReadiness('minutes', input({ subjects: allUndecided, meeting: { kind: 'accountability' }, now: daysAfter(MINUTES_THRESHOLD_DAYS + 1), pollable: true })))
                     .toEqual({ state: 'complete' });
                 expect(evaluateReadiness('minutes', input({ subjects: allUndecided, meeting: { kind: 'activityReport' }, now: daysAfter(1) })))
+                    .toEqual({ state: 'complete' });
+            });
+
+            it('is complete once summarized for a meeting of a secondary body, which publishes no decisions (#829)', () => {
+                const allUndecided = [{ id: 's1', decided: false }, { id: 's2', decided: false }];
+                expect(evaluateReadiness('minutes', input({ subjects: allUndecided, meeting: { administrativeBody: { tier: 'secondary' } }, now: daysAfter(1) })))
                     .toEqual({ state: 'complete' });
             });
 

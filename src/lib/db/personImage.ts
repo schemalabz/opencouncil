@@ -8,8 +8,9 @@ import "server-only";
 import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from './prisma';
 import { getCurrentUser } from '@/lib/auth';
-import { ForbiddenError } from '@/lib/api/errors';
-import { youthCouncilOnly } from '@/lib/utils/bodyTier';
+import { ConflictError, ForbiddenError } from '@/lib/api/errors';
+import { youthCouncilOnly } from '@/lib/utils/youthCouncil';
+import { vmsg } from '@/lib/zod-schemas/messages';
 
 export type RoleOfPerson = { administrativeBody?: { type: AdministrativeBodyType } | null };
 type Account = { administers: { personId: string | null; claimedAt: Date | null }[] } | null;
@@ -31,15 +32,37 @@ export async function rolesWithBodyType(roles: { administrativeBodyId?: string |
     });
 }
 
-/** The roles of a stored person, as the rule reads them. */
-export async function rolesOfPerson(personId: string): Promise<RoleOfPerson[]> {
-    const person = await prisma.person.findUnique({ where: { id: personId }, select: { roles: { select: { administrativeBody: { select: { type: true } } } } } });
-    return person?.roles ?? [];
-}
-
 /** Refuses the write of a photo that the signed-in account may not set. */
 export async function withPersonImageAuthorized(roles: RoleOfPerson[], personId: string | null): Promise<void> {
     if (!mayChangePersonImage(await getCurrentUser(), roles, personId)) {
         throw new ForbiddenError('Only the member adds their photo, from the account that claimed their page');
+    }
+}
+
+/**
+ * The rule on an edit of a stored person, decided on the person after the
+ * write. A new photo needs the rule, and so does a change of roles that
+ * makes a person who keeps a photo youth-only: an admin could otherwise
+ * set the photo while the person has another role, then remove that role.
+ * That change answers 409, a conflict with the stored photo: the admin may
+ * edit the person, and the message names the two ways to save.
+ * `image` is the new photo, null to remove it, absent to keep it; `roles`
+ * replace every role, absent to keep them.
+ */
+export async function withPersonImageKept(
+    personId: string,
+    write: { image?: File | string | null; roles?: { administrativeBodyId?: string | null }[] },
+): Promise<void> {
+    if (write.image === null) return;
+    const person = await prisma.person.findUnique({
+        where: { id: personId },
+        select: { image: true, roles: { select: { administrativeBody: { select: { type: true } } } } },
+    });
+    const before = person?.roles ?? [];
+    const after = write.roles ? await rolesWithBodyType(write.roles) : before;
+    if (write.image) return withPersonImageAuthorized(after, personId);
+    const becomesYouthOnly = !!person?.image && youthCouncilOnly(after) && !youthCouncilOnly(before);
+    if (becomesYouthOnly && !mayChangePersonImage(await getCurrentUser(), after, personId)) {
+        throw new ConflictError(vmsg('youthOnlyPersonPhoto'));
     }
 }

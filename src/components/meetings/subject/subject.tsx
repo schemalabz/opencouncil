@@ -16,7 +16,7 @@ import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects } from "@/lib/utils/subjects";
 import { hasExplainPage } from "@/lib/explain/availability";
-import { isSecondaryBody } from "@/lib/utils/bodyTier";
+import { takesNoDecisions } from "@/lib/tasks/pollDecisionsBackoff";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -237,8 +237,8 @@ export default function Subject({ subjectId, highlightedContributionId, related,
     // in-memory twin of the rule the poll itself applies, and the poll refuses a
     // city with no Diavgeia organisation before it dispatches — so both belong
     // here, or the card offers a button whose only outcome is a thrown error.
-    // A secondary body publishes no decisions (#829): no card, no button.
-    const noDecisions = isSecondaryBody(meeting.administrativeBody);
+    // A meeting that takes no decisions (a secondary body's among them, #829): no card, no button.
+    const noDecisions = takesNoDecisions(meeting);
     const canPoll = isRecordSubject(subject) && !subject.withdrawn && !!city.diavgeiaUid && !noDecisions;
 
     // Fetch last poll time on mount when there's no decision

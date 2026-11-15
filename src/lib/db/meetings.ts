@@ -17,7 +17,8 @@ import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
-import { isSecondaryBody, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, type TierScope } from '@/lib/utils/bodyTier';
+import { unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
@@ -317,10 +318,11 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
     }
 }
 
-/** The next released meeting of the primary tier that takes place, or else the latest one. */
-export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise<string | null> {
-    return await findFirstCouncilMeetingId(cityId, { timeFilter: 'upcoming', takesPlace: true })
-        ?? await findFirstCouncilMeetingId(cityId, { takesPlace: true });
+/** The next released meeting of `tier` that takes place, or else the latest one. */
+export async function getLatestReleasedMeetingIdForCity(cityId: string, tier: TierScope): Promise<string | null> {
+    const scope = { tier };
+    return await findFirstCouncilMeetingId(cityId, { timeFilter: 'upcoming', takesPlace: true, scope })
+        ?? await findFirstCouncilMeetingId(cityId, { takesPlace: true, scope });
 }
 
 export interface MeetingListItem {

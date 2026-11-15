@@ -16,16 +16,13 @@ import { meetingBodyTypeWhere } from '@/lib/db/meetingBodyFilter';
  *   The type does not decide where content shows. The search index holds the
  *   id of a body and not its tier, so search names the secondary bodies by id
  *   (see searchTierFilter in lib/search/query.ts).
- * - The rules that exist for youth councils read the type: the pipeline with no
- *   operator (and the operator surfaces that follow it: the review queue, the
- *   upload dashboard, the Discord alerts), and the own-account consent and
- *   photo of members under 18.
+ * - The rules that exist for youth councils read the type (youthCouncil.ts).
  *
  * Type-only Prisma imports, so this is safe in client components too.
  */
 
 // A Record, so a new enum value does not compile until it has a default tier.
-const DEFAULT_TIER_OF_TYPE: Record<AdministrativeBodyType, BodyTier> = {
+const NEW_BODY_TIER: Record<AdministrativeBodyType, BodyTier> = {
     council: 'primary',
     committee: 'primary',
     community: 'primary',
@@ -38,7 +35,7 @@ const DEFAULT_TIER_OF_TYPE: Record<AdministrativeBodyType, BodyTier> = {
  * to it (tierNeedsSuperadmin).
  */
 export function defaultTierOf(type: AdministrativeBodyType): BodyTier {
-    return DEFAULT_TIER_OF_TYPE[type];
+    return NEW_BODY_TIER[type];
 }
 
 type TypeAndTier = { type: AdministrativeBodyType; tier: BodyTier };
@@ -72,32 +69,6 @@ export function isSecondaryBody(body: { tier: BodyTier } | null | undefined): bo
 export function defaultNotificationBehavior(tier: BodyTier): NotificationBehavior {
     return tier === 'secondary' ? 'NOTIFICATIONS_DISABLED' : 'NOTIFICATIONS_APPROVAL';
 }
-
-export function isYouthCouncil(body: { type: AdministrativeBodyType } | null | undefined): boolean {
-    return body?.type === 'youthCouncil';
-}
-
-/**
- * Whether the pipeline of a body's meetings runs with no operator (#829). A
- * youth council runs its own meetings: a recording starts the transcription,
- * the summary follows the corrected transcript, and the meeting is released
- * when the summary lands. Nobody reviews the transcript first, so the page
- * shows it unreviewed. Every other body keeps the human review step, whatever
- * its tier.
- */
-export function pipelineRunsUnattended(body: { type: AdministrativeBodyType } | null | undefined): boolean {
-    return isYouthCouncil(body);
-}
-
-/**
- * The meetings whose pipeline runs with no operator, as a Prisma where clause:
- * the twin of pipelineRunsUnattended. The operator surfaces (the review queue,
- * the upload dashboard) leave them out with `NOT`, which keeps a meeting with
- * no body.
- */
-export const unattendedMeetingWhere = {
-    administrativeBody: { type: 'youthCouncil' as const },
-} satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
  * The meetings of a city's primary bodies, as a Prisma where clause. It keeps
@@ -211,7 +182,7 @@ export const primaryPresenceWhere = {
 } satisfies Prisma.PersonWhereInput;
 
 /** The people whose every role is on a secondary body: the complement of primaryPresenceWhere. */
-export const secondaryPresenceWhere = {
+const secondaryPresenceWhere = {
     roles: { some: {}, every: { administrativeBody: { tier: 'secondary' as const } } },
 } satisfies Prisma.PersonWhereInput;
 
@@ -219,27 +190,4 @@ export const secondaryPresenceWhere = {
 export function personTierWhere(tier: TierScope = 'primary'): Prisma.PersonWhereInput {
     if (tier === 'all') return {};
     return tier === 'primary' ? primaryPresenceWhere : secondaryPresenceWhere;
-}
-
-/**
- * Whether every role of the person is on a youth council. A youth council has
- * members under 18 (#829), so such a person consents to a voiceprint and adds
- * their photo from their own account only. A person with any other role keeps
- * the rules of everyone else.
- */
-export function youthCouncilOnly(
-    roles: { administrativeBody?: { type: AdministrativeBodyType } | null }[],
-): boolean {
-    return roles.length > 0 && roles.every(role => isYouthCouncil(role.administrativeBody));
-}
-
-/**
- * Whether a voiceprint of the person needs the person's own consent, given
- * from their account (#829): nobody records a consent for a member of a youth
- * council alone, and no admin starts a voiceprint without one.
- */
-export function voiceprintNeedsOwnConsent(
-    roles: { administrativeBody?: { type: AdministrativeBodyType } | null }[],
-): boolean {
-    return youthCouncilOnly(roles);
 }

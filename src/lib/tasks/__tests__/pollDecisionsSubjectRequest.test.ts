@@ -66,7 +66,7 @@ const OUT_OF_AGENDA_SUBJECT = {
     withdrawn: false,
     cityId: CITY_ID,
     councilMeetingId: MEETING_ID,
-    councilMeeting: { administrativeBody: { type: 'committee' } },
+    councilMeeting: { kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'primary' } },
 };
 
 function meetingWith(subjects: Array<Record<string, unknown>>) {
@@ -118,19 +118,20 @@ describe('requestPollDecisionForSubject', () => {
         const { select } = mockSubjectFindUnique.mock.calls[0][0];
         expect(select).toMatchObject({
             agendaItemIndex: true, nonAgendaReason: true, withdrawn: true,
-            councilMeeting: { select: { administrativeBody: { select: { tier: true } } } },
+            councilMeeting: { select: { kind: true, continuationOf: { select: { kind: true } }, administrativeBody: { select: { tier: true } } } },
         });
     });
 
-    // A secondary body publishes no decisions (#829). The refusal happens before
-    // any task row is read or written, so the button cannot start a poll.
-    it('refuses a subject of a secondary body before it looks for a running task', async () => {
-        mockSubjectFindUnique.mockResolvedValue({
-            ...OUT_OF_AGENDA_SUBJECT,
-            councilMeeting: { administrativeBody: { tier: 'secondary' } },
-        });
+    // A meeting that takes no decisions: a secondary body's (#829), or a
+    // λογοδοσία. The refusal happens before any task row is read or written,
+    // so the button cannot start a poll.
+    it.each([
+        ['a secondary body', { kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'secondary' } }],
+        ['a λογοδοσία', { kind: 'accountability', continuationOf: null, administrativeBody: { tier: 'primary' } }],
+    ])('refuses a subject of %s before it looks for a running task', async (_name, councilMeeting) => {
+        mockSubjectFindUnique.mockResolvedValue({ ...OUT_OF_AGENDA_SUBJECT, councilMeeting });
 
-        await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('not polled for this administrative body');
+        await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('takes no decisions');
         expect(mockTaskStatusFindFirst).not.toHaveBeenCalled();
         expect(mockStartTask).not.toHaveBeenCalled();
     });

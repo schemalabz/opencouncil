@@ -6,7 +6,7 @@ import { getPartiesForCity } from "../db/parties";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting, setMeetingReleaseDirect } from "../db/meetings";
 import { meetingHasSucceededTask } from "../db/tasksInternal";
-import { pipelineRunsUnattended } from "@/lib/utils/bodyTier";
+import { pipelineRunsUnattended } from "@/lib/utils/youthCouncil";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, getTopicsByName, saveSubjectsForMeeting } from "../db/utils";

@@ -27,12 +27,12 @@ jest.mock('@/lib/db/administrativeBodiesInternal', () => ({
 }));
 jest.mock('@/lib/derivation/rederive', () => ({ rederiveMeetingsOfBody: jest.fn() }));
 
-import { PUT } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route';
+import { DELETE, PUT } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { revalidateTag } from 'next/cache';
-import { editAdministrativeBody, editAdministrativeBodyContacts, getBodyPageRow } from '@/lib/db/administrativeBodies';
+import { deleteAdministrativeBody, editAdministrativeBody, editAdministrativeBodyContacts, getBodyPageRow } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
-import { ForbiddenError, UnauthorizedError, validationErrorSchema } from '@/lib/api/errors';
+import { ConflictError, ForbiddenError, UnauthorizedError, validationErrorSchema } from '@/lib/api/errors';
 
 const CONVENTIONS = {
     version: 1,
@@ -352,5 +352,40 @@ describe('PUT of a body that changes tier and keeps its type (#829)', () => {
         expect(response.status).toBe(400);
         expect(editAdministrativeBody).not.toHaveBeenCalled();
         expect(editAdministrativeBodyContacts).not.toHaveBeenCalled();
+    });
+});
+
+describe('DELETE /api/cities/[cityId]/administrative-bodies/[bodyId]', () => {
+    const remove = () => DELETE(
+        new Request('http://localhost/api/cities/zografou/administrative-bodies/b1', { method: 'DELETE' }) as unknown as NextRequest,
+        { params: Promise.resolve({ cityId: 'zografou', bodyId: 'b1' }) },
+    );
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    it.each([
+        ['meetings', 'The body still has 2 meeting(s) and 0 member role(s). Delete its meetings and its members (the people) first. For a member who holds another role, delete only the role on this body.'],
+        ['member roles', 'The body still has 0 meeting(s) and 3 member role(s). Delete its meetings and its members (the people) first. For a member who holds another role, delete only the role on this body.'],
+    ])('answers 409 with the reason for a body that still has %s', async (_label, message) => {
+        (deleteAdministrativeBody as jest.Mock).mockRejectedValue(new ConflictError(message));
+
+        const response = await remove();
+
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: message });
+        expect(revalidateTag).not.toHaveBeenCalled();
+    });
+
+    it('answers 204 for an empty body', async () => {
+        (deleteAdministrativeBody as jest.Mock).mockResolvedValue(undefined);
+
+        const response = await remove();
+
+        expect(response.status).toBe(204);
+        expect(deleteAdministrativeBody).toHaveBeenCalledWith('b1');
+        expect(revalidateTag).toHaveBeenCalledWith('city:zografou:administrativeBodies', 'max');
     });
 });

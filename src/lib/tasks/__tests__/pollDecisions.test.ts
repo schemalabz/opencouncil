@@ -209,17 +209,22 @@ describe('takesNoDecisions', () => {
         ['presidencyElection', false],
         ['financialAccounts', false],
     ] as const)('reads the kind, not the name: %s takes no decisions = %s', (kind, expected) => {
-        expect(takesNoDecisions({ kind, continuationOf: null })).toBe(expected);
+        expect(takesNoDecisions({ kind, continuationOf: null, administrativeBody: null })).toBe(expected);
     });
 
     it('polls a meeting of unknown kind: a combined record has no kind of its own', () => {
-        expect(takesNoDecisions({ kind: null, continuationOf: null })).toBe(false);
+        expect(takesNoDecisions({ kind: null, continuationOf: null, administrativeBody: null })).toBe(false);
+    });
+
+    it('reads the tier of the body: a secondary body publishes no decisions, whatever the kind (#829)', () => {
+        expect(takesNoDecisions({ kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'secondary' } })).toBe(true);
+        expect(takesNoDecisions({ kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'primary' } })).toBe(false);
     });
 
     it('reads the kind of the first part for a later part', () => {
-        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'activityReport' } })).toBe(true);
-        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'ordinary' } })).toBe(false);
-        expect(takesNoDecisions({ kind: null, continuationOf: { kind: null } })).toBe(false);
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'activityReport' }, administrativeBody: null })).toBe(true);
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'ordinary' }, administrativeBody: null })).toBe(false);
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: null }, administrativeBody: null })).toBe(false);
     });
 });
 

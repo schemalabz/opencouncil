@@ -55,7 +55,7 @@ describe('populateCity', () => {
         await expect(populateCity({ ...DATA, cityId: 'nope' })).rejects.toThrow(NotFoundError);
     });
 
-    it('saves no photo for a person whose every role is on a secondary body (#829)', async () => {
+    it('saves no photo for a person whose every role is on a youth council (#829)', async () => {
         const youthRole = { type: 'adminBody' as const, administrativeBodyName: 'Νέων', name: 'Μέλος', name_en: 'Member', isHead: false, startDate: null, endDate: null };
         const councilRole = { ...youthRole, administrativeBodyName: 'Conseil' };
         await populateCity({

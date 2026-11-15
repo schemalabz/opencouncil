@@ -17,7 +17,7 @@ import { startTask } from '@/lib/tasks/tasks';
 import { applySpeakerHints } from './speakerHints';
 import { autoTriggerTask } from './autoTrigger';
 import { requestSummarizeInternal } from './summarizeInternal';
-import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended } from '@/lib/utils/youthCouncil';
 import { meetingLabelInCity } from '@/lib/meetingName';
 
 export const requestFixTranscriptInternal = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {

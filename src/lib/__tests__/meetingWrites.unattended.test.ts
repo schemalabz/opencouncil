@@ -58,7 +58,7 @@ beforeEach(() => {
 });
 
 describe('createMeetingWithEffects', () => {
-    it('starts the transcription of a held meeting of a secondary body that has a recording', async () => {
+    it('starts the transcription of a held meeting of a youth council that has a recording', async () => {
         mockCreateMeetingRecord.mockResolvedValue(row());
 
         await createMeetingWithEffects('chania', { date: PAST, youtubeUrl: 'https://youtu.be/x', administrativeBodyId: 'youth' });

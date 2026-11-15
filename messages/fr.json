@@ -979,9 +979,9 @@
     "nameEnDescription": "Saisissez le nom de l'organe administratif en anglais.",
     "type": "Type",
     "selectType": "Sélectionnez un type",
-    "typeDescription": "Sélectionnez le type d'organe administratif.",
+    "typeDescription": "Sélectionnez le type d'organe administratif. Un organe du type « Conseil municipal des jeunes » traite ses séances sans relecture et les publie de lui-même.",
     "tier": "Visibilité",
-    "tierDescription": "Un organe principal s’affiche partout par défaut. Un organe secondaire ne s’affiche que si le lecteur le demande, par exemple un conseil des jeunes ou une entreprise municipale.",
+    "tierDescription": "Le contenu d’un organe secondaire, par exemple un conseil des jeunes, ne s’affiche que si le lecteur le demande. Changer le type d’un organe existant ne change pas sa visibilité.",
     "tierOptions": {
       "primary": "Organe principal",
       "secondary": "Organe secondaire"

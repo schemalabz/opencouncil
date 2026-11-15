@@ -37,7 +37,7 @@ const longTag = {
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('requestGenerateVoiceprint and the own consent of a secondary body member (#829)', () => {
+describe('requestGenerateVoiceprint and the own consent of a youth council member (#829)', () => {
     const ownAccountRefusal = expect.objectContaining({ ok: false, message: expect.stringContaining('own account') });
 
     it('refuses a member of a youth council alone who gave no consent from their account', async () => {

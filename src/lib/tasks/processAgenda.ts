@@ -16,7 +16,7 @@ import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
 import { errorMessage } from '@/lib/utils/errors';
 import { sendAgendaReadingAlert, sendTaskAdminAlert } from '@/lib/discord';
 import { webUrl } from '@/lib/zod-schemas/primitives';
-import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended } from '@/lib/utils/youthCouncil';
 import type { AdministrativeBodyType } from '@prisma/client';
 
 /**

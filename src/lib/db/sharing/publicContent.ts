@@ -3,7 +3,8 @@ import type { Prisma, Realm } from '@prisma/client';
 import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
-import { ALL_SCOPE, pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {

@@ -21,14 +21,15 @@ import { parseVideoId } from '@/lib/utils/youtube';
 import { after } from 'next/server';
 import { reportFailure } from '@/lib/reportFailure';
 import { processAgendaText } from '@/lib/agendaText';
-import { isSecondaryBody, pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended } from '@/lib/utils/youthCouncil';
 import { requestTranscribeInternal } from '@/lib/tasks/transcribeInternal';
 import { meetingHasSucceededTask } from '@/lib/db/tasksInternal';
 
 /**
  * A recording of a meeting whose pipeline runs unattended (#829) starts its
  * own transcription, when the meeting has started: nobody presses the button
- * for a secondary body. A link saved before the meeting waits for the cron
+ * for a youth council. A link saved before the meeting waits for the cron
  * (lib/tasks/unattendedTranscription.ts), which starts it once the meeting is
  * over; so does a YouTube link saved while the meeting may still run, which
  * can be the stream itself. An uploaded file is complete and starts now. The

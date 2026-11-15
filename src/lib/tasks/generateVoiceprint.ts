@@ -9,14 +9,14 @@ import { hasVoicePrintConsent, openPeriodWhere, voicePrintConsentInForce } from 
 import { meetingNameSelect } from "@/lib/db/types";
 import { meetingLabelInCity } from "@/lib/meetingName";
 import { interleaveBy } from "@/lib/utils/interleave";
-import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
+import { youthCouncilOnly } from "@/lib/utils/youthCouncil";
 
 const VOICEPRINT_DURATION = 30;
 
 /**
  * What decides whether an admin may start the voiceprint of a person at
- * all: a member of a secondary body alone needs a consent from their own
- * account (#829), the one that claimed their page; a consent that a delegate
+ * all: a person whose every role is on a youth council needs a consent from
+ * their own account (#829), the one that claimed their page; a consent that a delegate
  * gave, or one from before the member's roles changed, does not count.
  * Anyone else is under the rules of today.
  */
@@ -27,7 +27,7 @@ const voiceprintConsentSelect = {
 } satisfies Prisma.PersonSelect;
 
 function mayStartVoiceprint(person: Prisma.PersonGetPayload<{ select: typeof voiceprintConsentSelect }>): boolean {
-    if (!voiceprintNeedsOwnConsent(person.roles)) return true;
+    if (!youthCouncilOnly(person.roles)) return true;
     const own = new Set(person.administrators.map(row => row.userId));
     return person.voicePrintConsents.some(consent => consent.userId !== null && own.has(consent.userId));
 }

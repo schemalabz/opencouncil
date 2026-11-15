@@ -120,16 +120,16 @@ The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the 
 
 ### The pipeline of a body with no operator
 
-A youth council runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/bodyTier.ts` names the rule. It reads the body type, not the tier: another secondary body keeps the human review step. Four places read it:
+A youth council runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/youthCouncil.ts` names the rule. It reads the body type, not the tier: a body of another type keeps the human review step, whatever its tier. Four places read it:
 
 * A recording starts the transcription. The meeting write starts it after the response when the meeting has started. A link saved before the meeting waits for the cron: `transcribeUnattendedMeetings` in `src/lib/tasks/unattendedTranscription.ts` runs on the livestream tick and starts the transcription three hours after the start of the meeting, with retries up to a cap.
 * The livestream matcher takes the meetings of such a body as candidates without the agenda task.
 * The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
 * The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleaseDirect`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
 
-The operator surfaces read the same rule. `unattendedMeetingWhere` is its Prisma form. The review queue and the counts of its widget on `/admin` share one where (`reviewQueueWhere` in `src/lib/db/reviews.ts`), so the widget counts the meetings that the list shows. The upload dashboard leaves such meetings out. The Discord alerts of the meeting creation, of the tasks, of the agenda reading and of the livestream match are not sent for such a meeting. A failed auto-trigger still alerts the operators. The calendar reads the tier, not this rule.
+The operator surfaces read the same rule. `unattendedMeetingWhere` is its Prisma form. The review queue and the counts of its widget on `/admin` share one where (`reviewQueueWhere` in `src/lib/db/reviews.ts`), so the widget counts the meetings that the list shows. The upload dashboard leaves such meetings out. These Discord alerts are not sent for such a meeting: the meeting creation, the started and completed alerts of its tasks, the agenda reading, and the livestream alerts of a match and of a stream of several meetings. The failed alert of a task and the alert of a failed auto-trigger of the next task are sent: no operator follows the meeting, so nothing else reports a failure of its pipeline. For the same reason, two steps that run after a response send an alert when they fail (`reportFailure` in `src/lib/reportFailure.ts`): the start of the transcription and the release after the summary. A pasted agenda does the same for any meeting (see below). The livestream matcher never ends the retries of such a meeting: the unattended pass does. The calendar reads the tier, not this rule.
 
-The notifications follow their own rule: a youth council, which is secondary by default, starts with its notifications off.
+The notifications follow the tier, not this rule: a new secondary body, such as a youth council at its default tier, starts with its notifications off.
 
 ### The agenda as pasted text
 
@@ -154,7 +154,7 @@ The saved agenda has the effects of the task. The extraction writes a succeeded 
 * **One meaning for each value**: `src/lib/meetingLifecycleRules.ts` holds a table for each enum (`SCHEDULE_STATUSES`, `MEETING_FORMATS`, `MEETING_KINDS`). Code reads `takesPlace`, `TAKES_PLACE_WHERE`, `hasPublicRecording` or `PUBLIC_RECORDING_WHERE`, never a raw value. A new value fails to compile until each table gives it a meaning.
 * **Pipelines and lists**: some parts skip a meeting that does not take place. These are the livestream cron, the decision poller, the bulk poll dialog and the upload lists. The landing page, the city rail, the embed widget and `/latest` skip it too. `requestTranscribeInternal` refuses it, and also a meeting held by circulation. A pending notice before a postponed or cancelled meeting is not sent.
 * **Calendar**: `syncMeetingToCalendar` patches the event of a postponed or cancelled meeting to `status: 'cancelled'`. It patches the event back to `confirmed` only when the meeting returns to scheduled. Any other edit leaves the status alone. A past meeting emails nobody.
-* **Decision polling** skips the meetings that take no decisions, λογοδοσία and απολογισμός, by `kind`, not by the name. A later part takes the kind of its first part. The migration set the kind of the existing λογοδοσία meetings.
+* **Decision polling** skips the meetings that take no decisions: λογοδοσία and απολογισμός, by `kind`, not by the name, and every meeting of a secondary body (#829). `takesNoDecisions` in `src/lib/tasks/pollDecisionsBackoff.ts` is the rule, and `TAKES_DECISIONS_WHERE` is its Prisma form. The poll, its cron, the decisions table and page, the subject card and the minutes read it. A later part takes the kind of its first part. The migration set the kind of the existing λογοδοσία meetings.
 
 ### The archive
 

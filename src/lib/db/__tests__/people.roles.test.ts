@@ -9,7 +9,7 @@ jest.mock('@/lib/auth', () => ({
     getRoleLimitForCity: (...args: unknown[]) => mockGetRoleLimitForCity(...args),
 }));
 
-jest.mock('@/lib/db/personImage', () => ({ rolesOfPerson: jest.fn(), rolesWithBodyType: jest.fn(), withPersonImageAuthorized: jest.fn() }));
+jest.mock('@/lib/db/personImage', () => ({ rolesWithBodyType: jest.fn(), withPersonImageAuthorized: jest.fn(), withPersonImageKept: jest.fn() }));
 
 import { createPerson } from '../people';
 

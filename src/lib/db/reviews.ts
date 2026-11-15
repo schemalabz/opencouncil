@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
-import { unattendedMeetingWhere } from '@/lib/utils/bodyTier';
+import { unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 

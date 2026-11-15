@@ -1,7 +1,7 @@
 // When a document of a meeting is ready to go out (#874). Pure: the cron, the
 // poll callback, the review completion and the decisions page all ask this, and
 // the unit tests cover every branch. Keep it free of server-only imports.
-import type { DocumentKind, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import type { BodyTier, DocumentKind, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { fromZonedTime } from 'date-fns-tz';
 import type { ReadinessFacts } from '@/lib/db/types/documentSend';
 import { isPolledOnItsOwn } from '@/lib/db/decisionEligibility';
@@ -17,6 +17,8 @@ export interface ReadinessMeeting {
     continuationOfId: string | null;
     kind: MeetingKind | null;
     continuationOf: { kind: MeetingKind | null } | null;
+    /** A secondary body's meeting takes no decisions either (takesNoDecisions). */
+    administrativeBody: { tier: BodyTier } | null;
     /** The threshold counts calendar days where the meeting took place. */
     city: { timezone: string };
 }

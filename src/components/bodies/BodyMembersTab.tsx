@@ -26,9 +26,11 @@ interface BodyMembersTabProps {
     /** The people whose role on the body is active now. */
     members: PersonWithRelations[];
     canEdit: boolean;
+    /** Whether «Νέα θητεία» is offered: not for a council (mayStartNewTerm). */
+    canStartNewTerm: boolean;
     formBodies: PublicAdministrativeBody[];
     parties: Party[];
-    /** Whether the member form offers a photo: not for a secondary body, whose members add their own (#829). */
+    /** Whether the member form offers a photo: not for a youth council, whose members add their own (#829). */
     canEditImage: boolean;
 }
 
@@ -41,7 +43,7 @@ type EndTarget = { kind: 'newTerm' } | { kind: 'member'; person: PersonWithRelat
  * which offers this body alone, imports a pasted list, ends a membership, or
  * starts a new term (#829).
  */
-export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, formBodies, parties, canEditImage }: BodyMembersTabProps) {
+export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, canStartNewTerm, formBodies, parties, canEditImage }: BodyMembersTabProps) {
     const t = useTranslations('body');
     const router = useRouter();
     const { toast } = useToast();
@@ -109,7 +111,7 @@ export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, formB
                                 triggerSize="sm"
                             />
                             <RosterImportDialog cityId={cityId} bodyId={bodyId} />
-                            {members.length > 0 && (
+                            {canStartNewTerm && members.length > 0 && (
                                 <Button type="button" variant="outline" size="sm" onClick={newTerm} disabled={busyId !== null}>
                                     <CalendarX2 className="mr-2 h-4 w-4" aria-hidden />
                                     {t('newTerm')}

@@ -79,6 +79,7 @@ export const peoplePaths: Paths = {
                 },
                 400: invalidRequestOrMessageResponse('Invalid person or role data'),
                 ...editAuthResponses,
+                409: errorResponseOf('The roles would make a person who keeps a photo youth-only. Remove the photo in the same request, or keep a role outside the youth council.'),
             },
             'x-access-level': 'admin',
         },

@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/api/errors";
 import { openPeriodWhere } from "@/lib/db/voicePrintConsentRule";
 import { deleteVoiceDataWithoutConsent } from "@/lib/db/voiceprintsDelete";
-import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
+import { youthCouncilOnly } from "@/lib/utils/youthCouncil";
 
 const openPeriod = (personId: string) => ({ personId, ...openPeriodWhere });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
@@ -82,15 +82,15 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
         }
         if (consent) {
             if (open) return;
-            // A member of a secondary body alone consents from the account that
-            // claimed their page (#829): a delegate's tick is not theirs.
+            // A person whose every role is on a youth council consents from the
+            // account that claimed their page (#829): a delegate's tick is not theirs.
             if (!row.claimedAt) {
                 const person = await tx.person.findUnique({
                     where: { id: personId },
                     select: { roles: { select: { administrativeBody: { select: { type: true } } } } },
                 });
-                if (person && voiceprintNeedsOwnConsent(person.roles)) {
-                    throw new ForbiddenError("A member of a secondary body consents from the account that claimed their page");
+                if (person && youthCouncilOnly(person.roles)) {
+                    throw new ForbiddenError("A member of a youth council consents from the account that claimed their page");
                 }
             }
             await tx.voicePrintConsent.create({ data: { personId, userId: user.id } });
@@ -115,7 +115,7 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
     if (!user) throw new UnauthorizedError("Not signed in");
     if (!user.isSuperAdmin) throw new ForbiddenError("Only a superadmin can record a voiceprint consent");
 
-    // A member of a secondary body alone consents from their own account (#829).
+    // A person whose every role is on a youth council consents from their own account (#829).
     // A withdrawal on their request stays open to the superadmin.
     if (consent) {
         const person = await prisma.person.findUnique({
@@ -123,7 +123,7 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
             select: { roles: { select: { administrativeBody: { select: { type: true } } } } },
         });
         if (!person) throw new NotFoundError("Person not found");
-        if (voiceprintNeedsOwnConsent(person.roles)) {
+        if (youthCouncilOnly(person.roles)) {
             throw new ForbiddenError("This person consents to a voiceprint from their own account only");
         }
     }

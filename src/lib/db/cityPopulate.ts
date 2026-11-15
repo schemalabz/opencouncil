@@ -1,7 +1,8 @@
 // Server-only: populateCity takes no identity and checks no session. The
 // caller authorizes first — the MCP admin tool populate_city does.
 import "server-only";
-import { defaultNotificationBehavior, defaultTierOf, youthCouncilOnly } from '@/lib/utils/bodyTier';
+import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier';
+import { youthCouncilOnly } from '@/lib/utils/youthCouncil';
 import prisma from './prisma';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
 import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';

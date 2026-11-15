@@ -1,18 +1,16 @@
 import {
     ALL_SCOPE,
     bodyScopeWhere,
-    pipelineRunsUnattended,
-    voiceprintNeedsOwnConsent,
     defaultTierOf,
     defaultNotificationBehavior,
     isSecondaryBody,
-    isYouthCouncil,
+    meetingListTier,
     personTierWhere,
     primaryMeetingWhere,
     primaryPresenceWhere,
     readTier,
     secondaryMeetingWhere,
-    youthCouncilOnly,
+    tabTier,
 } from '../bodyTier';
 
 describe('defaultTierOf', () => {
@@ -41,28 +39,6 @@ describe('the tier of a body', () => {
     it('starts a secondary body with its notifications off, and a primary one on approval', () => {
         expect(defaultNotificationBehavior('secondary')).toBe('NOTIFICATIONS_DISABLED');
         expect(defaultNotificationBehavior('primary')).toBe('NOTIFICATIONS_APPROVAL');
-    });
-});
-
-describe('the rules of a youth council', () => {
-    it('read the type, not the tier: a secondary council of a company keeps the review step', () => {
-        expect(isYouthCouncil({ type: 'youthCouncil' })).toBe(true);
-        expect(isYouthCouncil({ type: 'council' })).toBe(false);
-        expect(pipelineRunsUnattended({ type: 'youthCouncil' })).toBe(true);
-        expect(pipelineRunsUnattended({ type: 'council' })).toBe(false);
-        expect(pipelineRunsUnattended(null)).toBe(false);
-    });
-
-    it('ask the own consent of a person whose every role is on a youth council', () => {
-        const youth = { administrativeBody: { type: 'youthCouncil' as const } };
-        const council = { administrativeBody: { type: 'council' as const } };
-        const party = { administrativeBody: null };
-        expect(voiceprintNeedsOwnConsent([youth])).toBe(true);
-        expect(voiceprintNeedsOwnConsent([youth, youth])).toBe(true);
-        expect(voiceprintNeedsOwnConsent([youth, council])).toBe(false);
-        expect(voiceprintNeedsOwnConsent([youth, party])).toBe(false);
-        expect(voiceprintNeedsOwnConsent([])).toBe(false);
-        expect(youthCouncilOnly([council])).toBe(false);
     });
 });
 
@@ -109,6 +85,37 @@ describe('personTierWhere', () => {
     it('widens through the tier alone', () => {
         expect(personTierWhere('secondary')).toEqual({ roles: { some: {}, every: { administrativeBody: { tier: 'secondary' } } } });
         expect(personTierWhere('all')).toEqual({});
+    });
+});
+
+describe('meetingListTier', () => {
+    it('takes the tier that the caller sends', () => {
+        expect(meetingListTier('primary', true)).toBe('primary');
+        expect(meetingListTier('secondary', false)).toBe('secondary');
+    });
+
+    it('with no tier, gives every tier to a caller who sees the unreleased meetings, and the primary tier to the rest', () => {
+        expect(meetingListTier(undefined, true)).toBe('all');
+        expect(meetingListTier(undefined, false)).toBe('primary');
+    });
+});
+
+describe('tabTier', () => {
+    const reader = { requested: null, secondaryAvailable: true, administersSecondary: false, primaryEmpty: false };
+
+    it('keeps the primary tier when the surface has nothing of the secondary tier', () => {
+        expect(tabTier({ ...reader, secondaryAvailable: false, requested: 'all', primaryEmpty: true })).toBe('primary');
+    });
+
+    it('takes the tier in the URL', () => {
+        expect(tabTier({ ...reader, requested: 'secondary' })).toBe('secondary');
+        expect(tabTier({ ...reader, requested: 'primary', administersSecondary: true })).toBe('primary');
+    });
+
+    it('widens for the admin of a secondary body and for a city with no primary content', () => {
+        expect(tabTier(reader)).toBe('primary');
+        expect(tabTier({ ...reader, administersSecondary: true })).toBe('all');
+        expect(tabTier({ ...reader, primaryEmpty: true })).toBe('all');
     });
 });
 

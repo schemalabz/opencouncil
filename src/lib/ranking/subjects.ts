@@ -60,9 +60,9 @@ export const DEFAULT_SUBJECT_RANKING_WEIGHTS: SubjectRankingWeights = {
 };
 
 /**
- * Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. A secondary
- * body gets no boost: it ranks among its own kind only, never against the
- * council.
+ * Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. The rank reads
+ * the type, not the tier: a youth council gets no boost, so it ranks among its
+ * own kind only, never against the council.
  */
 export const ADMIN_BODY_TIER: Record<AdministrativeBodyType, number> = {
     council: 1,

@@ -1,7 +1,7 @@
 import { decisionsTableAvailable } from '../availability';
 import type { PresentationKey } from '@/lib/meetingPresentation';
 
-const decides = { kind: null, continuationOf: null };
+const decides = { kind: null, continuationOf: null, administrativeBody: null };
 const agendaItem = { agendaItemIndex: 1, nonAgendaReason: null };
 
 describe('decisionsTableAvailable', () => {
@@ -14,7 +14,12 @@ describe('decisionsTableAvailable', () => {
     });
 
     it('hides the table on a kind of meeting that takes no decisions', () => {
-        expect(decisionsTableAvailable('complete', { kind: 'accountability', continuationOf: null }, [agendaItem])).toBe(false);
+        expect(decisionsTableAvailable('complete', { ...decides, kind: 'accountability' }, [agendaItem])).toBe(false);
+    });
+
+    it('hides the table on a meeting of a secondary body, which publishes no decisions (#829)', () => {
+        expect(decisionsTableAvailable('complete', { ...decides, administrativeBody: { tier: 'secondary' } }, [agendaItem])).toBe(false);
+        expect(decisionsTableAvailable('complete', { ...decides, administrativeBody: { tier: 'primary' } }, [agendaItem])).toBe(true);
     });
 
     it('hides the table when no subject is a row of it', () => {

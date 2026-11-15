@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe('transcribeUnattendedMeetings', () => {
-    it('asks for the meetings of the secondary bodies that are over, with a recording that takes place', async () => {
+    it('asks for the meetings of the bodies whose pipeline runs unattended that are over, with a recording that takes place', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
 
         await transcribeUnattendedMeetings({ now: NOW });
@@ -80,7 +80,7 @@ describe('transcribeUnattendedMeetings', () => {
         expect(summary.results[0]).toMatchObject({ meetingId: 'm1', action: 'error', error: 'The meeting already has a transcript.' });
     });
 
-    it('starts nothing on a dry run, and ignores a row of a primary body whatever the query returned', async () => {
+    it('starts nothing on a dry run, and ignores a row of a council whatever the query returned', async () => {
         mockMeetingFindMany.mockResolvedValue([youth('m1'), { ...youth('m2'), administrativeBody: { type: 'council' } }]);
 
         const summary = await transcribeUnattendedMeetings({ now: NOW, dryRun: true });

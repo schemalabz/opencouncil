@@ -985,9 +985,9 @@
         "nameEnDescription": "Enter the name of the administrative body in English.",
         "type": "Type",
         "selectType": "Select type",
-        "typeDescription": "Select the type of administrative body.",
+        "typeDescription": "Select the type of administrative body. A body of the type “Municipal Youth Council” processes its meetings without a review and releases them on its own.",
         "tier": "Visibility",
-        "tierDescription": "A primary body shows everywhere by default. A secondary body shows only when a reader asks for it, for example a youth council or a municipal company.",
+        "tierDescription": "The content of a secondary body, for example a youth council, shows only when a reader asks for it. A change to the type of an existing body does not change its visibility.",
         "tierOptions": {
             "primary": "Primary body",
             "secondary": "Secondary body"
