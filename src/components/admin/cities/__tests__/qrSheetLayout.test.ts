@@ -1,4 +1,19 @@
-import { CARD_HEIGHT, CARD_WIDTH, CARDS_PER_SHEET, CUTS, SHEET_HEIGHT, SHEET_WIDTH, cardFrame, namePieces, toSheets } from '../qrSheetLayout';
+import {
+    CARD_HEIGHT,
+    CARD_WIDTH,
+    CARDS_PER_SHEET,
+    CUTS,
+    NAME_COLUMN_WIDTH,
+    NAME_FONT_SIZE,
+    NAME_MIN_FONT_SIZE,
+    SHEET_HEIGHT,
+    SHEET_WIDTH,
+    cardFrame,
+    nameFontSize,
+    namePieces,
+    textWidth,
+    toSheets,
+} from '../qrSheetLayout';
 
 const mm = (pt: number) => (pt * 25.4) / 72;
 
@@ -46,5 +61,49 @@ describe('namePieces', () => {
     it('wraps a plain name at its spaces, and reads back as the name', () => {
         const pieces = namePieces('Αντώνιος-Ιωάννης  Βαρδάκης ');
         expect(pieces.map(p => p.text + (p.spaceAfter ? ' ' : '')).join('')).toBe('Αντώνιος-Ιωάννης Βαρδάκης');
+    });
+
+    it('lets a compound surname wrap after an en dash or an em dash', () => {
+        expect(namePieces('Σοφία Ελευθεριάδου\u2013Παπαδάκη').map(p => p.text)).toEqual(['Σοφία', 'Ελευθεριάδου\u2013', 'Παπαδάκη']);
+        expect(namePieces('Ελευθεριάδου\u2014Παπαδάκη').map(p => p.text)).toEqual(['Ελευθεριάδου\u2014', 'Παπαδάκη']);
+    });
+
+    it('keeps a non-breaking hyphen in one piece', () => {
+        expect(namePieces('Ελευθεριάδου\u2011Παπαδάκη').map(p => p.text)).toEqual(['Ελευθεριάδου\u2011Παπαδάκη']);
+    });
+});
+
+describe('nameFontSize', () => {
+    it('measures the name column beside the QR', () => {
+        expect(NAME_COLUMN_WIDTH).toBeCloseTo(115.6, 1);
+    });
+
+    it('keeps the full size for a name whose pieces fit', () => {
+        expect(nameFontSize(namePieces('Σοφία Ελευθεριάδου-Παπαδάκη'))).toBe(NAME_FONT_SIZE);
+        expect(nameFontSize(namePieces('Σοφία Ελευθεριάδου\u2013Παπαδάκη'))).toBe(NAME_FONT_SIZE);
+    });
+
+    // Measured with fontTools on public/fonts/pdf/inter-600.ttf.
+    it('measures a name in Inter SemiBold', () => {
+        expect(textWidth('Παπαδημητρόπουλος', 13)).toBeCloseTo(138.0, 0);
+        expect(textWidth('ΠΑΠΑΔΗΜΗΤΡΟΠΟΥΛΟΣ', 13)).toBeCloseTo(163.4, 0);
+        expect(textWidth('Παπαδημητρο\u0301πουλος', 13)).toBeCloseTo(textWidth('Παπαδημητρόπουλος', 13), 6);
+    });
+
+    it('keeps the full size for a long word that still fits', () => {
+        expect(nameFontSize(namePieces('Αικατερίνη Χατζημιχαηλίδου'))).toBe(NAME_FONT_SIZE);
+    });
+
+    it('shrinks a name with a single word wider than the column until it fits', () => {
+        const pieces = namePieces('Ιωάννης Παπαδημητρόπουλος');
+        const size = nameFontSize(pieces);
+        expect(size).toBeLessThan(NAME_FONT_SIZE);
+        for (const piece of pieces) {
+            expect(textWidth(piece.text, size)).toBeLessThanOrEqual(NAME_COLUMN_WIDTH);
+        }
+    });
+
+    it('does not shrink a name below the minimum size', () => {
+        expect(nameFontSize(namePieces('Παπαδημητροπουλοπαπαδημητρόπουλος'))).toBe(NAME_MIN_FONT_SIZE);
     });
 });

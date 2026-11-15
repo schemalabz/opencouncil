@@ -17,7 +17,20 @@
 import { Document, Page, View, Text } from "@react-pdf/renderer";
 import { Brand, C, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { QrStripPerson } from "@/lib/admin/councilQrStrips";
-import { CUTS, SHEET_HEIGHT, SHEET_WIDTH, cardFrame, namePieces, toSheets } from "./qrSheetLayout";
+import {
+    CARD_PADDING_X,
+    CARD_PADDING_Y,
+    CUTS,
+    NAME_WORD_SPACE,
+    QR_BOX_WIDTH,
+    QR_NAME_GAP,
+    SHEET_HEIGHT,
+    SHEET_WIDTH,
+    cardFrame,
+    nameFontSize,
+    namePieces,
+    toSheets,
+} from "./qrSheetLayout";
 
 /** The card texts, in the city's language: the reader is the councillor, not the admin. */
 export interface QrStripLabels {
@@ -34,13 +47,10 @@ export interface QrStripLabels {
 
 // About 40 mm: some three times the area of the old strip's 64 pt code.
 const QR_SIZE = 112;
-// Room for the caption on one line in every locale.
-const QR_BOX_WIDTH = 128;
-// About 7 mm from every cut; above the 4–5 mm a printer cannot reach.
-const CARD_PADDING_X = 21;
-const CARD_PADDING_Y = 20;
 
 function Card({ person, cityName, labels }: { person: QrStripPerson; cityName: string; labels: QrStripLabels }) {
+    const pieces = namePieces(person.name);
+    const fontSize = nameFontSize(pieces);
     return (
         <View
             style={{
@@ -59,7 +69,7 @@ function Card({ person, cityName, labels }: { person: QrStripPerson; cityName: s
                 <Text style={{ fontSize: 7.5, color: C.light }}>{cityName}</Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: QR_NAME_GAP }}>
                 <View
                     style={{
                         width: QR_BOX_WIDTH,
@@ -79,10 +89,10 @@ function Card({ person, cityName, labels }: { person: QrStripPerson; cityName: s
                     </Text>
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
-                    {/* A wrapping row of pieces, so a compound surname breaks after its hyphen (see namePieces). */}
+                    {/* A wrapping row of pieces, so a compound surname breaks after its dash (see namePieces). */}
                     <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                        {namePieces(person.name).map((piece, i) => (
-                            <Text key={i} style={{ fontWeight: 600, fontSize: 13, color: C.ink, lineHeight: 1.2, marginRight: piece.spaceAfter ? 3.5 : 0 }}>
+                        {pieces.map((piece, i) => (
+                            <Text key={i} style={{ fontWeight: 600, fontSize, color: C.ink, lineHeight: 1.2, marginRight: piece.spaceAfter ? fontSize * NAME_WORD_SPACE : 0 }}>
                                 {piece.text}
                             </Text>
                         ))}
