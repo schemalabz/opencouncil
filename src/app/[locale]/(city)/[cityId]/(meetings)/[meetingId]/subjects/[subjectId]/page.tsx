@@ -19,6 +19,7 @@ import { getPublicContribution } from '@/lib/sharing/contributions';
 import { contributionMetadata } from '@/lib/sharing/contributionMetadata';
 import type { QueryParams } from '@/lib/sharing/excerptSelector';
 import { meetingLabel } from '@/lib/meetingName';
+import type { RelatedSubjectSeed } from '@/lib/search/related';
 
 interface SubjectPageProps {
     params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }>;
@@ -152,7 +153,8 @@ export default async function SubjectPage(
         cityId: subject.cityId,
         councilMeetingId: subject.councilMeetingId,
         administrativeBodyType: meetingData.meeting.administrativeBody?.type ?? null,
-    };
+        tier: meetingData.meeting.administrativeBody?.tier ?? 'primary',
+    } satisfies RelatedSubjectSeed;
     const meetingDate = new Date(meetingData.meeting.dateTime).toISOString();
 
     return (

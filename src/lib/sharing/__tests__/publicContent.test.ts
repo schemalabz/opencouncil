@@ -6,11 +6,11 @@ import { getPublicMeeting, getPublicSubject, meetingTranscriptIsPublic, transcri
 describe('public sharing boundary', () => {
     it('scopes meeting access by city, release and request realm without editor overrides', async () => {
         await getPublicMeeting('city', 'meeting', 'france');
-        expect(prisma.councilMeeting.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { cityId: 'city', id: 'meeting', released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'france' } } }));
+        expect(prisma.councilMeeting.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { cityId: 'city', id: 'meeting', released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'france' }, AND: [{}] } }));
     });
     it('requires the exact subject tuple and does not fetch private or transcript relations', async () => {
         await getPublicSubject('city', 'meeting', 'subject', 'greece');
-        expect(prisma.subject.findFirst).toHaveBeenCalledWith({ where: { id: 'subject', cityId: 'city', councilMeetingId: 'meeting', councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } } }, select: publicSubjectSelect });
+        expect(prisma.subject.findFirst).toHaveBeenCalledWith({ where: { id: 'subject', cityId: 'city', councilMeetingId: 'meeting', councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' }, AND: [{}] } }, select: publicSubjectSelect });
         expect(JSON.stringify(publicSubjectSelect)).not.toMatch(/votes|attendance|speakerSegments|highlights|geometry/);
     });
     it('honors the existing human-review visibility contract', () => {
@@ -35,6 +35,6 @@ describe('public sharing boundary', () => {
     it('shows the transcript of a body whose pipeline runs unattended, review or not (#829)', () => {
         const youth = { administrativeBody: { showUnreviewedTranscript: false, type: 'youthCouncil' }, taskStatuses: [] } as unknown as PublicMeeting;
         expect(transcriptIsPublic(youth)).toBe(true);
-        expect(TRANSCRIPT_PUBLIC_WHERE.OR).toContainEqual({ administrativeBody: { type: { in: ['youthCouncil'] } } });
+        expect(TRANSCRIPT_PUBLIC_WHERE.OR).toContainEqual({ administrativeBody: { type: 'youthCouncil' } });
     });
 });

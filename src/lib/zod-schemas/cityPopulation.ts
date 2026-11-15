@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
-import { baseAdministrativeBodyFields, youtubeChannelUrlValue } from './administrativeBody';
+import { baseAdministrativeBodyFields, bodyTierSchema, youtubeChannelUrlValue } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue, rolePeriodsOverlap } from './role';
 import { blankToNull, refuseDuplicateKeys, webUrl } from './primitives';
 
@@ -41,6 +41,8 @@ export const cityPopulationSchema = z.object({
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object({
         ...baseAdministrativeBodyFields,
+        tier: bodyTierSchema.optional()
+            .describe('primary: the content of the body shows in every default scope. secondary: it shows only when a reader asks for it. Absent: the default of the type (youthCouncil is secondary, every other type primary)'),
         // Found by research (the add-city skill).
         // The "unit" / "unit:signer" form that parseDiavgeiaUnitScope reads, narrowed to digits:
         // Diavgeia unit and signer uids are numbers, so a comma-joined paste ("1,2") or a stray

@@ -1,9 +1,8 @@
 import { estypes } from '@elastic/elasticsearch';
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
 import { env } from '@/env.mjs';
-import { SECONDARY_BODY_TYPES, bodyTier } from '@/lib/utils/bodyTier';
 import type { RelatedScope } from './types';
-import { subjectVisibilityFilters } from './query';
+import { searchTierFilter, subjectVisibilityFilters } from './query';
 import { DEFAULT_SCORE_PROFILE, type QueryProfile } from './profile';
 
 /** What the related-subjects query needs to know about the subject on screen. */
@@ -14,6 +13,8 @@ export interface RelatedSubjectSeed {
     councilMeetingId: string;
     /** The type of the body that held the meeting; null for a meeting with no body. */
     administrativeBodyType: AdministrativeBodyType | null;
+    /** The stored tier of that body; primary for a meeting with no body. */
+    tier: BodyTier;
 }
 
 /**
@@ -23,10 +24,12 @@ export interface RelatedSubjectSeed {
  * body in the other municipalities.
  */
 function relatedTierFilters(seed: RelatedSubjectSeed, scope: RelatedScope): estypes.QueryDslQueryContainer[] {
-    if (bodyTier(seed.administrativeBodyType) === 'primary') {
-        return [{ bool: { must_not: [{ terms: { administrative_body_type: [...SECONDARY_BODY_TYPES] } }] } }];
-    }
-    return scope === 'other' ? [{ term: { administrative_body_type: seed.administrativeBodyType! } }] : [];
+    if (seed.tier === 'primary') return [searchTierFilter('primary')!];
+    if (scope === 'city') return [];
+    const ofSecondary = searchTierFilter('secondary')!;
+    return seed.administrativeBodyType
+        ? [ofSecondary, { term: { administrative_body_type: seed.administrativeBodyType } }]
+        : [ofSecondary];
 }
 
 /** How many related subjects a subject page shows per scope. */

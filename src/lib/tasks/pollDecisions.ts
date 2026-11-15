@@ -116,6 +116,7 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     type: true,
+                    tier: true,
                     diavgeiaUnitIds: true,
                     decisionConventions: true,
                 },
@@ -432,7 +433,7 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             withdrawn: true,
             cityId: true,
             councilMeetingId: true,
-            councilMeeting: { select: { administrativeBody: { select: { type: true } } } },
+            councilMeeting: { select: { administrativeBody: { select: { tier: true } } } },
         },
     });
 

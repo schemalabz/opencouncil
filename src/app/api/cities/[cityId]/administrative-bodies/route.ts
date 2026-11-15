@@ -4,7 +4,7 @@ import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity, c
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 import { handleApiError } from '@/lib/api/errors';
-import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
+import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier';
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -38,15 +38,17 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
+        const { name, name_en, type, tier, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
+        const bodyTier = tier ?? defaultTierOf(type);
 
         const newBody = await createAdministrativeBody({
             name,
             name_en,
             type,
+            tier: bodyTier,
             cityId,
             youtubeChannelUrl: youtubeChannelUrl ?? null,
-            notificationBehavior: notificationBehavior ?? defaultNotificationBehavior(type),
+            notificationBehavior: notificationBehavior ?? defaultNotificationBehavior(bodyTier),
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds ?? [],
             place,

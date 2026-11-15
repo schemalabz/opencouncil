@@ -1,4 +1,5 @@
-import { AdministrativeBodyType, Realm } from "@prisma/client";
+import { Realm } from "@prisma/client";
+import type { BodyScope } from "@/lib/utils/bodyTier";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
@@ -129,15 +130,12 @@ export async function getCouncilMeetingsForCityPublicCached(cityId: string, opti
  * drifts from the query it stands for stays invisible until the day it serves
  * another filter's rows.
  */
-export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds, tier }: {
-  administrativeBodyTypes?: AdministrativeBodyType[];
-  administrativeBodyIds?: string[];
-  tier?: 'all';
-}): string[] {
-  // No type means the primary tier, not every body (see meetingListQuery).
+export function bodyFilterKey(scope: BodyScope = {}): string[] {
+  // No tier means the primary tier, as in bodyScopeWhere.
   return [
-    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : tier === 'all' ? 'types:all' : 'types:primary',
-    administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
+    `tier:${scope.tier ?? 'primary'}`,
+    scope.types?.length ? `types:${[...scope.types].sort().join(',')}` : 'types:any',
+    scope.ids?.length ? `ids:${[...scope.ids].sort().join(',')}` : 'ids:all',
   ];
 }
 
@@ -150,7 +148,7 @@ function meetingListKey(options: MeetingListOptions): string[] {
   const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter, takesPlace } = options;
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
-    ...bodyFilterKey(options),
+    ...bodyFilterKey(options.scope),
     timeFilter ?? 'all',
     takesPlace ? 'takesPlace' : 'anyStatus',
     // from/to go into the where, so they have to go into the key — without them

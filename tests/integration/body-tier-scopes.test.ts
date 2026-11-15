@@ -46,11 +46,14 @@ describe('the default scopes leave the secondary tier out (#829)', () => {
         }
     })
 
-    test('the meeting list of a city is the primary tier unless a type is named', async () => {
+    test('the meeting list of a city is the primary tier unless a tier is given', async () => {
         const defaults = await getCouncilMeetingsForCity(CITY, {})
         expect(defaults.map((m) => m.id).sort()).toEqual(['council_next', 'council_past'])
 
-        const youth = await getCouncilMeetingsForCity(CITY, { administrativeBodyTypes: ['youthCouncil'] })
+        // A type narrows inside the tier: alone, it does not reach the secondary tier.
+        expect(await getCouncilMeetingsForCity(CITY, { scope: { types: ['youthCouncil'] } })).toEqual([])
+
+        const youth = await getCouncilMeetingsForCity(CITY, { scope: { tier: 'all', types: ['youthCouncil'] } })
         expect(youth.map((m) => m.id).sort()).toEqual(['youth_next', 'youth_past'])
     })
 

@@ -4,6 +4,7 @@ import { AGENDA_TEXT_MAX_LENGTH, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib
 import { blankToNull, webUrl } from './primitives';
 import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
+import { TIER_SCOPE_RULE, tierScopeSchema } from './administrativeBody';
 import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
 import { vmsg } from './messages';
 
@@ -113,6 +114,8 @@ export const meetingListQuerySchema = z.object({
             example: '2025-12-31',
         }),
     includeUnreleased: includeUnreleasedQuery,
+    tier: tierScopeSchema.optional()
+        .meta({ description: `Which tiers of body: ${TIER_SCOPE_RULE}`, example: 'all' }),
 });
 
 // Frontend form schema (React Hook Form). The form picks the day in a calendar

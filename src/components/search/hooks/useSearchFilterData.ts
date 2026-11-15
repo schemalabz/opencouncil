@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { format, subMonths } from "date-fns";
-import { AdministrativeBodyType, City, Party } from "@prisma/client";
+import { AdministrativeBodyType, BodyTier, City, Party } from "@prisma/client";
 import type { PublicAdministrativeBody } from "@/lib/db/types";
 import { DateRange } from "react-day-picker";
 
@@ -25,7 +25,8 @@ import {
 export type AdminBodyGroup = {
     type: AdministrativeBodyType;
     typeLabel: string;
-    bodies: { value: string; label: string }[];
+    /** The tier, so that a pick of every body of the type can widen to it (#829). */
+    bodies: { value: string; label: string; tier: BodyTier }[];
 };
 
 export const DATE_PRESET_MONTHS = [3, 6, 12] as const;
@@ -155,7 +156,7 @@ export function useSearchFilterData(filters: SearchFilterParams, setFilters: (pa
             typeLabel: tCommon(`adminBodyType_${type}`),
             bodies: adminBodies
                 .filter(b => b.type === type)
-                .map(b => ({ value: b.id, label: getLocalizedName(b, locale) }))
+                .map(b => ({ value: b.id, label: getLocalizedName(b, locale), tier: b.tier }))
                 .sort((a, b) => collator.compare(a.label, b.label)),
         }));
     }, [adminBodies, tCommon, locale]);
@@ -207,6 +208,7 @@ export function useSearchFilterData(filters: SearchFilterParams, setFilters: (pa
             personId: undefined,
             adminBodyType: undefined,
             adminBodyId: undefined,
+            tier: undefined,
         });
     }, [setFilters]);
 
@@ -224,6 +226,7 @@ export function useSearchFilterData(filters: SearchFilterParams, setFilters: (pa
             personId: undefined,
             adminBodyType: undefined,
             adminBodyId: undefined,
+            tier: undefined,
             topicIds: undefined,
             dateFrom: undefined,
             dateTo: undefined,

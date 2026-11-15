@@ -7,6 +7,7 @@ import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
 import { importBodyConventions, type BodyConventionsRecord } from "@/lib/db/bodyConventionsImport"
 import { ensureTestUsers } from "@/lib/db/testUsers"
 import { ensureSerbianFixture } from "@/lib/db/serbianFixture"
+import { defaultTierOf } from "@/lib/utils/bodyTier"
 // Imported, not read from disk: the preview runs a bundle of this file with no fixtures/ beside it.
 import bodyConventions from "../fixtures/body-conventions.json"
 
@@ -497,7 +498,9 @@ async function seedAdministrativeBodies(bodies: any[]) {
   // A developer switches it on with an address to try a send. A dump from
   // before #874 carries the contactEmails column instead, which gives the
   // transcript a row, off, and keeps its addresses out of the database too.
-  const rows = bodies.map(({ contactEmails, documentSendSettings, ...body }) => body)
+  // A dump from before the tier column carries no tier: each body takes the
+  // default of its type, as a new body does.
+  const rows = bodies.map(({ contactEmails, documentSendSettings, ...body }) => ({ ...body, tier: body.tier ?? defaultTierOf(body.type) }))
   await prisma.administrativeBody.createMany({
     data: rows,
     skipDuplicates: true,

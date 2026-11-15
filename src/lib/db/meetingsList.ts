@@ -4,10 +4,9 @@
 // concern: the list queries, their payload types and the page size.
 import "server-only";
 import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
-import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
-import { AdministrativeBodyType, Prisma } from '@prisma/client';
+import { bodyScopeWhere, type BodyScope } from '@/lib/utils/bodyTier';
+import { Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { meetingBodyTypeWhere } from "./meetingBodyFilter";
 import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
@@ -90,15 +89,8 @@ export interface MeetingListOptions {
     pageSize?: number;
     from?: Date;
     to?: Date;
-    /**
-     * Which bodies. Ids win over types. With neither, the list holds the
-     * primary tier (see bodyTier.ts): a secondary body's meetings show only
-     * when a caller names its type or its id.
-     */
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
-    /** Every tier: no body filter at all. The meetings tab passes it when the reader widened it. */
-    tier?: 'all';
+    /** Which bodies (see BodyScope). Absent, the primary tier. */
+    scope?: BodyScope;
     timeFilter?: 'upcoming' | 'past';
     /** Only meetings that take place on their date: no postponed or cancelled one. */
     takesPlace?: boolean;
@@ -129,7 +121,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, tier, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
+    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, scope, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -148,19 +140,10 @@ function meetingListQuery(
         ...(upperBound && { lte: upperBound }),
     };
 
-    // Specific bodies (ids) take precedence over the broader type filter, and
-    // no filter at all means the primary tier. A list by ids takes its scope
-    // from whoever found the ids: the search ran this same query under the
-    // reader's filter, and a tier default here would drop its secondary rows
-    // between the count and the cards.
-    let bodyFilter: Prisma.CouncilMeetingWhereInput = tier === 'all' || meetingIds ? {} : primaryMeetingWhere;
-    if (administrativeBodyIds && administrativeBodyIds.length > 0) {
-        bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
-    } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
-        // Without the no-body rule, the overview timeline would lose meetings
-        // that the rail beside it still lists.
-        bodyFilter = meetingBodyTypeWhere(administrativeBodyTypes);
-    }
+    // A list by ids takes its scope from whoever found the ids: the search ran
+    // this same query under the reader's scope, and the default here would
+    // drop its secondary rows between the count and the cards.
+    const bodyFilter = meetingIds ? {} : bodyScopeWhere(scope);
 
     // The visibility filter and the body filter can both be an OR, so they
     // meet under AND rather than spread into one object.

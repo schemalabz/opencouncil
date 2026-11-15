@@ -195,7 +195,6 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
                 dateTime: { gt: new Date() },
                 // A postponed or cancelled meeting is not coming up.
                 ...TAKES_PLACE_WHERE,
-                ...primaryMeetingWhere,
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
@@ -415,7 +414,6 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
                 dateTime: { gt: now },
                 city: CUSTOMER_CITY_WHERE,
                 ...TAKES_PLACE_WHERE,
-                ...primaryMeetingWhere,
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

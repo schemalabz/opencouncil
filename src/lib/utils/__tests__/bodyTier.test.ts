@@ -1,72 +1,107 @@
-import { AdministrativeBodyType } from '@prisma/client';
 import {
-    PRIMARY_BODY_TYPES,
+    ALL_SCOPE,
+    bodyScopeWhere,
     pipelineRunsUnattended,
     voiceprintNeedsOwnConsent,
-    SECONDARY_BODY_TYPES,
-    bodyTier,
+    defaultTierOf,
     defaultNotificationBehavior,
     hasPrimaryPresence,
     isSecondaryBody,
+    isYouthCouncil,
     primaryMeetingWhere,
     primaryPresenceWhere,
     readTier,
+    secondaryMeetingWhere,
+    youthCouncilOnly,
 } from '../bodyTier';
 
-describe('bodyTier', () => {
-    it('places every body type in exactly one tier', () => {
-        const all = Object.values(AdministrativeBodyType);
-        expect([...PRIMARY_BODY_TYPES, ...SECONDARY_BODY_TYPES].sort()).toEqual([...all].sort());
-        expect(PRIMARY_BODY_TYPES.filter(type => SECONDARY_BODY_TYPES.includes(type))).toEqual([]);
+describe('defaultTierOf', () => {
+    it('starts the municipality\'s own bodies primary, and the youth council secondary', () => {
+        expect(defaultTierOf('council')).toBe('primary');
+        expect(defaultTierOf('committee')).toBe('primary');
+        expect(defaultTierOf('community')).toBe('primary');
+        expect(defaultTierOf('youthCouncil')).toBe('secondary');
     });
+});
 
-    it('keeps the municipality\'s own bodies primary, and the youth council secondary', () => {
-        expect(bodyTier('council')).toBe('primary');
-        expect(bodyTier('committee')).toBe('primary');
-        expect(bodyTier('community')).toBe('primary');
-        expect(bodyTier('youthCouncil')).toBe('secondary');
-    });
-
-    it('reads a missing body as the council\'s', () => {
-        expect(bodyTier(null)).toBe('primary');
-        expect(bodyTier(undefined)).toBe('primary');
+describe('the tier of a body', () => {
+    it('is the stored tier, whatever the type', () => {
+        expect(isSecondaryBody({ tier: 'secondary' })).toBe(true);
+        expect(isSecondaryBody({ tier: 'primary' })).toBe(false);
         expect(isSecondaryBody(null)).toBe(false);
-        expect(isSecondaryBody({ type: 'youthCouncil' })).toBe(true);
+        expect(isSecondaryBody(undefined)).toBe(false);
     });
 
-    it('keeps a meeting with no body inside the primary where clause', () => {
+    it('reads the tier in the where clauses, and keeps a meeting with no body primary', () => {
         expect(primaryMeetingWhere.OR).toContainEqual({ administrativeBodyId: null });
-        expect(primaryMeetingWhere.OR).toContainEqual({ administrativeBody: { type: { in: ['council', 'committee', 'community'] } } });
+        expect(primaryMeetingWhere.OR).toContainEqual({ administrativeBody: { tier: 'primary' } });
+        expect(secondaryMeetingWhere).toEqual({ administrativeBody: { tier: 'secondary' } });
     });
 
     it('starts a secondary body with its notifications off, and a primary one on approval', () => {
-        expect(defaultNotificationBehavior('youthCouncil')).toBe('NOTIFICATIONS_DISABLED');
-        for (const type of PRIMARY_BODY_TYPES) expect(defaultNotificationBehavior(type)).toBe('NOTIFICATIONS_APPROVAL');
+        expect(defaultNotificationBehavior('secondary')).toBe('NOTIFICATIONS_DISABLED');
+        expect(defaultNotificationBehavior('primary')).toBe('NOTIFICATIONS_APPROVAL');
     });
 
-    it('runs the pipeline of a secondary body with no operator, and keeps the review step for a primary one', () => {
+    it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {
+        const secondary = { administrativeBody: { tier: 'secondary' as const } };
+        const primary = { administrativeBody: { tier: 'primary' as const } };
+        const party = { administrativeBody: null };
+        expect(hasPrimaryPresence([])).toBe(true);
+        expect(hasPrimaryPresence([party])).toBe(true);
+        expect(hasPrimaryPresence([secondary, primary])).toBe(true);
+        expect(hasPrimaryPresence([secondary])).toBe(false);
+        expect(hasPrimaryPresence([secondary, secondary])).toBe(false);
+    });
+});
+
+describe('the rules of a youth council', () => {
+    it('read the type, not the tier: a secondary council of a company keeps the review step', () => {
+        expect(isYouthCouncil({ type: 'youthCouncil' })).toBe(true);
+        expect(isYouthCouncil({ type: 'council' })).toBe(false);
         expect(pipelineRunsUnattended({ type: 'youthCouncil' })).toBe(true);
         expect(pipelineRunsUnattended({ type: 'council' })).toBe(false);
         expect(pipelineRunsUnattended(null)).toBe(false);
     });
 
-    it('asks the own consent of a person whose every role is on a secondary body before a voiceprint', () => {
-        const youth = { administrativeBody: { type: 'youthCouncil' as const } };
-        const council = { administrativeBody: { type: 'council' as const } };
-        expect(voiceprintNeedsOwnConsent([youth])).toBe(true);
-        expect(voiceprintNeedsOwnConsent([youth, council])).toBe(false);
-        expect(voiceprintNeedsOwnConsent([])).toBe(false);
-    });
-
-    it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {
+    it('ask the own consent of a person whose every role is on a youth council', () => {
         const youth = { administrativeBody: { type: 'youthCouncil' as const } };
         const council = { administrativeBody: { type: 'council' as const } };
         const party = { administrativeBody: null };
-        expect(hasPrimaryPresence([])).toBe(true);
-        expect(hasPrimaryPresence([party])).toBe(true);
-        expect(hasPrimaryPresence([youth, council])).toBe(true);
-        expect(hasPrimaryPresence([youth])).toBe(false);
-        expect(hasPrimaryPresence([youth, youth])).toBe(false);
+        expect(voiceprintNeedsOwnConsent([youth])).toBe(true);
+        expect(voiceprintNeedsOwnConsent([youth, youth])).toBe(true);
+        expect(voiceprintNeedsOwnConsent([youth, council])).toBe(false);
+        expect(voiceprintNeedsOwnConsent([youth, party])).toBe(false);
+        expect(voiceprintNeedsOwnConsent([])).toBe(false);
+        expect(youthCouncilOnly([council])).toBe(false);
+    });
+});
+
+describe('bodyScopeWhere', () => {
+    const councilType = { OR: [{ administrativeBody: { type: { in: ['council'] } } }, { administrativeBodyId: null }] };
+
+    it('is the primary tier when no scope is given', () => {
+        expect(bodyScopeWhere()).toEqual(primaryMeetingWhere);
+        expect(bodyScopeWhere({})).toEqual(primaryMeetingWhere);
+        expect(bodyScopeWhere({ tier: 'primary' })).toEqual(primaryMeetingWhere);
+    });
+
+    it('widens through the tier alone', () => {
+        expect(bodyScopeWhere({ tier: 'secondary' })).toEqual(secondaryMeetingWhere);
+        expect(bodyScopeWhere(ALL_SCOPE)).toEqual({});
+    });
+
+    it('narrows inside the tier with a type, and never widens', () => {
+        expect(bodyScopeWhere({ types: ['youthCouncil'] })).toEqual({
+            AND: [primaryMeetingWhere, { administrativeBody: { type: { in: ['youthCouncil'] } } }],
+        });
+        expect(bodyScopeWhere({ tier: 'all', types: ['council'] })).toEqual({ AND: [{}, councilType] });
+        expect(bodyScopeWhere({ tier: 'secondary', types: ['council'] })).toEqual({ AND: [secondaryMeetingWhere, councilType] });
+    });
+
+    it('names bodies by id in any tier, over the tier and the types', () => {
+        expect(bodyScopeWhere({ ids: ['b1'] })).toEqual({ administrativeBodyId: { in: ['b1'] } });
+        expect(bodyScopeWhere({ tier: 'primary', types: ['council'], ids: ['b1'] })).toEqual({ administrativeBodyId: { in: ['b1'] } });
     });
 });
 
@@ -75,17 +110,19 @@ describe('primaryPresenceWhere', () => {
         expect(primaryPresenceWhere).toEqual({
             OR: [
                 { roles: { none: {} } },
-                { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { type: { in: ['council', 'committee', 'community'] } } }] } } },
+                { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { tier: 'primary' } }] } } },
             ],
         });
     });
 });
 
 describe('readTier', () => {
-    it('reads the two choices and leaves the rest to the tab', () => {
+    it('reads the three choices and leaves the rest to the surface', () => {
         expect(readTier('all')).toBe('all');
         expect(readTier('primary')).toBe('primary');
+        expect(readTier('secondary')).toBe('secondary');
         expect(readTier(undefined)).toBeNull();
+        expect(readTier(null)).toBeNull();
         expect(readTier('x')).toBeNull();
         expect(readTier(['all'])).toBeNull();
     });

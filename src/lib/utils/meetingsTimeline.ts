@@ -1,5 +1,5 @@
-import type { AdministrativeBodyType } from '@prisma/client';
-import { bodyTier } from './bodyTier';
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
+import { isSecondaryBody } from './bodyTier';
 import { SUBJECT_PREVIEW_COUNT } from './subjects';
 
 /**
@@ -45,9 +45,9 @@ export type TimelineSide = 'left' | 'right';
  * existed) reads as the council's, which is the default body everywhere else
  * in the app.
  */
-export function timelineSide(type: AdministrativeBodyType | null | undefined): TimelineSide | null {
-    if (type === 'community' || bodyTier(type) === 'secondary') return null;
-    return type == null || type === 'council' ? 'right' : 'left';
+export function timelineSide(body: { type: AdministrativeBodyType; tier: BodyTier } | null | undefined): TimelineSide | null {
+    if (body?.type === 'community' || isSecondaryBody(body)) return null;
+    return body == null || body.type === 'council' ? 'right' : 'left';
 }
 
 /** A card's exact height for a meeting previewing `subjectCount` subjects. */

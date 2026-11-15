@@ -6,7 +6,6 @@ import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
 import { peopleOnly } from "@/lib/db/types";
 import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
-import { primaryMeetingSql } from "./bodyTierSql";
 import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
@@ -92,16 +91,13 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         // There is no releasedAt column, so this counts meetings created this
         // week that are currently released — not release events this week.
         prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true, ...primaryMeetingWhere } }),
-        prisma.$queryRaw<Array<{ total_hours: number }>>`
-            SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
-            FROM (
-                SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
-                FROM "CouncilMeeting" cm
-                JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                WHERE cm.released = true AND cm."createdAt" >= ${sevenDaysAgo} AND ${primaryMeetingSql('cm')}
-                GROUP BY cm.id, cm."cityId"
-            ) meetings
-        `,
+        // One row per meeting: its length from the first segment to the last.
+        prisma.speakerSegment.groupBy({
+            by: ['cityId', 'meetingId'],
+            where: { meeting: { released: true, createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere } },
+            _min: { startTimestamp: true },
+            _max: { endTimestamp: true },
+        }),
         prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
         prisma.searchQuery.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.searchQuery.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
@@ -133,7 +129,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         content: {
             meetingsAddedThisWeek,
             releasedOfThose,
-            meetingHoursThisWeek: Math.round(Number(meetingHoursThisWeek[0]?.total_hours ?? 0)),
+            meetingHoursThisWeek: Math.round(meetingHoursThisWeek.reduce((hours, meeting) => hours + ((meeting._max.endTimestamp ?? 0) - (meeting._min.startTimestamp ?? 0)) / 3600, 0)),
             supportedCities,
         },
         engagement,

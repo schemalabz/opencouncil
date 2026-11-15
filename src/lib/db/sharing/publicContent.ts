@@ -3,7 +3,7 @@ import type { Prisma, Realm } from '@prisma/client';
 import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
-import { SECONDARY_BODY_TYPES, pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE, pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {
@@ -76,20 +76,21 @@ export const TRANSCRIPT_PUBLIC_WHERE = {
     OR: [
         { administrativeBody: null },
         { administrativeBody: { showUnreviewedTranscript: true } },
-        { administrativeBody: { type: { in: [...SECONDARY_BODY_TYPES] } } },
+        // The twin of pipelineRunsUnattended: a youth council has no review step.
+        { administrativeBody: { type: 'youthCouncil' } },
         { taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } } },
     ],
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 export async function getPublicMeeting(cityId: string, meetingId: string, realm: Realm) {
     return prisma.councilMeeting.findFirst({
-        where: { cityId, id: meetingId, ...publicMeetingWhere(realm) }, select: publicMeetingSelect,
+        where: { cityId, id: meetingId, ...publicMeetingWhere(realm, ALL_SCOPE) }, select: publicMeetingSelect,
     });
 }
 
 export async function getPublicSubject(cityId: string, meetingId: string, subjectId: string, realm: Realm) {
     return prisma.subject.findFirst({
-        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: publicMeetingWhere(realm) },
+        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: publicMeetingWhere(realm, ALL_SCOPE) },
         select: publicSubjectSelect,
     });
 }

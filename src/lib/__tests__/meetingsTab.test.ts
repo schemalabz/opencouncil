@@ -3,7 +3,7 @@ import { parseCollectionParams } from '@/lib/utils/filterURL';
 import { meetingBodyFilter, meetingsTabFilters, meetingsTabHrefForBody } from '../meetingsTab';
 
 const body = (id: string, type: PublicAdministrativeBody['type'], name: string): PublicAdministrativeBody => ({
-    id, type, name, name_en: name, cityId: 'c', place: null, youtubeChannelUrl: null,
+    id, type, tier: type === 'youthCouncil' ? 'secondary' : 'primary', name, name_en: name, cityId: 'c', place: null, youtubeChannelUrl: null,
 });
 
 const bodies = [
@@ -15,11 +15,11 @@ const bodies = [
 const t = (key: string) => key;
 
 describe('meetingsTabFilters', () => {
-    it('offers the types present, defaults to the council, and gives the council no body picker', () => {
+    it('offers the types present, defaults to the council, and offers the bodies of every type', () => {
         const { filterOptions, defaultFilterValues, bodyOptionsFor } = meetingsTabFilters(bodies, t);
         expect(filterOptions.map(o => o.value)).toEqual(['council', 'committee', 'community']);
         expect(defaultFilterValues).toEqual(['council']);
-        expect(bodyOptionsFor('council')).toEqual([]);
+        expect(bodyOptionsFor('council').map(o => o.value)).toEqual(['council']);
         expect(bodyOptionsFor('community').map(o => o.value)).toEqual(['community-a', 'community-b']);
     });
 
@@ -30,11 +30,11 @@ describe('meetingsTabFilters', () => {
 
 describe('meetingBodyFilter', () => {
     it('selects one body by id', () => {
-        expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: 'community-a' }, bodies)).toEqual({ administrativeBodyIds: ['community-a'] });
+        expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: 'community-a' }, bodies)).toEqual({ ids: ['community-a'] });
     });
 
     it('turns selected types into the ids of every body of those types', () => {
-        expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: null }, bodies)).toEqual({ administrativeBodyIds: ['community-b', 'community-a'] });
+        expect(meetingBodyFilter({ selectedFilters: ['community'], selectedBody: null }, bodies)).toEqual({ ids: ['community-b', 'community-a'] });
     });
 
     it('applies no body filter for "all"', () => {
@@ -60,12 +60,21 @@ describe('meetingsTabHrefForBody', () => {
         expect(view.selectedBody).toBe('youth');
     });
 
-    it('sends the council to its type alone, and keeps the tier of the tab', () => {
+    it('names a council by its body, and keeps the tier of the tab', () => {
         const params = paramsOf(meetingsTabHrefForBody('c', bodies[0], t));
-        expect(params.get('body')).toBeNull();
         expect(params.get('tier')).toBeNull();
         const view = parseCollectionParams(params, meetingsTabFilters(bodies, t));
         expect(view.selectedFilters).toEqual(['council']);
-        expect(view.selectedBody).toBeNull();
+        expect(view.selectedBody).toBe('council');
+    });
+
+    it('names a secondary body of type council by its body, so the main council stays off the list (#829)', () => {
+        const company = { ...body('company', 'council', 'Ζήρεια Α.Ε.'), tier: 'secondary' as const };
+        const params = paramsOf(meetingsTabHrefForBody('c', company, t));
+        expect(params.get('tier')).toBe('all');
+        const view = parseCollectionParams(params, meetingsTabFilters([...bodies, company], t, { widened: true }));
+        expect(view.selectedFilters).toEqual(['council']);
+        expect(view.selectedBody).toBe('company');
+        expect(meetingBodyFilter(view, [...bodies, company])).toEqual({ ids: ['company'] });
     });
 });

@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType, MeetingKind, MeetingScheduleStatus } from "@prisma/client";
+import type { BodyTier, MeetingKind, MeetingScheduleStatus } from "@prisma/client";
 import { takesPlace } from "@/lib/meetingLifecycleRules";
 import { takesNoDecisions, pollDueAt } from "./pollDecisionsBackoff";
 import { MeetingDecisionCounts } from "../db/decisions";
@@ -37,7 +37,7 @@ export interface PollPartition {
  *   re-poll, but surfaced so the admin knows).
  */
 export function partitionMeetingsForPolling(
-    meetings: { id: string; name: string; kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null; scheduleStatus: MeetingScheduleStatus; administrativeBody?: { type: AdministrativeBodyType } | null }[],
+    meetings: { id: string; name: string; kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null; scheduleStatus: MeetingScheduleStatus; administrativeBody?: { tier: BodyTier } | null }[],
     decisionCounts: MeetingDecisionCounts,
 ): PollPartition {
     const pollable: MeetingPollEligibility[] = [];

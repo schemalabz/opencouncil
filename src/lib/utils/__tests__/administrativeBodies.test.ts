@@ -20,6 +20,7 @@ function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): Administrat
         name: 'Test Body',
         name_en: 'Test Body',
         type: 'council',
+        tier: 'primary',
         notificationBehavior: 'NOTIFICATIONS_APPROVAL',
         showUnreviewedTranscript: true,
         youtubeChannelUrl: null,

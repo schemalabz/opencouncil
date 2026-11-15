@@ -8,6 +8,7 @@ import { category, run, runStructured } from './toolSupport';
 import { cityProfileSchema, getCityToolInput } from './citySchemas';
 import { latitude, longitude } from '@/lib/zod-schemas/primitives';
 import { jsonPageFields } from '@/lib/zod-schemas/listQuery';
+import { TIER_SCOPE_RULE, tierScopeSchema } from '@/lib/zod-schemas/administrativeBody';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -40,7 +41,10 @@ const paginationShape = {
  * opposite of what passing it means.
  */
 const administrativeBodyTypesFilter = z.array(z.enum(AdministrativeBodyType)).min(1).optional()
-    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only), youthCouncil (Δημοτικό Συμβούλιο Νέων; left out unless asked for)');
+    .describe('Restrict to bodies of these kinds, inside the tier: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only), youthCouncil (Δημοτικό Συμβούλιο Νέων). A type narrows and never widens: a secondary youth council needs `tier` as well');
+
+/** The tier switch every reader list shares (see BodyScope). */
+const tierFilter = tierScopeSchema.optional().describe(`Which tiers of body: ${TIER_SCOPE_RULE}`);
 
 /**
  * The render settings both highlight write tools accept. Shared so the two
@@ -82,8 +86,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 personIds: z.array(z.string()).optional().describe('Restrict to subjects a person spoke about'),
                 partyIds: z.array(z.string()).optional().describe('Restrict to subjects a party spoke about'),
                 administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
-                    .describe('Restrict to subjects of meetings of these administrative bodies (see get_city). An unknown id is an error, not an empty list. With administrativeBodyTypes also set, a subject must match both'),
+                    .describe('Restrict to subjects of meetings of these administrative bodies, in any tier (see get_city). An unknown id is an error, not an empty list. With administrativeBodyTypes also set, a subject must match both'),
                 administrativeBodyTypes: administrativeBodyTypesFilter,
+                tier: tierFilter,
                 topics: z.array(z.string()).optional()
                     .describe('Restrict to these topic labels, as returned in results (e.g. "Παιδεία", "Συγκοινωνίες"). An unknown label answers with the full list'),
                 dateFrom: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -114,6 +119,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                 cityIds: z.array(z.string()).optional()
                     .describe('Restrict to these municipalities (omit for all of them)'),
                 topics: z.array(z.string()).optional().describe('Restrict to these topic labels'),
+                tier: tierFilter,
                 limit: z.number().int().min(1).max(50).default(10),
             }),
         },
@@ -143,6 +149,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                 lng: longitude.describe('Longitude (WGS84)'),
                 radiusMeters: z.number().int().min(50).max(10000).default(1000)
                     .describe('Radius in meters around the point for location-pinned subjects'),
+                tier: tierFilter,
                 limit: z.number().int().min(1).max(50).default(10),
             }),
         },
@@ -191,8 +198,8 @@ export function registerOpenCouncilServer(server: McpServer) {
             description:
                 'Get a municipality profile: its political parties, and its administrative ' +
                 'bodies — the council, committees, κοινότητες and youth councils that hold meetings. ' +
-                'Each body carries the id that list_meetings and search filter by. A youth council ' +
-                '(youthCouncil) is secondary: its meetings show only when a body id or body type asks for them. ' +
+                'Each body carries the id that list_meetings and search filter by, and its tier. A secondary body ' +
+                '(every youth council, by default) shows its meetings only when you pass `tier` or its id; a body type narrows inside the tier. ' +
                 'Includes status, realm, language, timezone, ' +
                 'official names and compact boundary metadata; null boundary means no outline is stored.',
             inputSchema: getCityToolInput,
@@ -258,7 +265,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'still holds everything that was said in it. '
                 + 'Read scheduleStatus before you call a row the last meeting of a body: a '
                 + '"postponed" or "cancelled" meeting did not take place on its date. '
-                + 'postponedFromDate is set on the new meeting of a postponement.',
+                + 'postponedFromDate is set on the new meeting of a postponement. '
+                + 'A caller who may see the unreleased meetings of the city gets them too, '
+                + 'of every tier when it passes no tier.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -266,8 +275,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 timeFilter: z.enum(['upcoming', 'past']).optional()
                     .describe('Keep only meetings already held ("past") or still to come ("upcoming"). Omitted, the list holds both'),
                 administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
-                    .describe('Restrict to these administrative body ids (see get_city). An unknown id is an error, not an empty list. Takes precedence over administrativeBodyTypes'),
+                    .describe('Restrict to these administrative body ids, in any tier (see get_city). An unknown id is an error, not an empty list. Takes precedence over tier and administrativeBodyTypes'),
                 administrativeBodyTypes: administrativeBodyTypesFilter,
+                tier: tierFilter,
                 pageSize: jsonPageFields.pageSize.max(50).default(10),
                 ...paginationShape,
             }),
@@ -282,6 +292,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                         from: args.from,
                         to: args.to,
                         timeFilter: args.timeFilter,
+                        tier: args.tier,
                         administrativeBodyIds: args.administrativeBodyIds,
                         administrativeBodyTypes: args.administrativeBodyTypes,
                     },

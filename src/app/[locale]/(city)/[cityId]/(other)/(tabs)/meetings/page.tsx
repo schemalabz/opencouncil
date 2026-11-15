@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import type { BodyTier } from "@prisma/client";
 import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE, findMeetingIdsMatching } from "@/lib/db/meetingsList";
-import { isSecondaryBody, readTier } from "@/lib/utils/bodyTier";
+import { isSecondaryBody, readTier, type BodyScope, type TierScope } from "@/lib/utils/bodyTier";
 import CityMeetings from "@/components/cities/CityMeetings";
 import {
     getCityCached,
@@ -77,18 +78,15 @@ export async function generateMetadata(
     });
 }
 
-/** The body filter of the list: the ids of a selection, or every tier when the reader widened the tab (#829). */
-type BodyFilter = NonNullable<ReturnType<typeof meetingBodyFilter>> | { tier: 'all' };
-
 /**
  * One page of the list and its total. The count comes first, so only a page
  * that exists is queried and cached: an arbitrary ?page= would otherwise reach
  * the database as an offset, and leave a cache entry for every number tried.
  */
-async function loadListPage(cityId: string, filter: BodyFilter, requestedPage: number, pageSize: number) {
-    const total = await countCouncilMeetingsCached(cityId, filter);
+async function loadListPage(cityId: string, scope: BodyScope, requestedPage: number, pageSize: number) {
+    const total = await countCouncilMeetingsCached(cityId, { scope });
     const page = clampPage(requestedPage, total, pageSize);
-    const rows = total > 0 ? await getCouncilMeetingsPreviewCached(cityId, { ...filter, page, pageSize }) : [];
+    const rows = total > 0 ? await getCouncilMeetingsPreviewCached(cityId, { scope, page, pageSize }) : [];
     return { rows, total, page };
 }
 
@@ -144,29 +142,33 @@ export default async function MeetingsPage(
     // with no meeting of the primary tier shows the secondary tier at once:
     // an empty tab would be its only page.
     const secondaryAvailable = everyBody.some(isSecondaryBody);
-    const tier = readTier(searchParams.tier);
+    const requestedTier = readTier(searchParams.tier);
     const administersSecondary = !unreleased.all && editorBodies.some(isSecondaryBody);
-    const primaryEmpty = secondaryAvailable && tier === null && !administersSecondary
-        ? (await countCouncilMeetingsCached(cityId, {})) === 0
+    const primaryEmpty = secondaryAvailable && requestedTier === null && !administersSecondary
+        ? (await countCouncilMeetingsCached(cityId)) === 0
         : false;
-    const showSecondary = secondaryAvailable
-        && (tier === 'all' || (tier === null && (administersSecondary || primaryEmpty)));
-    const administrativeBodies = showSecondary ? everyBody : everyBody.filter(body => !isSecondaryBody(body));
+    const tier: TierScope = !secondaryAvailable
+        ? 'primary'
+        : requestedTier ?? (administersSecondary || primaryEmpty ? 'all' : 'primary');
+    const showSecondary = tier !== 'primary';
+    const onShow = <T extends { tier: BodyTier }>(body: T) => tier === 'all' || body.tier === tier;
+    const administrativeBodies = everyBody.filter(onShow);
 
     const pageSize = DEFAULT_MEETING_PAGE_SIZE;
     const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon, { widened: showSecondary }));
-    // With the tier widened, «all» spans both tiers; the list's own default is the primary tier.
-    const bodyFilter = meetingBodyFilter(view, allBodies);
-    const filter = bodyFilter && showSecondary && !bodyFilter.administrativeBodyIds ? { tier: 'all' as const } : bodyFilter;
-    const matchingIds = filter && view.query.trim()
-        ? await findMeetingIdsMatching(cityId, view.query, { ...filter, unreleased }, locale, city.timezone)
+    // A type chip names the bodies of the tiers on show: an unticked tab must
+    // not reach a secondary body through the chip of its type.
+    const bodyFilter = meetingBodyFilter(view, allBodies.filter(onShow));
+    const scope: BodyScope | null = bodyFilter && { tier, ...bodyFilter };
+    const matchingIds = scope && view.query.trim()
+        ? await findMeetingIdsMatching(cityId, view.query, { scope, unreleased }, locale, city.timezone)
         : null;
 
-    const { rows, total, page } = !filter
+    const { rows, total, page } = !scope
         ? { rows: [], total: 0, page: 1 }
         : matchingIds
             ? await loadSearchPage(cityId, matchingIds, view.page, pageSize)
-            : await loadListPage(cityId, filter, view.page, pageSize);
+            : await loadListPage(cityId, scope, view.page, pageSize);
 
     return (
         <CityMeetings

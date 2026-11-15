@@ -20,6 +20,7 @@ export const publicAdministrativeBodySelect = {
     name: true,
     name_en: true,
     type: true,
+    tier: true,
     cityId: true,
     youtubeChannelUrl: true,
     place: true,

@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { DocumentKind, PeopleOrdering } from '@prisma/client';
 import { baseCityFields } from '@/lib/zod-schemas/city';
-import { administrativeBodyTypeSchema, notificationBehaviorSchema } from '@/lib/zod-schemas/administrativeBody';
+import { administrativeBodyTypeSchema, bodyTierSchema, notificationBehaviorSchema } from '@/lib/zod-schemas/administrativeBody';
 import { decisionConventionsRecordSchema } from '@/lib/decisionConventions';
 
 // The response schemas of the records that several route files return. The
@@ -62,6 +62,7 @@ export const AdministrativeBodySchema = z.object({
     name: z.string(),
     name_en: z.string(),
     type: administrativeBodyTypeSchema,
+    tier: bodyTierSchema.meta({ description: 'primary: its content shows by default. secondary: only when a reader passes `tier` or the id of the body. A body type narrows inside the tier.' }),
     cityId: z.string(),
     youtubeChannelUrl: z.string().nullable(),
     place: z.string().nullable().meta({ description: 'The hall where the body meets as a rule.' }),

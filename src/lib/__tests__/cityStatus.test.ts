@@ -14,6 +14,7 @@ import {
     CUSTOMER_CITY_WHERE,
     OUT_OF_NETWORK_CITY_WHERE,
 } from '../cityStatus';
+import { ALL_SCOPE, primaryMeetingWhere, secondaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 const ALL_STATUSES = Object.values(CityStatus);
 
@@ -89,7 +90,7 @@ describe('where-clause fragments agree with the predicates', () => {
     it('the second route is a released meeting of a secondary body', () => {
         expect(PUBLIC_THROUGH_SECONDARY_WHERE.councilMeetings.some).toEqual({
             released: true,
-            administrativeBody: { type: { in: ['youthCouncil'] } },
+            administrativeBody: { tier: 'secondary' },
         });
     });
 
@@ -106,12 +107,17 @@ describe('where-clause fragments agree with the predicates', () => {
 });
 
 describe('publicMeetingWhere', () => {
-    it('admits only a released meeting of a public city on the given realm', () => {
-        expect(publicMeetingWhere('greece')).toEqual({ released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } });
+    it('admits only a released meeting of a public city on the given realm, of the primary tier by default', () => {
+        expect(publicMeetingWhere('greece')).toEqual({ released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' }, AND: [primaryMeetingWhere] });
     });
 
     it('spans every realm only when the caller passes null', () => {
-        expect(publicMeetingWhere(null)).toEqual({ released: true, city: PUBLIC_CITY_WHERE });
+        expect(publicMeetingWhere(null)).toEqual({ released: true, city: PUBLIC_CITY_WHERE, AND: [primaryMeetingWhere] });
+    });
+
+    it('takes the scope of a reader who asked for more (#829)', () => {
+        expect(publicMeetingWhere('greece', ALL_SCOPE).AND).toEqual([{}]);
+        expect(publicMeetingWhere('greece', { tier: 'secondary' }).AND).toEqual([secondaryMeetingWhere]);
     });
 
     // meetingWhere in subjectsApi adds its date filters to the object it gets.

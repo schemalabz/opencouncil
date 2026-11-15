@@ -6,10 +6,11 @@ jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
 import { Realm } from '@prisma/client';
 import { buildApiSubjectWhere } from '@/lib/db/subjectsApi';
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 describe('buildApiSubjectWhere', () => {
     describe('the public view', () => {
-        it('serves released meetings of a published city in the realm of the request', () => {
+        it('serves released meetings of a published city in the realm of the request, of the primary tier (#829)', () => {
             const where = buildApiSubjectWhere(Realm.greece, 'athens', {});
 
             expect(where).toEqual({
@@ -17,6 +18,7 @@ describe('buildApiSubjectWhere', () => {
                 councilMeeting: {
                     released: true,
                     city: { ...PUBLIC_CITY_WHERE, realm: Realm.greece },
+                    AND: [primaryMeetingWhere],
                 },
             });
         });

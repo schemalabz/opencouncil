@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -30,7 +31,7 @@ import {
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSendSettings, AdministrativeBodyWithSettings } from '@/lib/db/types'
 import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
-import { defaultNotificationBehavior } from '@/lib/utils/bodyTier'
+import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -79,7 +80,8 @@ function getFormDefaults(body?: AdministrativeBodyWithSendSettings | null): Admi
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         place: body?.place || "",
-        notificationBehavior: body?.notificationBehavior || defaultNotificationBehavior(body?.type ?? "council"),
+        tier: body?.tier ?? defaultTierOf("council"),
+        notificationBehavior: body?.notificationBehavior ?? defaultNotificationBehavior(body?.tier ?? defaultTierOf("council")),
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: body?.decisionConventions ?? null,
@@ -104,14 +106,29 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         defaultValues: getFormDefaults(editingBody),
     })
 
-    // A new body's notification default follows its type (see
-    // defaultNotificationBehavior): the toggle moves with the type select
-    // until the admin touches it.
-    const selectedType = form.watch('type')
-    useEffect(() => {
-        if (editingBody || form.getFieldState('notificationBehavior').isDirty) return
-        form.setValue('notificationBehavior', defaultNotificationBehavior(selectedType))
-    }, [selectedType, editingBody, form])
+    // On a new body, the tier follows the type (see defaultTierOf) and the
+    // notification default follows the tier (see defaultNotificationBehavior),
+    // until the admin picks a value of that field. An existing body keeps what
+    // it has. A ref and not isDirty: isDirty clears when the admin picks the
+    // default value again, and a later type change then overwrites the choice.
+    const picked = useRef({ tier: false, notificationBehavior: false })
+
+    function openForm(body: AdministrativeBodyWithSendSettings | null) {
+        setEditingBody(body)
+        form.reset(getFormDefaults(body))
+        picked.current = { tier: false, notificationBehavior: false }
+    }
+
+    function followTier(tier: BodyTier) {
+        if (!editingBody && !picked.current.notificationBehavior) form.setValue('notificationBehavior', defaultNotificationBehavior(tier))
+    }
+
+    function followType(type: AdministrativeBodyType) {
+        if (editingBody || picked.current.tier) return
+        const tier = defaultTierOf(type)
+        form.setValue('tier', tier)
+        followTier(tier)
+    }
 
     async function onSubmit(values: AdministrativeBodyFormOutput) {
         setIsSubmitting(true)
@@ -134,6 +151,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     name: values.name,
                     name_en: values.name_en,
                     type: values.type,
+                    // Only a superadmin sets the tier. A new body of a city admin takes the default of its type.
+                    tier: isSuperAdmin ? values.tier : undefined,
                     youtubeChannelUrl: values.youtubeChannelUrl,
                     place: values.place,
                     notificationBehavior: values.notificationBehavior,
@@ -145,8 +164,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
 
             if (response.ok) {
                 onUpdate()
-                setEditingBody(null)
-                form.reset(getFormDefaults())
+                openForm(null)
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
@@ -240,7 +258,13 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{t('type')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select
+                                            onValueChange={(type: AdministrativeBodyType) => {
+                                                field.onChange(type)
+                                                followType(type)
+                                            }}
+                                            defaultValue={field.value}
+                                        >
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder={t('selectType')} />
@@ -259,6 +283,39 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
+                            {isSuperAdmin && (
+                                <FormField
+                                    control={form.control}
+                                    name="tier"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('tier')}</FormLabel>
+                                            <Select
+                                                onValueChange={(tier: BodyTier) => {
+                                                    picked.current.tier = true
+                                                    field.onChange(tier)
+                                                    followTier(tier)
+                                                }}
+                                                value={field.value}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="primary">{t('tierOptions.primary')}</SelectItem>
+                                                    <SelectItem value="secondary">{t('tierOptions.secondary')}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>
+                                                {t('tierDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                             <FormField
                                 control={form.control}
                                 name="youtubeChannelUrl"
@@ -305,7 +362,10 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         <FormControl>
                                             <TripleToggle
                                                 value={field.value}
-                                                onChange={field.onChange}
+                                                onChange={(value) => {
+                                                    picked.current.notificationBehavior = true
+                                                    field.onChange(value)
+                                                }}
                                                 options={[
                                                     {
                                                         value: 'NOTIFICATIONS_DISABLED',
@@ -416,8 +476,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             className="h-7 gap-1.5 rounded-[6px] px-2 text-xs"
                             onClick={(e) => {
                                 e.preventDefault();
-                                setEditingBody(null)
-                                form.reset(getFormDefaults())
+                                openForm(null)
                                 setIsDialogOpen(true)
                             }}
                         >
@@ -443,8 +502,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 aria-label={t('editBody')}
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    setEditingBody(body)
-                                    form.reset(getFormDefaults(body))
+                                    openForm(body)
                                     setIsDialogOpen(true)
                                 }}
                             >

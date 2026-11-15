@@ -43,7 +43,7 @@ export async function requestGenerateHighlightCore(highlightId: string, rawOptio
                                             person: {
                                                 include: {
                                                     roles: {
-                                                        include: { party: true, administrativeBody: { select: { type: true } } },
+                                                        include: { party: true, administrativeBody: { select: { type: true, tier: true } } },
                                                     },
                                                 },
                                             },

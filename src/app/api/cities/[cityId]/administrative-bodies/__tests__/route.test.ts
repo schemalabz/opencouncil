@@ -24,7 +24,7 @@ const mockGetFull = getAdministrativeBodiesForCity as jest.MockedFunction<typeof
 const mockGetPublic = getPublicAdministrativeBodiesForCity as jest.MockedFunction<typeof getPublicAdministrativeBodiesForCity>;
 const mockCreate = createAdministrativeBody as jest.MockedFunction<typeof createAdministrativeBody>;
 
-const PUBLIC_BODY = { id: 'b1', name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const, cityId: 'zografou', youtubeChannelUrl: null, place: null };
+const PUBLIC_BODY = { id: 'b1', name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const, tier: 'primary' as const, cityId: 'zografou', youtubeChannelUrl: null, place: null };
 const FULL_BODY = {
     ...PUBLIC_BODY,
     notificationBehavior: 'NOTIFICATIONS_APPROVAL' as const,
@@ -123,5 +123,24 @@ describe('POST /api/cities/[cityId]/administrative-bodies', () => {
 
         expect(response.status).toBe(400);
         expect(mockCreate).not.toHaveBeenCalled();
+    });
+});
+
+describe('POST of a body: its tier (#829)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCreate.mockResolvedValue({ ...FULL_BODY, id: 'b2' });
+    });
+
+    it('gives a body with no tier the default of its type, and the notification default of that tier', async () => {
+        await post('zografou', { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' });
+        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_DISABLED' }), undefined);
+        await post('zografou', { name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' });
+        expect(mockCreate).toHaveBeenLastCalledWith(expect.objectContaining({ tier: 'primary', notificationBehavior: 'NOTIFICATIONS_APPROVAL' }), undefined);
+    });
+
+    it('keeps the tier the request sends, and starts a secondary council with its notifications off', async () => {
+        await post('zografou', { name: 'Ζήρεια Α.Ε.', name_en: 'Ziria SA', type: 'council', tier: 'secondary' });
+        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ type: 'council', tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_DISABLED' }), undefined);
     });
 });

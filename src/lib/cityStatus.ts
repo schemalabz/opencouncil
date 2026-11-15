@@ -1,5 +1,5 @@
 import type { CityStatus, Prisma, Realm } from '@prisma/client';
-import { secondaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { bodyScopeWhere, secondaryMeetingWhere, type BodyScope } from '@/lib/utils/bodyTier';
 
 /**
  * Predicates over `City.status`, so the meaning of each state lives in one place
@@ -97,16 +97,20 @@ export const PUBLIC_CITY_WHERE = {
 } satisfies Prisma.CityWhereInput;
 
 /**
- * A meeting the public may see on `realm`'s domain: released, of a public city of that realm.
+ * A meeting the public may see on `realm`'s domain: released, of a public city of that realm,
+ * of a body in `scope` (absent, the primary tier: see BodyScope). A reader who asked for one item
+ * by its URL passes ALL_SCOPE.
  * Spread it into a CouncilMeeting where-clause, or use it as a nested `councilMeeting` filter.
+ * The scope sits under `AND`, so a caller that spreads it must not set its own `AND`.
  * The realm is part of the rule: a city id is not a secret, and city pages are tenant-isolated.
  * `null` spans every realm, for a caller that serves no single domain (the image backfill); it
  * is a required argument so that a request path cannot drop its realm by omission.
  */
-export function publicMeetingWhere(realm: Realm | null) {
+export function publicMeetingWhere(realm: Realm | null, scope?: BodyScope) {
     return {
         released: true,
         city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
+        AND: [bodyScopeWhere(scope)],
     } satisfies Prisma.CouncilMeetingWhereInput;
 }
 

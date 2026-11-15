@@ -1,4 +1,4 @@
-import { Prisma, type AdministrativeBodyType, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
+import { Prisma, type BodyTier, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
 import { CUSTOMER_CITY_WHERE, isCustomer } from '@/lib/cityStatus';
 import { TAKES_PLACE_WHERE, takesPlace } from '@/lib/meetingLifecycleRules';
 import { getPollableMeetingDateRange, takesNoDecisions, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
@@ -75,7 +75,7 @@ export function isPolledOnItsOwn(meeting: {
     kind: MeetingKind | null;
     continuationOf: { kind: MeetingKind | null } | null;
     city: { diavgeiaUid: string | null; status: CityStatus };
-    administrativeBody: { type: AdministrativeBodyType } | null;
+    administrativeBody: { tier: BodyTier } | null;
 }, now: Date = new Date()): boolean {
     const window = getPollableMeetingDateRange(now);
     return takesPlace(meeting)

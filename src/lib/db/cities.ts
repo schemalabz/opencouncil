@@ -8,7 +8,7 @@ import { ApiError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, editCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE, PUBLIC_THROUGH_SECONDARY_WHERE } from "../cityStatus";
-import { SECONDARY_BODY_TYPES, primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -152,7 +152,7 @@ function publicThroughSecondarySql(table: Prisma.Sql): Prisma.Sql {
         SELECT 1 FROM "CouncilMeeting" cm
         JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
         WHERE cm."cityId" = ${table}.id AND cm.released = true
-          AND ab.type::text IN (${Prisma.join([...SECONDARY_BODY_TYPES])})
+          AND ab.tier = 'secondary'
     )`;
 }
 

@@ -14,6 +14,7 @@ export function landingSearchHref(query: string, cats: string[], filters: MapFil
         cityId: filters.cityIds[0],
         topicIds: cats.length > 0 ? cats.join(',') : undefined,
         adminBodyType: filters.bodyTypes[0],
+        tier: filters.tier ?? undefined,
         dateFrom: filters.dateFrom ?? undefined,
         dateTo: filters.dateTo ?? undefined,
     });

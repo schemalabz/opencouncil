@@ -39,7 +39,7 @@ describe('transcribeUnattendedMeetings', () => {
             lte: new Date(NOW.getTime() - UNATTENDED_START_DELAY_MS),
         });
         expect(where.youtubeUrl).toEqual({ not: null });
-        expect(where.administrativeBody).toEqual({ type: { in: ['youthCouncil'] } });
+        expect(where.administrativeBody).toEqual({ type: 'youthCouncil' });
         expect(where).toMatchObject({ scheduleStatus: { in: ['scheduled'] }, noRecording: false });
         // A meeting whose transcription runs or succeeded stays out of the
         // window, so it cannot fill the window and starve a later meeting.

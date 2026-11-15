@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
+import { readTier } from "@/lib/utils/bodyTier";
 import { readPageParam, totalPagesOf } from "@/lib/zod-schemas/listQuery";
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
@@ -69,6 +70,7 @@ export default function SearchPage() {
     const partyId = searchParams.get('partyId') || undefined;
     const adminBodyType = searchParams.get('adminBodyType') || undefined;
     const adminBodyId = searchParams.get('adminBodyId') || undefined;
+    const tier = searchParams.get('tier') || undefined;
     const topicIds = searchParams.get('topicIds') || undefined;
     const dateFrom = searchParams.get('dateFrom') || undefined;
     const dateTo = searchParams.get('dateTo') || undefined;
@@ -80,8 +82,8 @@ export default function SearchPage() {
     const derivedKeys = useMemo(() => parseDerivedKeys(derivedParam), [derivedParam]);
 
     const filters = useMemo<SearchFilterParams>(
-        () => ({ cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo }),
-        [cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo]
+        () => ({ cityId, personId, partyId, adminBodyType, adminBodyId, tier, topicIds, dateFrom, dateTo }),
+        [cityId, personId, partyId, adminBodyType, adminBodyId, tier, topicIds, dateFrom, dateTo]
     );
 
     // Local state for search input
@@ -254,10 +256,11 @@ export default function SearchPage() {
         // than sent: the pill leaves it unlabelled, so filtering on it would
         // empty the results with nothing on screen to explain why.
         const adminBodyTypeFilter = toAdministrativeBodyType(adminBodyType);
+        const tierFilter = readTier(tier) ?? undefined;
         const requestedCityIds = cityId ? [cityId] : undefined;
         const requestedDateRange = filterDateRange(dateFrom, dateTo);
         const searchedWith = (cityIds?: string[], dateRange?: { start: string; end: string }) =>
-            JSON.stringify([query, cityIds, personId, partyId, adminBodyId, adminBodyTypeFilter, topicIds, dateRange, page]);
+            JSON.stringify([query, cityIds, personId, partyId, adminBodyId, adminBodyTypeFilter, tierFilter, topicIds, dateRange, page]);
 
         // Already ran this exact search — see executedSearchRef. Checked before
         // the run id below is claimed, because skipping a search is not the same
@@ -313,6 +316,7 @@ export default function SearchPage() {
                 partyIds: partyId ? [partyId] : undefined,
                 administrativeBodyIds: adminBodyId ? [adminBodyId] : undefined,
                 administrativeBodyTypes: adminBodyTypeFilter ? [adminBodyTypeFilter] : undefined,
+                tier: tierFilter,
                 topicIds: topicIds ? topicIds.split(',').filter(Boolean) : undefined,
                 dateRange: requestedDateRange,
                 config: {
@@ -424,7 +428,7 @@ export default function SearchPage() {
             });
             console.error('Search error:', err);
         }
-    }, [query, cityId, personId, partyId, adminBodyType, adminBodyId, topicIds, dateFrom, dateTo, page, derivedKeys, applyDerivedFilters, toast]);
+    }, [query, cityId, personId, partyId, adminBodyType, adminBodyId, tier, topicIds, dateFrom, dateTo, page, derivedKeys, applyDerivedFilters, toast]);
 
     // Search when URL parameters change
     useEffect(() => {

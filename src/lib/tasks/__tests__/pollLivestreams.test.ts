@@ -144,7 +144,7 @@ describe('pollLivestreamsForRecentMeetings', () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();
         expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({
-            AND: [{ OR: [{ city: { status: 'supported' } }, { administrativeBody: { type: { in: ['youthCouncil'] } } }] }],
+            AND: [{ OR: [{ city: { status: 'supported' } }, { administrativeBody: { type: 'youthCouncil' } }] }],
         });
     });
 

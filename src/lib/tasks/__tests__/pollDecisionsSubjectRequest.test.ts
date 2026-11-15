@@ -118,7 +118,7 @@ describe('requestPollDecisionForSubject', () => {
         const { select } = mockSubjectFindUnique.mock.calls[0][0];
         expect(select).toMatchObject({
             agendaItemIndex: true, nonAgendaReason: true, withdrawn: true,
-            councilMeeting: { select: { administrativeBody: { select: { type: true } } } },
+            councilMeeting: { select: { administrativeBody: { select: { tier: true } } } },
         });
     });
 
@@ -127,7 +127,7 @@ describe('requestPollDecisionForSubject', () => {
     it('refuses a subject of a secondary body before it looks for a running task', async () => {
         mockSubjectFindUnique.mockResolvedValue({
             ...OUT_OF_AGENDA_SUBJECT,
-            councilMeeting: { administrativeBody: { type: 'youthCouncil' } },
+            councilMeeting: { administrativeBody: { tier: 'secondary' } },
         });
 
         await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('not polled for this administrative body');

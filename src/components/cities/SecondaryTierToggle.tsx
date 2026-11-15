@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { SECONDARY_BODY_TYPES, TIER_PARAM } from '@/lib/utils/bodyTier';
+import { TIER_PARAM } from '@/lib/utils/bodyTier';
 
 /**
  * The checkbox that widens a city tab to the secondary tier (#829): off by
@@ -26,15 +26,9 @@ export function SecondaryTierToggle({ shown }: { shown: boolean }) {
         params.delete('filters');
         params.delete('body');
         params.delete('page');
-        if (checked) {
-            params.set(TIER_PARAM, 'all');
-            // Land on the tier just asked for: the list's own default chip is
-            // the council, under which the new rows would stay out of sight.
-            // The list keys its chips by the type label (see getAdministrativeBodyTypes).
-            params.set('filters', SECONDARY_BODY_TYPES.map(type => t(`adminBodyType_${type}`)).join(','));
-        } else {
-            params.set(TIER_PARAM, 'primary');
-        }
+        // With the box ticked, the list's default is every body (see
+        // meetingsTabFilters), so the new rows are on show.
+        params.set(TIER_PARAM, checked ? 'all' : 'primary');
         const query = params.toString();
         router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     };

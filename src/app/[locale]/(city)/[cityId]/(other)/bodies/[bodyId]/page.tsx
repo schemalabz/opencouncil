@@ -51,7 +51,7 @@ export default async function AdministrativeBodyPage(props: Params) {
     // The cached list reads the viewer's unreleased scope itself: an admin of
     // the body sees its drafts, a reader sees the public rows.
     const [meetings, people, bodies, parties, contacts] = await Promise.all([
-        getCouncilMeetingsPreviewCached(cityId, { administrativeBodyIds: [bodyId], limit: MEETINGS_LIMIT }),
+        getCouncilMeetingsPreviewCached(cityId, { scope: { ids: [bodyId] }, limit: MEETINGS_LIMIT }),
         getPeopleOfBody(cityId, bodyId),
         canEdit ? getPublicAdministrativeBodiesForCity(cityId) : [],
         // The member form offers a party only to an admin of the city: a body

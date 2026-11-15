@@ -6,7 +6,8 @@ import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
-import { countCouncilMeetings, getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
+import { countCouncilMeetings, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from '@/lib/db/meetingsList';
+import { meetingListTier, type TierScope } from '@/lib/utils/bodyTier';
 import { pageSlice, paginationOf } from '@/lib/zod-schemas/listQuery';
 import { resolveDateRange } from '@/lib/dates/dayBounds';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
@@ -233,6 +234,7 @@ export async function projectCityProfile(city: CityWithCounts, boundary: CityBou
             name: body.name,
             name_en: body.name_en,
             type: body.type,
+            tier: body.tier,
         })),
         parties: parties.map(party => ({
             id: party.id,
@@ -320,6 +322,7 @@ export async function mcpListMeetings(
         from?: string;
         to?: string;
         timeFilter?: 'upcoming' | 'past';
+        tier?: TierScope;
         administrativeBodyIds?: string[];
         administrativeBodyTypes?: AdministrativeBodyType[];
     },
@@ -340,13 +343,13 @@ export async function mcpListMeetings(
         from: options.from ? { kind: 'day', day: options.from } : undefined,
         to: options.to ? { kind: 'day', day: options.to } : undefined,
     }, timezone);
-    const selection = {
-        includeUnreleased: await canSeeUnreleased(identity, cityId),
+    const includeUnreleased = await canSeeUnreleased(identity, cityId);
+    const selection: MeetingListOptions = {
+        includeUnreleased,
         from,
         to,
         timeFilter: options.timeFilter,
-        administrativeBodyIds: options.administrativeBodyIds,
-        administrativeBodyTypes: options.administrativeBodyTypes,
+        scope: { tier: meetingListTier(options.tier, includeUnreleased), ids: options.administrativeBodyIds, types: options.administrativeBodyTypes },
     };
     const [meetings, total] = await Promise.all([
         getCouncilMeetingsWithSubjectPreview(cityId, { ...selection, page: options.page, pageSize: options.pageSize }),
@@ -837,6 +840,7 @@ export async function mcpListHotSubjects(args: {
     daysBack: number;
     cityIds?: string[];
     topics?: string[];
+    tier?: TierScope;
     limit: number;
 }) {
     const topicIds = args.topics?.length ? await resolveTopicIds(args.topics) : undefined;
@@ -844,7 +848,7 @@ export async function mcpListHotSubjects(args: {
 
     const rows = await getHotSubjectsCached(
         currentRealm(),
-        { daysBack: args.daysBack, cityIds: args.cityIds, topicIds },
+        { daysBack: args.daysBack, cityIds: args.cityIds, topicIds, tier: args.tier },
         args.limit
     );
 
@@ -880,6 +884,7 @@ export async function mcpListNearbySubjects(args: {
     lat: number;
     lng: number;
     radiusMeters: number;
+    tier?: TierScope;
     limit: number;
 }) {
     // Listed-only lookup: we carry boundaries for far more municipalities
@@ -906,7 +911,8 @@ export async function mcpListNearbySubjects(args: {
         city.id,
         center,
         args.radiusMeters,
-        args.limit
+        args.limit,
+        { scope: { tier: args.tier } },
     );
     const ranked = await withDistances(subjects, center);
     const timezone = await getCityTimezone(city.id);
@@ -945,6 +951,7 @@ export async function mcpSearch(
         cityIds?: string[];
         personIds?: string[];
         partyIds?: string[];
+        tier?: TierScope;
         administrativeBodyIds?: string[];
         administrativeBodyTypes?: AdministrativeBodyType[];
         topics?: string[];
@@ -973,6 +980,7 @@ export async function mcpSearch(
         cityIds: args.cityIds,
         personIds: args.personIds,
         partyIds: args.partyIds,
+        tier: args.tier,
         administrativeBodyIds: args.administrativeBodyIds,
         administrativeBodyTypes: args.administrativeBodyTypes,
         topicIds,

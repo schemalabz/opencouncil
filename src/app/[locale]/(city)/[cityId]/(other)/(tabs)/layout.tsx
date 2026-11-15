@@ -9,7 +9,7 @@ import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
 import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCityPublicThroughSecondaryCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { isOutOfNetwork, isPetitionable } from "@/lib/cityStatus";
-import { SECONDARY_BODY_TYPES, isSecondaryBody } from "@/lib/utils/bodyTier";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
@@ -57,10 +57,10 @@ export default async function TabsLayout(
         isUserAuthorizedToEdit({ cityId }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, takesPlace: true }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES], takesPlace: true }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES], takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, scope: { types: ['council'] }, takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, scope: { types: ['council'] }, takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, scope: { tier: 'secondary' }, takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, scope: { tier: 'secondary' }, takesPlace: true }),
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),

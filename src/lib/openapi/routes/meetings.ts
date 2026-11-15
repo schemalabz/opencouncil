@@ -81,7 +81,8 @@ export const meetingsPaths: Paths = {
         get: {
             summary: 'List meetings for a city',
             description: 'Returns the released meetings of the given city, ordered by date descending. '
-                + 'With includeUnreleased=true, an authorized caller also gets the unreleased ones.',
+                + 'With includeUnreleased=true, an authorized caller also gets the unreleased ones, '
+                + 'of every tier when it passes no tier.',
             tags: ['Meetings'],
             requestParams: { path: cityIdParam, query: meetingListQuerySchema },
             responses: {

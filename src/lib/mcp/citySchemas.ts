@@ -17,7 +17,7 @@ export const cityProfileSchema = z.object({
     officialSupport: z.boolean(),
     boundary: cityBoundarySummarySchema.nullable(),
     counts: z.object({ meetings: z.number().int().nonnegative(), people: z.number().int().nonnegative(), parties: z.number().int().nonnegative() }),
-    administrativeBodies: z.array(AdministrativeBodySchema.pick({ id: true, name: true, name_en: true, type: true })),
+    administrativeBodies: z.array(AdministrativeBodySchema.pick({ id: true, name: true, name_en: true, type: true, tier: true })),
     parties: z.array(PartySchema.pick({ id: true, name: true, name_en: true }).extend({ url: webUrl() })),
     url: webUrl(),
 });

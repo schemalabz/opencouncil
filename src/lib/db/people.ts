@@ -296,7 +296,7 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
     if (!administrativeBodyId) {
         return allPeople;
     }
-    const body = await prisma.administrativeBody.findUnique({ where: { id: administrativeBodyId }, select: { type: true } });
+    const body = await prisma.administrativeBody.findUnique({ where: { id: administrativeBodyId }, select: { tier: true } });
     if (isSecondaryBody(body)) {
         return allPeople.filter(person => isMemberOf(person, administrativeBodyId));
     }

@@ -296,10 +296,10 @@ describe('PR1: server-side awaits run concurrently', () => {
         // scope switch must not refetch, and the secondary card loads with the rest.
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(6);
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
-            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true,
+            timeFilter: 'past', limit: 1, scope: { types: ['council'] }, takesPlace: true,
         });
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledWith('athens', {
-            timeFilter: 'past', limit: 1, administrativeBodyTypes: ['youthCouncil'], takesPlace: true,
+            timeFilter: 'past', limit: 1, scope: { tier: 'secondary' }, takesPlace: true,
         });
         expect(cache.getAdministrativeBodiesWithPublicMeetingsCached).toHaveBeenCalledTimes(1);
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
@@ -379,7 +379,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         // realm's timeline shows — both scoped to the bodies the timeline draws.
         expect(cache.getCouncilMeetingsPreviewPublicCached).toHaveBeenCalledTimes(2);
         for (const call of cache.getCouncilMeetingsPreviewPublicCached.mock.calls) {
-            expect(call[1]?.administrativeBodyTypes).toEqual(['council', 'committee']);
+            expect(call[1]?.scope).toEqual({ types: ['council', 'committee'] });
         }
         const timeFilters = cache.getCouncilMeetingsPreviewPublicCached.mock.calls.map(
             (call: [string, { timeFilter?: string }]) => call[1]?.timeFilter,

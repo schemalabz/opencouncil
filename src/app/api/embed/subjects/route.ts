@@ -50,13 +50,13 @@ export async function GET(req: NextRequest) {
         return json({ error: `Unknown cityId: ${params.cityId}` }, 404);
     }
 
-    const { limit, administrativeBodyTypes, administrativeBodyIds } = parseEmbedConfig(params);
+    const { limit, scope } = parseEmbedConfig(params);
     const baseUrl = realmBaseUrl(city?.realm);
 
     const top: HotSubject[] = city
         ? geohash
-            ? await getHotSubjectsNearGeohash(city.id, geohash, { limit, administrativeBodyTypes, administrativeBodyIds })
-            : await getRecentHotSubjects(city.id, { limit, administrativeBodyTypes, administrativeBodyIds })
+            ? await getHotSubjectsNearGeohash(city.id, geohash, { limit, scope })
+            : await getRecentHotSubjects(city.id, { limit, scope })
         : [];
 
     // Distance (m) from the geohash cell center to each located subject. The

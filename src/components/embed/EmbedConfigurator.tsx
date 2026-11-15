@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType, BodyTier } from '@prisma/client';
 // @ts-ignore
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import { formatDate } from '@/lib/formatters/time';
 /** An admin-body type and its individual bodies that have public meetings. */
 export interface EmbedBodyGroup {
     type: AdministrativeBodyType;
-    bodies: { id: string; name: string; name_en: string }[];
+    bodies: { id: string; name: string; name_en: string; tier: BodyTier }[];
 }
 
 /** A released past meeting the summary widget can be pinned to. */
@@ -126,6 +126,11 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
                 params.set('bodyIds', selectedBodyId);
             } else if (selectedType) {
                 params.set('bodies', selectedType);
+                // A type narrows inside the tier, so a secondary body of the
+                // type needs the tier widened as well (#829).
+                if (bodyGroups.some(g => g.type === selectedType && g.bodies.some(b => b.tier === 'secondary'))) {
+                    params.set('tier', 'all');
+                }
             }
         }
         // Location filter is subjects-only.
@@ -133,7 +138,7 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
             params.set('geohash', geoLocation.geohash);
         }
         return `${origin}/${urlPrefixForLocale(locale)}/embed/${widgetType}?${params.toString()}`;
-    }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation, bodyFilterApplies, summaryMeetingId, summaryLimit, subjectsPerMeeting]);
+    }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation, bodyFilterApplies, summaryMeetingId, summaryLimit, subjectsPerMeeting, bodyGroups]);
 
     const embedCode = `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border-radius: 8px; border: 1px solid #e5e7eb;"\n  title="OpenCouncil"\n></iframe>`;
 

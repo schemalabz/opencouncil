@@ -22,7 +22,9 @@ export async function PUT(
         // An admin of the body, not of the city, changes the YouTube channel
         // and the document send settings, and nothing else (#828, #874). The page
         // of the body sends those fields alone, for an admin of the city as well.
-        const contactsOnly = body && typeof body === 'object' && !('name' in body) && !body.confirmConventions;
+        // A request with any other field is a full update, which answers 400
+        // without the required fields rather than 200 with nothing written.
+        const contactsOnly = !!body && typeof body === 'object' && Object.keys(body).every(key => key in administrativeBodyContactsSchema.shape);
         if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
             const { youtubeChannelUrl, documentSendSettings } = administrativeBodyContactsSchema.parse(body);
@@ -45,7 +47,7 @@ export async function PUT(
             return NextResponse.json(confirmed);
         }
 
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
+        const { name, name_en, type, tier, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
 
         const previous = await getBodyPageRow(params.cityId, params.bodyId);
         // A field that the request leaves out keeps its value.
@@ -53,6 +55,7 @@ export async function PUT(
             name,
             name_en,
             type,
+            tier,
             youtubeChannelUrl,
             notificationBehavior,
             showUnreviewedTranscript,
@@ -62,12 +65,14 @@ export async function PUT(
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
-        // A new type can move the meetings of the body, and its members, to
-        // the other tier (#829): every list that reads the tier learns it now,
-        // the city's route to the public lists with them.
-        if (previous && previous.type !== updatedBody.type) {
+        // A new tier moves the meetings of the body, and its members, to the
+        // other tier (#829): every list that reads the tier learns it now, the
+        // city's route to the public lists with them. A new type changes the
+        // labels and the rules of a youth council.
+        if (previous && (previous.tier !== updatedBody.tier || previous.type !== updatedBody.type)) {
             revalidateTag(`city:${params.cityId}:meetings`, 'max');
             revalidateTag(`city:${params.cityId}:people`, 'max');
+            revalidateTag(`city:${params.cityId}:basic`, 'max');
             revalidatePath(`/${params.cityId}`, 'layout');
             const realm = await getCityRealm(params.cityId);
             if (realm) {

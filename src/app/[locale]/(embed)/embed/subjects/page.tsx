@@ -38,11 +38,11 @@ export default async function EmbedSubjectsPage(props: EmbedSubjectsPageProps) {
     // An explicitly provided cityId must exist (unchanged behavior).
     if (searchParams.cityId && !city) notFound();
 
-    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars, appThemeShim } = parseEmbedConfig(searchParams);
+    const { limit, scope, themeVars, appThemeShim } = parseEmbedConfig(searchParams);
     const baseUrl = realmBaseUrl(city?.realm);
 
     const cards = city
-        ? await getHotSubjectCards(city.id, { limit, administrativeBodyTypes, administrativeBodyIds, geohash, withSpeakers: true })
+        ? await getHotSubjectCards(city.id, { limit, scope, geohash, withSpeakers: true })
         : [];
 
     const t = await getTranslations('EmbedWidget');

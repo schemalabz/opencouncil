@@ -450,6 +450,7 @@ export function FewResultsHint({
     const onlyMunicipality =
         filters.cityIds.length > 0 &&
         filters.bodyTypes.length === 0 &&
+        filters.tier === null &&
         !filters.dateFrom &&
         !filters.dateTo &&
         filters.minDuration == null &&

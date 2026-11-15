@@ -6,6 +6,7 @@ import type { MeetingSentDocuments } from "@/lib/db/types";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
+import { ALL_SCOPE } from "@/lib/utils/bodyTier";
 
 interface PageProps {
     searchParams: Promise<{ cityId?: string }>;
@@ -25,7 +26,8 @@ export default async function AdminMeetingsPage(props: PageProps) {
     let cityHasDiavgeiaUid = false;
     if (selectedCityId) {
         [meetings, decisionCounts, sentDocuments] = await Promise.all([
-            getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
+            // Every tier (#829): the admins work on every body's meetings.
+            getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true, scope: ALL_SCOPE }),
             getDecisionCountsForCity(selectedCityId),
             getSentDocumentsForCity(selectedCityId),
         ]);

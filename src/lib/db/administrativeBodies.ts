@@ -16,6 +16,7 @@ import {
 } from "./types/administrativeBody";
 import { replaceDocumentSendSettings } from "./documentSends";
 import type { DocumentSendSettingInput } from "@/lib/zod-schemas/administrativeBody";
+import { tierNeedsSuperadmin } from "@/lib/utils/bodyTier";
 import {
     administrativeBodyWithSendSettingsInclude,
     bodyContactsSelect,
@@ -148,12 +149,13 @@ export async function createAdministrativeBody(
     documentSendSettings?: DocumentSendSettingInput[],
 ): Promise<AdministrativeBodyWithSettings> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
+    if (tierNeedsSuperadmin(bodyData, null)) await withUserAuthorizedToEdit({});
     try {
-        const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
+        const { cityId, name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         // One transaction: a body is never left without the settings its request carried
         const newBody = await prisma.$transaction(async (tx) => {
             const created = await tx.administrativeBody.create({
-                data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
+                data: { cityId, name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
             });
             if (documentSendSettings) await replaceDocumentSendSettings(tx, created.id, documentSendSettings);
             return created;
@@ -172,18 +174,21 @@ export async function editAdministrativeBody(
 ): Promise<AdministrativeBodyWithSettings> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
-        select: { cityId: true },
+        select: { cityId: true, type: true, tier: true },
     });
     if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
+    // A field that the write leaves out keeps its stored value.
+    const next = { type: bodyData.type ?? existingBody.type, tier: bodyData.tier ?? existingBody.tier };
+    if (tierNeedsSuperadmin(next, existingBody)) await withUserAuthorizedToEdit({});
     try {
         // Only the fields an editor may change. A caller's cityId or conventions never reach the row.
-        const { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
+        const { name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         const updatedBody = await prisma.$transaction(async (tx) => {
             const updated = await tx.administrativeBody.update({
                 where: { id },
-                data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
+                data: { name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place },
             });
             if (documentSendSettings) await replaceDocumentSendSettings(tx, id, documentSendSettings);
             return updated;

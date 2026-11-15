@@ -22,12 +22,11 @@ import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
 import { subjectHighlightsInclude, type SubjectHighlight } from './types/highlight';
-import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
 import { publicMeetingWhere } from '../cityStatus';
-import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE, primaryMeetingWhere, readTier, type TierScope } from '@/lib/utils/bodyTier';
 import { meetingLabelInCity } from '@/lib/meetingName';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
@@ -48,8 +47,9 @@ function subjectFilterKey(f: MapSubjectFilters): string {
         f.allTime ? '1' : '',
         (f.topicIds ?? []).slice().sort().join('.'),
         (f.cityIds ?? []).slice().sort().join('.'),
-        // No type means the primary tier, not every body (see buildMapSubjectWhere).
-        (f.bodyTypes ?? []).slice().sort().join('.') || 'primary',
+        // No tier means the primary tier, not every body (see BodyScope).
+        f.tier ?? 'primary',
+        (f.bodyTypes ?? []).slice().sort().join('.'),
         f.dateFrom ?? '',
         f.dateTo ?? '',
         // Prefixed so that "no id restriction" and "restrict to no ids" — which
@@ -198,7 +198,6 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                     councilMeeting: {
                         ...publicMeetingWhere(realm),
                         dateTime: { lte: new Date() },
-                        ...primaryMeetingWhere,
                     },
                 },
                 _count: { _all: true },
@@ -246,6 +245,9 @@ export type MapSubjectFilters = {
     allTime?: boolean;
     topicIds?: string[];
     cityIds?: string[];
+    /** Which tiers (see BodyScope). Absent, the primary tier. */
+    tier?: TierScope;
+    /** Narrows inside the tier. */
     bodyTypes?: AdministrativeBodyType[];
     dateFrom?: string | null;
     dateTo?: string | null;
@@ -276,6 +278,7 @@ export function parseMapSubjectFilters(searchParams: URLSearchParams): MapSubjec
         allTime: queryFlag.catch(false).parse(searchParams.get('allTime') ?? ''),
         topicIds: (searchParams.get('topicIds') || '').split(',').filter(Boolean),
         cityIds: (searchParams.get('cityIds') || '').split(',').filter(Boolean),
+        tier: readTier(searchParams.get('tier')) ?? undefined,
         bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isAdministrativeBodyType),
         dateFrom: calendarDayParam(searchParams.get('dateFrom')),
         dateTo: calendarDayParam(searchParams.get('dateTo')),
@@ -410,12 +413,8 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
         ...(f.topicIds?.length ? { topicId: { in: f.topicIds } } : {}),
         ...(f.cityIds?.length ? { cityId: { in: f.cityIds } } : {}),
         councilMeeting: {
-            ...publicMeetingWhere(realm),
+            ...publicMeetingWhere(realm, { tier: f.tier, types: f.bodyTypes }),
             dateTime,
-            // A named type widens or narrows the scope; no type means the
-            // primary tier, so a secondary body's subjects never reach the map
-            // or the hot list unasked (see bodyTier.ts).
-            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : primaryMeetingWhere),
         },
     };
 }
@@ -805,7 +804,7 @@ export async function getLatestSubjectsForSpeaker(personId: string, take: number
 export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; councilMeetingId: string; public: boolean } | null> {
     const row = await prisma.subject.findUnique({ where: { id: subjectId }, select: { cityId: true, councilMeetingId: true } });
     if (!row) return null;
-    const isPublicRow = (await prisma.subject.count({ where: { id: subjectId, councilMeeting: publicMeetingWhere(null) } })) > 0;
+    const isPublicRow = (await prisma.subject.count({ where: { id: subjectId, councilMeeting: publicMeetingWhere(null, ALL_SCOPE) } })) > 0;
     return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: isPublicRow };
 }
 
@@ -820,7 +819,7 @@ const publicSubjectDescriptionSelect = { description: true } satisfies Prisma.Su
  */
 export async function getPublicSubjectDescription(subjectId: string, realm: Realm): Promise<string | null> {
     const row = await prisma.subject.findFirst({
-        where: { id: subjectId, councilMeeting: publicMeetingWhere(realm) },
+        where: { id: subjectId, councilMeeting: publicMeetingWhere(realm, ALL_SCOPE) },
         select: publicSubjectDescriptionSelect,
     });
     return row?.description ?? null;

@@ -49,8 +49,8 @@ describe("partitionMeetingsForPolling", () => {
     it("skips the meetings of a secondary body even when they have eligible subjects", () => {
         const result = partitionMeetingsForPolling(
             [
-                { id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { type: "youthCouncil" } },
-                { id: "m2", name: "Συνεδρίαση 2", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { type: "committee" } },
+                { id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { tier: "secondary" as const } },
+                { id: "m2", name: "Συνεδρίαση 2", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { tier: "primary" as const } },
                 { id: "m3", name: "Συνεδρίαση 3", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null },
             ],
             { m1: { linked: 0, eligible: 2 }, m2: { linked: 0, eligible: 2 }, m3: { linked: 0, eligible: 2 } },

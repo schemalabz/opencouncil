@@ -6,7 +6,7 @@ jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 import { buildRelatedSubjectsQuery, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE } from '../related';
 import { subjectVisibilityFilters } from '../query';
 
-const SEED = { id: 'subject-1', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: 'council' as const };
+const SEED = { id: 'subject-1', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: 'council' as const, tier: 'primary' as const };
 const REALM_CITIES = ['athens', 'chania', 'argos'];
 const NO_SECONDARY = { bool: { must_not: [{ terms: { administrative_body_type: ['youthCouncil'] } }] } };
 
@@ -102,8 +102,15 @@ describe('buildRelatedSubjectsQuery', () => {
         }
     });
 
+    it('reads the stored tier of the seed, not its type', () => {
+        const primaryYouth = { ...SEED, administrativeBodyType: 'youthCouncil' as const };
+        expect(boolOf(buildRelatedSubjectsQuery(primaryYouth, 'city', REALM_CITIES)).filter).toContainEqual(NO_SECONDARY);
+        const secondaryCouncil = { ...SEED, tier: 'secondary' as const };
+        expect(boolOf(buildRelatedSubjectsQuery(secondaryCouncil, 'city', REALM_CITIES)).filter).not.toContainEqual(NO_SECONDARY);
+    });
+
     it('relates a secondary body\'s subject to its whole municipality, and to the same kind of body elsewhere', () => {
-        const seed = { ...SEED, administrativeBodyType: 'youthCouncil' as const };
+        const seed = { ...SEED, administrativeBodyType: 'youthCouncil' as const, tier: 'secondary' as const };
         const cityFilters = boolOf(buildRelatedSubjectsQuery(seed, 'city', REALM_CITIES)).filter as QueryContainer[];
         expect(cityFilters.some(f => f.bool || (f.term && 'administrative_body_type' in f.term))).toBe(false);
 

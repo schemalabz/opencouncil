@@ -36,12 +36,12 @@ export default async function EmbedSummaryPage(props: EmbedSummaryPageProps) {
     const city = await getCityCached(cityId);
     if (!city) notFound();
 
-    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars } =
+    const { limit, scope, themeVars } =
         parseEmbedConfig(searchParams, { limit: EMBED_SUMMARY_LIMITS.meetings });
     const maxSubjects = parseBoundedInt(searchParams.subjects, EMBED_SUMMARY_LIMITS.subjects);
     const baseUrl = realmBaseUrl(city.realm);
 
-    const summaries = await getMeetingSummaries(cityId, { meetingId, limit, administrativeBodyTypes, administrativeBodyIds });
+    const summaries = await getMeetingSummaries(cityId, { meetingId, limit, scope });
 
     const t = await getTranslations('EmbedWidget');
     const translations: EmbedSummaryTranslations = {

@@ -1,22 +1,22 @@
 // Who may set the photo of a person (#829). A person whose every role is on
-// a secondary body, a youth council member among them, adds their photo from
+// a youth council, where members can be under 18, adds their photo from
 // their own account only: the account that claimed their page. Nobody adds
 // the photo of such a person who has no page yet. Anyone who may edit a
-// person with a seat on the municipality's own roster sets their photo, as
+// person with any other role sets their photo, as
 // before. The privacy page promises this.
 import "server-only";
 import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from './prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { ForbiddenError } from '@/lib/api/errors';
-import { hasPrimaryPresence } from '@/lib/utils/bodyTier';
+import { youthCouncilOnly } from '@/lib/utils/bodyTier';
 
 export type RoleOfPerson = { administrativeBody?: { type: AdministrativeBodyType } | null };
 type Account = { administers: { personId: string | null; claimedAt: Date | null }[] } | null;
 
 /** Pure: whether `account` may set the photo of a person with `roles`, `personId` null for a person not created yet. */
 export function mayChangePersonImage(account: Account, roles: RoleOfPerson[], personId: string | null): boolean {
-    if (hasPrimaryPresence(roles)) return true;
+    if (!youthCouncilOnly(roles)) return true;
     return personId !== null && !!account?.administers.some(row => row.personId === personId && row.claimedAt !== null);
 }
 

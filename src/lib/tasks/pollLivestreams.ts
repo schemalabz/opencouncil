@@ -1,5 +1,5 @@
 import prisma from "../db/prisma";
-import { pipelineRunsUnattended, secondaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -197,10 +197,10 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
-            // A secondary body runs its own meetings wherever its city stands
+            // A youth council runs its own meetings wherever its city stands
             // (#829), as the unattended pass does: a youth council of a pending
             // city has no other way to its recordings.
-            AND: [{ OR: [{ city: CUSTOMER_CITY_WHERE }, secondaryMeetingWhere] }],
+            AND: [{ OR: [{ city: CUSTOMER_CITY_WHERE }, { administrativeBody: { type: 'youthCouncil' } }] }],
             // A postponed meeting in the window would take the stream of its
             // new meeting. A meeting by circulation has no stream.
             ...TAKES_PLACE_WHERE,

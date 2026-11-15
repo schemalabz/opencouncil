@@ -1,6 +1,7 @@
 import type { estypes } from '@elastic/elasticsearch';
 import { AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
 import type { PublicAdministrativeBody } from "@/lib/db/types";
+import type { TierScope } from "@/lib/utils/bodyTier";
 import { MATCH_FIELDS } from "./constants";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
@@ -66,9 +67,11 @@ export type SearchRequest = {
     cityIds?: string[];
     personIds?: string[];
     partyIds?: string[];
-    /** Named administrative bodies of the meeting a subject belongs to. */
+    /** Which tiers of body (see BodyScope). Absent, the primary tier. */
+    tier?: TierScope;
+    /** Named administrative bodies of the meeting a subject belongs to, in any tier. */
     administrativeBodyIds?: string[];
-    /** Every administrative body of these types (every committee, for example). */
+    /** Every administrative body of these types, inside the tier (every committee, for example). */
     administrativeBodyTypes?: AdministrativeBodyType[];
     topicIds?: string[];
     dateRange?: {

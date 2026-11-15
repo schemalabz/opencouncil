@@ -24,6 +24,7 @@ describe('administrative body place', () => {
             name: 'Δημοτικό Συμβούλιο',
             name_en: 'Municipal Council',
             type: 'council',
+            tier: 'primary',
             notificationBehavior: 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: false,
             youtubeChannelUrl: null,

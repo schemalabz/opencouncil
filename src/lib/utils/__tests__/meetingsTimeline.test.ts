@@ -11,9 +11,15 @@ describe('TL.PREVIEW_ROWS', () => {
 
 describe('timelineSide', () => {
     it('puts the council right, committees left, and communities nowhere', () => {
-        expect(timelineSide('council')).toBe('right');
-        expect(timelineSide('committee')).toBe('left');
-        expect(timelineSide('community')).toBeNull();
+        expect(timelineSide({ type: 'council', tier: 'primary' })).toBe('right');
+        expect(timelineSide({ type: 'committee', tier: 'primary' })).toBe('left');
+        expect(timelineSide({ type: 'community', tier: 'primary' })).toBeNull();
+        expect(timelineSide(null)).toBe('right');
+    });
+
+    it('leaves a secondary body off the timeline, whatever its type', () => {
+        expect(timelineSide({ type: 'youthCouncil', tier: 'secondary' })).toBeNull();
+        expect(timelineSide({ type: 'council', tier: 'secondary' })).toBeNull();
     });
 
     it('treats a body-less meeting as the council', () => {

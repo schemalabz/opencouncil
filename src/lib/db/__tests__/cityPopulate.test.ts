@@ -72,4 +72,17 @@ describe('populateCity', () => {
         expect(imageOf('Both')).toBe('https://img/b.jpg');
         expect(imageOf('No role')).toBe('https://img/n.jpg');
     });
+
+    const bodyData = (name: string) => mockCreate.mock.calls.map(([arg]) => arg.data).find((data) => data.name === name);
+
+    it('gives each body the default tier of its type, and the notification default of that tier (#829)', async () => {
+        await populateCity({ ...DATA, administrativeBodies: [...DATA.administrativeBodies, { name: 'Νέων', name_en: 'Youth', type: 'youthCouncil' as const }] });
+        expect(bodyData('Conseil')).toMatchObject({ tier: 'primary', notificationBehavior: 'NOTIFICATIONS_APPROVAL' });
+        expect(bodyData('Νέων')).toMatchObject({ tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_DISABLED' });
+    });
+
+    it('keeps the tier that the payload states, and the notification default of that tier (#829)', async () => {
+        await populateCity({ ...DATA, administrativeBodies: [...DATA.administrativeBodies, { name: 'Ζήρεια Α.Ε.', name_en: 'Ziria SA', type: 'council' as const, tier: 'secondary' as const }] });
+        expect(bodyData('Ζήρεια Α.Ε.')).toMatchObject({ type: 'council', tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_DISABLED' });
+    });
 });

@@ -1,7 +1,7 @@
-import { AdministrativeBodyType, Party, Role } from "@prisma/client";
+import { AdministrativeBodyType, BodyTier, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
 import { localizeText } from "@/lib/serbian";
-import { bodyTier } from "./bodyTier";
+import { isSecondaryBody } from "./bodyTier";
 
 /**
  * Validation error type for role validation
@@ -334,13 +334,13 @@ export function getRoleTypePriority(role: {
   cityId?: string | null;
   partyId?: string | null;
   administrativeBodyId?: string | null;
-  administrativeBody?: { type: AdministrativeBodyType } | null;
+  administrativeBody: { tier: BodyTier } | null;
 }): number {
   const kind = getRoleKind(role);
   if (kind === 'city') return role.isHead ? 0 : 1; // mayor, deputy mayor
   // The chair of a secondary body ranks as a member: that title must not stand
   // above the council president's on a person who holds both.
-  if (kind === 'body' && role.isHead && bodyTier(role.administrativeBody?.type) === 'primary') return 2; // council president, committee chair
+  if (kind === 'body' && role.isHead && !isSecondaryBody(role.administrativeBody)) return 2; // council president, committee chair
   if (kind === 'party') return role.isHead ? 3 : 4; // party leader, party member
   if (kind === 'body') return 5;                   // regular admin body member
   return 6;
@@ -357,7 +357,7 @@ export function getRoleTypePriority(role: {
  *
  * Returns a new sorted array without mutating the input.
  */
-export function sortRolesByPriority<T extends { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }>(roles: T[]): T[] {
+export function sortRolesByPriority<T extends { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null; administrativeBody: { tier: BodyTier } | null }>(roles: T[]): T[] {
   return [...roles].sort((a, b) => getRoleTypePriority(a) - getRoleTypePriority(b));
 }
 
@@ -371,6 +371,7 @@ export function getPrimaryRole<T extends {
   cityId?: string | null;
   partyId?: string | null;
   administrativeBodyId?: string | null;
+  administrativeBody: { tier: BodyTier } | null;
 }>(roles: T[]): T | null {
   const sorted = sortRolesByPriority(roles);
   return sorted[0] ?? null;
@@ -379,7 +380,7 @@ export function getPrimaryRole<T extends {
 type SpeakerRole = Role & {
   party?: Party | null;
   cityId?: string | null;
-  administrativeBody?: { type: AdministrativeBodyType } | null;
+  administrativeBody: { type: AdministrativeBodyType; tier: BodyTier } | null;
 };
 
 /**

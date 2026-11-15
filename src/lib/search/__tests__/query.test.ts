@@ -1691,7 +1691,7 @@ describe('buildSearchQuery — the highlight block', () => {
     });
 });
 
-// The tier rule of #829: with no body filter, search spans the primary tier.
+// The tier rule of #829: with no tier, search spans the primary tier.
 // A must_not, not a terms on the primary types: a document with no body is
 // the council's and must stay in.
 describe('buildFilters secondary tier', () => {
@@ -1701,8 +1701,16 @@ describe('buildFilters secondary tier', () => {
         expect(buildFilters({ query: 'πάρκα' })).toContainEqual(noSecondary);
     });
 
-    it('lets a body type or a body id widen the scope', () => {
-        expect(buildFilters({ query: 'πάρκα', administrativeBodyTypes: ['youthCouncil'] })).not.toContainEqual(noSecondary);
+    it('widens through the tier or a body id, and never through a type', () => {
+        expect(buildFilters({ query: 'πάρκα', administrativeBodyTypes: ['youthCouncil'] })).toContainEqual(noSecondary);
         expect(buildFilters({ query: 'πάρκα', administrativeBodyIds: ['body-1'] })).not.toContainEqual(noSecondary);
+        expect(buildFilters({ query: 'πάρκα', tier: 'all' })).not.toContainEqual(noSecondary);
+        expect(buildFilters({ query: 'πάρκα', tier: 'all', administrativeBodyTypes: ['youthCouncil'] })).not.toContainEqual(noSecondary);
+    });
+
+    it('keeps the secondary tier alone for `tier: secondary`', () => {
+        const filters = buildFilters({ query: 'πάρκα', tier: 'secondary' });
+        expect(filters).toContainEqual({ terms: { 'administrative_body_type': ['youthCouncil'] } });
+        expect(filters).not.toContainEqual(noSecondary);
     });
 });

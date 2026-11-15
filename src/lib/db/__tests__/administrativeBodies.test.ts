@@ -169,7 +169,7 @@ describe('the public body reads select only the public fields', () => {
     });
 
     it('the public select names the identity of a body and nothing of its settings', () => {
-        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'place', 'type', 'youtubeChannelUrl']);
+        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'place', 'tier', 'type', 'youtubeChannelUrl']);
     });
 
     it.each([

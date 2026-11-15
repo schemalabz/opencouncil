@@ -50,7 +50,7 @@ describe('administrativeBodySchema', () => {
 });
 
 describe('administrativeBodyFormSchema', () => {
-    const validForm = { ...validBody, notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, decisionConventions: null };
+    const validForm = { ...validBody, tier: 'primary', notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, decisionConventions: null };
 
     const cards = { transcript: { enabled: false, to: '', cc: '' }, minutes: { enabled: false, to: '', cc: '' } };
 

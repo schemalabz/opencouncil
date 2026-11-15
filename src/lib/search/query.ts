@@ -3,8 +3,8 @@ import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from '
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
+import type { TierScope } from '@/lib/utils/bodyTier';
 import { DEFAULT_SCORE_PROFILE, type QueryProfile } from './profile';
-import { SECONDARY_BODY_TYPES } from '@/lib/utils/bodyTier';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
 // (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
@@ -600,6 +600,20 @@ function introducedOrSpokeFilter(
     };
 }
 
+/**
+ * The types that stand for the secondary tier in the index. The index carries
+ * the type of a body and not its tier, so search reads the default tier of the
+ * type until it filters by body id. Only the search modules read this list.
+ */
+export const SECONDARY_INDEX_TYPES: readonly AdministrativeBodyType[] = ['youthCouncil'];
+
+/** The index clause of a tier, or null for every tier. */
+export function searchTierFilter(tier: TierScope): QueryContainer | null {
+    if (tier === 'all') return null;
+    const ofSecondary: QueryContainer = { terms: { 'administrative_body_type': [...SECONDARY_INDEX_TYPES] } };
+    return tier === 'secondary' ? ofSecondary : { bool: { must_not: [ofSecondary] } };
+}
+
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): QueryContainer[] {
     const filters: QueryContainer[] = subjectVisibilityFilters();
@@ -663,15 +677,10 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
             : ofTypes);
     }
 
-    // No body filter means the primary tier (see bodyTier.ts). A must_not keeps
-    // the documents with no body, which a `terms` on the primary types would drop.
-    if (!request.administrativeBodyIds?.length && !request.administrativeBodyTypes?.length) {
-        filters.push({
-            bool: {
-                must_not: [{ terms: { 'administrative_body_type': [...SECONDARY_BODY_TYPES] } }]
-            }
-        });
-    }
+    // The tier (see BodyScope): primary when absent. Named bodies are in any
+    // tier. A must_not keeps the documents with no body, which are primary.
+    const tierFilter = request.administrativeBodyIds?.length ? null : searchTierFilter(request.tier ?? 'primary');
+    if (tierFilter) filters.push(tierFilter);
 
     // Add topic filter if specified
     if (request.topicIds && request.topicIds.length > 0) {

@@ -8,7 +8,7 @@ import "server-only";
 import prisma from "@/lib/db/prisma";
 import { requestTranscribeInternal } from "./transcribeInternal";
 import { PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE, UNATTENDED_START_DELAY_MS } from "@/lib/meetingLifecycleRules";
-import { SECONDARY_BODY_TYPES, pipelineRunsUnattended } from "@/lib/utils/bodyTier";
+import { pipelineRunsUnattended } from "@/lib/utils/bodyTier";
 
 const HOUR_MS = 60 * 60 * 1000;
 export { UNATTENDED_START_DELAY_MS };
@@ -45,7 +45,8 @@ export async function transcribeUnattendedMeetings(
         where: {
             dateTime: { gte: new Date(now.getTime() - UNATTENDED_WINDOW_MS), lte: new Date(now.getTime() - UNATTENDED_START_DELAY_MS) },
             youtubeUrl: { not: null },
-            administrativeBody: { type: { in: [...SECONDARY_BODY_TYPES] } },
+            // The twin of pipelineRunsUnattended.
+            administrativeBody: { type: 'youthCouncil' },
             taskStatuses: { none: { type: 'transcribe', status: { in: TRANSCRIBE_ACTIVE_STATUSES } } },
             ...TAKES_PLACE_WHERE,
             ...PUBLIC_RECORDING_WHERE,

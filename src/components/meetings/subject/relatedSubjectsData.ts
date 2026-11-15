@@ -1,6 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
 import { getRealm } from '@/lib/realm.server';
 import { searchRelatedSubjectsInRealm } from '@/lib/search/core';
 import type { RelatedSubjectSeed } from '@/lib/search/related';
@@ -20,8 +20,9 @@ const loadByFields = cache(async (
     cityId: string,
     councilMeetingId: string,
     administrativeBodyType: AdministrativeBodyType | null,
+    tier: BodyTier,
 ): Promise<RelatedNeighbours> => {
-    const seed: RelatedSubjectSeed = { id, name, cityId, councilMeetingId, administrativeBodyType };
+    const seed: RelatedSubjectSeed = { id, name, cityId, councilMeetingId, administrativeBodyType, tier };
     const load = (scope: RelatedScope): Promise<SearchResultLight[]> =>
         searchRelatedSubjectsInRealm(seed, scope, getRealm).catch(() => []);
     const [city, other] = await Promise.all([load('city'), load('other')]);
@@ -37,5 +38,5 @@ const loadByFields = cache(async (
  * recommendation must not take the page down with it.
  */
 export function loadRelatedNeighbours(seed: RelatedSubjectSeed): Promise<RelatedNeighbours> {
-    return loadByFields(seed.id, seed.name, seed.cityId, seed.councilMeetingId, seed.administrativeBodyType);
+    return loadByFields(seed.id, seed.name, seed.cityId, seed.councilMeetingId, seed.administrativeBodyType, seed.tier);
 }

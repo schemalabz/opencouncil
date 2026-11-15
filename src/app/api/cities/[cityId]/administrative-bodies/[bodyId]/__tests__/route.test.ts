@@ -297,3 +297,61 @@ describe('PUT /api/cities/{cityId}/administrative-bodies/{bodyId} from the page 
         expect(mockEditContacts).not.toHaveBeenCalled();
     });
 });
+
+describe('PUT of a body that changes tier and keeps its type (#829)', () => {
+    const COMPANY = { name: 'Ζήρεια Α.Ε.', name_en: 'Ziria SA', type: 'council' };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (isUserAuthorizedToEdit as jest.Mock).mockResolvedValue(true);
+        (withUserAuthorizedToEdit as jest.Mock).mockResolvedValue(undefined);
+    });
+
+    it('writes the tier of a superadmin and refreshes every list that reads it', async () => {
+        (getBodyPageRow as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'primary' });
+        (editAdministrativeBody as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'secondary' });
+
+        const response = await put({ ...COMPANY, tier: 'secondary' });
+
+        expect(response.status).toBe(200);
+        expect(editAdministrativeBody).toHaveBeenCalledWith('b1', expect.objectContaining({ tier: 'secondary' }), undefined);
+        // `city:…:basic` holds the city counts of the identity band, which count the primary tier.
+        expect(jest.mocked(revalidateTag).mock.calls.map(([tag]) => tag)).toEqual([
+            'city:zografou:administrativeBodies',
+            'city:zografou:meetings',
+            'city:zografou:people',
+            'city:zografou:basic',
+            'cities:all',
+            'realm:greece:cities:all',
+            'realm:greece:landing-subjects',
+            'realm:greece:upcoming-meetings',
+        ]);
+    });
+
+    it('refreshes nothing beyond the bodies when neither the tier nor the type changes', async () => {
+        (getBodyPageRow as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'secondary' });
+        (editAdministrativeBody as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'secondary' });
+
+        await put({ ...COMPANY, tier: 'secondary' });
+
+        expect(revalidateTag).not.toHaveBeenCalledWith('cities:all', 'max');
+        expect(revalidateTag).not.toHaveBeenCalledWith('city:zografou:meetings', 'max');
+    });
+
+    it('leaves the tier out of the write when the request leaves it out', async () => {
+        (getBodyPageRow as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'secondary' });
+        (editAdministrativeBody as jest.Mock).mockResolvedValue({ id: 'b1', type: 'council', tier: 'secondary' });
+
+        await put(COMPANY);
+
+        expect((editAdministrativeBody as jest.Mock).mock.calls[0][1].tier).toBeUndefined();
+    });
+
+    it('answers 400 to a tier alone from an admin of the city, and writes nothing', async () => {
+        const response = await put({ tier: 'secondary' });
+
+        expect(response.status).toBe(400);
+        expect(editAdministrativeBody).not.toHaveBeenCalled();
+        expect(editAdministrativeBodyContacts).not.toHaveBeenCalled();
+    });
+});

@@ -36,8 +36,8 @@ jest.mock('@/lib/tasks/transcribeInternal', () => ({ requestTranscribeInternal: 
 
 import { updateMeetingWithEffects } from '../meetingWrites';
 
-const council = { id: 'council', type: 'council', name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', place: null };
-const youth = { id: 'youth', type: 'youthCouncil', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', place: null };
+const council = { id: 'council', type: 'council', tier: 'primary', name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', place: null };
+const youth = { id: 'youth', type: 'youthCouncil', tier: 'secondary', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', place: null };
 
 function row(body: typeof council, released: boolean, overrides: Record<string, unknown> = {}) {
     return {

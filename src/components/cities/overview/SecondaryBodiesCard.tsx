@@ -23,7 +23,7 @@ interface SecondaryBodiesCardProps {
  * The rail card of a city's secondary bodies (#829). The meetings module
  * beside it never lists them, so this card is where a reader learns that the
  * body exists and when it met. The link opens the page of the body, or, when
- * the city has several, the meetings tab with the tier widened to them.
+ * the city has several, the meetings tab on the secondary tier.
  */
 export function SecondaryBodiesCard({ bodies, meetings, cityId, timezone, locale }: SecondaryBodiesCardProps) {
     const t = useTranslations('cityOverview');
@@ -31,18 +31,17 @@ export function SecondaryBodiesCard({ bodies, meetings, cityId, timezone, locale
 
     if (bodies.length === 0) return null;
 
-    // One secondary type exists, so the first body's type names them all. The
-    // filter value is the type's label: the tab's picker keys its chips by it.
-    const typeLabel = tCommon(`adminBodyType_${bodies[0].type}`);
+    // The label of the tier is the label of the tab's checkbox, whatever the
+    // types of the bodies.
     const href = bodies.length === 1
         ? `/${cityId}/bodies/${bodies[0].id}`
-        : `/${cityId}/meetings?${TIER_PARAM}=all&filters=${encodeURIComponent(typeLabel)}`;
+        : `/${cityId}/meetings?${TIER_PARAM}=secondary`;
 
     return (
         <div className={cn(surfaceCardClass, 'overflow-hidden')}>
             <div className="border-b border-border bg-muted/40 px-4 py-2">
                 <span className="block text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
-                    {typeLabel}
+                    {tCommon('showYouthCouncils')}
                 </span>
                 <span className="mt-0.5 block truncate text-sm">
                     {bodies.map(body => getLocalizedName(body, locale)).join(' · ')}

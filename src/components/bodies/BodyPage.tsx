@@ -22,7 +22,7 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { meetingLabel } from '@/lib/meetingName';
 import { meetingsTabHrefForBody } from '@/lib/meetingsTab';
-import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, isYouthCouncil } from '@/lib/utils/bodyTier';
 import { isRoleActive } from '@/lib/utils/roles';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
@@ -195,7 +195,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         <TabsContent value="members" className="mt-6">
                             <BodyMembersTab
-                                canEditImage={!isSecondaryBody(body)}
+                                canEditImage={!isYouthCouncil(body)}
                                 cityId={city.id}
                                 bodyId={body.id}
                                 people={people}

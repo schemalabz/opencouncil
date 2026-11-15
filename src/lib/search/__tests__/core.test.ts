@@ -472,7 +472,7 @@ describe('searchSubjectsInRealm — failure alert', () => {
 });
 
 describe('searchRelatedSubjectsInRealm', () => {
-    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null };
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null, tier: 'primary' as const };
 
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');

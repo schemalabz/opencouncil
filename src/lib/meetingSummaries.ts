@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { BodyScope } from '@/lib/utils/bodyTier';
 import { getCouncilMeetingsForCityPublicCached, getMeetingSummaryCached } from '@/lib/cache';
 import type { MeetingSummary } from '@/lib/db/types';
 
@@ -7,8 +7,8 @@ export interface MeetingSummariesArgs {
     meetingId?: string | null;
     /** Without `meetingId`: how many of the latest released past meetings to show. */
     limit: number;
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
+    /** Which bodies (see BodyScope). Absent, the primary tier. */
+    scope?: BodyScope;
 }
 
 /**
@@ -19,14 +19,14 @@ export interface MeetingSummariesArgs {
  */
 export async function getMeetingSummaries(
     cityId: string,
-    { meetingId, limit, administrativeBodyTypes, administrativeBodyIds }: MeetingSummariesArgs,
+    { meetingId, limit, scope }: MeetingSummariesArgs,
 ): Promise<MeetingSummary[]> {
     if (meetingId) {
         const summary = await getMeetingSummaryCached(cityId, meetingId);
         return summary ? [summary] : [];
     }
     const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
-        limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        limit, scope, timeFilter: 'past',
     });
     const summaries = await Promise.all(meetings.map(meeting => getMeetingSummaryCached(cityId, meeting.id)));
     return summaries.filter((summary): summary is MeetingSummary => summary !== null);

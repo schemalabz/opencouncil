@@ -63,6 +63,7 @@ function buildParams(query: string, cats: string[], range: DateRangeKey, filters
     if (cats.length) params.set('topicIds', cats.join(','));
     if (filters.cityIds.length) params.set('cityIds', filters.cityIds.join(','));
     if (filters.bodyTypes.length) params.set('bodyType', filters.bodyTypes.join(','));
+    if (filters.tier) params.set('tier', filters.tier);
     setDateWindowParams(params, range, filters);
     if (!extract) params.set('extract', 'false');
     return params.toString();

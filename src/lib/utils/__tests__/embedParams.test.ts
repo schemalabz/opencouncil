@@ -29,6 +29,19 @@ describe('parseEmbedConfig limit', () => {
     });
 });
 
+describe('parseEmbedConfig scope (#829)', () => {
+    it('is the primary tier when the widget names no body', () => {
+        expect(parseEmbedConfig({}).scope).toEqual({});
+    });
+
+    it('takes the tier, the types and the ids, and drops what it does not know', () => {
+        expect(parseEmbedConfig({ tier: 'all', bodies: 'youthCouncil,nope', bodyIds: ' b1 ,b2' }).scope)
+            .toEqual({ tier: 'all', types: ['youthCouncil'], ids: ['b1', 'b2'] });
+        expect(parseEmbedConfig({ tier: 'secondary' }).scope).toEqual({ tier: 'secondary' });
+        expect(parseEmbedConfig({ tier: 'youth' }).scope).toEqual({});
+    });
+});
+
 describe('embedLocalePrefix', () => {
     it('is empty for the default locale and a path segment otherwise', () => {
         expect(embedLocalePrefix('el')).toBe('');

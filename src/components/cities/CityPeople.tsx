@@ -19,7 +19,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { AdminToolButton } from '@/components/admin/AdminStrip';
 import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
 import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
-import { bodyTier, hasPrimaryPresence } from '@/lib/utils/bodyTier';
+import { hasPrimaryPresence } from '@/lib/utils/bodyTier';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -83,9 +83,16 @@ export default function CityPeople({
         [partiesWithPersons]
     );
 
+    // The roster of the municipality, unless the reader widened the page
+    // (#829). The chips come from the people on show, so no chip leads to an
+    // empty roster.
+    const people = useMemo(() =>
+        showSecondary ? allPeople : allPeople.filter(person => hasPrimaryPresence(person.roles)),
+        [allPeople, showSecondary]
+    );
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(allPeople, tCommon),
-        [allPeople, tCommon]
+        getAdministrativeBodyTypesForPeople(people, tCommon),
+        [people, tCommon]
     );
     const secondaryAvailable = useMemo(() =>
         allPeople.some(person => !hasPrimaryPresence(person.roles)),
@@ -94,8 +101,8 @@ export default function CityPeople({
 
     // The council carries no sub-bodies, so only a narrower type offers a body.
     const bodyOptionsFor = useCallback((type: AdministrativeBodyType) =>
-        type === 'council' ? [] : getBodiesOfTypeFromPeople(allPeople, type),
-        [allPeople]
+        type === 'council' ? [] : getBodiesOfTypeFromPeople(people, type),
+        [people]
     );
 
     // One body named: that body's order. One type: the bodies of that type in
@@ -105,16 +112,10 @@ export default function CityPeople({
         return sortPeople(items, selectedValues.length === 1 ? selectedValues[0] : undefined);
     }, []);
 
-    const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(allPeople, {
+    const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(people, {
         filterOptions: typeOptions,
         bodyOptionsFor,
         filter: (selectedValues, person, bodyId) => {
-            // The roster of the municipality, unless the reader widened the
-            // page or named a type of the secondary tier: a named type means
-            // its whole roster, not the few who also hold a seat of the
-            // municipality.
-            const widened = showSecondary || selectedValues.some(type => bodyTier(type) === 'secondary');
-            if (!widened && !hasPrimaryPresence(person.roles)) return false;
             if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
             return bodyId ? person.roles.some(r => r.administrativeBodyId === bodyId) : true;
         },
@@ -141,9 +142,9 @@ export default function CityPeople({
             : selectedValues.length === 0 && typeOptions.length === 1 ? typeOptions[0].value
             : null;
         if (!typeInView) return null;
-        const bodies = getBodiesOfTypeFromPeople(allPeople, typeInView);
+        const bodies = getBodiesOfTypeFromPeople(people, typeInView);
         return bodies.length === 1 ? bodies[0].value : null;
-    }, [state.selectedBody, typeOptions, allPeople]);
+    }, [state.selectedBody, typeOptions, people]);
 
     const adminTools = useCallback((selectedValues: AdministrativeBodyType[]) => {
         if (!isSuperAdmin) return null;

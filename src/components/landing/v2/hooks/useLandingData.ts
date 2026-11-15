@@ -61,6 +61,7 @@ function buildSubjectParams(range: DateRangeKey, filters: MapFilters): string {
     setDateWindowParams(params, range, filters);
     if (filters.cityIds.length) params.set('cityIds', filters.cityIds.join(','));
     if (filters.bodyTypes.length) params.set('bodyType', filters.bodyTypes.join(','));
+    if (filters.tier) params.set('tier', filters.tier);
     return params.toString();
 }
 

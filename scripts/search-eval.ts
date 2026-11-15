@@ -333,6 +333,9 @@ async function runRelated(subjectId: string, minScore?: number): Promise<void> {
         cityId: source.city_id,
         councilMeetingId: source.councilMeeting_id,
         administrativeBodyType: source.administrative_body_type ?? null,
+        // The index holds no tier, and the harness reads no database: it
+        // measures the neighbours of a subject of the primary tier.
+        tier: 'primary',
     };
     console.log(`\n▶ related to "${seed.name}" (${source.city_name}, ${(source.meeting_date ?? '').slice(0, 10)})`);
 

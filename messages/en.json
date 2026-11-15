@@ -986,6 +986,12 @@
         "type": "Type",
         "selectType": "Select type",
         "typeDescription": "Select the type of administrative body.",
+        "tier": "Visibility",
+        "tierDescription": "A primary body shows everywhere by default. A secondary body shows only when a reader asks for it, for example a youth council or a municipal company.",
+        "tierOptions": {
+            "primary": "Primary body",
+            "secondary": "Secondary body"
+        },
         "types": {
             "council": "City Council",
             "committee": "Municipal Committee",

@@ -14,7 +14,7 @@ function meeting(overrides: Partial<Meeting> = {}): Meeting {
         kind: 'ordinary',
         continuationOf: null,
         city: { diavgeiaUid: '6104', status: 'supported' },
-        administrativeBody: { type: 'council' },
+        administrativeBody: { tier: 'primary' },
         ...overrides,
     };
 }
@@ -50,7 +50,7 @@ describe('isPolledOnItsOwn', () => {
     });
 
     it('is false for a meeting of a secondary body, which publishes no decisions (#829)', () => {
-        expect(isPolledOnItsOwn(meeting({ administrativeBody: { type: 'youthCouncil' } }), now)).toBe(false);
+        expect(isPolledOnItsOwn(meeting({ administrativeBody: { tier: 'secondary' } }), now)).toBe(false);
         expect(isPolledOnItsOwn(meeting({ administrativeBody: null }), now)).toBe(true);
     });
 });

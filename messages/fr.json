@@ -980,6 +980,12 @@
     "type": "Type",
     "selectType": "Sélectionnez un type",
     "typeDescription": "Sélectionnez le type d'organe administratif.",
+    "tier": "Visibilité",
+    "tierDescription": "Un organe principal s’affiche partout par défaut. Un organe secondaire ne s’affiche que si le lecteur le demande, par exemple un conseil des jeunes ou une entreprise municipale.",
+    "tierOptions": {
+      "primary": "Organe principal",
+      "secondary": "Organe secondaire"
+    },
     "types": {
       "council": "Conseil municipal",
       "committee": "Commission municipale",

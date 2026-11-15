@@ -120,14 +120,14 @@ The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the 
 
 ### The pipeline of a body with no operator
 
-A secondary body, such as a youth council, runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/bodyTier.ts` names the rule, and four places read it:
+A youth council runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/bodyTier.ts` names the rule. It reads the body type, not the tier: another secondary body keeps the human review step. Four places read it:
 
 * A recording starts the transcription. The meeting write starts it after the response when the meeting has started. A link saved before the meeting waits for the cron: `transcribeUnattendedMeetings` in `src/lib/tasks/unattendedTranscription.ts` runs on the livestream tick and starts the transcription three hours after the start of the meeting, with retries up to a cap.
 * The livestream matcher takes the meetings of such a body as candidates without the agenda task.
 * The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
-* The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleasedWithEffects`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
+* The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleaseDirect`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
 
-The notifications and the Discord alerts follow their own rules: a secondary body starts with its notifications off, and a failed trigger still alerts the operators.
+The notifications and the Discord alerts follow their own rules: a youth council, which is secondary by default, starts with its notifications off, and a failed trigger still alerts the operators.
 
 ### The agenda as pasted text
 

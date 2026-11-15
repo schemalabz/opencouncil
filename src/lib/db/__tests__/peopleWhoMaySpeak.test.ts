@@ -60,7 +60,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPersonFindMany.mockResolvedValue(CITY);
   mockBodyFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-    Promise.resolve(where.id in BODY_TYPES ? { id: where.id, type: BODY_TYPES[where.id] } : null));
+    Promise.resolve(where.id in BODY_TYPES ? { id: where.id, type: BODY_TYPES[where.id], tier: BODY_TYPES[where.id] === 'youthCouncil' ? 'secondary' : 'primary' } : null));
 });
 
 describe('getPeopleWhoMaySpeak', () => {

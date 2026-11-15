@@ -8,7 +8,6 @@ import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed,
 import { buildSearchQuery } from './query';
 import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
 import { withIndexProfile, type IndexProfile } from './profile';
-import { bodyTier } from '@/lib/utils/bodyTier';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
@@ -591,7 +590,7 @@ function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): str
  */
 function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm, profile: IndexProfile): string[] {
     // The seed's tier decides which bodies the query spans (see relatedTierFilters).
-    return ['subject', seed.id, 'related', scope, realm, bodyTier(seed.administrativeBodyType), String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
+    return ['subject', seed.id, 'related', scope, realm, seed.tier, String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
 }
 
 /**
