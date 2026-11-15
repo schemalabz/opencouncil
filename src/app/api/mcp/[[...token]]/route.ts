@@ -4,7 +4,7 @@ import type { AuthInfo } from '@modelcontextprotocol/server';
 import { registerOpenCouncilServer } from '@/lib/mcp/server';
 import { verifyMcpToken, identityFromAuthInfo } from '@/lib/mcp/auth';
 import { resolveAdminAccess } from '@/lib/mcp/adminAccess';
-import { instrumentMcpAnalytics } from '@/lib/mcp/analytics';
+import { instrumentMcpAnalytics, mcpSessionTokenFor, MCP_SESSION_HEADER } from '@/lib/mcp/analytics';
 import { MCP_INSTRUCTIONS } from '@/lib/mcp/instructions';
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
 import { getRealm } from '@/lib/realm.server';
@@ -28,6 +28,19 @@ const baseHandler = createMcpHandler(
 
 const TOKEN_SEGMENT = /^mcp_[A-Za-z0-9_-]+$/;
 
+/** A copy of `req` at `url`, with headers that `edit` changed. */
+function rebuildRequest(req: Request, url: URL, edit: (headers: Headers) => void): Request {
+    const headers = new Headers(req.headers);
+    edit(headers);
+    return new Request(url, {
+        method: req.method,
+        headers,
+        body: req.body,
+        // Node's fetch requires streamed request bodies to declare duplex
+        duplex: 'half',
+    } as RequestInit);
+}
+
 async function handler(
     req: Request,
     { params }: { params: Promise<{ token?: string[] }> }
@@ -49,21 +62,22 @@ async function handler(
     // handles both styles.
     let request = req;
     if (segments.length === 1 && TOKEN_SEGMENT.test(segments[0])) {
-        const headers = new Headers(req.headers);
-        if (!headers.has('authorization')) {
-            headers.set('authorization', `Bearer ${segments[0]}`);
-        }
         const url = new URL(req.url);
         url.pathname = '/api/mcp';
-        request = new Request(url, {
-            method: req.method,
-            headers,
-            body: req.body,
-            // Node's fetch requires streamed request bodies to declare duplex
-            duplex: 'half',
-        } as RequestInit);
+        request = rebuildRequest(req, url, headers => {
+            if (!headers.has('authorization')) {
+                headers.set('authorization', `Bearer ${segments[0]}`);
+            }
+        });
     } else if (segments.length !== 0) {
         return new Response('Not found', { status: 404 });
+    }
+
+    // On initialize, the session token goes on the request too, so that the
+    // $mcp_initialize event shares the session of the calls that follow.
+    const sessionToken = await mcpSessionTokenFor(request);
+    if (sessionToken) {
+        request = rebuildRequest(request, new URL(request.url), headers => headers.set(MCP_SESSION_HEADER, sessionToken));
     }
 
     // Verify the token once, up front: the identity steers which tools get
@@ -96,7 +110,11 @@ async function handler(
     // admin tools the synchronous registration advertises.
     const adminAccess = await resolveAdminAccess(identity);
     const context = requestContext(realm, req.headers.get('host'), identity, { adminAccess });
-    return mcpRealmStore.run(context, () => authedHandler(request));
+    const response = await mcpRealmStore.run(context, () => authedHandler(request));
+    if (!sessionToken) return response;
+    const withToken = new Response(response.body, response);
+    withToken.headers.set(MCP_SESSION_HEADER, sessionToken);
+    return withToken;
 }
 
 export { handler as GET, handler as POST, handler as DELETE };
