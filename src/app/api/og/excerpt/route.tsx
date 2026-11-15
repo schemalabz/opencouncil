@@ -11,6 +11,7 @@ import { SharedContentOgImage } from '@/components/og/SharedContentOgImage';
 import { renderImage, shareCacheControl } from '@/lib/og/render';
 import { groupExcerptSpeakers } from '@/components/sharing/ExcerptQuote';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { sharedSpeakerName } from '@/lib/sharing/speakerName';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,7 +20,8 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
     const selector = parseExcerptSelector(new URL(request.url).searchParams);
     const locale = selector?.textLocale ?? 'el';
-    const t = await getTranslations({ locale, namespace: 'sharing' });
+    const [t, tTranscript] = await Promise.all([getTranslations({ locale, namespace: 'sharing' }), getTranslations({ locale, namespace: 'transcript' })]);
+    const labels = { unknownSpeaker: t('unknownSpeaker'), unverified: tTranscript('unverifiedSpeaker.label') };
     const result = selector ? await getPublicExcerpt(selector, await getRealm()) : null;
     const excerpt = result?.status === 'ok' ? result.excerpt : null;
     const groups = excerpt ? groupExcerptSpeakers(excerpt.runs) : [];
@@ -27,6 +29,7 @@ export async function GET(request: Request) {
         ? await Promise.all([sharedContext(excerpt.meeting, locale), sharedSubjectTile(excerpt.subject, locale, ILLUSTRATION_BOX.tile)])
         : [undefined, undefined];
     const single = groups.length === 1 ? groups[0].speakerName ?? t('unknownSpeaker') : null;
+    const singleName = groups.length === 1 ? sharedSpeakerName(groups[0].speakerName, groups[0].speakerUnverified, labels) : null;
     return renderImage(<SharedContentOgImage
         markSrc={LOGO_BLACK_DATA_URI}
         locale={locale}
@@ -35,10 +38,10 @@ export async function GET(request: Request) {
         warning={excerpt && !excerpt.isReviewed ? t('unreviewedLabel') : undefined}
         text={excerpt ? excerpt.runs.map(run => run.text).join(' ') : t('unavailableTitle')}
         quote={!!excerpt}
-        passages={groups.length > 1 ? groups.map(group => ({ speakerName: group.speakerName ?? t('unknownSpeaker'), text: group.text })) : undefined}
+        passages={groups.length > 1 ? groups.map(group => ({ speakerName: sharedSpeakerName(group.speakerName, group.speakerUnverified, labels), text: group.text })) : undefined}
         additionalSpeakers={groups.length > 2 ? t('additionalPassages', { count: groups.length - 2 }) : undefined}
-        attribution={excerpt && single ? {
-            name: single,
+        attribution={excerpt && single && singleName ? {
+            name: singleName,
             initials: getInitials(single),
             detail: formatDate(excerpt.meeting.dateTime, excerpt.meeting.city.timezone, locale),
         } : undefined}

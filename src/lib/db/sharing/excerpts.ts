@@ -7,6 +7,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { getPublicMeeting, transcriptIsPublic, type PublicMeeting } from './publicContent';
 import { canonicalExcerpt, MAX_EXCERPT_UTTERANCES, selectExcerptRuns, type ExcerptRun, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 import { majoritySubject, nearestSubject } from '@/lib/sharing/passageSubject';
+import { speakerIsUnverified } from '@/lib/speakerIdentifications';
 
 const subjectSelect = { id: true, name: true, topic: { select: { name: true, name_en: true, colorHex: true, icon: true } } } satisfies Prisma.SubjectSelect;
 type SubjectRow = Prisma.SubjectGetPayload<{ select: typeof subjectSelect }>;
@@ -16,7 +17,7 @@ const utteranceSelect = {
     discussionSubject: { select: subjectSelect },
     speakerSegment: { select: {
         id: true, startTimestamp: true,
-        speakerTag: { select: { id: true, personId: true, person: { select: { name: true, name_en: true } } } },
+        speakerTag: { select: { id: true, personId: true, personSetBy: true, person: { select: { name: true, name_en: true } } } },
     } },
 } satisfies Prisma.UtteranceSelect;
 type Source = Prisma.UtteranceGetPayload<{ select: typeof utteranceSelect }>;
@@ -78,16 +79,21 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
         select: utteranceSelect, take: MAX_EXCERPT_UTTERANCES + 1,
     });
     if (sources[0]?.id !== first.id || sources[sources.length - 1]?.id !== last.id) return { status: 'invalid' };
+    const isReviewed = meeting.taskStatuses.length > 0;
     const runs = selectExcerptRuns(sources.map(source => {
         const tag = source.speakerSegment.speakerTag;
-        return { id: source.id, text: localizeText(source.text, selector.textLocale), speakerTagId: tag.id, personId: tag.personId, speakerName: tag.person ? getLocalizedName(tag.person, selector.textLocale) : null };
+        return {
+            id: source.id, text: localizeText(source.text, selector.textLocale), speakerTagId: tag.id, personId: tag.personId,
+            speakerName: tag.person ? getLocalizedName(tag.person, selector.textLocale) : null,
+            speakerUnverified: speakerIsUnverified(tag, isReviewed),
+        };
     }));
     if (!runs) return { status: 'invalid' };
     if (createHash('sha256').update(canonicalExcerpt(runs)).digest('hex') !== selector.digest) return { status: 'source-changed' };
     // The subject most of the passage carries needs no query; the rest asks the meeting.
     const subject = majoritySubject(sources.map(source => source.discussionSubject)) ?? await subjectFromMeeting(sources, scope, first, last, meeting);
     return { status: 'ok', excerpt: {
-        meeting, isReviewed: meeting.taskStatuses.length > 0, selector, runs,
+        meeting, isReviewed, selector, runs,
         subject: subject && { ...subject, name: localizeText(subject.name, selector.textLocale) },
     } };
 }

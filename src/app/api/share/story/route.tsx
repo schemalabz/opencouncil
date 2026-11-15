@@ -20,6 +20,7 @@ import { topicStyleHex } from '@/lib/topicStyle';
 import { ContentStoryImage, type ContentStoryImageProps } from '@/components/og/ContentStoryImage';
 import { groupExcerptSpeakers } from '@/components/sharing/ExcerptQuote';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { sharedSpeakerName } from '@/lib/sharing/speakerName';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -53,7 +54,8 @@ export async function GET(request: Request) {
     const locale = kind === 'excerpt' ? selector?.textLocale : query.get('locale');
     if (!locale || !LOCALES.includes(locale as AppLocale)) return fail(400, 'invalid');
     const realm = await getRealm();
-    const t = await getTranslations({ locale, namespace: 'sharing' });
+    const [t, tTranscript] = await Promise.all([getTranslations({ locale, namespace: 'sharing' }), getTranslations({ locale, namespace: 'transcript' })]);
+    const labels = { unknownSpeaker: t('unknownSpeaker'), unverified: tTranscript('unverifiedSpeaker.label') };
     let meeting: PublicMeeting;
     let content: Pick<ContentStoryImageProps, 'band' | 'context' | 'label' | 'note' | 'text' | 'passages' | 'more' | 'attribution' | 'warning'>;
 
@@ -69,7 +71,7 @@ export async function GET(request: Request) {
             band: bandData,
             context,
             label: t('excerpt'),
-            passages: groups.map(group => ({ speakerName: group.speakerName ?? t('unknownSpeaker'), text: group.text })),
+            passages: groups.map(group => ({ speakerName: sharedSpeakerName(group.speakerName, group.speakerUnverified, labels), text: group.text })),
             // The story draws two passages; the reader learns what the link holds beyond them.
             more: groups.length > 2 ? t('additionalPassages', { count: groups.length - 2 }) : undefined,
             warning: excerpt.isReviewed ? undefined : t('unreviewedNotice'),
@@ -81,6 +83,7 @@ export async function GET(request: Request) {
         if (!contribution) return fail(404, 'unavailable');
         meeting = contribution.meeting;
         const speaker = contribution.speakerName ?? t('unknownSpeaker');
+        const speakerLabel = sharedSpeakerName(contribution.speakerName, contribution.speakerUnverified, labels);
         const [bandData, context, portrait] = await Promise.all([
             band(contribution.subject, meeting, locale),
             sharedContext({ city: meeting.city }, locale),
@@ -92,7 +95,7 @@ export async function GET(request: Request) {
             label: t('contribution'),
             note: t('summary'),
             text: localizeText(stripMarkdown(contribution.text), locale),
-            attribution: { name: speaker, initials: getInitials(speaker), image: portrait },
+            attribution: { name: speakerLabel, initials: getInitials(speaker), image: portrait },
         };
     } else {
         const cityId = query.get('cityId'), meetingId = query.get('meetingId'), subjectId = query.get('subjectId');

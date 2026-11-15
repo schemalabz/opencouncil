@@ -186,7 +186,7 @@ export const ContributionCard = memo(function ContributionCard({
     const shareButton = meeting.released === true ? <ContributionShareButton
         surface={sourcePage}
         cityId={meeting.cityId} meetingId={meeting.id} subjectId={subjectId} contributionId={contribution.id}
-        text={contribution.text} speakerName={speaker ? getLocalizedName(speaker, locale) : contribution.speakerName ?? null}
+        text={contribution.text} speakerName={speaker ? getLocalizedName(speaker, locale) : contribution.speakerName ?? null} speakerUnverified={speakerUnverified}
         subjectName={contextHeader?.subjectName}
     /> : null;
     const speakerNameClass = cn("min-w-0 break-words font-semibold text-foreground", contextHeader ? "text-sm" : "text-base leading-6 sm:text-sm sm:leading-5");
