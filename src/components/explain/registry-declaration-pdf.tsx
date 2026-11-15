@@ -1,5 +1,5 @@
 import { Document, Page, View, Text } from "@react-pdf/renderer";
-import { Brand, C } from "@/components/pdf/shared";
+import { BrandLockup, C } from "@/components/pdf/shared";
 import { REGISTRY_ITEMS, REGISTRY_LAW, REGISTRY_VERSION } from "@/lib/explain/registry";
 import { formatDate } from "@/lib/formatters/time";
 
@@ -16,7 +16,7 @@ export function RegistryDeclarationPdf({ baseUrl }: { baseUrl: string }) {
             <Page size="A4" style={{ fontFamily: "Inter", padding: "48 52 56", color: C.body, fontSize: 9.5 }}>
                 {/* lockup sized like the brochure's: the butterfly's strokes read as heavy as the text */}
                 <View fixed style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 26 }}>
-                    <Brand size={44} textScale={0.335} />
+                    <BrandLockup markWidth={28.8} />
                     <Text style={{ fontSize: 8.5, color: C.light }}>Έκδοση {version}</Text>
                 </View>
 
