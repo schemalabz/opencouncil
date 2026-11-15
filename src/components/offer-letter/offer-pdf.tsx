@@ -19,7 +19,7 @@ import {
     offerHasPhysicalPresence,
     getOfferCostBreakdown,
 } from "@/lib/offers/display";
-import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
+import { ASSET_BASE, BrandLockup, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
 import { formatDate } from "@/lib/formatters/time";
 
 const MARGIN_X = 48;
@@ -192,7 +192,8 @@ export function OfferPdfDocument({
         >
             {/* ════════ Page 1 — cover + costs ════════ */}
             <Page size="A4" style={pageStyle}>
-                <Brand />
+                {/* A word of about 9.9 pt, its size before the brand book fix. */}
+                <BrandLockup markWidth={19.4} />
 
                 {/* Title block */}
                 <View style={{ marginTop: 28 }}>

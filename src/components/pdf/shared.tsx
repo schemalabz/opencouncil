@@ -66,23 +66,54 @@ export const C = {
     accentSoft: "#fff4eb",
 };
 
-// Logo intrinsic ratio: 1606 × 1354
-export const LOGO_RATIO = 1354 / 1606;
+// Intrinsic size of public/logo.png, in px.
+const LOGO_W = 1606;
+const LOGO_H = 1354;
+
+// Ink box of the butterfly inside public/logo.png, in px.
+const MARK_INK = { left: 414, right: 1191, top: 354, bottom: 1000 };
+const MARK_INK_W = MARK_INK.right - MARK_INK.left;
+const MARK_INK_H = MARK_INK.bottom - MARK_INK.top;
+// "OpenCouncil" in Relative Pro Book: ink width and left side bearing of "O", in em.
+const WORDMARK_INK_EM = 5.864;
+const WORDMARK_LSB_EM = 0.052;
 
 /**
- * The OpenCouncil lockup: butterfly + wordmark. The wordmark is always
- * regular weight — never bold the logo lockup — and the butterfly stays
- * visually dominant over the letters (text ≈ 0.55 × logo width).
+ * The OpenCouncil lockup in the brand book proportions (Brand Book, March
+ * 2025, pp. 14–15): the gap between the mark and the word is ½ × mark width,
+ * and the word is 3 × mark width. All values refer to the visible ink. The
+ * PNG is cropped to the ink of the mark, so the lockup box starts at the
+ * left edge of the mark and the caller sets the clear space. The word is
+ * always regular weight: never bold the lockup.
  */
-export function Brand({ size = 18, textScale = 0.55 }: { size?: number; textScale?: number }) {
+export function BrandLockup({ markWidth }: { markWidth: number }) {
+    const scale = markWidth / MARK_INK_W;
+    const fontSize = (3 * markWidth) / WORDMARK_INK_EM;
     return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: size * textScale * 0.69 }}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
-            <Image
-                src={`${ASSET_BASE}/logo.png`}
-                style={{ width: size, height: size * LOGO_RATIO }}
-            />
-            <Text style={{ fontSize: size * textScale, color: C.ink }}>OpenCouncil</Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ width: markWidth, height: MARK_INK_H * scale, overflow: "hidden" }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image, not an HTML img */}
+                <Image
+                    src={`${ASSET_BASE}/logo.png`}
+                    style={{
+                        width: LOGO_W * scale,
+                        height: LOGO_H * scale,
+                        position: "absolute",
+                        left: -MARK_INK.left * scale,
+                        top: -MARK_INK.top * scale,
+                    }}
+                />
+            </View>
+            <Text
+                style={{
+                    fontFamily: "Relative",
+                    fontSize,
+                    color: C.ink,
+                    marginLeft: 0.5 * markWidth - WORDMARK_LSB_EM * fontSize,
+                }}
+            >
+                OpenCouncil
+            </Text>
         </View>
     );
 }

@@ -13,7 +13,7 @@
  */
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { AdministrativeBodyType } from "@prisma/client";
-import { ASSET_BASE, Brand, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
+import { ASSET_BASE, BrandLockup, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
 import type { ICON_PATHS } from "@/components/pdf/shared";
 import { bodyTypesPhrase, BROCHURE_TEAM } from "@/lib/brochure";
 
@@ -548,7 +548,8 @@ function FrontPanel({ data }: { data: BrochureData }) {
 
     return (
         <Panel>
-            <Brand size={54} textScale={0.335} />
+            {/* A word of about 18 pt, its size before the brand book fix. */}
+            <BrandLockup markWidth={35.4} />
 
             <View style={{ flex: 1, justifyContent: "center" }}>
                 {data.city ? (
