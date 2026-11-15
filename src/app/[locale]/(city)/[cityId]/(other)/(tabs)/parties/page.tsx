@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityParties from "@/components/cities/CityParties";
 import { getPartiesForCityCached, getCityCached } from "@/lib/cache";
-import { getPeopleForCityCached } from "@/lib/cache";
+import { listPeopleOfCityCached } from "@/lib/cache";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getTranslations } from "next-intl/server";
@@ -36,7 +36,7 @@ export default async function PartiesPage(
     } = params;
 
     const [people, partiesWithPersons, canEdit] = await Promise.all([
-        getPeopleForCityCached(cityId),
+        listPeopleOfCityCached(cityId),
         getPartiesForCityCached(cityId),
         isUserAuthorizedToEdit({ cityId }),
     ]);

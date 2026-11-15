@@ -1,12 +1,12 @@
 "use server";
-import { Person, VoicePrint } from '@prisma/client';
+import { Person, Prisma, VoicePrint } from '@prisma/client';
 import type { PersonRoleOutput } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
 import { rolesOfPerson, rolesWithBodyType, withPersonImageAuthorized } from "@/lib/db/personImage";
-import { isSecondaryBody } from "@/lib/utils/bodyTier";
+import { isSecondaryBody, personTierWhere, type BodyScope } from "@/lib/utils/bodyTier";
 import { RoleWithRelations, peopleOnly, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -192,11 +192,41 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
     }
 }
 
-export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean = false): Promise<PersonWithRelations[]> {
+/**
+ * The people of a city, as a reader lists them (#829): the people and parties
+ * tabs, the council band, the people API, MCP `list_people`, the people OG
+ * image and the search filters. An absent scope is the primary tier, the roster that the identity
+ * band counts; `tier` widens it (see personTierWhere). Content that names a
+ * person, such as a meeting of a secondary body, reads getPeopleOfCityForContent.
+ */
+export async function listPeopleOfCity(
+    cityId: string,
+    options: { scope?: Pick<BodyScope, 'tier'>; activeRolesOnly?: boolean } = {},
+): Promise<PersonWithRelations[]> {
+    return findPeopleOfCity({ cityId, ...personTierWhere(options.scope?.tier) }, options.activeRolesOnly ?? false);
+}
+
+/** How many people listPeopleOfCity lists for the same scope. */
+export async function countPeopleOfCity(cityId: string, scope: Pick<BodyScope, 'tier'> = {}): Promise<number> {
+    return prisma.person.count({ where: { cityId, ...personTierWhere(scope.tier) } });
+}
+
+/**
+ * Every person of a city, in every tier: the lookup of anyone who may appear
+ * in content (the meeting page and its speakers, the minutes, the export, the
+ * speaker candidates of the tasks). A youth council's meeting names its
+ * members, so this lookup must keep them. A list for readers reads
+ * listPeopleOfCity.
+ */
+export async function getPeopleOfCityForContent(cityId: string, activeRolesOnly: boolean = false): Promise<PersonWithRelations[]> {
+    return findPeopleOfCity({ cityId }, activeRolesOnly);
+}
+
+async function findPeopleOfCity(where: Prisma.PersonWhereInput, activeRolesOnly: boolean): Promise<PersonWithRelations[]> {
     try {
         const now = new Date();
         const people = await prisma.person.findMany({
-            where: { cityId },
+            where,
             include: {
                 roles: {
                     where: activeRolesOnly ? {
@@ -292,7 +322,7 @@ function isMemberOf(person: PersonWithRelations, administrativeBodyId: string): 
  * `date` is the meeting date: city-level roles are read on it.
  */
 export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId: string | null, date: Date): Promise<PersonWithRelations[]> {
-    const allPeople = await getPeopleForCity(cityId);
+    const allPeople = await getPeopleOfCityForContent(cityId);
     if (!administrativeBodyId) {
         return allPeople;
     }
@@ -317,7 +347,7 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
  * `date` is the meeting date: city-level roles are read on it, as in getPeopleWhoMaySpeak.
  */
 export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null, date: Date): Promise<PersonWithRelations[]> {
-    const allPeople = await getPeopleForCity(cityId);
+    const allPeople = await getPeopleOfCityForContent(cityId);
 
     // If no administrative body, return all people
     if (!administrativeBodyId) {

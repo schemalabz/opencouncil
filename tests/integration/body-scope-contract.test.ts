@@ -24,13 +24,17 @@ import { countCouncilMeetings, getCouncilMeetingsForCity } from '@/lib/db/meetin
 import { buildMapSubjectWhere, getGeneralSubjects, getHotSubjectsCached, type GeneralCityRow } from '@/lib/db/subject'
 import { computeRecentHotSubjects } from '@/lib/hotSubjects'
 import { publicMeetingWhere } from '@/lib/cityStatus'
-import { mcpListMeetings } from '@/lib/mcp/data'
+import { mcpListMeetings, mcpListPeople } from '@/lib/mcp/data'
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context'
 import { searchSubjectsInRealm } from '@/lib/search/core'
 import { buildFilters } from '@/lib/search/query'
 import type { QueryContainer } from '@/lib/search/types'
 import type { estypes } from '@elastic/elasticsearch'
 import { getSecondaryBodyIdsCached } from '@/lib/db/administrativeBodies'
+import { countPeopleOfCity, listPeopleOfCity } from '@/lib/db/people'
+import { CITY_COUNT_SELECT } from '@/lib/db/cityListing'
+import { getMeetingDataCore } from '@/lib/getMeetingData'
+import { GET as listPeopleApi } from '@/app/api/cities/[cityId]/people/route'
 import { GET as mapSearch } from '@/app/api/map/search/route'
 import { GET as generalSubjects } from '@/app/api/map/general-subjects/route'
 import { GET as listMeetingSubjects } from '@/app/api/cities/[cityId]/meetings/[meetingId]/subjects/route'
@@ -58,7 +62,20 @@ const SCOPES: { name: string; scope?: BodyScope; rows: string[] }[] = [
     { name: 'a type in every tier', scope: { tier: 'all', types: ['youthCouncil'] }, rows: [PROMOTED, YOUTH] },
 ]
 
+// The people of each body, and a youth member who also holds a role off any
+// body (a party, a city office): such a person is on the primary roster.
+const MIXED = 'mixed'
+const PEOPLE_SCOPES: { name: string; tier?: BodyScope['tier']; rows: string[] }[] = [
+    { name: 'no scope', tier: undefined, rows: [COUNCIL, PROMOTED, MIXED] },
+    { name: 'the secondary tier', tier: 'secondary', rows: [YOUTH] },
+    { name: 'every tier', tier: 'all', rows: [COUNCIL, PROMOTED, YOUTH, MIXED] },
+]
+
 const sorted = (rows: string[]) => [...rows].sort()
+const personOf = (row: string) => `${row}_person`
+const createPersonOf = (row: string) => prisma.person.create({
+    data: { id: personOf(row), cityId: CITY, name: `Μέλος ${row}`, name_en: `Member ${row}`, name_short: row, name_short_en: row },
+})
 const meetingOf = (row: string) => `${row}_meeting`
 const subjectOf = (row: string) => `${row}_subject`
 const asRequest = <T>(fn: () => Promise<T>) => mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', null), fn)
@@ -110,7 +127,12 @@ describe('the body scope of every reader builder (#829)', () => {
             await createMeeting(CITY, { id: meetingOf(row), administrativeBodyId: body.id, released: true, dateTime: PAST })
             await createSubject(meetingOf(row), CITY, { id: subjectOf(row), name: `Θέμα ${row}` })
             await prisma.speakerContribution.create({ data: { subjectId: subjectOf(row), text: 'Τοποθέτηση', speakerName: 'Ομιλητής' } })
+            await createPersonOf(row)
+            await prisma.role.create({ data: { personId: personOf(row), cityId: CITY, administrativeBodyId: body.id } })
         }
+        await createPersonOf(MIXED)
+        await prisma.role.create({ data: { personId: personOf(MIXED), cityId: CITY, administrativeBodyId: bodies[YOUTH].id } })
+        await prisma.role.create({ data: { personId: personOf(MIXED), cityId: CITY, name: 'Αντιδήμαρχος' } })
     })
 
     describe.each(SCOPES)('$name', ({ scope, rows }) => {
@@ -146,6 +168,30 @@ describe('the body scope of every reader builder (#829)', () => {
             const hot = await computeRecentHotSubjects(CITY, { limit: 10, scope })
             expect(sorted(hot.map(item => item.subject.id))).toEqual(sorted(rows.map(subjectOf)))
         })
+    })
+
+    describe.each(PEOPLE_SCOPES)('the people listing, $name', ({ tier, rows }) => {
+        test('the builder, its count, the people API and MCP list_people', async () => {
+            const expected = sorted(rows.map(personOf))
+            const ids = (people: { id: string }[]) => sorted(people.map(person => person.id))
+            expect(ids(await listPeopleOfCity(CITY, { scope: { tier } }))).toEqual(expected)
+            expect(await countPeopleOfCity(CITY, { tier })).toBe(rows.length)
+            const response = await listPeopleApi(new Request(`http://localhost/api/cities/${CITY}/people${tier ? `?tier=${tier}` : ''}`), { params: Promise.resolve({ cityId: CITY }) })
+            expect(ids(await response.json())).toEqual(expected)
+            expect(ids((await asRequest(() => mcpListPeople(CITY, false, tier))).people)).toEqual(expected)
+        })
+    })
+
+    test('the people API lists by default the number of people that the identity band counts', async () => {
+        const city = await prisma.city.findUniqueOrThrow({ where: { id: CITY }, include: { _count: CITY_COUNT_SELECT } })
+        const response = await listPeopleApi(new Request(`http://localhost/api/cities/${CITY}/people`), { params: Promise.resolve({ cityId: CITY }) })
+        expect((await response.json()).length).toBe(city._count.persons)
+    })
+
+    // The lookup is not a listing: a youth council's meeting names its members.
+    test('the meeting data of a secondary youth council keeps its members', async () => {
+        const data = await getMeetingDataCore(CITY, meetingOf(YOUTH))
+        expect(data.people.map(person => person.id)).toEqual(expect.arrayContaining([personOf(YOUTH), personOf(MIXED)]))
     })
 
     test('MCP list_meetings lists a secondary youth council with a tier, and not without', async () => {

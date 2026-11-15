@@ -5,7 +5,7 @@ import MeetingCardV2 from "@/components/meetings/MeetingCardV2";
 import { MeetingsTimeline } from "@/components/cities/overview/MeetingsTimeline";
 import { HotTopicsCard } from "@/components/cities/overview/HotTopicsCard";
 import { CouncilBand } from "@/components/cities/overview/CouncilBand";
-import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCouncilMeetingsPreviewPublicCached, getPartiesForCityCached, listPeopleOfCityCached } from "@/lib/cache";
 import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, isBeyondPeriod, readPeriod, readScope, type HotScope } from "@/lib/utils/hotTopicFilters";
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
@@ -133,7 +133,7 @@ export default async function CityOverviewPage(
             })
             : Promise.resolve([]),
         getPartiesForCityCached(cityId),
-        getPeopleForCityCached(cityId),
+        listPeopleOfCityCached(cityId),
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getTranslations({ locale, namespace: 'cityOverview' }),
     ]);

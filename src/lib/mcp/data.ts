@@ -10,7 +10,7 @@ import { countCouncilMeetings, getCouncilMeetingsWithSubjectPreview, type Meetin
 import { meetingListTier, type TierScope } from '@/lib/utils/bodyTier';
 import { pageSlice, paginationOf } from '@/lib/zod-schemas/listQuery';
 import { resolveDateRange } from '@/lib/dates/dayBounds';
-import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
+import { getPerson, listPeopleOfCity, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
     getPublicAdministrativeBodiesForCity,
@@ -248,9 +248,9 @@ export async function projectCityProfile(city: CityWithCounts, boundary: CityBou
 
 // --- People & parties -----------------------------------------------------
 
-export async function mcpListPeople(cityId: string, activeOnly: boolean) {
+export async function mcpListPeople(cityId: string, activeOnly: boolean, tier?: TierScope) {
     await requireRealmCity(cityId);
-    const people = await getPeopleForCity(cityId, activeOnly);
+    const people = await listPeopleOfCity(cityId, { scope: { tier }, activeRolesOnly: activeOnly });
     return {
         people: people.map(person => ({
             id: person.id,

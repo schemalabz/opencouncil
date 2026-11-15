@@ -63,7 +63,6 @@ const ALLOWED_FILES = new Set([
     'src/app/api/dev/quick-login/route.ts',
     'src/app/api/dev/seed-test-users/route.ts',
     'src/app/api/dev/seed-users/route.ts',
-    'src/app/api/og/route.tsx',
     'src/app/api/subject/[subjectId]/first-utterance/[speakerId]/route.ts',
     'src/app/api/utterance/[utteranceId]/route.ts',
 ]);

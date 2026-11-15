@@ -2,11 +2,11 @@
 const mockGetCouncilMeeting = jest.fn();
 const mockGetTranscript = jest.fn();
 const mockGetCity = jest.fn();
-const mockGetPeopleForCity = jest.fn();
+const mockGetPeopleOfCityForContent = jest.fn();
 jest.mock('@/lib/db/meetings', () => ({ getCouncilMeeting: (...a: unknown[]) => mockGetCouncilMeeting(...a) }));
 jest.mock('@/lib/db/transcript', () => ({ getTranscript: (...a: unknown[]) => mockGetTranscript(...a) }));
 jest.mock('@/lib/db/cities', () => ({ getCity: (...a: unknown[]) => mockGetCity(...a) }));
-jest.mock('@/lib/db/people', () => ({ getPeopleForCity: (...a: unknown[]) => mockGetPeopleForCity(...a) }));
+jest.mock('@/lib/db/people', () => ({ getPeopleOfCityForContent: (...a: unknown[]) => mockGetPeopleOfCityForContent(...a) }));
 // The real catalog of the locale the code asks for.
 jest.mock('next-intl/server', () => ({
     getTranslations: (o: { locale: string; namespace: string }) =>
@@ -29,7 +29,7 @@ const chair = {
 beforeEach(() => {
     mockGetCouncilMeeting.mockResolvedValue({ id: 'm1', cityId: 'rouen', name: 'Conseil municipal', dateTime: new Date('2026-04-27T16:00:00Z') });
     mockGetCity.mockResolvedValue({ id: 'rouen', name_municipality: 'Ville de Rouen', timezone: 'Europe/Paris', realm: 'france', language: 'fr' });
-    mockGetPeopleForCity.mockResolvedValue([chair]);
+    mockGetPeopleOfCityForContent.mockResolvedValue([chair]);
     mockGetTranscript.mockResolvedValue([{
         id: 's1', startTimestamp: 5,
         speakerTag: { personId: 'p1', label: 'SPEAKER_00' },

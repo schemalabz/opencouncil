@@ -164,21 +164,12 @@ export function readTier(value: string | string[] | null | undefined): TierScope
 }
 
 /**
- * Whether a person belongs on the municipality's own roster: at least one role
- * that is not on a secondary body (a party, a city office, a primary body), or
- * no role at all. A person whose every role is on a secondary body shows only
- * where that body's content shows.
- */
-export function hasPrimaryPresence(
-    roles: { administrativeBody?: { tier: BodyTier } | null }[],
-): boolean {
-    return roles.length === 0 || roles.some(role => !isSecondaryBody(role.administrativeBody));
-}
-
-/**
- * `hasPrimaryPresence` as a Prisma filter on Person: the people of the
- * municipality's own roster. The city counts read it (#829), so a listing
- * counts the same people its roster shows.
+ * The people of the municipality's own roster, as a Prisma filter on Person:
+ * at least one role that is not on a secondary body (a party, a city office, a
+ * primary body), or no role at all. A person whose every role is on a
+ * secondary body shows only where that body's content shows. The city counts
+ * and the people listing read it (#829), so a listing counts the same people
+ * as the identity band.
  */
 export const primaryPresenceWhere = {
     OR: [
@@ -186,6 +177,17 @@ export const primaryPresenceWhere = {
         { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { tier: 'primary' as const } }] } } },
     ],
 } satisfies Prisma.PersonWhereInput;
+
+/** The people whose every role is on a secondary body: the complement of primaryPresenceWhere. */
+export const secondaryPresenceWhere = {
+    roles: { some: {}, every: { administrativeBody: { tier: 'secondary' as const } } },
+} satisfies Prisma.PersonWhereInput;
+
+/** The people that a tier covers, as a Prisma where clause. An absent tier is primary. */
+export function personTierWhere(tier: TierScope = 'primary'): Prisma.PersonWhereInput {
+    if (tier === 'all') return {};
+    return tier === 'primary' ? primaryPresenceWhere : secondaryPresenceWhere;
+}
 
 /**
  * Whether every role of the person is on a youth council. A youth council has

@@ -10,7 +10,6 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
-import { hasPrimaryPresence } from '@/lib/utils/bodyTier';
 import { sortPeople } from '@/lib/sorting/people';
 import { filterActiveRoles, getPartyFromRoles, getPrimaryRole, getRoleText, getRoleTitle } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
@@ -25,6 +24,7 @@ const PEOPLE_SHOWN = 9;
 
 interface CouncilBandProps {
     parties: PartyWithPersons[];
+    /** The municipality's own roster (listPeopleOfCity): a member of a secondary body alone is not in it. */
     people: PersonWithRelations[];
     city: CityWithCounts;
     locale: string;
@@ -47,9 +47,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
     // Over every party, not just the three shown, so the band and the Παρατάξεις
     // tab never carry different figures on the same card.
     const columns = partyBodyColumns(parties);
-    // The band is the municipality's own roster: whoever sits only on a
-    // secondary body shows where that body shows (see bodyTier.ts).
-    const ordered = sortPeople(people.filter(person => hasPrimaryPresence(person.roles))).slice(0, PEOPLE_SHOWN);
+    const ordered = sortPeople(people).slice(0, PEOPLE_SHOWN);
 
     return (
         <section>

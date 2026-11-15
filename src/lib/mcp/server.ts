@@ -214,13 +214,17 @@ export function registerOpenCouncilServer(server: McpServer) {
             title: 'List council members',
             annotations: { readOnlyHint: true, openWorldHint: false },
             _meta: category('directory'),
-            description: 'List the people (councillors, mayor, etc.) of a municipality with their roles and party.',
+            description:
+                'List the people (councillors, mayor, etc.) of a municipality with their roles and party. ' +
+                'By default, the people of the primary tier: a person whose every role is on a secondary body ' +
+                '(a youth council, by default) is listed only when you pass `tier`.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 activeOnly: z.boolean().default(true).describe('Only people with currently active roles'),
+                tier: tierFilter,
             }),
         },
-        args => run(() => mcpListPeople(args.cityId, args.activeOnly))
+        args => run(() => mcpListPeople(args.cityId, args.activeOnly, args.tier))
     );
 
     server.registerTool(

@@ -13,7 +13,7 @@ jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: (...args: unknown[]) =>
 jest.mock('@/lib/realm.server', () => ({ getRealm: async () => 'gr' }));
 jest.mock('@/lib/cache/queries', () => ({
     getAllCityIdsCached: (...args: unknown[]) => mockGetAllCityIds(...args),
-    getPeopleForCityCached: jest.fn(), getPartiesForCityCached: jest.fn(), getSubjectsForMeetingCached: jest.fn(), getSubjectStatisticsCached: jest.fn(),
+    getPeopleOfCityForContentCached: jest.fn(), getPartiesForCityCached: jest.fn(), getSubjectsForMeetingCached: jest.fn(), getSubjectStatisticsCached: jest.fn(),
 }));
 jest.mock('@/lib/cache', () => ({ createCache: () => ({ get: jest.fn(), set: jest.fn() }) }));
 jest.mock('@/lib/db/meetings', () => ({ getCouncilMeeting: jest.fn() }));

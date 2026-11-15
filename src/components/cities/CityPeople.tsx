@@ -19,10 +19,10 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { AdminToolButton } from '@/components/admin/AdminStrip';
 import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
 import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
-import { hasPrimaryPresence } from '@/lib/utils/bodyTier';
 
 type CityPeopleProps = {
-    allPeople: PersonWithRelations[],
+    /** The people of the tiers on show; the people page reads them on the server (#829). */
+    people: PersonWithRelations[],
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: PublicAdministrativeBody[],
     cityId: string,
@@ -35,12 +35,12 @@ type CityPeopleProps = {
      * may give any role. The form then offers these bodies and no party.
      */
     editableBodyIds?: string[],
-    /** Whether the page shows the people of the secondary tier (#829); see the people page. */
-    showSecondary: boolean,
+    /** Whether the city has people of the secondary tier, and whether they are on show (#829); see the people page. */
+    secondaryTier: { available: boolean; shown: boolean },
 };
 
 export default function CityPeople({
-    allPeople,
+    people,
     partiesWithPersons,
     administrativeBodies,
     cityId,
@@ -48,7 +48,7 @@ export default function CityPeople({
     canEdit,
     isSuperAdmin,
     editableBodyIds,
-    showSecondary,
+    secondaryTier,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -83,20 +83,11 @@ export default function CityPeople({
         [partiesWithPersons]
     );
 
-    // The roster of the municipality, unless the reader widened the page
-    // (#829). The chips come from the people on show, so no chip leads to an
-    // empty roster.
-    const people = useMemo(() =>
-        showSecondary ? allPeople : allPeople.filter(person => hasPrimaryPresence(person.roles)),
-        [allPeople, showSecondary]
-    );
+    // The chips come from the people on show, so no chip leads to an empty
+    // roster.
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypesForPeople(people, tCommon),
         [people, tCommon]
-    );
-    const secondaryAvailable = useMemo(() =>
-        allPeople.some(person => !hasPrimaryPresence(person.roles)),
-        [allPeople]
     );
 
     // The council carries no sub-bodies, so only a narrower type offers a body.
@@ -171,7 +162,7 @@ export default function CityPeople({
                 : { cityId, parties, administrativeBodies }}
             t={t}
             renderFilter={({ selectedValues, onChange }) => {
-                if (typeOptions.length <= 1 && !secondaryAvailable) return null;
+                if (typeOptions.length <= 1 && !secondaryTier.available) return null;
                 return (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                         {typeOptions.length > 1 && (
@@ -184,7 +175,7 @@ export default function CityPeople({
                                 inline
                             />
                         )}
-                        {secondaryAvailable && <SecondaryTierToggle shown={showSecondary} />}
+                        {secondaryTier.available && <SecondaryTierToggle shown={secondaryTier.shown} />}
                     </div>
                 );
             }}
@@ -212,7 +203,7 @@ export default function CityPeople({
             <ElectedOrderSheet
                 open={electedOrderOpen}
                 onOpenChange={setElectedOrderOpen}
-                people={allPeople}
+                people={people}
                 cityId={cityId}
                 administrativeBodyId={electedOrderBodyId}
             />

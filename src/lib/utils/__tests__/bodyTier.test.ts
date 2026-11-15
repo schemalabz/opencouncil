@@ -5,9 +5,9 @@ import {
     voiceprintNeedsOwnConsent,
     defaultTierOf,
     defaultNotificationBehavior,
-    hasPrimaryPresence,
     isSecondaryBody,
     isYouthCouncil,
+    personTierWhere,
     primaryMeetingWhere,
     primaryPresenceWhere,
     readTier,
@@ -41,17 +41,6 @@ describe('the tier of a body', () => {
     it('starts a secondary body with its notifications off, and a primary one on approval', () => {
         expect(defaultNotificationBehavior('secondary')).toBe('NOTIFICATIONS_DISABLED');
         expect(defaultNotificationBehavior('primary')).toBe('NOTIFICATIONS_APPROVAL');
-    });
-
-    it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {
-        const secondary = { administrativeBody: { tier: 'secondary' as const } };
-        const primary = { administrativeBody: { tier: 'primary' as const } };
-        const party = { administrativeBody: null };
-        expect(hasPrimaryPresence([])).toBe(true);
-        expect(hasPrimaryPresence([party])).toBe(true);
-        expect(hasPrimaryPresence([secondary, primary])).toBe(true);
-        expect(hasPrimaryPresence([secondary])).toBe(false);
-        expect(hasPrimaryPresence([secondary, secondary])).toBe(false);
     });
 });
 
@@ -105,14 +94,21 @@ describe('bodyScopeWhere', () => {
     });
 });
 
-describe('primaryPresenceWhere', () => {
-    it('is the database twin of hasPrimaryPresence: no role, or a role off the secondary tier', () => {
+describe('personTierWhere', () => {
+    it('is the primary roster when no tier is given: no role, or a role off the secondary tier', () => {
         expect(primaryPresenceWhere).toEqual({
             OR: [
                 { roles: { none: {} } },
                 { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { tier: 'primary' } }] } } },
             ],
         });
+        expect(personTierWhere()).toEqual(primaryPresenceWhere);
+        expect(personTierWhere('primary')).toEqual(primaryPresenceWhere);
+    });
+
+    it('widens through the tier alone', () => {
+        expect(personTierWhere('secondary')).toEqual({ roles: { some: {}, every: { administrativeBody: { tier: 'secondary' } } } });
+        expect(personTierWhere('all')).toEqual({});
     });
 });
 

@@ -87,13 +87,13 @@ const draw = (query: string) => {
     bodyPicker = null;
     return render(
         <CityPeople
-            allPeople={people}
+            people={people}
             partiesWithPersons={[]}
             administrativeBodies={[]}
             cityId="chania"
             canEdit={false}
             isSuperAdmin
-            showSecondary={false}
+            secondaryTier={{ available: false, shown: false }}
         />
     );
 };

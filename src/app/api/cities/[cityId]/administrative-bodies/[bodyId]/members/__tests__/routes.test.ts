@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 
 /**
  * The roster routes (#829) refresh the cached roster of the city, not only
- * the people page: `getPeopleForCityCached` feeds the meeting pages and the
- * overview too, and its entry has no expiry.
+ * the people page: the cached people of the city feed the meeting pages and the
+ * overview too, and their entries have no expiry.
  */
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn(), revalidateTag: jest.fn() }));
 jest.mock('@/lib/bodyRosterText', () => ({ parseRosterText: jest.fn(), RosterParseError: class extends Error {} }));

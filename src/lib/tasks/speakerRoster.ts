@@ -14,7 +14,7 @@ import { filterActiveRoles, getPartyFromRoles, getRoleTitle, type RoleTitles } f
 export function buildSpeakerRoster(people: PersonWithRelations[], meetingDate: Date, administrativeBodyId: string | null, roleTitles: RoleTitles): RosterPerson[] {
     return people
         .map(person => describePerson(person, meetingDate, administrativeBodyId, roleTitles))
-        // getPeopleForCity returns people in random order; a stable roster keeps requests comparable.
+        // getPeopleOfCityForContent returns people in random order; a stable roster keeps requests comparable.
         .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 

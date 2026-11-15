@@ -33,7 +33,8 @@ jest.mock('next-intl/server', () => ({
 jest.mock('@/lib/cache', () => ({
     getCityPetitionBucketCached: jest.fn(),
     getPartiesForCityCached: jest.fn(),
-    getPeopleForCityCached: jest.fn(),
+    listPeopleOfCityCached: jest.fn(),
+    countPeopleOfCityCached: jest.fn(),
     getPublicAdministrativeBodiesForCityCached: jest.fn(),
     getAdministrativeBodiesWithPublicMeetingsCached: jest.fn(),
     getCityCached: jest.fn(),
@@ -128,7 +129,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         const partiesD = deferred<unknown[]>();
         const authD = deferred<boolean>();
 
-        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
+        cache.listPeopleOfCityCached.mockReturnValue(peopleD.promise);
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
 
@@ -138,7 +139,7 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         await flushMicrotasks();
 
-        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.listPeopleOfCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
 
@@ -289,7 +290,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getCityMessageCached).toHaveBeenCalledTimes(1);
         // The roster answers nothing the city's own counts don't.
         expect(cache.getPartiesForCityCached).not.toHaveBeenCalled();
-        expect(cache.getPeopleForCityCached).not.toHaveBeenCalled();
+        expect(cache.listPeopleOfCityCached).not.toHaveBeenCalled();
         expect(auth.getCurrentUser).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
         // Both scopes of both bookends, and the secondary tier's pair: the band's
@@ -356,7 +357,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         hotCards.getHotSubjectCardsCached.mockReturnValue(hotD.promise);
         cache.getCouncilMeetingsPreviewPublicCached.mockReturnValue(meetingsD.promise);
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
-        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
+        cache.listPeopleOfCityCached.mockReturnValue(peopleD.promise);
         cache.getAdministrativeBodiesWithPublicMeetingsCached.mockReturnValue(bodiesD.promise);
 
         const { default: OverviewPage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/page');
@@ -388,7 +389,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         // The council band's roster and the ranking's scope options batch with the
         // rest, not after it.
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
-        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.listPeopleOfCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getAdministrativeBodiesWithPublicMeetingsCached).toHaveBeenCalledTimes(1);
         expect(intl.getTranslations).toHaveBeenCalled();
 
@@ -401,18 +402,22 @@ describe('PR1: server-side awaits run concurrently', () => {
         await pending;
     });
 
-    it('people/page.tsx folds getRoleLimitForCity into the Promise.all batch', async () => {
+    it('people/page.tsx folds getRoleLimitForCity into the Promise.all batch, then lists the tier it decided', async () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
 
+        const cityD = deferred<unknown>();
         const partiesD = deferred<unknown[]>();
         const adminD = deferred<unknown[]>();
+        const secondaryD = deferred<number>();
         const peopleD = deferred<unknown[]>();
         const authD = deferred<ReadonlySet<string> | null>();
 
+        cache.getCityCached.mockReturnValue(cityD.promise);
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         cache.getPublicAdministrativeBodiesForCityCached.mockReturnValue(adminD.promise);
-        cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
+        cache.countPeopleOfCityCached.mockReturnValue(secondaryD.promise);
+        cache.listPeopleOfCityCached.mockReturnValue(peopleD.promise);
         auth.getRoleLimitForCity.mockReturnValue(authD.promise);
 
         const { default: PeoplePage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/people/page');
@@ -425,12 +430,19 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(auth.getRoleLimitForCity).toHaveBeenCalledTimes(1);
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPublicAdministrativeBodiesForCityCached).toHaveBeenCalledTimes(1);
-        expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.countPeopleOfCityCached).toHaveBeenCalledWith('athens', { tier: 'secondary' });
+        // The tier of the listing needs the batch (#829).
+        expect(cache.listPeopleOfCityCached).not.toHaveBeenCalled();
 
+        cityD.resolve({ id: 'athens', _count: { persons: 3 } });
         partiesD.resolve([{ id: 'p', people: [] }]);
         adminD.resolve([]);
-        peopleD.resolve([]);
+        secondaryD.resolve(2);
         authD.resolve(null);
+        await flushMicrotasks();
+
+        expect(cache.listPeopleOfCityCached).toHaveBeenCalledWith('athens', { tier: 'primary' });
+        peopleD.resolve([]);
 
         await pending;
     });

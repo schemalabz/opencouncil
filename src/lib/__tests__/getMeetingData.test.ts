@@ -14,7 +14,7 @@ jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('
 jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: jest.fn().mockResolvedValue(false) }));
 jest.mock('@/lib/cache/queries', () => ({
     getAllCityIdsCached: jest.fn().mockResolvedValue(['athens']),
-    getPeopleForCityCached: jest.fn().mockResolvedValue([]),
+    getPeopleOfCityForContentCached: jest.fn().mockResolvedValue([]),
     getPartiesForCityCached: jest.fn().mockResolvedValue([]),
     getSubjectsForMeetingCached: jest.fn().mockResolvedValue([]),
     getSubjectStatisticsCached: jest.fn().mockResolvedValue({}),

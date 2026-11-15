@@ -1,7 +1,7 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, editAuthResponses, type Paths } from '@/lib/openapi/registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestResponse, invalidRequestOrMessageResponse, editAuthResponses, type Paths } from '@/lib/openapi/registry';
 import { PersonWithRolesSchema } from '@/lib/openapi/entities';
-import { personFormDataSchema, personUpdateFormDataSchema } from '@/lib/zod-schemas/person';
+import { personFormDataSchema, personListQuerySchema, personUpdateFormDataSchema } from '@/lib/zod-schemas/person';
 
 // POST/PUT request — multipart/form-data. The roles field is the JSON string that the caller sends.
 const PersonRequestSchema = personFormDataSchema.meta({ id: 'PersonRequest' });
@@ -18,13 +18,16 @@ export const peoplePaths: Paths = {
     '/api/cities/{cityId}/people': {
         get: {
             summary: 'List people for a city',
+            description: 'The people of the municipality\'s own roster, the same people that the city counts. A person whose every role is on a secondary body shows only with `tier`.',
             tags: ['People'],
-            requestParams: { path: cityIdParam },
+            requestParams: { path: cityIdParam, query: personListQuerySchema },
             responses: {
                 200: {
                     description: 'List of people with their roles',
                     content: { 'application/json': { schema: z.array(PersonWithRolesSchema) } },
                 },
+                400: invalidRequestResponse('Invalid query parameters'),
+                500: errorResponseOf('Server error'),
             },
         },
         post: {

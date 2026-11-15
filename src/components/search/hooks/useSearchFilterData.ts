@@ -8,7 +8,7 @@ import { DateRange } from "react-day-picker";
 import { getCitiesForRequestRealm } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getAdministrativeBodiesWithPublicMeetings } from "@/lib/actions/administrativeBodies";
-import { getPeopleForCity, getPerson, PersonWithRelations } from "@/lib/db/people";
+import { getPerson, listPeopleOfCity, PersonWithRelations } from "@/lib/db/people";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import { getDateFnsLocale, getIntlLocale } from "@/lib/formatters/time";
 import { useTopics } from "@/hooks/useTopics";
@@ -91,7 +91,7 @@ export function useSearchFilterData(filters: SearchFilterParams, setFilters: (pa
         getAdministrativeBodiesWithPublicMeetings(cityId)
             .then(result => { if (live) setAdminBodies(result); })
             .catch(error => console.error("Error fetching administrative bodies:", error));
-        getPeopleForCity(cityId)
+        listPeopleOfCity(cityId)
             .then(result => { if (live) setPeople(result); })
             .catch(error => console.error("Error fetching people:", error));
         return () => { live = false; };

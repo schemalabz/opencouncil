@@ -11,7 +11,7 @@ const mockGetCouncilMeetingDirect = jest.fn();
 const mockGetSubjectsForMeeting = jest.fn();
 const mockGetCity = jest.fn();
 const mockUtteranceFindMany = jest.fn();
-const mockGetPeopleForCity = jest.fn(async (): Promise<unknown[]> => []);
+const mockGetPeopleOfCityForContent = jest.fn(async (): Promise<unknown[]> => []);
 const mockGetMeetingAttendance = jest.fn(async (): Promise<unknown[]> => []);
 const mockAttendanceEventFindMany = jest.fn(async (): Promise<unknown[]> => []);
 const mockGetDecisionReadings = jest.fn(async (): Promise<Map<string, DecisionReading>> => new Map());
@@ -23,7 +23,7 @@ jest.mock('@/lib/db/decisions', () => ({
     getExtractedDataForMeeting: jest.fn().mockResolvedValue([]),
     getMeetingAttendance: () => mockGetMeetingAttendance(),
 }));
-jest.mock('@/lib/db/people', () => ({ getPeopleForCity: () => mockGetPeopleForCity() }));
+jest.mock('@/lib/db/people', () => ({ getPeopleOfCityForContent: () => mockGetPeopleOfCityForContent() }));
 // The subject payload carries no stored reading; the minutes load the readings
 // on their own, and each test states the ones it needs.
 jest.mock('@/lib/db/decisionFacts', () => ({ getDecisionReadingsForMeeting: () => mockGetDecisionReadings() }));
@@ -220,7 +220,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         ]);
         mockUtteranceFindMany.mockResolvedValue([]);
         // The mayor sits on the committee; another member presides.
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ administrativeBodyId: COMMITTEE.id })]),
             person('p1', 'Χρήστος Πετσέλης', [role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
             person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
@@ -235,7 +235,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
     });
 
     afterEach(() => {
-        mockGetPeopleForCity.mockResolvedValue([]);
+        mockGetPeopleOfCityForContent.mockResolvedValue([]);
         mockGetMeetingAttendance.mockResolvedValue([]);
         mockAttendanceEventFindMany.mockResolvedValue([]);
     });
@@ -256,7 +256,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
 
     it("prints the departure of a mayor who presides on the president's line, not in the changes list", async () => {
         // «ΠΡΟΕΔΡΟΣ: Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)»: the mayor heads the committee.
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
             person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
             person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
@@ -273,7 +273,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
 
     it('names who presided when the mayor who presides was absent, and lists the mayor\'s arrival once, in the changes list', async () => {
         // «ΠΡΟΕΔΡΟΣ: Πετσέλης Χρήστος (λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης)»
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
             person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
             person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
@@ -306,7 +306,7 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
     });
 
     it("names on each subject's roll call who its own document says presided, else who presided at the meeting", async () => {
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
             person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
             person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),

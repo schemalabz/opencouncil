@@ -5,7 +5,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { meetingNotificationsDisabled, meetingTranscriptIsPublic } from '@/lib/db/sharing/publicContent';
 import { cache } from 'react';
-import { getAllCityIdsCached, getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
+import { getAllCityIdsCached, getPeopleOfCityForContentCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
@@ -134,7 +134,7 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
             ['city', cityId, 'withGeometry'],
             cityTags
         )(),
-        getPeopleForCityCached(cityId),
+        getPeopleOfCityForContentCached(cityId),
         getPartiesForCityCached(cityId),
         getSubjectsForMeetingCached(cityId, meetingId),
         createCache(

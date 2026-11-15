@@ -5,8 +5,8 @@ jest.mock('@/env.mjs', () => ({
 
 const mockGetCity = jest.fn();
 jest.mock('@/lib/db/cities', () => ({ getCity: (...args: unknown[]) => mockGetCity(...args) }));
-const mockGetPeopleForCity = jest.fn();
-jest.mock('@/lib/db/people', () => ({ getPeopleForCity: (...args: unknown[]) => mockGetPeopleForCity(...args) }));
+const mockGetPeopleOfCityForContent = jest.fn();
+jest.mock('@/lib/db/people', () => ({ getPeopleOfCityForContent: (...args: unknown[]) => mockGetPeopleOfCityForContent(...args) }));
 const mockGetClaimedPersonIds = jest.fn();
 jest.mock('@/lib/db/personClaim', () => ({ getClaimedPersonIds: (...args: unknown[]) => mockGetClaimedPersonIds(...args) }));
 
@@ -35,7 +35,7 @@ const person = (id: string, name: string, roles: ReturnType<typeof role>[]) => (
 
 beforeEach(() => {
     mockGetCity.mockReset();
-    mockGetPeopleForCity.mockReset();
+    mockGetPeopleOfCityForContent.mockReset();
     mockGetClaimedPersonIds.mockReset();
     mockGetTranslations.mockReset();
     const t = (key: string, values?: Record<string, string>) => (values ? `${key}:${values.date}` : key === 'president' ? 'Πρόεδρος' : key);
@@ -46,7 +46,7 @@ beforeEach(() => {
 describe('getCouncilQrStrips', () => {
     it('returns null for an unknown city', async () => {
         mockGetCity.mockResolvedValue(null);
-        mockGetPeopleForCity.mockResolvedValue([]);
+        mockGetPeopleOfCityForContent.mockResolvedValue([]);
         mockGetClaimedPersonIds.mockResolvedValue(new Set());
         expect(await getCouncilQrStrips('nowhere')).toBeNull();
     });
@@ -55,7 +55,7 @@ describe('getCouncilQrStrips', () => {
         mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
         const seat = (electedOrder: number) => role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody, electedOrder });
         // Deliberately out of order: the sheet must follow the elected order, not the query.
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('member-3', 'Αδάμ Μπούτζουκας', [seat(3)]),
             // A deputy mayor holds a city-level role and a council seat.
             person('deputy', 'Ελένη Αντωνάκη', [role({ cityId: 'chania', name: 'Αντιδήμαρχος Πολιτισμού' }), seat(2)]),
@@ -98,7 +98,7 @@ describe('getCouncilQrStrips', () => {
         const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
         mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
             o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Nicolas Mayer-Rossignol', [role({ cityId: 'rouen', isHead: true })]),
         ]);
         mockGetClaimedPersonIds.mockResolvedValue(new Set());
@@ -113,7 +113,7 @@ describe('getCouncilQrStrips', () => {
         const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
         mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
             o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('mayor', 'Aleksander Miszalski', [role({ cityId: 'krakow', isHead: true })]),
             person('chair', 'Rafał Komarewicz', [role({ cityId: 'krakow', isHead: true, name: 'Przewodniczący Rady Miasta' })]),
         ]);
@@ -130,7 +130,7 @@ describe('getCouncilQrStrips', () => {
 
     it('mints new codes on every call', async () => {
         mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('member', 'Αδάμ Μπούτζουκας', [role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody })]),
         ]);
         mockGetClaimedPersonIds.mockResolvedValue(new Set());
@@ -153,7 +153,7 @@ const seatIn = (body: typeof councilBody | typeof communityBody, overrides: Reco
 describe('community councillors and a narrowed sheet', () => {
     beforeEach(() => {
         mockGetCity.mockResolvedValue(chania);
-        mockGetPeopleForCity.mockResolvedValue([
+        mockGetPeopleOfCityForContent.mockResolvedValue([
             person('k-member', 'Μαρία Κοινοτική', [seatIn(communityBody)]),
             person('k-president', 'Γιάννης Προεδράκης', [seatIn(communityBody, { isHead: true })]),
             person('member', 'Αδάμ Μπούτζουκας', [seatIn(councilBody, { electedOrder: 1 })]),

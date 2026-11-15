@@ -3,7 +3,7 @@ import "server-only";
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript } from '@/lib/db/transcript';
 import { getCity } from '@/lib/db/cities';
-import { getPeopleForCity } from '@/lib/db/people';
+import { getPeopleOfCityForContent } from '@/lib/db/people';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
 import type { MinutesData } from '@/lib/minutes/types';
@@ -22,7 +22,7 @@ export async function generateMeetingDocxBuffer(
         getCouncilMeeting(cityId, meetingId),
         getTranscript(meetingId, cityId),
         getCity(cityId),
-        getPeopleForCity(cityId),
+        getPeopleOfCityForContent(cityId),
     ]);
 
     if (!meeting) {

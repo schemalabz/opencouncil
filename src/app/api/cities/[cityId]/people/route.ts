@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { createPerson, getPeopleForCity } from '@/lib/db/people'
+import { createPerson, listPeopleOfCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
-import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
+import { personFormDataSchema, personListQuerySchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { validatePersonRoles } from '@/lib/db/personRoles'
 import { getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
 import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
@@ -11,8 +11,13 @@ import { rolesWithBodyType, withPersonImageAuthorized } from '@/lib/db/personIma
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
-    const people = await getPeopleForCity(params.cityId);
-    return NextResponse.json(people)
+    try {
+        const { tier } = personListQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
+        const people = await listPeopleOfCity(params.cityId, { scope: { tier } });
+        return NextResponse.json(people)
+    } catch (error) {
+        return handleApiError(error, 'Failed to fetch people')
+    }
 }
 
 export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
