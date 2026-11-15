@@ -8,7 +8,7 @@ import { PersonBadge, SpeakerSuggestionIndicator, type SpeakerPickerSuggestion }
 import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSpeakerIdentifications } from "../SpeakerIdentificationsContext";
-import { listSpeakerSuggestions, speakerIdentificationsStatus } from '@/lib/speakerIdentifications';
+import { listSpeakerSuggestions, speakerIdentificationsStatus, speakerIsUnverified } from '@/lib/speakerIdentifications';
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { getPartyFromRoles, formatTimestamp } from "@/lib/utils";
@@ -165,7 +165,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
 }) {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting, city } = useCouncilMeetingMeta();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting, city, taskStatus } = useCouncilMeetingMeta();
     // Resolve party color as of the meeting date so a councilor who later
     // changed affiliation keeps their historical color on older meetings.
     const meetingDate = meeting.dateTime;
@@ -222,6 +222,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
     const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
     const borderColor = party?.colorHex || UNKNOWN_SPEAKER_COLOR;
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
+    const unverified = speakerTag ? speakerIsUnverified(speakerTag, Boolean(taskStatus.humanReview)) : false;
     const headerData = { speakerTag, person, party, borderColor, segmentCount };
 
     // Hovering the speaker's header lights all their turns on the playback bar.
@@ -296,6 +297,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                                 variant="inline"
                                                 className="flex-1 min-w-0"
                                                 date={meetingDate}
+                                                unverified={unverified}
                                             />
                                             {options.editable && <SpeakerSuggestionIndicator warning={speakerWarning} suggestionAvailable={suggestionAvailable} />}
                                             <div className='flex items-center gap-1.5 shrink-0'>
@@ -330,6 +332,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
                                                     suggestionAvailable={suggestionAvailable}
                                                     size="sm"
                                                     date={meetingDate}
+                                                    unverified={unverified}
                                                 />
                                             )}
                                         </div>

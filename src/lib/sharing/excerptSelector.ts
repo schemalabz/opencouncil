@@ -18,6 +18,8 @@ export interface ExcerptRun {
     speakerTagId: string;
     personId: string | null;
     speakerName: string | null;
+    /** The AI chose the name and nobody checked it yet. Not part of the digest. */
+    speakerUnverified?: boolean;
 }
 export interface ExcerptSource extends ExcerptRun { startTimestamp: number; drift?: number }
 export const excerptSourceIsVisible = (source: { drift?: number }, maxDrift: number) => (source.drift ?? 0) <= maxDrift;

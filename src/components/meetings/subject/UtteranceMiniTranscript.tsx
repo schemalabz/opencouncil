@@ -12,6 +12,8 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
+import { speakerIsUnverified } from '@/lib/speakerIdentifications';
+import { UnverifiedSpeakerLabel } from '@/components/persons/UnverifiedSpeakerLabel';
 
 /**
  * Builds smart display segments from multiple target utterances.
@@ -115,7 +117,7 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
   speakerSegment,
   cityId,
 }: UtteranceMiniTranscriptProps) {
-  const { getPerson } = useCouncilMeetingData();
+  const { getPerson, getSpeakerTag, taskStatus } = useCouncilMeetingData();
   const t = useTranslations("transcript.miniTranscript");
 
   // Determine mode and prepare data
@@ -160,6 +162,10 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
   const person = speakerSegment.speakerTag.personId
     ? getPerson(speakerSegment.speakerTag.personId)
     : undefined;
+
+  // The context's tag records who set the speaker; the prop's tag may not.
+  const fullTag = getSpeakerTag(speakerSegment.speakerTag.id);
+  const unverified = fullTag ? speakerIsUnverified(fullTag, Boolean(taskStatus.humanReview)) : false;
 
   // Get party color
   const party = person ? getPartyFromRoles(person.roles) : null;
@@ -211,6 +217,7 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
             </span>
           )}
 
+          {unverified && <UnverifiedSpeakerLabel />}
           <span className="text-muted-foreground/50 shrink-0">•</span>
           <Clock className="w-3 h-3 shrink-0" />
           <span className="shrink-0">{formatTimestamp(firstTargetUtterance.startTimestamp)}</span>

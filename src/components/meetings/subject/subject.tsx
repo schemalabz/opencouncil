@@ -68,7 +68,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
     /** The recurrence strip, under the title's meta row. */
     relatedStrip?: React.ReactNode;
 }) {
-    const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
+    const { subjects, getPerson, getParty, meeting, city, taskStatus } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { presentation, deadline } = useMeetingStage();
     const pending = presentationPendingKind(presentation, meeting);
@@ -441,6 +441,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                             meeting={meeting}
                                             speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
                                             isIntroducer={!!contribution.speakerId && contribution.speakerId === introducedBy?.id}
+                                            speakerUnverified={!taskStatus.humanReview}
                                         />
                                     ))}
                                 </div>

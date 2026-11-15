@@ -301,6 +301,7 @@ function SegmentsTab({
                                         released: contribution.subject.councilMeeting.released,
                                     }}
                                     speaker={contribution.speaker}
+                                    speakerUnverified={!contribution.transcriptReviewed}
                                     contextHeader={{
                                         // The card prints the date next to it.
                                         meetingName: meetingLabel(contribution.subject.councilMeeting, 'el', timezone, { date: false }),

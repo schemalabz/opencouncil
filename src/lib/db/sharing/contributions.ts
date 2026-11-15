@@ -42,6 +42,8 @@ export async function getPublicContribution(id: string, realm: Realm, locale: st
         id: contribution.id, text: contribution.text, subject, meeting,
         speakerName: contribution.speaker ? getLocalizedName(contribution.speaker, locale) : contribution.speakerName ? localizeText(contribution.speakerName, locale) : null,
         speakerImage: contribution.speaker?.image ?? null,
+        /** The speaker comes from the AI until the human review (issue #982). */
+        speakerUnverified: meeting.taskStatuses.length === 0,
         referenceLinks: Object.fromEntries(references.map(ref => [ref.id, `${transcriptUrl}?t=${Math.floor(ref.startTimestamp)}#${ref.id}`])),
         playbackUrl: timestamp !== null ? `${transcriptUrl}?t=${Math.floor(timestamp)}` : null,
         subjectUrl: contributionSubjectPath(locale, meeting.cityId, meeting.id, subject.id, contribution.id),

@@ -88,6 +88,17 @@ export function isReviewerAssignment({ personId, personSetBy }: SpeakerAssignmen
     return personSetBy === null ? personId !== null : !isAutomaticSource(personSetBy);
 }
 
+/**
+ * The page must mark this speaker's name as unverified (issue #982): a method
+ * chose it and the human review is not complete. The name is a person or, from
+ * the transcript identification, a visitor's label. A reviewer's assignment, or
+ * a completed review, confirms the name. A legacy tag with no recorded source
+ * predates personSetBy, so nobody knows who set it, and it gets no label.
+ */
+export function speakerIsUnverified({ personSetBy }: Pick<SpeakerAssignment, 'personSetBy'>, transcriptReviewed: boolean): boolean {
+    return !transcriptReviewed && personSetBy !== null && isAutomaticSource(personSetBy);
+}
+
 /** A stored opinion may name a person or give a visitor's display label. */
 type ShownIdentification = Omit<MethodIdentification, 'personId'> & {
     personId: string | null;

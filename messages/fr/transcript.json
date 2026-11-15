@@ -72,6 +72,10 @@
         "description": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de relecture et sera mise à jour prochainement.",
         "descriptionUntil": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de relecture et sera mise à jour avant le {deadline}."
     },
+    "unverifiedSpeaker": {
+        "label": "non vérifié",
+        "description": "L'intervenant a été identifié automatiquement et n'a pas encore été vérifié."
+    },
     "emptySegment": {
         "noUtterances": "Aucun énoncé dans ce segment",
         "addUtterance": "Ajouter un énoncé",

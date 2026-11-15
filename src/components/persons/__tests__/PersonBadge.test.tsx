@@ -423,3 +423,21 @@ describe('PersonBadge picker focus', () => {
         expect(document.activeElement).toBe(outside);
     });
 });
+
+describe('PersonBadge unverified label', () => {
+    const renderBadge = (unverified: boolean, variant: 'default' | 'inline') => render(
+        <NextIntlClientProvider locale="en" messages={{ transcript }}>
+            <PersonBadge person={people[0]} speakerTag={speakerTag} variant={variant} unverified={unverified} />
+        </NextIntlClientProvider>,
+    );
+
+    it.each(['default', 'inline'] as const)('labels an unverified speaker (%s variant)', (variant) => {
+        renderBadge(true, variant);
+        expect(screen.getByText(transcript.unverifiedSpeaker.label)).toBeInTheDocument();
+    });
+
+    it('shows no label for a verified speaker', () => {
+        renderBadge(false, 'default');
+        expect(screen.queryByText(transcript.unverifiedSpeaker.label)).not.toBeInTheDocument();
+    });
+});

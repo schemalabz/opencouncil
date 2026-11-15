@@ -12,6 +12,7 @@ import { ILLUSTRATION_BOX } from '@/lib/og/illustration';
 import { sharedContext, sharedSubjectTile } from '@/lib/og/sharedContent';
 import { SharedContentOgImage } from '@/components/og/SharedContentOgImage';
 import { renderImage, shareCacheControl } from '@/lib/og/render';
+import { sharedSpeakerName } from '@/lib/sharing/speakerName';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,12 +21,15 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
     const query = new URL(request.url).searchParams;
     const locale = LOCALES.includes(query.get('locale') as AppLocale) ? query.get('locale')! : 'el';
-    const t = await getTranslations({ locale, namespace: 'sharing' });
+    const [t, tTranscript] = await Promise.all([getTranslations({ locale, namespace: 'sharing' }), getTranslations({ locale, namespace: 'transcript' })]);
     const contribution = query.getAll('id').length === 1 ? await getPublicContribution(query.get('id')!, await getRealm(), locale) : null;
     const [context, subject, portrait] = contribution
         ? await Promise.all([sharedContext(contribution.meeting, locale), sharedSubjectTile(contribution.subject, locale, ILLUSTRATION_BOX.tile), getPortraitData(contribution.speakerImage)])
         : [undefined, undefined, null];
     const speaker = contribution ? contribution.speakerName ?? t('unknownSpeaker') : null;
+    const speakerLabel = contribution
+        ? sharedSpeakerName(contribution.speakerName, contribution.speakerUnverified, { unknownSpeaker: t('unknownSpeaker'), unverified: tTranscript('unverifiedSpeaker.label') })
+        : null;
     return renderImage(<SharedContentOgImage
         markSrc={LOGO_BLACK_DATA_URI}
         locale={locale}
@@ -33,8 +37,8 @@ export async function GET(request: Request) {
         label={t('contribution')}
         note={contribution ? t('summary') : undefined}
         text={contribution ? localizeText(stripMarkdown(contribution.text), locale) : t('unavailableTitle')}
-        attribution={contribution && speaker ? {
-            name: speaker,
+        attribution={contribution && speaker && speakerLabel ? {
+            name: speakerLabel,
             initials: getInitials(speaker),
             image: portrait,
             detail: formatDate(contribution.meeting.dateTime, contribution.meeting.city.timezone, locale),

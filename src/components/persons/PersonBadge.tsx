@@ -19,6 +19,7 @@ import { formatSurnameFirst } from '@/lib/formatters/name';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import type { SpeakerSuggestion } from '@/lib/speakerIdentifications';
+import { UnverifiedSpeakerLabel } from './UnverifiedSpeakerLabel';
 
 interface PersonDisplayProps {
     cityLanguage?: string;
@@ -37,6 +38,8 @@ interface PersonDisplayProps {
     date?: Date;
     /** A line under the name and roles, aligned with them. */
     caption?: React.ReactNode;
+    /** Label the name as unverified: the AI assigned it and nobody checked it yet. See speakerIsUnverified. */
+    unverified?: boolean;
 }
 
 /** Someone the speaker identifications suggest, and why (the reason arrives localized). */
@@ -52,7 +55,7 @@ const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: C
 const NO_PRESELECTION = 'no-preselection';
 
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption }: PersonDisplayProps) {
+function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption, unverified = false }: PersonDisplayProps) {
     const localize = useLocalizeText();
     const t = useTranslations('transcript.speakerPicker');
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
@@ -108,17 +111,21 @@ function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, 
             </div>
             {!short && (
                 <div className="flex flex-col justify-center min-w-0 flex-1">
-                    <div className={cn("font-medium text-foreground truncate sm:whitespace-normal sm:break-words", nameTextSize, size === 'sm' && "text-sm sm:text-base")}>
-                        {person ? (
-                            localize(preferFullName ? person.name : formatSurnameFirst(person.name))
-                        ) : (
-                            displayLabel && localize(displayLabel)
-                        )}
-                        {editable && segmentCount !== undefined && (
-                            <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
-                                ({t('segmentCount', { count: segmentCount })})
-                            </span>
-                        )}
+                    {/* The label sits outside the truncated name, so a long name on a phone cannot hide it. */}
+                    <div className="flex min-w-0 items-center gap-2">
+                        <div className={cn("min-w-0 font-medium text-foreground truncate sm:whitespace-normal sm:break-words", nameTextSize, size === 'sm' && "text-sm sm:text-base")}>
+                            {person ? (
+                                localize(preferFullName ? person.name : formatSurnameFirst(person.name))
+                            ) : (
+                                displayLabel && localize(displayLabel)
+                            )}
+                            {editable && segmentCount !== undefined && (
+                                <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
+                                    ({t('segmentCount', { count: segmentCount })})
+                                </span>
+                            )}
+                        </div>
+                        {unverified && <UnverifiedSpeakerLabel />}
                     </div>
 
                     {/* Display roles using RoleDisplay component */}
@@ -233,6 +240,7 @@ const PersonBadge = memo(function PersonBadge({
     variant = 'default',
     disableNavigation = false,
     date,
+    unverified = false,
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -324,6 +332,7 @@ const PersonBadge = memo(function PersonBadge({
                         speakerTag?.label && localize(speakerTag.label)
                     )}
                 </span>
+                {unverified && <UnverifiedSpeakerLabel />}
             </div>
         );
     }
@@ -359,6 +368,7 @@ const PersonBadge = memo(function PersonBadge({
                 editable={editable}
                 nonInteractive={disableNavigation && !editable}
                 date={date}
+                unverified={unverified}
             />
             {editable && <SpeakerSuggestionIndicator warning={warning} suggestionAvailable={suggestionAvailable} />}
             {editable && (

@@ -22,11 +22,13 @@ import { storyImagePath } from '@/lib/sharing/story';
 import { subjectOfPassage } from '@/lib/sharing/passageSubject';
 import { captureSharingEvent } from '@/lib/analytics/sharing';
 import { meetingLabel } from '@/lib/meetingName';
+import { speakerIsUnverified } from '@/lib/speakerIdentifications';
 
 export const EXCERPT_SHARE_EVENT = 'oc:share-excerpt';
 export type ExcerptShareEventDetail = { range: Range | null; utteranceId: string } | { utteranceIds: string[] };
 export function useExcerptSources(textLocale?: AppLocale) {
-    const { transcript, getPerson, getSpeakerTag, speakerTags } = useCouncilMeetingData();
+    const { transcript, getPerson, getSpeakerTag, speakerTags, taskStatus } = useCouncilMeetingData();
+    const reviewed = Boolean(taskStatus.humanReview);
     const uiLocale = useLocale();
     const locale = textLocale ?? uiLocale;
     return useMemo<ExcerptSource[]>(() => transcript.flatMap(segment => {
@@ -36,14 +38,16 @@ export function useExcerptSources(textLocale?: AppLocale) {
             id: utterance.id, text: localizeText(utterance.text, locale), startTimestamp: utterance.startTimestamp, drift: utterance.drift,
             speakerTagId: tag.id, personId: tag.personId,
             speakerName: person ? getLocalizedName(person, locale) : null,
+            speakerUnverified: speakerIsUnverified(tag, reviewed),
         }));
-    }), [transcript, getPerson, getSpeakerTag, speakerTags, locale]);
+    }), [transcript, getPerson, getSpeakerTag, speakerTags, locale, reviewed]);
 }
 
 export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootRef: RefObject<HTMLDivElement | null>; disabled: boolean; editable: boolean }) {
     const { city, meeting, subjects, transcript, taskStatus } = useCouncilMeetingData();
     const locale = useLocale() as AppLocale;
     const t = useTranslations('sharing');
+    const tTranscript = useTranslations('transcript');
     const hoverable = useMediaQuery('(hover: hover)');
     // The input that made the selection decides the button's side. The media
     // query only names the primary pointer: a finger on a touchscreen laptop
@@ -147,7 +151,7 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
         {(error || selection.status === 'too-long') && !open && <div role="status" className="fixed bottom-5 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border bg-background p-4 text-sm shadow-lg">{error || t('selectionTooLong')}</div>}
         <ContentShareDialog open={open} onOpenChange={setOpen} title={t(wholeSegment ? 'shareSegment' : 'shareExcerpt')} description={t('excerptDescription')} url={url} storyImageUrl={storyImageUrl}
             analytics={{ content_type: wholeSegment ? 'segment' : 'excerpt', surface: shareSurface, city_id: city.id, meeting_id: meeting.id, subject_id: selectedSubject?.id, locale, editable, reviewed: taskStatus.humanReview, utterance_count: active?.runs.length, character_count: active?.runs.reduce((total, run) => total + run.text.length, 0) }}
-            sourceText={active ? [reviewNotice, `${excerptQuoteText(active.runs, t('unknownSpeaker'))}\n${context}\n${meetingLabel(meeting, locale, city.timezone, { date: false })}`].filter(Boolean).join('\n\n') : ''} copyTextLabel={t('copyQuote')}>
+            sourceText={active ? [reviewNotice, `${excerptQuoteText(active.runs, { unknownSpeaker: t('unknownSpeaker'), unverified: tTranscript('unverifiedSpeaker.label') })}\n${context}\n${meetingLabel(meeting, locale, city.timezone, { date: false })}`].filter(Boolean).join('\n\n') : ''} copyTextLabel={t('copyQuote')}>
             {active && <div className="space-y-5">
                 <p className="text-xs font-medium leading-5 text-muted-foreground">{selectedSubject?.name ?? meetingLabel(meeting, locale, city.timezone, { date: false })}<br />{context}</p>
                 {reviewNotice && <TranscriptReviewNotice text={reviewNotice} />}
