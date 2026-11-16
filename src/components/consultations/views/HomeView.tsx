@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 import { Clock } from "lucide-react";
 import { Link } from "@/i18n/routing";
@@ -9,7 +10,8 @@ import { cn } from "@/lib/utils";
 import MarkdownContent from "../MarkdownContent";
 import type { RegulationData } from "../types";
 import AddressSearchBar from "./AddressSearchBar";
-import { cardClass, inputClass, LinkRow, OpenCouncilCredit, pageClass, primaryButtonClass, secondaryButtonClass, ViewLink } from "./ui";
+import { PLAN_TITLE } from "./PlanView";
+import { cardClass, inputClass, LinkRow, OpenCouncilCredit, pageClass, primaryButtonClass, secondaryButtonClass, SectionLabel, ViewLink } from "./ui";
 
 export interface HomeViewProps {
     title: string;
@@ -26,11 +28,18 @@ export interface HomeViewProps {
     cityData: CityWithGeometry | null;
     onAddress: (location: Location) => void;
     planHref?: string;
+    /**
+     * The plan's cards, when the regulation has no map. On a computer this panel is then the way
+     * into the text beside it, so it shows the cards at once; a phone links to their screen.
+     */
+    plan?: ReactNode;
     /** The link to the full map; hidden on a computer, where the map is already beside this panel. */
-    mapHref: string;
+    mapHref?: string;
     commentsHref: string;
     commentCount: number;
     studyHref: string;
+    /** What the full text is called: "Ολόκληρη η μελέτη". */
+    studyTitle: string;
     /** The address the reader gave earlier in this visit, with the link back to its street. */
     savedAddress?: { text: string; href: string };
 }
@@ -49,10 +58,12 @@ export default function HomeView({
     cityData,
     onAddress,
     planHref,
+    plan,
     mapHref,
     commentsHref,
     commentCount,
     studyHref,
+    studyTitle,
     savedAddress,
 }: HomeViewProps) {
     return (
@@ -102,23 +113,31 @@ export default function HomeView({
                         <input id="consultation-address" disabled placeholder="Φόρτωση…" className={cn(inputClass, "bg-stone-50")} />
                     )}
                 </div>
-            ) : (
+            ) : mapHref ? (
                 <ViewLink href={mapHref} className={cn(secondaryButtonClass, "lg:hidden")}>Δείτε τον χάρτη</ViewLink>
+            ) : null}
+
+            {/* The direct way in, for a reader who skips the address: every part of the plan has its own comment button.
+                Without a map, a computer already shows the cards below and the text beside this panel. */}
+            {deadline.active && (
+                <ViewLink href={planHref ?? mapHref ?? studyHref} className={cn(primaryButtonClass, !mapHref && "lg:hidden")}>Σχολιάστε το σχέδιο</ViewLink>
             )}
 
-            {/* The direct way in, for a reader who skips the address: every part of the plan has its own comment button. */}
-            {deadline.active && (
-                <ViewLink href={planHref ?? mapHref} className={primaryButtonClass}>Σχολιάστε το σχέδιο</ViewLink>
+            {plan && (
+                <section aria-label={PLAN_TITLE} className="hidden flex-col gap-3 lg:flex">
+                    <SectionLabel>{PLAN_TITLE}</SectionLabel>
+                    {plan}
+                </section>
             )}
 
             {/* On a computer the bar carries these links. */}
             <nav aria-label="Η διαβούλευση" className={cn(cardClass, "overflow-hidden lg:hidden")}>
-                {planHref && <LinkRow href={planHref}>Το σχέδιο σε 2 λεπτά</LinkRow>}
-                {canLookUpAddress && <LinkRow href={mapHref}>Ο χάρτης, δρόμο προς δρόμο</LinkRow>}
+                {planHref && <LinkRow href={planHref}>{PLAN_TITLE}</LinkRow>}
+                {canLookUpAddress && mapHref && <LinkRow href={mapHref}>Ο χάρτης, δρόμο προς δρόμο</LinkRow>}
                 <LinkRow href={commentsHref} badge={commentCount > 0 ? <span className="text-[15px]">{commentCount}</span> : undefined}>
                     Τι λένε οι άλλοι πολίτες
                 </LinkRow>
-                <LinkRow href={studyHref}>Ολόκληρη η μελέτη</LinkRow>
+                <LinkRow href={studyHref}>{studyTitle}</LinkRow>
             </nav>
 
             <p className="px-1 text-[15px] leading-relaxed text-stone-600">

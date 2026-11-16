@@ -10,6 +10,8 @@ import { Dot, headingClass, primaryButtonClass, secondaryButtonClass, textLinkCl
 
 export interface PlaceViewProps {
     display: EntityDisplay;
+    /** The panel's title; a section of the text is not "on the map". */
+    title?: string;
     commentCount: number;
     explainingCard?: OverviewCard;
     href: (view: ConsultationView, entityId?: string | null) => string;
@@ -22,12 +24,15 @@ export interface PlaceViewProps {
     onReferenceClick: (entityId: string) => void;
 }
 
-/** A place tapped on the map: who parks there, where exactly, what it means, and a way to comment. */
-export default function PlaceView({ display, commentCount, explainingCard, href, closeHref, active, variant, regulationData, onReferenceClick }: PlaceViewProps) {
+/**
+ * A place tapped on the map: who parks there, where exactly, what it means, and a way to comment.
+ * Also a section of the text that a link opened, when the text is beside the panel.
+ */
+export default function PlaceView({ display, title = 'Στον χάρτη', commentCount, explainingCard, href, closeHref, active, variant, regulationData, onReferenceClick }: PlaceViewProps) {
     const body = (
         <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5">
-                <Dot color={display.color} className="h-3.5 w-3.5" />
+                {(display.type === 'geometry' || display.type === 'geoset') && <Dot color={display.color} className="h-3.5 w-3.5" />}
                 <h2 className={cn(headingClass, "!text-xl")}>{display.what}</h2>
             </div>
             {display.where && (
@@ -53,7 +58,7 @@ export default function PlaceView({ display, commentCount, explainingCard, href,
             )}
             <div className="flex gap-2.5 pt-1">
                 {active ? (
-                    <ViewLink href={href('comment', display.id)} className={cn(primaryButtonClass, "flex-1")}>Σχολιάστε εδώ</ViewLink>
+                    <ViewLink href={href('comment', display.id)} className={cn(primaryButtonClass, "flex-1")}>{display.commentLabel ?? 'Σχολιάστε εδώ'}</ViewLink>
                 ) : (
                     <p className="flex-1 text-[15px] text-stone-600">Η διαβούλευση έχει λήξει.</p>
                 )}
@@ -69,7 +74,7 @@ export default function PlaceView({ display, commentCount, explainingCard, href,
     if (variant === 'panel') {
         return (
             <div className="min-h-full bg-white">
-                <ViewHeader backHref={closeHref} title="Στον χάρτη" />
+                <ViewHeader backHref={closeHref} title={title} />
                 <div className="p-5">{body}</div>
             </div>
         );

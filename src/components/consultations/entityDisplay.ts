@@ -1,5 +1,6 @@
 import type { ConsultationEntityType } from "./consultationUrl";
 import type { GeoSetData, OverviewCard, RegulationData } from "./types";
+import { documentWording } from "./wording";
 
 export type CommentEntityType = 'CHAPTER' | 'ARTICLE' | 'GEOSET' | 'GEOMETRY';
 
@@ -16,6 +17,10 @@ export interface EntityDisplay {
     detail?: string;
     /** One sentence of meaning, markdown. */
     meaning?: string;
+    /** A chapter or an article in a short reference: "Παράγραφος 4.1". */
+    reference?: string;
+    /** The text of the button that opens its comment form: "Σχολιάστε την παράγραφο 4.1". */
+    commentLabel?: string;
     color?: string;
     geoSetId?: string;
 }
@@ -54,14 +59,33 @@ export function describeEntity(
         }
     }
 
+    const wording = documentWording(regulationData.documentType);
     for (const item of regulationData.regulation) {
         if (item.type !== 'chapter') continue;
         if (item.id === entityId) {
-            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '', where: `Κεφάλαιο ${item.num} της μελέτης` };
+            return {
+                id: entityId,
+                type: 'chapter',
+                commentType: COMMENT_TYPE.chapter,
+                what: item.title ?? '',
+                where: wording.chapterWhere(item.num),
+                meaning: item.summary,
+                reference: wording.chapterLabel(item.num),
+                commentLabel: item.articles?.length ? wording.commentOnChapter(item.num) : wording.commentOnChapterAlone(item.num),
+            };
         }
         const article = item.articles?.find((a) => a.id === entityId);
         if (article) {
-            return { id: entityId, type: 'article', commentType: COMMENT_TYPE.article, what: article.title, where: `Ενότητα ${item.num}.${article.num} της μελέτης` };
+            return {
+                id: entityId,
+                type: 'article',
+                commentType: COMMENT_TYPE.article,
+                what: article.title,
+                where: wording.articleWhere(item.num, article.num),
+                meaning: article.summary,
+                reference: wording.articleReference(item.num, article.num),
+                commentLabel: wording.commentOnArticleReference(item.num, article.num),
+            };
         }
     }
     return null;
@@ -70,7 +94,8 @@ export function describeEntity(
 /**
  * One line naming an entity: the same on the screens, in the email to the municipality and in the
  * printout of the comments. "Θέσεις κατοίκων · Βουτσινά, δεξιά πλευρά, από Κύπρου προς Αναστάσεως",
- * "Ενότητα 4.2 της μελέτης: Στάθμευση κατοίκων", "Θέσεις κατοίκων".
+ * "Ενότητα 4.2 της μελέτης: Στάθμευση κατοίκων", "Παράγραφος 4.1 του σχεδίου: Διαδικασία Χορήγησης",
+ * "Θέσεις κατοίκων".
  */
 export function entityLabel(display: EntityDisplay): string {
     if (!display.where) return display.what;

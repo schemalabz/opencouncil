@@ -6,7 +6,8 @@ import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
 import SourcesList from "./SourcesList";
 import type { RegulationData, RegulationItem } from "./types";
-import { cardClass, SectionLabel, textLinkClass, ViewLink } from "./views/ui";
+import { cardClass, headingClass, SectionLabel, textLinkClass, ViewLink } from "./views/ui";
+import { documentWording } from "./wording";
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;
@@ -19,16 +20,19 @@ interface ConsultationDocumentProps {
     commentHref: (entityId: string) => string;
     /** A link that opens a chapter and scrolls to it, for the contents column. */
     chapterHref: (chapterId: string) => string;
-    /** The chapter or article the reader came for, marked in the contents. */
+    /** The chapter or article the reader came for, marked in the contents and in the text. */
     currentEntityId?: string | null;
+    /**
+     * The text fills a pane beside the consultation's panel, not the page: the contents column
+     * shows only where the pane is wide enough for it, and sticks to the top of the pane.
+     */
+    inPane?: boolean;
     consultationId?: string;
     cityId?: string;
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
     consultationIsActive?: boolean;
 }
-
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const tocButtonClass = "px-3.5 py-2 text-left text-[15px] font-semibold text-stone-900 hover:underline";
 
@@ -44,18 +48,20 @@ export default function ConsultationDocument({
     commentHref,
     chapterHref,
     currentEntityId,
+    inPane = false,
     consultationId,
     cityId,
     realm,
     consultationIsActive = true,
 }: ConsultationDocumentProps) {
+    const wording = documentWording(regulationData?.documentType);
     if (!regulationData) {
-        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>Δεν ήταν δυνατή η φόρτωση της μελέτης. Δοκιμάστε ξανά σε λίγο.</p>;
+        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>{wording.loadFailed}</p>;
     }
 
     const chapters = regulationData.regulation.filter(item => item.type === 'chapter' && item.articles);
     if (chapters.length === 0) {
-        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>Η μελέτη δεν έχει κεφάλαια.</p>;
+        return <p className={cn(cardClass, "m-4 p-5 text-[17px] text-stone-700")}>{wording.empty}</p>;
     }
 
     const articleIds = (chapter: RegulationItem) => chapter.articles?.map(article => article.id) ?? [];
@@ -78,9 +84,9 @@ export default function ConsultationDocument({
     return (
         <div className="mx-auto flex w-full max-w-[1120px] gap-8 px-4 pb-8 pt-4 lg:pt-7">
             {/* On a computer the contents stay beside the text; on a phone the cards are the contents. */}
-            <nav aria-label="Περιεχόμενα" className="hidden w-[280px] shrink-0 lg:block">
+            <nav aria-label="Περιεχόμενα" className={cn("hidden w-[280px] shrink-0", inPane ? "2xl:block" : "lg:block")}>
                 {/* The site's header stays on top while the page scrolls; the contents sit under it. */}
-                <div className="sticky top-24 flex flex-col gap-0.5">
+                <div className={cn("sticky flex flex-col gap-0.5", inPane ? "top-7" : "top-24")}>
                     <SectionLabel>Περιεχόμενα</SectionLabel>
                     {chapters.map(chapter => (
                         <ViewLink
@@ -91,7 +97,7 @@ export default function ConsultationDocument({
                                 isCurrent(chapter) && "border-[#c2410c] bg-white"
                             )}
                         >
-                            <span className="text-[13px] text-stone-500">Κεφάλαιο {chapter.num}</span>
+                            <span className="text-[13px] text-stone-500">{wording.chapterLabel(chapter.num)}</span>
                             <span className="text-[15px] font-semibold leading-snug">{chapter.title || chapter.name}</span>
                         </ViewLink>
                     ))}
@@ -103,8 +109,10 @@ export default function ConsultationDocument({
             </nav>
 
             <div className="flex min-w-0 flex-1 flex-col gap-3">
+                {/* A page has the screen's title above the text; a pane has none, so it names itself. */}
+                {inPane && <h2 className={cn(headingClass, "px-1 !text-xl")}>{wording.documentTitle}</h2>}
                 <div className="flex items-baseline justify-between gap-3 px-1">
-                    <span className="text-[15px] text-stone-600">{count(chapters.length, 'κεφάλαιο', 'κεφάλαια')} · {count(articleCount, 'άρθρο', 'άρθρα')}</span>
+                    <span className="text-[15px] text-stone-600">{wording.chapterCount(chapters.length)}{articleCount > 0 && ` · ${wording.articleCount(articleCount)}`}</span>
                     <button type="button" onClick={toggleAll} className={cn(textLinkClass, "text-[15px]")}>
                         {allExpanded ? 'Κλείσιμο όλων' : 'Άνοιγμα όλων'}
                     </button>
@@ -119,9 +127,12 @@ export default function ConsultationDocument({
                         referenceFormat={regulationData.referenceFormat}
                         onReferenceClick={onReferenceClick}
                         regulationData={regulationData}
+                        wording={wording}
                         commentCount={commentCount([chapter.id, ...articleIds(chapter)])}
+                        ownCommentCount={commentCount([chapter.id])}
                         commentHref={commentHref(chapter.id)}
                         active={consultationIsActive}
+                        isCurrent={inPane && chapter.id === currentEntityId}
                     >
                         {chapter.articles?.map(article => (
                             <ArticleView
@@ -132,9 +143,12 @@ export default function ConsultationDocument({
                                 referenceFormat={regulationData.referenceFormat}
                                 onReferenceClick={onReferenceClick}
                                 regulationData={regulationData}
+                                wording={wording}
+                                chapterNum={chapter.num}
                                 commentCount={commentCount([article.id])}
                                 commentHref={commentHref(article.id)}
                                 active={consultationIsActive}
+                                isCurrent={inPane && article.id === currentEntityId}
                             />
                         ))}
                     </ChapterView>

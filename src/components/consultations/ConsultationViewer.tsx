@@ -9,6 +9,7 @@ import type { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/l
 import type { ConsultationCommentResponseView } from "@/lib/db/types";
 import { formatClockTime, formatDate } from "@/lib/formatters/time";
 import type { Location } from "@/lib/types/onboarding";
+import { cn } from "@/lib/utils";
 import ConsultationBar from "./ConsultationBar";
 import ConsultationMap from "./ConsultationMap";
 import { computeAddressLookup } from "./addressLookup";
@@ -27,10 +28,11 @@ import CommentView from "./views/CommentView";
 import HomeView from "./views/HomeView";
 import MiniMap from "./views/MiniMap";
 import PlaceView from "./views/PlaceView";
-import PlanView from "./views/PlanView";
+import PlanView, { PlanCards } from "./views/PlanView";
 import StreetView from "./views/StreetView";
 import StudyView from "./views/StudyView";
 import { navigateTo, ViewLink } from "./views/ui";
+import { documentWording } from "./wording";
 
 interface ConsultationViewerProps {
     /** The site's header. It tops every screen but the phone's full-screen map. */
@@ -58,6 +60,8 @@ interface Place {
     view: ConsultationView;
     entityId: string | null;
 }
+
+const isListScreen = (view: ConsultationView) => view === 'home' || view === 'plan' || view === 'comments';
 
 /** The computer layout (map beside a panel) starts where the side panel leaves the map enough room. */
 const DESKTOP_QUERY = '(min-width: 1024px)';
@@ -111,6 +115,9 @@ const href = (view: ConsultationView, entityId?: string | null) => buildConsulta
  * A consultation as a few plain screens: where do you live, what changes on your street, the map,
  * the comment form, the plan in two minutes, what others said, and the full study. The screen is
  * the URL's `view` (with `entity` for a place or a section); the reader's address stays in this tab.
+ *
+ * A regulation without places has no map. On a computer its full text takes the map's place, beside
+ * the panel: the reader writes a comment next to the paragraph it is about.
  */
 export default function ConsultationViewer({
     header,
@@ -150,18 +157,26 @@ export default function ConsultationViewer({
         if (live.needsCanonicalUrl) navigateTo(live.canonicalUrl, { replace: true });
     }, [defaultView, regulationData, searchParams]);
 
-    // The screen before this one, for back links that return where the reader came from.
-    const [trail, setTrail] = useState<{ current: Place; previous: Place | null }>({
+    // The screen before this one, for back links that return where the reader came from. `panel` is
+    // the last screen that lists things (the start, the plan, the comments): the text returns to it.
+    const [trail, setTrail] = useState<{ current: Place; previous: Place | null; panel: ConsultationView | null }>({
         current: { view: urlState.view, entityId: urlState.entityId },
         previous: null,
+        panel: isListScreen(urlState.view) ? urlState.view : null,
     });
     if (trail.current.view !== urlState.view || trail.current.entityId !== urlState.entityId) {
         setTrail({
             current: { view: urlState.view, entityId: urlState.entityId },
             previous: trail.current.view !== urlState.view ? trail.current : trail.previous,
+            panel: isListScreen(urlState.view) ? urlState.view : trail.panel,
         });
     }
     const previous = trail.previous;
+    // The plan card that the reader last used, and the item of the text that it opened: the reader
+    // returns from that item to that card, not to the top of the cards.
+    const [usedCard, setUsedCard] = useState<{ cardId: string; entityId: string } | null>(null);
+    // The comments that the reader typed and did not send, by item: a form that leaves the screen keeps its text.
+    const [drafts] = useState(() => new Map<string, string>());
 
     // A confirmation link's result shows on its comment's screen only, and only until the reader leaves it.
     // A link that could not publish is kept in this tab instead, so that the reader can try it again later.
@@ -210,6 +225,7 @@ export default function ConsultationViewer({
     }, [cityId]);
 
     const geoSets = useMemo(() => extractGeoSets(regulationData), [regulationData]);
+    const hasMap = geoSets.length > 0;
     const lookupConfig = regulationData?.addressLookup;
     const lookup = useMemo(
         () => address && lookupConfig ? computeAddressLookup(address.coordinates, geoSets, lookupConfig) : null,
@@ -282,6 +298,7 @@ export default function ConsultationViewer({
     const hasOverview = !!regulationData?.overview?.length;
     const entityDisplay = describeEntity(regulationData, geoSets, urlState.entityId);
     let view = urlState.view;
+    if (view === 'map' && !hasMap) view = 'home';
     if (view === 'street' && addressLoaded && !lookup) view = 'home';
     if (view === 'plan' && !hasOverview) view = 'home';
     if (view === 'comment' && !entityDisplay) view = 'home';
@@ -300,13 +317,22 @@ export default function ConsultationViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one event per opened place
     }, [view, entityDisplay?.id]);
 
+    // The reader left a comment form that a plan card opened, and the cards are on screen again:
+    // the cards show that card, not their top.
+    const listView = view === 'document' && !hasMap ? trail.panel : view;
+    const showsCards = listView === 'plan' || (listView === 'home' && !hasMap && isDesktop === true);
+    const returnedCardId = showsCards && previous?.view === 'comment' && usedCard?.entityId === previous.entityId
+        ? usedCard.cardId
+        : null;
+
     // A new screen starts at its top, unless it scrolls to a card or a section of its own.
     const panelRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
         if ((view === 'plan' || view === 'document') && urlState.entityId) return;
+        if (returnedCardId) return;
         window.scrollTo(0, 0);
         panelRef.current?.scrollTo(0, 0);
-    }, [view, urlState.entityId]);
+    }, [view, urlState.entityId, returnedCardId]);
 
     const [sheetRef, sheetHeight] = useElementHeight();
 
@@ -329,9 +355,10 @@ export default function ConsultationViewer({
     const deadlineLabel = active ? `Σχόλια έως ${endDate}` : `Η διαβούλευση έληξε στις ${endDate}`;
     const title = regulationData.title || consultation.name;
     const cityHref = `/${cityId}`;
+    const wording = documentWording(regulationData.documentType);
     const planHref = hasOverview ? href('plan') : undefined;
-    // "Σχολιάστε": the plan's cards each carry a comment button; without a plan, the map does.
-    const commentHref = active ? (planHref ?? href('map')) : undefined;
+    // "Σχολιάστε": the plan's cards each carry a comment button; without a plan, the map or the text does.
+    const commentHref = active ? (planHref ?? href(hasMap ? 'map' : 'document')) : undefined;
     const homeOrStreet = lookup ? href('street') : href('home');
     const selectedId = entityDisplay && (entityDisplay.type === 'geometry' || entityDisplay.type === 'geoset') && (view === 'map' || view === 'comment')
         ? entityDisplay.id
@@ -339,6 +366,31 @@ export default function ConsultationViewer({
     const placeBackHref = previous && ['home', 'street', 'plan', 'comments'].includes(previous.view)
         ? href(previous.view, previous.entityId)
         : homeOrStreet;
+    // The section of the text that the panel is about: the text beside the panel marks it.
+    const sectionId = entityDisplay && (entityDisplay.type === 'chapter' || entityDisplay.type === 'article') && (view === 'document' || view === 'comment')
+        ? entityDisplay.id
+        : null;
+
+    const markCardUsed = (cardId: string, entityId: string) => {
+        setUsedCard({ cardId, entityId });
+        // A source link changes nothing when the URL already names this section: scroll to it again.
+        if (urlState.view === 'document' && urlState.entityId === entityId) {
+            document.getElementById(entityId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    const planCards = (
+        <PlanCards
+            overview={regulationData.overview ?? []}
+            regulationData={regulationData}
+            focusId={(view === 'plan' ? urlState.entityId : null) ?? returnedCardId}
+            href={href}
+            commentCounts={commentCounts}
+            active={active}
+            onReferenceClick={openReference}
+            onUseCard={markCardUsed}
+        />
+    );
 
     const homeView = (
         <HomeView
@@ -354,10 +406,12 @@ export default function ConsultationViewer({
             cityData={cityData}
             onAddress={handleAddress}
             planHref={planHref}
-            mapHref={href('map')}
+            plan={!hasMap && hasOverview ? planCards : undefined}
+            mapHref={hasMap ? href('map') : undefined}
             commentsHref={href('comments')}
             commentCount={liveComments.length}
             studyHref={href('document')}
+            studyTitle={wording.documentTitle}
             savedAddress={lookup && address ? { text: address.text, href: href('street') } : undefined}
         />
     );
@@ -382,7 +436,9 @@ export default function ConsultationViewer({
                 if (!entityDisplay) return homeView;
                 return (
                     <CommentView
+                        key={entityDisplay.id}
                         display={entityDisplay}
+                        drafts={drafts}
                         backHref={previous && previous.view !== 'comment'
                             ? href(previous.view, previous.entityId)
                             : href(getConsultationViewForEntityType(entityDisplay.type), entityDisplay.id)}
@@ -404,15 +460,13 @@ export default function ConsultationViewer({
             case 'plan':
                 return (
                     <PlanView
-                        overview={regulationData.overview ?? []}
-                        regulationData={regulationData}
-                        focusId={urlState.entityId}
-                        href={href}
                         backHref={href('home')}
-                        commentCounts={commentCounts}
-                        active={active}
-                        onReferenceClick={openReference}
-                    />
+                        studyHref={href('document')}
+                        studyTitle={wording.documentTitle}
+                        textBeside={!hasMap}
+                    >
+                        {planCards}
+                    </PlanView>
                 );
             case 'comments':
                 return (
@@ -422,6 +476,7 @@ export default function ConsultationViewer({
                         geoSets={geoSets}
                         href={href}
                         backHref={href('home')}
+                        startHref={lookupConfig ? href('home') : undefined}
                         commentHref={commentHref}
                         printHref={`/${cityId}/consultation/${consultationId}/comments`}
                         currentUserId={currentUser?.id}
@@ -450,6 +505,26 @@ export default function ConsultationViewer({
                     );
                 }
                 return lookup ? renderPanel('street') : homeView;
+            case 'document':
+                // Without a map the text is beside the panel. A link to a section moves the text, and the
+                // panel keeps its list: the reader does not lose the place in the cards or in the comments.
+                // A reader who arrives at a section from another page has seen no list, so the panel names
+                // the section.
+                if (trail.panel) return renderPanel(trail.panel);
+                if (!entityDisplay) return homeView;
+                return (
+                    <PlaceView
+                        display={entityDisplay}
+                        title={wording.sectionTitle}
+                        commentCount={commentCounts.get(entityDisplay.id) ?? 0}
+                        href={href}
+                        closeHref={placeBackHref}
+                        active={active}
+                        variant="panel"
+                        regulationData={regulationData}
+                        onReferenceClick={openReference}
+                    />
+                );
             default:
                 return homeView;
         }
@@ -458,9 +533,14 @@ export default function ConsultationViewer({
     const studyView = (
         <StudyView
             regulationData={regulationData}
-            entityId={urlState.entityId}
+            entityId={hasMap ? urlState.entityId : sectionId}
+            inPane={!hasMap && isDesktop === true}
+            visible={view === 'document' || (!hasMap && isDesktop === true)}
+            title={wording.documentTitle}
             href={href}
-            backHref={href('home')}
+            backHref={trail.panel === 'plan'
+                ? href('plan', usedCard?.entityId === urlState.entityId ? usedCard.cardId : null)
+                : href('home')}
             commentCounts={commentCounts}
             active={active}
             onReferenceClick={openReference}
@@ -531,13 +611,35 @@ export default function ConsultationViewer({
             deadlineLabel={deadlineLabel}
             deadlineActive={active}
             homeHref={href('home')}
-            planHref={planHref}
+            // Without a map the start panel shows the plan's cards, and the text is always on screen.
+            // With no plan either, "Σχολιάστε" has nowhere to go: each item of the text has its button.
+            planHref={hasMap ? planHref : undefined}
             commentsHref={href('comments')}
             commentCount={liveComments.length}
-            studyHref={href('document')}
-            commentHref={commentHref}
+            studyHref={hasMap ? href('document') : undefined}
+            studyLabel={wording.documentLink}
+            commentHref={hasMap || planHref ? commentHref : undefined}
         />
     );
+
+    // No map: a page per screen on a phone; on a computer, the full text beside the panel.
+    // The layout comes from CSS, so the server renders both and the phone shows one of them.
+    if (!hasMap) {
+        return (
+            <div className="min-h-dvh bg-stone-100 lg:flex lg:h-dvh lg:flex-col">
+                {header}
+                {bar}
+                <div className="lg:flex lg:min-h-0 lg:flex-1">
+                    <div className={cn("min-w-0 lg:block lg:flex-1 lg:overflow-y-auto", view !== 'document' && "hidden")}>
+                        {studyView}
+                    </div>
+                    <div ref={panelRef} className={cn("lg:block lg:w-[460px] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-stone-200 xl:w-[520px]", view === 'document' && "hidden")}>
+                        {renderPanel(view)}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (view === 'document') {
         return (

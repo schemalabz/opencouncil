@@ -36,6 +36,29 @@ describe('describeEntity', () => {
         expect(describeEntity(regulation, geoSets, 'visitor-parking')).toMatchObject({ type: 'article', what: 'Στάθμευση Επισκεπτών', where: 'Ενότητα 4.1 της μελέτης' });
     });
 
+    it('names the articles and the paragraphs of a regulation', () => {
+        const draft: RegulationData = {
+            ...regulation,
+            documentType: 'regulation',
+            regulation: [
+                { type: 'chapter', id: 'art3', num: 3, title: 'Βασικό Ωράριο', preludeBody: '…', articles: [] },
+                {
+                    type: 'chapter', id: 'art4', num: 4, title: 'Άδεια Παράτασης', summary: 'Ποιος παίρνει άδεια.',
+                    articles: [{ id: 'art4-1', num: 1, title: 'Διαδικασία Χορήγησης', summary: 'Απόφαση σε 15 ημέρες.', body: '…' }],
+                },
+            ],
+        };
+        const chapter = describeEntity(draft, [], 'art4');
+        const article = describeEntity(draft, [], 'art4-1');
+        expect(chapter).toMatchObject({ type: 'chapter', commentType: 'CHAPTER', where: 'Άρθρο 4 του σχεδίου', meaning: 'Ποιος παίρνει άδεια.' });
+        expect(article).toMatchObject({ type: 'article', commentType: 'ARTICLE', where: 'Παράγραφος 4.1 του σχεδίου', meaning: 'Απόφαση σε 15 ημέρες.' });
+        expect(entityLabel(article!)).toBe('Παράγραφος 4.1 του σχεδίου: Διαδικασία Χορήγησης');
+        // The short reference and the comment button name the item too.
+        expect(chapter).toMatchObject({ reference: 'Άρθρο 4', commentLabel: 'Σχολιάστε όλο το άρθρο 4' });
+        expect(article).toMatchObject({ reference: 'Παράγραφος 4.1', commentLabel: 'Σχολιάστε την παράγραφο 4.1' });
+        expect(describeEntity(draft, [], 'art3')).toMatchObject({ reference: 'Άρθρο 3', commentLabel: 'Σχολιάστε το άρθρο 3' });
+    });
+
     it('returns null for an unknown id or no regulation', () => {
         expect(describeEntity(regulation, geoSets, 'nope')).toBeNull();
         expect(describeEntity(null, geoSets, 'res-1')).toBeNull();

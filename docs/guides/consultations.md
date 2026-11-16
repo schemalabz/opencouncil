@@ -23,6 +23,7 @@ The regulation JSON file is the core data source for each consultation. It follo
 **Root properties:**
 - `title`, `summary` — regulation metadata (summary supports markdown with `{REF:id}` and `{DEF:id}` references)
 - `contactEmail`, `ccEmails` — where citizen feedback emails are sent
+- `documentType` — what the text is: `"study"` (the default) or `"regulation"`. It sets the words that the viewer uses for the items of the text (see [Text Without a Map](#text-without-a-map))
 - `sources` — array of source documents (`{title, url, description?}`)
 - `definitions` — dictionary of terms that can be referenced via `{DEF:id}` in markdown
 - `defaultView` — the first screen (`"map"` or `"document"`) when the regulation has no `addressLookup` and no `overview`. With either of them the first screen is `home`
@@ -32,12 +33,13 @@ The regulation JSON file is the core data source for each consultation. It follo
     - `streetGeoSetIds`, `streetRadiusMeters` (30), `streetMaxItems` (4) — the area geometries on the reader's street, nearest first. The default is every area geoset except the zone geoset
     - `nearbyGeoSetIds`, `nearbyRadiusMeters` (400) — the nearest geometry of each of these geosets. The default is every point geoset
     - `noZoneText` — markdown for an address outside every zone
-- `overview` — the cards of the `plan` screen ("the plan in two minutes"): `{id, title, body, commentOn?, commentLabel?, explains?, linkLabel?}`. `body` is markdown. `commentOn` is the entity that the card's comment link targets. `explains` lists the geosets that the card explains: a place of those geosets links to the card, with `linkLabel` as the link text. Without `overview` there is no `plan` screen
+- `overview` — the cards of the `plan` screen ("the plan in two minutes"): `{id, title, body, commentOn?, commentLabel?, basedOn?, explains?, linkLabel?}`. `body` is markdown. `commentOn` is the entity that the card's comment link targets. When it is a chapter or an article, the link names it ("Σχολιάστε την παράγραφο 4.3"), unless `commentLabel` gives another text. `basedOn` lists the chapters and articles that the card sums up: the card shows a small link to each of them above its title. Without `basedOn` the card links to `commentOn`. `explains` lists the geosets that the card explains: a place of those geosets links to the card, with `linkLabel` as the link text. Without `overview` there is no `plan` screen
 - `regulation` — array of `Chapter` and `GeoSet` items (the main content). Order is draw order on the map: a later geoset draws on top and wins clicks, so put large areas (zones, communities) first and small clickable shapes after them
 
 **Chapter** (`type: "chapter"`):
 - `num`, `id`, `title`, `summary`, `preludeBody` (intro markdown before articles)
 - `articles[]` — each with `num`, `id`, `title`, `summary`, `body` (markdown)
+- A chapter with `preludeBody` and no articles is one block of text. The reader comments on the whole chapter
 
 **GeoSet** (`type: "geoset"`):
 - `id`, `name`, `description`, `color` (hex)
@@ -150,12 +152,13 @@ sequenceDiagram
     * `ConsultationViewer`: Reads the screen from the URL, keeps the reader's address in session storage, computes the address lookup, and lays the screens out for a phone or a computer
     * `consultationUrl.ts`: The URL model. `comment` and `plan` keep any entity; `home`, `street` and `comments` take none; for `map` and `document` the entity's type decides the screen
     * `entityDisplay.ts`: `describeEntity()` gives every screen the same what, where, detail and meaning for an entity
+    * `wording.ts`: `documentWording()` gives the words for the items of the text. The words depend on `documentType`
     * `addressLookup.ts`: `computeAddressLookup()` finds the zone, the street's geometries and the nearby points for an address
     * `views/`: One component per screen — `HomeView`, `StreetView` (with `MiniMap` on a phone), `PlaceView` (the phone's card over the map, the computer's panel), `CommentView`, `PlanView`, `CommentsView` (with `CommentList`, which draws the municipality's response and its form from `views/CommentResponse.tsx`) and `StudyView`. `views/ui.tsx` holds the shared styles and `ViewLink`
     * `ConsultationBar`: The computer's bar under the site header — title, deadline, and links to the plan, the comments and the study
     * `ConsultationMap`: Mapbox map with geoset rendering, the address search bar (`views/AddressSearchBar`), filter chips, the address pin, selection and street outlines, derived geometry computation (buffer/difference), and the superadmin geo-editor
     * `ConsultationDocument`: Renders chapters and articles with expand/collapse and the sources list
-    * `ChapterView` / `ArticleView`: Chapter and article cards with comment counts and a link to the comment screen; opening one names it in the URL
+    * `ChapterView` / `ArticleView`: Chapter and article cards with comment counts and a link to the comment screen; opening one names it in the URL. Every comment button has the same icon and names its item ("Σχολιάστε όλο το άρθρο 4"). The heading of an item has the icon too, so the reader does not scroll to the end of a long item to comment
     * `MarkdownContent`: Renders markdown with `{REF:id}` and `{DEF:id}` pattern handling as interactive links
     * `LayerControlsPanel`, `GeoSetItem`, `GeometryItem`, `EditingToolsPanel`: The geo-editor (superadmins only)
     * `SourcesList`: Regulation source documents and contact information
@@ -259,6 +262,8 @@ Files are uploaded via the `/api/upload` endpoint which:
 
 For local development, you can place regulation JSON files in the `public/` directory and use relative URLs (e.g., `/regulation-cooking-oil.json`). However, for production and shared environments, always use S3-hosted URLs so the files are accessible regardless of the deployment.
 
+The seed adds one open consultation to a local database and to a preview: `/athens/consultation/music-hours`. It has no map, so it shows the layout for a text without a map. `src/lib/db/consultationFixture.ts` creates it. A database that the seed created before this fixture gets it with `npm run seed -- fixtures`.
+
 ## Business Rules & Assumptions
 
 ### Feature Gating
@@ -306,6 +311,17 @@ For local development, you can place regulation JSON files in the `public/` dire
 2. The layout for the screen comes from CSS, so the server renders the panel. Only the map waits until the browser knows the screen size
 3. On a phone the map screen fills the screen without the site header. A tapped place opens a card at the bottom, and zooms keep clear of it
 4. Every screen but the phone's map shows the site header
+
+### Text Without a Map
+1. A regulation without a geoset has no map. The `map` screen does not exist: a link to it opens the start screen. The bar and the start screen show no map link
+2. On a computer the full text takes the place of the map. The side panel shows the start screen with the plan cards, the comment form, the comments, or the selected item of the text. The text marks the item that the panel is about
+3. On a computer a link to an item of the text moves the text, and the panel keeps its list: the start screen, the plan or the comments. The reader does not lose the place in the cards or in the comments. A reader who arrives at an item from another page has seen no list: the panel then names the item and has its comment button
+4. On a phone each screen is a page, as with a map. The start screen links to the plan, the comments and the full text. The text that a card opened returns to that card
+5. The reader who leaves a comment form that a card opened sees that card again, not the top of the cards. A comment form keeps the text that the reader did not send, for the time that the page stays open
+6. Without a map and without `overview`, the bar and the start screen of a computer have no "Σχολιάστε" button: each item of the text beside the panel has its own
+7. `documentType: "regulation"` is for a legal text. The viewer calls a `chapter` "Άρθρο N" and an `article` "Παράγραφος C.N", in the text, in a comment's label, in the email to the municipality and in the printout. Without it the viewer calls them "Κεφάλαιο" and "Άρθρο", and calls the text "μελέτη"
+8. `documentType` and the map are independent: a regulation with geosets keeps the map layout and gets the words of a regulation
+9. Example: `public/consultations/athens-music-hours.json`, which the seed adds to Athens as the review consultation `music-hours` (see [Database Seeding](../database-seeding.md))
 
 ### Navigation
 1. The URL holds the screen and the entity: `?view=map&entity=<id>`, `?view=comment&entity=<id>`, `?view=plan&entity=<card id>`. Old hash links (`#article-3`) and a view that does not match the entity are rewritten in place

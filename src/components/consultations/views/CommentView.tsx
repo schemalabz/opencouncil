@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Mail } from "lucide-react";
+import { CheckCircle2, Mail, MessageSquare } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { captureEvent } from "@/lib/analytics/capture";
 import { captureConsultationNextStep } from "../analytics";
@@ -21,6 +21,8 @@ export interface CommentViewProps {
     consultationId: string;
     cityId: string;
     active: boolean;
+    /** The texts that the reader typed and did not send, by item. The form keeps its text here when it leaves the screen. */
+    drafts: Map<string, string>;
     /** What opening the comment's confirmation link did, when the reader arrived from it. */
     confirmation: ConfirmedPendingComment | null;
     /** Where the municipality's notifications signup is, offered once the comment is in. */
@@ -52,11 +54,16 @@ const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'publishe
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
  * anyone else leaves a name and an email, and the comment goes live when they open the link we send.
  */
-export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, canRespond, currentUserId, comments, onUpvoted, onDeleted, onResponded }: CommentViewProps) {
+export default function CommentView({ display, drafts, backHref, consultationId, cityId, active, confirmation, notificationsHref, cityHref, municipalityName, canRespond, currentUserId, comments, onUpvoted, onDeleted, onResponded }: CommentViewProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
     const signedIn = status === 'authenticated' && !!session?.user;
-    const [text, setText] = useState('');
+    const [text, setTextState] = useState(() => drafts.get(display.id) ?? '');
+    const setText = (value: string) => {
+        if (value) drafts.set(display.id, value);
+        else drafts.delete(display.id);
+        setTextState(value);
+    };
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -122,6 +129,8 @@ export default function CommentView({ display, backHref, consultationId, cityId,
         }
     };
 
+    const isSection = display.type === 'chapter' || display.type === 'article';
+
     return (
         <div className={pageClass}>
             <ViewHeader backHref={backHref} title="Το σχόλιό σας" />
@@ -150,8 +159,11 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                     </div>
                 )}
 
-                <div className={cn(cardClass, "flex items-center gap-3 px-4 py-3")}>
-                    <Dot color={display.color} />
+                {/* A section of the text has the colours of its mark in the text beside the form. */}
+                <div className={cn(cardClass, "flex items-center gap-3 px-4 py-3", isSection && "border-[#fdba74] bg-[#fff7ed]")}>
+                    {isSection
+                        ? <MessageSquare className="h-[18px] w-[18px] shrink-0 text-[#9a3412]" aria-hidden="true" />
+                        : <Dot color={display.color} />}
                     <div className="text-[15px] leading-snug">
                         <div className="font-semibold">{display.where ?? display.what}</div>
                         {display.where && <div className="text-stone-600">{display.what}</div>}

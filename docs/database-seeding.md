@@ -140,6 +140,13 @@ SEED_DATA_URL=https://custom-url/seed_data.json
 SEED_DATA_PATH=./custom/path/seed_data.json
 ```
 
+## Review fixtures
+
+The artifact cannot carry some data that a review needs. `npm run db:deploy:seed`, `npm run seed -- reset` and `npm run seed -- fixtures` add this data after the restore. A second run changes nothing, with one exception: it opens the review consultation again after that consultation has closed.
+
+- **Serbian review city**: Belgrade (`/beograd`), with a transcribed meeting. See the [Serbian localization guide](./guides/serbian-localization.md).
+- **Review consultation**: `/athens/consultation/music-hours`, an open consultation on a regulation without a map. The fixture turns on consultations for Athens. The consultation closes 21 days after the fixture creates it or opens it again. Its text is `public/consultations/athens-music-hours.json`. See the [consultations guide](./guides/consultations.md#text-without-a-map).
+
 ## Test Users
 
 The seeding process automatically creates test users with different permission levels:
@@ -184,7 +191,7 @@ The script:
 
 A kept run directory holds production's content. Delete it after the next run succeeds. The script warns about each run directory that an earlier run left.
 
-While the reset runs, staging does not answer, and its private tables are empty for a few seconds: a person who signs in then gets a new account, and the kept one, with its rights, is left out. Run it when nobody uses staging. The run adds the test accounts and the Serbian review city, and a right to that city is left out, because the fixtures add the city after the kept rows come back. For the same reason, every run reports 5 `_NotificationLocation` rows as left out: they link the test accounts to the fixture locations, and the fixtures add them again.
+While the reset runs, staging does not answer, and its private tables are empty for a few seconds: a person who signs in then gets a new account, and the kept one, with its rights, is left out. Run it when nobody uses staging. The run adds the test accounts, the Serbian review city and the review consultation, and a right to that city is left out, because the fixtures add the city after the kept rows come back. For the same reason, every run reports 5 `_NotificationLocation` rows as left out: they link the test accounts to the fixture locations, and the fixtures add them again.
 
 The reset waits at most one minute for each lock on a table. Then it stops and changes nothing. Its error lists the sessions that hold locks on its tables. A stalled app backend can hold a lock for hours: when the app does not answer, terminate that session (`SELECT pg_terminate_backend(<pid>)`). Then run the command that the script printed.
 
