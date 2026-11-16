@@ -182,6 +182,7 @@ function registerCityAdminTools(server: McpServer) {
                 + 'Confirm the source, municipal territorial unit and replacement before writing; never substitute a country outline or bounding box. '
                 + 'Demo publication makes the city and already released meetings discoverable on its realm; draft meetings stay unreleased. '
                 + 'It does not enable official support or notifications, and refuses supported cities. '
+                + 'It also refuses a realm that already has a supported city: a demo is allowed only in a realm with no customer. '
                 + 'Returns the same city profile as get_city, plus changed and before/after changes. Equivalent boundaries and existing demos are no-ops. '
                 + 'Read get_city and obtain publication approval first; approval to import pending is not approval to publish.',
             inputSchema: updateCityToolInput,

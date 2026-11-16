@@ -375,6 +375,14 @@ describe('update_city demo publication', () => {
         (applyCityUpdateDirect as jest.Mock).mockRejectedValue(new Prisma.PrismaClientKnownRequestError('no eligible city', { code: 'P2025', clientVersion: 'test' }));
         await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'mannheim', status: 'demo' })).rejects.toThrow(ConflictError);
     });
+
+    it('passes the realm policy refusal through as the tool error, with nothing invalidated', async () => {
+        asSuperadmin();
+        const refusal = new ConflictError('Cannot publish "trikala" as a demo: realm greece already has a supported city (Athens).');
+        (applyCityUpdateDirect as jest.Mock).mockRejectedValue(refusal);
+        await expect(mcpUpdateCity(SUPERADMIN_TOKEN, { cityId: 'trikala', status: 'demo' })).rejects.toBe(refusal);
+        expect(revalidateAfterResponse).not.toHaveBeenCalled();
+    });
 });
 
 describe('update_city boundary', () => {

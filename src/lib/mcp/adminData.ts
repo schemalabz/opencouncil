@@ -406,7 +406,7 @@ export async function mcpPopulateCity(
         cityId: data.cityId,
         ...stats,
         url: `${cityBaseUrl(data.cityId)}/${data.cityId}`,
-        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call update_city with status: "demo".',
+        next: 'The city stays pending. After checking the import and obtaining approval to publish, a superadmin can call update_city with status: "demo", if the realm has no supported city.',
     };
 }
 
