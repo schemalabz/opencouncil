@@ -89,6 +89,12 @@
         "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
       }
     },
+    "documentType": {
+      "type": "string",
+      "enum": ["study", "regulation"],
+      "default": "study",
+      "description": "Το είδος του κειμένου. «study»: μελέτη με κεφάλαια και άρθρα. «regulation»: κανονιστικό κείμενο, όπου κάθε «chapter» είναι ένα άρθρο του («Άρθρο 4») και τα «articles» του είναι οι αριθμημένες παράγραφοί του («4.1»)"
+    },
     "defaultView": {
       "type": "string",
       "enum": ["map", "document"],

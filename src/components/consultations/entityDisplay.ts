@@ -1,5 +1,6 @@
 import type { ConsultationEntityType } from "./consultationUrl";
 import type { GeoSetData, OverviewCard, RegulationData } from "./types";
+import { documentWording } from "./wording";
 
 export type CommentEntityType = 'CHAPTER' | 'ARTICLE' | 'GEOSET' | 'GEOMETRY';
 
@@ -54,14 +55,15 @@ export function describeEntity(
         }
     }
 
+    const wording = documentWording(regulationData.documentType);
     for (const item of regulationData.regulation) {
         if (item.type !== 'chapter') continue;
         if (item.id === entityId) {
-            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '', where: `Κεφάλαιο ${item.num} της μελέτης` };
+            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '', where: wording.chapterWhere(item.num), meaning: item.summary };
         }
         const article = item.articles?.find((a) => a.id === entityId);
         if (article) {
-            return { id: entityId, type: 'article', commentType: COMMENT_TYPE.article, what: article.title, where: `Ενότητα ${item.num}.${article.num} της μελέτης` };
+            return { id: entityId, type: 'article', commentType: COMMENT_TYPE.article, what: article.title, where: wording.articleWhere(item.num, article.num), meaning: article.summary };
         }
     }
     return null;
@@ -70,7 +72,8 @@ export function describeEntity(
 /**
  * One line naming an entity: the same on the screens, in the email to the municipality and in the
  * printout of the comments. "Θέσεις κατοίκων · Βουτσινά, δεξιά πλευρά, από Κύπρου προς Αναστάσεως",
- * "Ενότητα 4.2 της μελέτης: Στάθμευση κατοίκων", "Θέσεις κατοίκων".
+ * "Ενότητα 4.2 της μελέτης: Στάθμευση κατοίκων", "Παράγραφος 4.1 του σχεδίου: Διαδικασία Χορήγησης",
+ * "Θέσεις κατοίκων".
  */
 export function entityLabel(display: EntityDisplay): string {
     if (!display.where) return display.what;

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { smallActionClass, ViewLink } from "./views/ui";
 import MarkdownContent from "./MarkdownContent";
 import { Article, ReferenceFormat, RegulationData } from "./types";
+import type { DocumentWording } from "./wording";
 
 interface ArticleViewProps {
     article: Article;
@@ -12,9 +13,14 @@ interface ArticleViewProps {
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
     regulationData?: RegulationData;
+    wording: DocumentWording;
+    /** The number of the chapter that holds the article. */
+    chapterNum: number | undefined;
     commentCount: number;
     commentHref: string;
     active: boolean;
+    /** The reader came for this article, or is writing a comment on it. */
+    isCurrent?: boolean;
 }
 
 /** An article inside its chapter's card: its number and title open the text and its comment button. */
@@ -25,17 +31,20 @@ export default function ArticleView({
     referenceFormat,
     onReferenceClick,
     regulationData,
+    wording,
+    chapterNum,
     commentCount,
     commentHref,
-    active
+    active,
+    isCurrent = false,
 }: ArticleViewProps) {
     return (
-        <div id={article.id} className="scroll-mt-16 border-t border-stone-100 sm:scroll-mt-24">
+        <div id={article.id} className={cn("scroll-mt-16 border-t border-stone-100 sm:scroll-mt-24", isCurrent && "bg-[#fff7ed] shadow-[inset_3px_0_0_#c2410c]")}>
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
                 <h3 className="m-0">
-                    <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-stone-50">
+                    <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-black/[0.02]">
                         <span className="min-w-0 flex-1">
-                            <span className="block text-[13px] font-normal text-stone-600">Άρθρο {article.num}</span>
+                            <span className="block text-[13px] font-normal text-stone-600">{wording.articleLabel(chapterNum, article.num)}</span>
                             <span className="block text-[17px] font-semibold leading-snug">{article.title}</span>
                         </span>
                         {commentCount > 0 && (
@@ -54,7 +63,7 @@ export default function ArticleView({
                         regulationData={regulationData}
                     />
                     <ViewLink href={commentHref} className={cn(smallActionClass, "mt-3 inline-flex")}>
-                        {active ? 'Σχολιάστε αυτό το άρθρο' : 'Τα σχόλια'}{commentCount > 0 ? ` (${commentCount})` : ''}
+                        {active ? wording.commentOnArticle : 'Τα σχόλια'}{commentCount > 0 ? ` (${commentCount})` : ''}
                     </ViewLink>
                 </CollapsibleContent>
             </Collapsible>

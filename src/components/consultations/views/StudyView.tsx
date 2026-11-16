@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Realm } from "@prisma/client";
 import ConsultationDocument from "../ConsultationDocument";
 import type { ConsultationView } from "../consultationUrl";
@@ -11,6 +11,15 @@ export interface StudyViewProps {
     regulationData: RegulationData;
     /** A chapter or article to open and scroll to. */
     entityId: string | null;
+    /**
+     * The text is a pane beside the consultation's panel (a computer, no map). It opens whole, it
+     * marks `entityId`, and opening a section does not change the screen: the panel may hold a draft.
+     */
+    inPane?: boolean;
+    /** Whether the text is on screen. A text that comes into view scrolls to `entityId`. */
+    visible?: boolean;
+    /** What the full text is called: "Ολόκληρη η μελέτη". */
+    title: string;
     href: (view: ConsultationView, entityId?: string | null) => string;
     backHref: string;
     commentCounts: Map<string, number>;
@@ -27,10 +36,20 @@ function toggle(set: Set<string>, id: string): Set<string> {
     return next;
 }
 
+function without(set: Set<string>, ids: string[]): Set<string> {
+    if (!ids.some(id => set.has(id))) return set;
+    const next = new Set(set);
+    for (const id of ids) next.delete(id);
+    return next;
+}
+
 /** The full study, chapter by chapter, for the reader who wants every detail. */
 export default function StudyView({
     regulationData,
     entityId,
+    inPane = false,
+    visible = true,
+    title,
     href,
     backHref,
     commentCounts,
@@ -40,28 +59,46 @@ export default function StudyView({
     cityId,
     realm,
 }: StudyViewProps) {
-    const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
-    const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
+    // A page starts closed, and remembers what the reader opened. A pane starts open, and remembers
+    // what the reader closed: the open sections then come from the regulation in the same render,
+    // so a scroll to one of them measures the text at its full height.
+    const [opened, setOpened] = useState<Set<string>>(new Set());
+    const [closed, setClosed] = useState<Set<string>>(new Set());
+    const sectionIds = useMemo(() => {
+        const chapters = regulationData.regulation.filter(item => item.type === 'chapter');
+        return {
+            chapters: chapters.map(chapter => chapter.id),
+            articles: chapters.flatMap(chapter => chapter.articles?.map(article => article.id) ?? []),
+        };
+    }, [regulationData]);
+    const expanded = useCallback(
+        (ids: string[]) => new Set(ids.filter(id => inPane ? !closed.has(id) : opened.has(id))),
+        [inPane, opened, closed]
+    );
+    const expandedChapters = useMemo(() => expanded(sectionIds.chapters), [expanded, sectionIds]);
+    const expandedArticles = useMemo(() => expanded(sectionIds.articles), [expanded, sectionIds]);
 
-    // Opening a section names it in the URL, so the address bar is the link to it.
-    const toggleChapter = (id: string) => {
-        setExpandedChapters(prev => toggle(prev, id));
-        if (!expandedChapters.has(id)) navigateTo(href('document', id), { replace: true });
+    // On a page, opening a section names it in the URL, so the address bar is the link to it.
+    const toggleSection = (id: string, isExpanded: boolean) => {
+        if (inPane) {
+            setClosed(prev => toggle(prev, id));
+            return;
+        }
+        setOpened(prev => toggle(prev, id));
+        if (!isExpanded) navigateTo(href('document', id), { replace: true });
     };
-    const toggleArticle = (id: string) => {
-        setExpandedArticles(prev => toggle(prev, id));
-        if (!expandedArticles.has(id)) navigateTo(href('document', id), { replace: true });
-    };
+    const toggleChapter = (id: string) => toggleSection(id, expandedChapters.has(id));
+    const toggleArticle = (id: string) => toggleSection(id, expandedArticles.has(id));
 
     // Open the linked chapter or article (and its chapter), then scroll to it once it has rendered.
     useEffect(() => {
-        if (!entityId) return;
+        if (!entityId || !visible) return;
         const chapter = regulationData.regulation.find(item =>
             item.type === 'chapter' && (item.id === entityId || item.articles?.some(article => article.id === entityId))
         );
         if (!chapter) return;
-        setExpandedChapters(prev => new Set(prev).add(chapter.id));
-        if (chapter.id !== entityId) setExpandedArticles(prev => new Set(prev).add(entityId));
+        setOpened(prev => prev.has(chapter.id) && prev.has(entityId) ? prev : new Set(prev).add(chapter.id).add(entityId));
+        setClosed(prev => without(prev, [chapter.id, entityId]));
 
         let attempts = 0;
         let frame = 0;
@@ -75,7 +112,8 @@ export default function StudyView({
         };
         frame = window.requestAnimationFrame(tryScroll);
         return () => window.cancelAnimationFrame(frame);
-    }, [entityId, regulationData]);
+        // `inPane`: the text that becomes a pane opens whole, so the section has moved.
+    }, [entityId, regulationData, visible, inPane]);
 
     const commentCount = useCallback(
         (ids: string[]) => ids.reduce((sum, id) => sum + (commentCounts.get(id) ?? 0), 0),
@@ -87,7 +125,7 @@ export default function StudyView({
     return (
         <div className={pageClass}>
             <div className="lg:hidden">
-                <ViewHeader backHref={backHref} title="Ολόκληρη η μελέτη" />
+                <ViewHeader backHref={backHref} title={title} />
             </div>
             <ConsultationDocument
                 realm={realm}
@@ -101,6 +139,7 @@ export default function StudyView({
                 commentHref={commentHref}
                 chapterHref={chapterHref}
                 currentEntityId={entityId}
+                inPane={inPane}
                 consultationId={consultationId}
                 cityId={cityId}
                 consultationIsActive={active}

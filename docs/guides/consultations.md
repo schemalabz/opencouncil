@@ -23,6 +23,7 @@ The regulation JSON file is the core data source for each consultation. It follo
 **Root properties:**
 - `title`, `summary` — regulation metadata (summary supports markdown with `{REF:id}` and `{DEF:id}` references)
 - `contactEmail`, `ccEmails` — where citizen feedback emails are sent
+- `documentType` — what the text is: `"study"` (the default) or `"regulation"`. It sets the words that the viewer uses for the items of the text (see [Text Without a Map](#text-without-a-map))
 - `sources` — array of source documents (`{title, url, description?}`)
 - `definitions` — dictionary of terms that can be referenced via `{DEF:id}` in markdown
 - `defaultView` — the first screen (`"map"` or `"document"`) when the regulation has no `addressLookup` and no `overview`. With either of them the first screen is `home`
@@ -38,6 +39,7 @@ The regulation JSON file is the core data source for each consultation. It follo
 **Chapter** (`type: "chapter"`):
 - `num`, `id`, `title`, `summary`, `preludeBody` (intro markdown before articles)
 - `articles[]` — each with `num`, `id`, `title`, `summary`, `body` (markdown)
+- A chapter with `preludeBody` and no articles is one block of text. The reader comments on the whole chapter
 
 **GeoSet** (`type: "geoset"`):
 - `id`, `name`, `description`, `color` (hex)
@@ -150,6 +152,7 @@ sequenceDiagram
     * `ConsultationViewer`: Reads the screen from the URL, keeps the reader's address in session storage, computes the address lookup, and lays the screens out for a phone or a computer
     * `consultationUrl.ts`: The URL model. `comment` and `plan` keep any entity; `home`, `street` and `comments` take none; for `map` and `document` the entity's type decides the screen
     * `entityDisplay.ts`: `describeEntity()` gives every screen the same what, where, detail and meaning for an entity
+    * `wording.ts`: `documentWording()` gives the words for the items of the text. The words depend on `documentType`
     * `addressLookup.ts`: `computeAddressLookup()` finds the zone, the street's geometries and the nearby points for an address
     * `views/`: One component per screen — `HomeView`, `StreetView` (with `MiniMap` on a phone), `PlaceView` (the phone's card over the map, the computer's panel), `CommentView`, `PlanView`, `CommentsView` (with `CommentList`, which draws the municipality's response and its form from `views/CommentResponse.tsx`) and `StudyView`. `views/ui.tsx` holds the shared styles and `ViewLink`
     * `ConsultationBar`: The computer's bar under the site header — title, deadline, and links to the plan, the comments and the study
@@ -306,6 +309,13 @@ For local development, you can place regulation JSON files in the `public/` dire
 2. The layout for the screen comes from CSS, so the server renders the panel. Only the map waits until the browser knows the screen size
 3. On a phone the map screen fills the screen without the site header. A tapped place opens a card at the bottom, and zooms keep clear of it
 4. Every screen but the phone's map shows the site header
+
+### Text Without a Map
+1. A regulation without a geoset has no map. The `map` screen does not exist: a link to it opens the start screen. The bar and the start screen show no map link
+2. On a computer the full text takes the place of the map. The side panel shows the start screen with the plan cards, the comment form, the comments, or the selected item of the text. The text marks the item that the panel is about
+3. On a phone each screen is a page, as with a map. The start screen links to the plan, the comments and the full text
+4. `documentType: "regulation"` is for a legal text. The viewer calls a `chapter` "Άρθρο N" and an `article` "Παράγραφος C.N", in the text, in a comment's label, in the email to the municipality and in the printout. Without it the viewer calls them "Κεφάλαιο" and "Άρθρο", and calls the text "μελέτη"
+5. `documentType` and the map are independent: a regulation with geosets keeps the map layout and gets the words of a regulation
 
 ### Navigation
 1. The URL holds the screen and the entity: `?view=map&entity=<id>`, `?view=comment&entity=<id>`, `?view=plan&entity=<card id>`. Old hash links (`#article-3`) and a view that does not match the entity are rewritten in place

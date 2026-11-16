@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { PLAN_TITLE } from "./views/PlanView";
 import { primaryButtonClass, ViewLink } from "./views/ui";
 
 export interface ConsultationBarProps {
@@ -12,7 +13,10 @@ export interface ConsultationBarProps {
     planHref?: string;
     commentsHref: string;
     commentCount: number;
-    studyHref: string;
+    /** The full text; absent when it is already on screen, beside the panel. */
+    studyHref?: string;
+    /** What the bar calls the full text: "Η μελέτη". */
+    studyLabel: string;
     /** Where "Σχολιάστε" leads while the consultation is open. */
     commentHref?: string;
     className?: string;
@@ -33,6 +37,7 @@ export default function ConsultationBar({
     commentsHref,
     commentCount,
     studyHref,
+    studyLabel,
     commentHref,
     className,
 }: ConsultationBarProps) {
@@ -42,11 +47,11 @@ export default function ConsultationBar({
                 {municipalityName ? `${municipalityName} · ` : ''}<span className={cn(deadlineActive && "font-semibold text-[#7c2d12]")}>{deadlineLabel}</span>
             </ViewLink>
             <nav aria-label="Η διαβούλευση" className="ml-auto flex shrink-0 items-center gap-5">
-                {planHref && <ViewLink href={planHref} className={linkClass}>Το σχέδιο σε 2 λεπτά</ViewLink>}
+                {planHref && <ViewLink href={planHref} className={linkClass}>{PLAN_TITLE}</ViewLink>}
                 <ViewLink href={commentsHref} className={linkClass}>
                     Τι λένε οι πολίτες{commentCount > 0 ? ` (${commentCount})` : ''}
                 </ViewLink>
-                <ViewLink href={studyHref} className={linkClass}>Η μελέτη</ViewLink>
+                {studyHref && <ViewLink href={studyHref} className={linkClass}>{studyLabel}</ViewLink>}
                 {commentHref && (
                     <ViewLink href={commentHref} className={cn(primaryButtonClass, "min-h-0 w-auto px-4 py-2 text-[15px] hover:no-underline")}>
                         Σχολιάστε

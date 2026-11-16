@@ -4,6 +4,7 @@ import { getConsultationById, getConsultationComments, fetchRegulationData, type
 import { notFound } from "next/navigation";
 import { GeoSetData, RegulationData } from "@/components/consultations/types";
 import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
+import { documentWording } from "@/components/consultations/wording";
 import { auth } from "@/auth";
 import { cn, formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
@@ -315,7 +316,7 @@ export default async function CommentsPage(props: PageProps) {
                 {documentComments.length > 0 && (
                     <div className="mb-12">
                         <h2 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
-                            Σχόλια στα κεφάλαια και άρθρα της κανονιστικής ({documentComments.length})
+                            {documentWording(regulationData.documentType).printedCommentsTitle} ({documentComments.length})
                         </h2>
 
                         <div className="space-y-6">
