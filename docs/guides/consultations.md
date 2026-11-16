@@ -262,6 +262,8 @@ Files are uploaded via the `/api/upload` endpoint which:
 
 For local development, you can place regulation JSON files in the `public/` directory and use relative URLs (e.g., `/regulation-cooking-oil.json`). However, for production and shared environments, always use S3-hosted URLs so the files are accessible regardless of the deployment.
 
+The seed adds one open consultation to a local database and to a preview: `/athens/consultation/music-hours`. It has no map, so it shows the layout for a text without a map. `src/lib/db/consultationFixture.ts` creates it. A database that the seed created before this fixture gets it with `npm run seed -- fixtures`.
+
 ## Business Rules & Assumptions
 
 ### Feature Gating
@@ -316,6 +318,7 @@ For local development, you can place regulation JSON files in the `public/` dire
 3. On a phone each screen is a page, as with a map. The start screen links to the plan, the comments and the full text
 4. `documentType: "regulation"` is for a legal text. The viewer calls a `chapter` "Άρθρο N" and an `article` "Παράγραφος C.N", in the text, in a comment's label, in the email to the municipality and in the printout. Without it the viewer calls them "Κεφάλαιο" and "Άρθρο", and calls the text "μελέτη"
 5. `documentType` and the map are independent: a regulation with geosets keeps the map layout and gets the words of a regulation
+6. Example: `public/consultations/athens-music-hours.json`, which the seed adds to Athens as the review consultation `music-hours` (see [Database Seeding](../database-seeding.md))
 
 ### Navigation
 1. The URL holds the screen and the entity: `?view=map&entity=<id>`, `?view=comment&entity=<id>`, `?view=plan&entity=<card id>`. Old hash links (`#article-3`) and a view that does not match the entity are rewritten in place
