@@ -320,7 +320,7 @@
         "watchLive": "Παρακολουθήστε ζωντανά",
         "noSubjects": "Δεν υπάρχουν διαθέσιμα θέματα.",
         "hotSubjects": "Επίκαιρα Θέματα",
-        "aiSummary": "Αυτόματη σύνοψη",
+        "aiSummary": "Σύνοψη από ΤΝ",
         "fullMeeting": "Ολόκληρη η συνεδρίαση",
         "noMeeting": "Η συνεδρίαση δεν βρέθηκε.",
         "subjectsCount": "{count, plural, one {# θέμα} other {# θέματα}}",

@@ -320,7 +320,7 @@
     "watchLive": "Regarder en direct",
     "hotSubjects": "Sujets marquants",
     "noSubjects": "Aucun sujet disponible.",
-    "aiSummary": "Résumé automatique",
+    "aiSummary": "Résumé généré par IA",
     "fullMeeting": "Séance complète",
     "noMeeting": "Séance introuvable.",
     "subjectsCount": "{count, plural, one {# point} other {# points}}",

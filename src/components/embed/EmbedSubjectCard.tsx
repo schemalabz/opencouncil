@@ -10,6 +10,7 @@ import { embedLocalePrefix } from '@/lib/utils/embedParams';
 import { localizeText } from '@/lib/serbian';
 import { useTranslations } from 'next-intl';
 import { meetingLabel } from '@/lib/meetingName';
+import { AIGeneratedLabel } from '@/components/AIGeneratedLabel';
 
 interface EmbedSubjectCardProps {
     subject: HotCardSubject;
@@ -44,6 +45,7 @@ export function EmbedSubjectCard({ subject, meeting, locationText, speakers, sta
                 locationText={locationText ? localizeText(locationText, locale) : t('noLocation')}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subject.description ? localizeText(stripMarkdown(subject.description), locale) : null}
+                descriptionNote={<AIGeneratedLabel />}
                 footer={<SubjectCardFooter stats={stats} speakers={speakers} minutesText={t('minutesCount', { count: stats.minutes })} />}
                 disableHover
                 compact

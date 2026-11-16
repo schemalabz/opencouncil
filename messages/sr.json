@@ -306,7 +306,7 @@
         "watchLive": "Гледајте уживо",
         "noSubjects": "Нема доступних тема.",
         "hotSubjects": "Актуелне теме",
-        "aiSummary": "Аутоматски сажетак",
+        "aiSummary": "Сажетак генерисан вештачком интелигенцијом",
         "fullMeeting": "Цела седница",
         "noMeeting": "Седница није пронађена.",
         "subjectsCount": "{count, plural, one {# тема} few {# теме} other {# тема}}",

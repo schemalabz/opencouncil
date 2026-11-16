@@ -306,7 +306,7 @@
         "watchLive": "Watch live",
         "noSubjects": "No subjects available.",
         "hotSubjects": "Hot Subjects",
-        "aiSummary": "Automatic summary",
+        "aiSummary": "AI-generated summary",
         "fullMeeting": "Full meeting",
         "noMeeting": "Meeting not found.",
         "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
