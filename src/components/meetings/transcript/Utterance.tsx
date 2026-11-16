@@ -22,32 +22,60 @@ import { formatTimestamp } from "@/lib/formatters/time";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { captureScrollAnchor, restoreScrollAnchor } from "@/lib/utils/scrollAnchor";
 import { useExcerptHighlighted } from '@/components/sharing/ExcerptRangeHighlight';
+import { useUtteranceMatches } from "./FindReplaceContext";
+import { displayMatchRange } from "@/lib/utils/findReplace";
 
 /**
  * Resolve the character offset of a click within a text span.
  * The span has `user-select: none` (for range-selection UX), which can
  * block caret hit-testing. We temporarily lift it, measure, then restore.
+ *
+ * The hit-test APIs return an offset relative to the deepest text node at
+ * the click coordinates. When find-and-replace highlights split the span
+ * into interleaved text nodes and <mark> children, that node-relative
+ * offset needs to be converted to an absolute offset by summing the
+ * lengths of all preceding text nodes inside the span.
  */
 function getCaretOffsetFromClick(e: React.MouseEvent, maxOffset: number): number {
     const target = e.currentTarget as HTMLElement;
     const prev = target.style.userSelect;
     target.style.userSelect = 'text';
 
-    let offset = 0;
+    let node: Node | null = null;
+    let nodeOffset = 0;
     // Firefox: caretPositionFromPoint, Chrome/Safari: caretRangeFromPoint
     // TODO: remove the `unknown` cast once we upgrade to TS 5.6+ (adds caretPositionFromPoint to DOM lib)
     if ('caretPositionFromPoint' in document) {
-        const pos = (document as unknown as { caretPositionFromPoint(x: number, y: number): { offset: number } | null })
+        const pos = (document as unknown as { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null })
             .caretPositionFromPoint(e.clientX, e.clientY);
-        if (pos) offset = pos.offset;
+        if (pos) { node = pos.offsetNode; nodeOffset = pos.offset; }
     } else if ('caretRangeFromPoint' in document) {
         const range = (document as unknown as { caretRangeFromPoint(x: number, y: number): Range | null })
             .caretRangeFromPoint(e.clientX, e.clientY);
-        if (range) offset = range.startOffset;
+        if (range) { node = range.startContainer; nodeOffset = range.startOffset; }
     }
 
     target.style.userSelect = prev;
-    return Math.min(offset, maxOffset);
+
+    if (!node) return 0;
+
+    // Sum the lengths of text nodes preceding the clicked one. When there
+    // are no <mark> children, the only text node is the span's own and
+    // this loop adds 0 — same behaviour as before.
+    let absoluteOffset = nodeOffset;
+    if (node !== target && target.contains(node)) {
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        let cumulative = 0;
+        for (let current = walker.nextNode(); current; current = walker.nextNode()) {
+            if (current === node) {
+                absoluteOffset = cumulative + nodeOffset;
+                break;
+            }
+            cumulative += (current as Text).length;
+        }
+    }
+
+    return Math.min(absoluteOffset, maxOffset);
 }
 
 interface UtteranceProps {
@@ -83,6 +111,10 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
+
+    // Find & Replace highlights. Subscribed per-utterance so unrelated
+    // utterances don't re-render on every keystroke in the search box.
+    const { matches: findMatches, activeIndex: activeMatchIndex } = useUtteranceMatches(localUtterance.id);
 
     // Update local state when prop changes
     useEffect(() => {
@@ -329,10 +361,18 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
                         // onKeyDown, so anything that moves focus onto a control
                         // in here — the timestamp buttons, the skip-interval
                         // dropdown — would otherwise leave Enter and Escape dead
-                        // until the user clicked back into the text.
+                        // until the user clicked back into the text. It does not
+                        // take focus from a text field outside the editor, such
+                        // as the Find & Replace inputs, whose matches re-render
+                        // this utterance.
                         ref={(el) => {
                             if (el) {
-                                el.focus();
+                                const active = document.activeElement;
+                                const typingElsewhere = active instanceof HTMLElement
+                                    && active !== el
+                                    && !rootRef.current?.contains(active)
+                                    && active.matches('input, textarea, [contenteditable="true"]');
+                                if (!typingElsewhere) el.focus();
                                 if (clickOffsetRef.current !== null) {
                                     el.selectionStart = el.selectionEnd = clickOffsetRef.current;
                                     clickOffsetRef.current = null;
@@ -450,6 +490,49 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
         ? 'text-muted-foreground italic'
         : '';
 
+    // Split the utterance text into alternating plain and highlighted spans
+    // when find-and-replace has matches inside this utterance. We keep the
+    // trailing space (added in `displayText`) outside the marks so the cursor
+    // hit-testing math in `getCaretOffsetFromClick` still resolves against
+    // contiguous text.
+    const renderedDisplay = (() => {
+        if (findMatches.length === 0 || (options.editable && isEmptyUtterance)) {
+            return displayText;
+        }
+        // Transliterate the whole text: the script of a letter can depend on
+        // its neighbours (Љ before an upper-case letter, the digraph nj). The
+        // match offsets index the stored text; displayMatchRange maps them.
+        const storedText = localUtterance.text;
+        const baseText = localize(storedText);
+        const parts: React.ReactNode[] = [];
+        let cursor = 0;
+        for (const m of findMatches) {
+            // Two matches inside one digraph map to the same letter; never
+            // repeat text that an earlier mark already shows.
+            const [mappedStart, mappedEnd] = displayMatchRange(storedText, m.start, m.end, localize);
+            const start = Math.max(mappedStart, cursor);
+            const end = Math.max(mappedEnd, start);
+            if (start > cursor) parts.push(baseText.slice(cursor, start));
+            const isActive = m.globalIndex === activeMatchIndex;
+            parts.push(
+                <mark
+                    key={`${m.start}-${m.end}`}
+                    className={cn(
+                        'rounded-sm',
+                        isActive ? 'bg-orange-400 text-black' : 'bg-yellow-200 text-black',
+                    )}
+                >
+                    {baseText.slice(start, end)}
+                </mark>,
+            );
+            cursor = end;
+        }
+        if (cursor < baseText.length) parts.push(baseText.slice(cursor));
+        // trailing space (matches `displayText` semantics)
+        parts.push(' ');
+        return parts;
+    })();
+
     // Right-click is handled by the single shared <UtteranceContextMenu> at
     // the Transcript level — it locates the target via these data-attributes
     // and renders one set of items instead of one Radix Menu per utterance.
@@ -464,8 +547,8 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
             onClick={handleClick}
         >
             {excerptHighlighted && !options.editable
-                ? <mark className="bg-[hsl(var(--orange)/0.16)] text-inherit dark:bg-[hsl(var(--orange)/0.25)]">{displayText}</mark>
-                : displayText}
+                ? <mark className="bg-[hsl(var(--orange)/0.16)] text-inherit dark:bg-[hsl(var(--orange)/0.25)]">{renderedDisplay}</mark>
+                : renderedDisplay}
         </span>
     );
 
