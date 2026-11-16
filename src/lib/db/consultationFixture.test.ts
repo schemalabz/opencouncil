@@ -22,8 +22,8 @@ describe('the regulation of the consultation fixture', () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it('points every card to an item of the text', () => {
-        const targets = (data.overview ?? []).flatMap(card => card.commentOn ? [card.commentOn] : []);
+    it('points every card to items of the text', () => {
+        const targets = (data.overview ?? []).flatMap(card => [...(card.commentOn ? [card.commentOn] : []), ...(card.basedOn ?? [])]);
         expect(targets.length).toBeGreaterThan(0);
         for (const id of targets) {
             expect(describeEntity(data, [], id)).not.toBeNull();
