@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
+import { assertDemoChangeAllowed } from '@/lib/db/citiesAdmin'
 import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
@@ -50,6 +51,12 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             messageIsActive,
             ...data
         } = parseFormData(formData, updateCityRequestFormDataSchema);
+
+        // `editCity` checks the demo rule again inside the write. This early
+        // call keeps a refused save from uploading a logo first.
+        if (isSuperAdmin) {
+            await assertDemoChangeAllowed(params.cityId, { status: data.status, realm: data.realm });
+        }
 
         // Upload logo if provided
         let logoImageUrl: string | undefined = undefined

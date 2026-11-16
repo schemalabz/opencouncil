@@ -1,9 +1,10 @@
 import "server-only";
-import type { City, Prisma } from "@prisma/client";
+import type { City, CityStatus, Prisma, Realm } from "@prisma/client";
 import prisma from "./prisma";
-import { NotFoundError } from '@/lib/api/errors';
+import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import type { CityWithCounts } from './cities';
+import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
 
 /** Shared city-row read; callers own authorization, geometry and presentation. */
 export async function getCityWithCountsDirect(cityId: string, db: Prisma.TransactionClient = prisma): Promise<CityWithCounts | null> {
@@ -31,7 +32,79 @@ export async function getCityBoundarySummary(cityId: string, db: Prisma.Transact
  * it any more: one order applies to every city.
  */
 export async function createCityDirect(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
+    if (cityData.status === 'demo') await assertDemoAllowed({ realm: cityData.realm });
     return prisma.city.create({ data: cityData });
+}
+
+type CityEdit = Partial<Omit<City, 'id' | 'createdAt' | 'updatedAt'>>;
+
+/**
+ * Update a city with no auth check, for `editCity` after its session gate.
+ * The demo rule and the write run in one transaction. The row is not locked,
+ * so a concurrent customer upgrade in the same realm can still pass: the
+ * guard is against a mistaken write, not a race.
+ */
+export async function editCityDirect(id: string, cityData: CityEdit): Promise<City> {
+    return prisma.$transaction(async db => {
+        await assertDemoChangeAllowed(id, cityData, db);
+        return db.city.update({ where: { id }, data: cityData });
+    });
+}
+
+/**
+ * The policy of `CityStatus.demo`: none in a realm that has a customer. A demo
+ * shows what OpenCouncil looks like in a country we do not serve yet, and a
+ * realm may have several; next to a supported city a demo reads as a second
+ * customer. Throws a `ConflictError` that names the customer, so the MCP tool
+ * returns it as its error text and the admin form shows it under the save.
+ *
+ * `exceptCityId` is the city being published, so a city that is itself
+ * supported is refused by its own predicate, not by this check. Omit it for a
+ * city that does not exist yet. A concurrent customer upgrade in the same
+ * realm can still pass: the lock of `applyCityUpdateDirect` is per city row.
+ * The guard is against a mistaken write, not a race.
+ */
+export async function assertDemoAllowed(
+    { realm, exceptCityId }: { realm: Realm; exceptCityId?: string },
+    db: Prisma.TransactionClient = prisma,
+): Promise<void> {
+    const customer = await db.city.findFirst({
+        where: {
+            ...CUSTOMER_CITY_WHERE,
+            realm,
+            ...(exceptCityId !== undefined && { id: { not: exceptCityId } }),
+        },
+        orderBy: { name: 'asc' },
+        select: { id: true, name_en: true },
+    });
+    if (!customer) return;
+    const subject = exceptCityId !== undefined ? `"${exceptCityId}"` : 'the city';
+    throw new ConflictError(
+        `Cannot publish ${subject} as a demo: realm ${realm} already has a supported city (${customer.name_en}). `
+        + 'A demo is allowed only in a realm with no supported city. Nothing was saved.',
+    );
+}
+
+/**
+ * The demo rule for a change to an existing city. A change is a publication
+ * when the city becomes a demo, or a demo moves to another realm, with or
+ * without a status field. An existing demo that keeps its realm saves its
+ * other fields unchecked, and so does a city that stays pending or supported.
+ */
+export async function assertDemoChangeAllowed(
+    cityId: string,
+    change: { status?: CityStatus; realm?: Realm },
+    db: Prisma.TransactionClient = prisma,
+): Promise<void> {
+    const mayPublish = change.status === 'demo' || (change.status === undefined && change.realm !== undefined);
+    if (!mayPublish) return;
+    const current = await db.city.findUnique({ where: { id: cityId }, select: { status: true, realm: true } });
+    if (!current) throw new NotFoundError('City not found');
+    const status = change.status ?? current.status;
+    const realm = change.realm ?? current.realm;
+    if (status === 'demo' && (current.status !== 'demo' || realm !== current.realm)) {
+        await assertDemoAllowed({ realm, exceptCityId: cityId }, db);
+    }
 }
 
 /** Authorized callers only. The predicate also prevents a concurrent customer upgrade being overwritten. */
@@ -65,7 +138,7 @@ export async function applyCityUpdateDirect(cityId: string, update: CityUpdate):
     before: CityUpdateSnapshot; after: CityUpdateSnapshot; changed: boolean; city: CityWithCounts;
 }> {
     return prisma.$transaction(async db => {
-        const rows = await db.$queryRaw<Pick<City, 'status'>[]>`SELECT status FROM "City" WHERE id = ${cityId} FOR UPDATE`;
+        const rows = await db.$queryRaw<Pick<City, 'status' | 'realm'>[]>`SELECT status, realm FROM "City" WHERE id = ${cityId} FOR UPDATE`;
         if (!rows[0]) throw new NotFoundError('City not found');
         const before = { status: rows[0].status, boundary: await getCityBoundarySummary(cityId, db) };
         let status = before.status;
@@ -78,6 +151,7 @@ export async function applyCityUpdateDirect(cityId: string, update: CityUpdate):
             changed = equal[0]?.equal !== true;
             if (changed) await updateCityGeometryDirect(cityId, update.geometry, db);
         } else if (before.status !== 'demo') {
+            await assertDemoAllowed({ realm: rows[0].realm, exceptCityId: cityId }, db);
             // The shared predicate still refuses supported cities.
             status = (await publishCityDemoDirect(cityId, db)).status;
             changed = true;

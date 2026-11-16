@@ -5,9 +5,9 @@ import prisma from "./prisma";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
-import { UnauthorizedError } from "../api/errors";
+import { ApiError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
-import { createCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
+import { createCityDirect, editCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -61,6 +61,8 @@ export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' 
     try {
         return await createCityDirect(cityData);
     } catch (error) {
+        // A refusal of the demo rule keeps its status and message, so the form can show it.
+        if (error instanceof ApiError) throw error;
         console.error('Error creating city:', error);
         throw new Error('Failed to create city');
     }
@@ -69,12 +71,9 @@ export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' 
 export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | 'createdAt' | 'updatedAt'>>): Promise<City> {
     await withUserAuthorizedToEdit({ cityId: id });
     try {
-        const updatedCity = await prisma.city.update({
-            where: { id },
-            data: cityData,
-        });
-        return updatedCity;
+        return await editCityDirect(id, cityData);
     } catch (error) {
+        if (error instanceof ApiError) throw error;
         console.error('Error editing city:', error);
         throw new Error('Failed to edit city');
     }

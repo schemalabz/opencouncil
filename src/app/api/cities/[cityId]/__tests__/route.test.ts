@@ -15,6 +15,7 @@ jest.mock('@/lib/db/cityMessages', () => ({
     upsertCityMessage: jest.fn(),
     deleteCityMessage: jest.fn(),
 }));
+jest.mock('@/lib/db/citiesAdmin', () => ({ assertDemoChangeAllowed: jest.fn() }));
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn().mockResolvedValue({ url: 'https://cdn.example.com/logo.png' }) }));
 const order: string[] = [];
 jest.mock('@/lib/db/voiceprintsDelete', () => ({
@@ -24,6 +25,8 @@ jest.mock('@/lib/db/voiceprintsDelete', () => ({
 import { DELETE, PUT } from '@/app/api/cities/[cityId]/route';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import { deleteCity, editCity } from '@/lib/db/cities';
+import { assertDemoChangeAllowed } from '@/lib/db/citiesAdmin';
+import { ConflictError } from '@/lib/api/errors';
 import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
@@ -136,6 +139,40 @@ describe('PUT /api/cities/[cityId]', () => {
         const response = await put({ logoImage: new File(['x'], 'logo.png', { type: 'image/png' }) });
         expect(response.status).toBe(200);
         expect(editCity).toHaveBeenCalledWith('athens', { logoImage: 'https://cdn.example.com/logo.png' });
+    });
+});
+
+describe('PUT /api/cities/[cityId] demo policy', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('checks the demo rule before the upload, with the fields the form sent', async () => {
+        const response = await put({ status: 'demo', realm: 'cyprus' });
+        expect(response.status).toBe(200);
+        expect(assertDemoChangeAllowed).toHaveBeenCalledWith('athens', { status: 'demo', realm: 'cyprus' });
+        expect(editCity).toHaveBeenCalledWith('athens', { status: 'demo', realm: 'cyprus' });
+    });
+
+    it('answers 409 with the refusal and uploads nothing, so the form can show it', async () => {
+        jest.mocked(assertDemoChangeAllowed).mockRejectedValueOnce(new ConflictError('Cannot publish "athens" as a demo: realm greece already has a supported city (Chania).'));
+        const response = await put({ status: 'demo', logoImage: new File(['x'], 'logo.png', { type: 'image/png' }) });
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: 'Cannot publish "athens" as a demo: realm greece already has a supported city (Chania).' });
+        expect(uploadFile).not.toHaveBeenCalled();
+        expect(editCity).not.toHaveBeenCalled();
+    });
+
+    it('passes a refusal of the write itself through as 409', async () => {
+        jest.mocked(editCity).mockRejectedValueOnce(new ConflictError('Cannot publish "athens" as a demo: realm greece already has a supported city (Chania).'));
+        const response = await put({ status: 'demo' });
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: 'Cannot publish "athens" as a demo: realm greece already has a supported city (Chania).' });
+    });
+
+    it('ignores the status of a city admin, so it needs no check', async () => {
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        expect((await put({ status: 'demo' })).status).toBe(200);
+        expect(assertDemoChangeAllowed).not.toHaveBeenCalled();
+        expect(editCity).toHaveBeenCalledWith('athens', {});
     });
 });
 

@@ -169,8 +169,9 @@ enum CityStatus {
   pending
   /// Published everywhere a customer city is — landing map, directory, search,
   /// MCP, sitemap — but not a customer: no official-support badge, and still
-  /// petitionable. Policy is one per realm, set by hand — nothing enforces it
-  /// yet; the guard is a follow-up.
+  /// petitionable. Allowed only in a realm with no supported city; such a
+  /// realm may have several. src/lib/db/citiesAdmin.ts enforces it in the data
+  /// layer: `createCityDirect`, `editCityDirect` and `applyCityUpdateDirect`.
   demo
   /// A customer municipality: published, badged, and counted in customer stats.
   supported

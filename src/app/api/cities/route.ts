@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
+import { assertDemoAllowed } from '@/lib/db/citiesAdmin'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
@@ -43,6 +44,12 @@ export async function POST(request: Request) {
             if (!boundary.ok) {
                 return NextResponse.json({ error: `Invalid boundary GeoJSON: ${boundary.error}` }, { status: 400 });
             }
+        }
+
+        // `createCity` checks the demo rule again inside the write. This early
+        // call keeps a refused create from uploading a logo first.
+        if (data.status === 'demo') {
+            await assertDemoAllowed({ realm: data.realm });
         }
 
         const result = await uploadFile(data.logoImage, {
