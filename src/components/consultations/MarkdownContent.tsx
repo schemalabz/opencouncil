@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link2Off, Map, BookOpen } from 'lucide-react';
@@ -10,6 +11,16 @@ interface MarkdownContentProps {
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
     regulationData?: RegulationData;
+}
+
+/** A link that is not a reference. A link to another site opens in a new tab, so the reader keeps the place in the consultation. */
+function PlainLink({ href, children }: { href?: string; children?: ReactNode }) {
+    const external = !!href && /^https?:\/\//.test(href);
+    return (
+        <a href={href} className="text-blue-600 hover:underline" {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+            {children}
+        </a>
+    );
 }
 
 export default function MarkdownContent({
@@ -285,10 +296,9 @@ export default function MarkdownContent({
                             // If not a known reference, fall through to regular link handler below
                         }
 
-                        // Regular link
-                        return <a href={href} className="text-blue-600 hover:underline">{children}</a>;
+                        return <PlainLink href={href}>{children}</PlainLink>;
                     }
-                    } : {})
+                    } : { a: PlainLink })
                 }}
             >
                 {processedContent}
