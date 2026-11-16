@@ -15,6 +15,7 @@ import { useAccountLinks } from "./account-links"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
 import { Link, useRouter } from "@/i18n/routing"
+import { signInPath } from "@/lib/auth/signInDestination"
 import { Skeleton } from "@/components/ui/skeleton"
 // @ts-ignore
 import klitiki from "greek-name-klitiki"
@@ -154,7 +155,13 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
                     <Avatar name={null} imageUrl={null} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64" align="end">
-                    <DropdownMenuItem className="cursor-pointer font-medium" onClick={() => router.push('/sign-in')}>
+                    <DropdownMenuItem
+                        className="cursor-pointer font-medium"
+                        onClick={() => {
+                            const back = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : undefined;
+                            router.push(signInPath(back));
+                        }}
+                    >
                         <LogIn className="mr-2 h-4 w-4" />
                         {t("login")}
                     </DropdownMenuItem>

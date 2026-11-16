@@ -6,7 +6,8 @@ import { ErrorLine } from "@/components/ui/error-line"
 import { OrDivider } from "@/components/ui/or-divider"
 import { GoogleSignInButton } from "@/components/user/GoogleSignInButton"
 import { useSearchParams } from "next/navigation"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
+import { getPathname } from "@/i18n/routing"
 import { authErrorKey } from "@/lib/auth/authErrorKey"
 import { signInWithEmail } from "@/lib/serverSignIn"
 import { useState } from "react"
@@ -34,6 +35,8 @@ export function SignIn({
 }) {
     const t = useTranslations("SignIn")
     const tCommon = useTranslations("Common")
+    const locale = useLocale()
+    const defaultRedirect = getPathname({ href: "/sign-in", locale })
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
     const [error, setError] = useState<string | null>(authErrorKey(searchParams.get("error"), AUTH_ERROR_KEYS, "errors.generic"))
@@ -107,9 +110,8 @@ export function SignIn({
                     <div className="space-y-4">
                         {googleAvailable && (
                             <>
-                                {/* The callback lands on callbackUrl, or on the profile, the same default as the magic link. */}
                                 <GoogleSignInButton
-                                    redirectTo={callbackUrl ?? "/profile"}
+                                    redirectTo={callbackUrl ?? defaultRedirect}
                                     label={tCommon("continueWithGoogle")}
                                     disabled={isLoading}
                                     onStart={handleGoogleStart}
@@ -126,6 +128,7 @@ export function SignIn({
                             defaultValue={draftEmail}
                             disabled={isLoading}
                         />
+                        <input type="hidden" name="defaultRedirect" value={defaultRedirect} />
                         {callbackUrl && (
                             <input type="hidden" name="callbackUrl" value={callbackUrl} />
                         )}

@@ -1,4 +1,6 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import { getPathname, redirect } from "@/i18n/routing";
+import { signInPath } from "@/lib/auth/signInDestination";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessMyHighlights } from "@/lib/db/highlights";
 import { UserInfoForm, type ConsentPerson } from "@/components/profile/UserInfoForm";
@@ -11,7 +13,6 @@ import { NotisInviteCard } from "@/components/signup/NotisInviteCard";
 import { StepHeading } from "@/components/signup/SignupChrome";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { hasNotificationPreference } from "@/lib/db/signup";
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
 import { getLinkedProviders } from "@/lib/db/accounts";
@@ -26,7 +27,11 @@ export const metadata: Metadata = {
 
 export default async function ProfilePage() {
     const user = await getCurrentUser();
-    if (!user) redirect("/sign-in");
+    if (!user) {
+        const locale = await getLocale();
+        const callbackUrl = getPathname({ href: "/profile", locale });
+        return redirect({ href: signInPath(callbackUrl), locale });
+    }
     // The persons this account administers, by a QR claim or given by a
     // superadmin: their voiceprint consent boxes.
     const linkedPersons = user.administers.flatMap((a) => (a.person ? [{ person: a.person, claimed: a.claimedAt !== null }] : []));
