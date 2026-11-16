@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 
 export const pageClass = "min-h-full bg-stone-100 text-stone-900";
 export const cardClass = "rounded-2xl border border-stone-200 bg-white";
-export const primaryButtonClass = "flex min-h-12 w-full items-center justify-center rounded-xl bg-[#c2410c] px-4 py-2.5 text-center text-[17px] font-bold leading-snug text-white transition-colors hover:bg-[#9a3412] disabled:opacity-60";
-export const secondaryButtonClass = "flex min-h-12 w-full items-center justify-center rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-2.5 text-center text-[17px] font-semibold leading-snug text-stone-900 transition-colors hover:bg-stone-50";
-export const smallActionClass = "shrink-0 rounded-xl border-[1.5px] border-[#c2410c] px-3 py-2 text-[15px] font-semibold text-[#9a3412] transition-colors hover:bg-[#fff7ed]";
+export const primaryButtonClass = "flex min-h-12 w-full items-center justify-center rounded-xl bg-[#c2410c] px-4 py-2.5 text-center text-[17px] font-bold leading-snug text-white transition-colors hover:bg-[#9a3412] hover:no-underline disabled:opacity-60";
+export const secondaryButtonClass = "flex min-h-12 w-full items-center justify-center rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-2.5 text-center text-[17px] font-semibold leading-snug text-stone-900 transition-colors hover:bg-stone-50 hover:no-underline";
+export const smallActionClass = "shrink-0 rounded-xl border-[1.5px] border-[#c2410c] px-3 py-2 text-[15px] font-semibold text-[#9a3412] transition-colors hover:bg-[#fff7ed] hover:no-underline";
 export const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-white px-4 text-[17px] text-stone-900 focus:border-[#c2410c] focus:outline-none";
 export const textareaClass = "w-full resize-none rounded-xl border-[1.5px] border-stone-300 bg-white px-4 py-3 text-[17px] leading-relaxed text-stone-900 focus:border-[#c2410c] focus:outline-none";
 /**
