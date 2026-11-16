@@ -139,18 +139,23 @@ function useMeanwhile(city: CityWithGeometry, signedIn: boolean): MeanwhileLink[
     const t = useTranslations('notificationSignup');
     const locale = useLocale();
     const qualifier = getMunicipalityQualifier(city, locale);
-    return [
+    const links: MeanwhileLink[] = [
         {
             href: `/${city.id}`,
             icon: CalendarDays,
             title: t('meanwhileMeeting'),
             hint: t(authorityKey('meanwhileMeetingHint', city), { qualifier }),
         },
-        {
-            href: signedIn ? '/profile?tab=notifications' : '/sign-in?callbackUrl=%2Fprofile%3Ftab%3Dnotifications',
+    ];
+
+    if (signedIn) {
+        links.push({
+            href: '/profile?tab=notifications',
             icon: Settings2,
             title: t('meanwhilePreferences'),
             hint: t('meanwhilePreferencesHint'),
-        },
-    ];
+        });
+    }
+
+    return links;
 }
