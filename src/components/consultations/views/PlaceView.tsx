@@ -58,7 +58,7 @@ export default function PlaceView({ display, title = 'Στον χάρτη', comm
             )}
             <div className="flex gap-2.5 pt-1">
                 {active ? (
-                    <ViewLink href={href('comment', display.id)} className={cn(primaryButtonClass, "flex-1")}>Σχολιάστε εδώ</ViewLink>
+                    <ViewLink href={href('comment', display.id)} className={cn(primaryButtonClass, "flex-1")}>{display.commentLabel ?? 'Σχολιάστε εδώ'}</ViewLink>
                 ) : (
                     <p className="flex-1 text-[15px] text-stone-600">Η διαβούλευση έχει λήξει.</p>
                 )}

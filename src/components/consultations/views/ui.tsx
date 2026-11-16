@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent, ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +53,41 @@ export function ViewLink({ href, className, children, onClick, ...rest }: {
         navigateTo(href);
     };
     return <a href={href} className={className} onClick={handleClick} {...rest}>{children}</a>;
+}
+
+/** The button that opens the comment form of one item. Every one has the same icon and names its item. */
+export function CommentLink({ href, className, children, onClick }: { href: string; className?: string; children: ReactNode; onClick?: () => void }) {
+    return (
+        <ViewLink href={href} onClick={onClick} className={cn(smallActionClass, "inline-flex items-center gap-2", className)}>
+            <MessageSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{children}</span>
+        </ViewLink>
+    );
+}
+
+/**
+ * The same, as an icon with the number of comments, in the heading of an item of the text. The
+ * heading is a button that opens the item, and a link cannot be inside a button. The link therefore
+ * sits over the heading: the heading's wrapper is `relative` with `px-5`, and its button holds a
+ * `CommentIconSpace` before its 18px chevron.
+ */
+export function CommentIconLink({ href, label, count }: { href: string; label: string; count: number }) {
+    return (
+        <ViewLink
+            href={href}
+            aria-label={label}
+            title={label}
+            className="absolute right-[50px] top-1/2 flex h-10 w-14 -translate-y-1/2 items-center justify-center gap-1.5 rounded-full text-[15px] font-semibold text-[#9a3412] transition-colors hover:bg-[#ffedd5]"
+        >
+            <MessageSquare className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+            {count > 0 && <span>{count}</span>}
+        </ViewLink>
+    );
+}
+
+/** The room that a heading's button keeps free for `CommentIconLink`. */
+export function CommentIconSpace() {
+    return <span className="w-14 shrink-0" aria-hidden="true" />;
 }
 
 export function Dot({ color, className }: { color?: string; className?: string }) {

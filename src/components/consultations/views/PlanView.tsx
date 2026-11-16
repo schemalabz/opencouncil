@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import MarkdownContent from "../MarkdownContent";
 import type { ConsultationView } from "../consultationUrl";
+import { describeEntity, type EntityDisplay } from "../entityDisplay";
 import type { OverviewCard, RegulationData } from "../types";
-import { cardClass, headingClass, OpenCouncilCredit, pageClass, secondaryButtonClass, smallActionClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
+import { cardClass, CommentLink, headingClass, OpenCouncilCredit, pageClass, secondaryButtonClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
 
 export const PLAN_TITLE = 'Το σχέδιο σε 2 λεπτά';
 
@@ -18,12 +19,23 @@ export interface PlanCardsProps {
     commentCounts: Map<string, number>;
     active: boolean;
     onReferenceClick: (entityId: string) => void;
+    /** The reader opened an item of the text from a card: a source of the card, or the item's comment form. */
+    onUseCard?: (cardId: string, entityId: string) => void;
 }
 
 export const planCardElementId = (cardId: string) => `plan-${cardId}`;
 
-/** A few plain cards, each with one way to comment or to see it on the map. */
-export function PlanCards({ overview, regulationData, focusId, href, commentCounts, active, onReferenceClick }: PlanCardsProps) {
+/** The chapters and articles of the text that a card sums up; without `basedOn`, the one that takes its comments. */
+function cardSources(card: OverviewCard, regulationData: RegulationData, target: EntityDisplay | null): EntityDisplay[] {
+    const sources = card.basedOn ? card.basedOn.map(id => describeEntity(regulationData, [], id)) : [target];
+    return sources.flatMap(display => display?.reference ? [display] : []);
+}
+
+/**
+ * A few plain cards. Each names the items of the text that it sums up, and has one way to comment
+ * or to see it on the map.
+ */
+export function PlanCards({ overview, regulationData, focusId, href, commentCounts, active, onReferenceClick, onUseCard }: PlanCardsProps) {
     useEffect(() => {
         if (!focusId) return;
         document.getElementById(planCardElementId(focusId))?.scrollIntoView({ block: 'start' });
@@ -32,14 +44,38 @@ export function PlanCards({ overview, regulationData, focusId, href, commentCoun
     return (
         <>
             {overview.map(card => {
-                const commentCount = card.commentOn ? commentCounts.get(card.commentOn) ?? 0 : 0;
+                const { commentOn } = card;
+                const commentCount = commentOn ? commentCounts.get(commentOn) ?? 0 : 0;
+                // A place on the map is not in the text: it has no reference and no name for the button.
+                const target = commentOn ? describeEntity(regulationData, [], commentOn) : null;
+                const sources = cardSources(card, regulationData, target);
+                const commentLabel = card.commentLabel ?? target?.commentLabel ?? 'Σχολιάστε';
                 return (
                     <article
                         key={card.id}
                         id={planCardElementId(card.id)}
                         className={cn(cardClass, "flex scroll-mt-4 flex-col gap-2 p-5", card.id === focusId && "border-[#c2410c] ring-2 ring-[#c2410c]/30")}
                     >
-                        <h2 className={cn(headingClass, "!text-xl")}>{card.title}</h2>
+                        <div>
+                            {sources.length > 0 && (
+                                <p className="pb-0.5 text-[13px] text-stone-600">
+                                    {sources.map((source, index) => (
+                                        <Fragment key={source.id}>
+                                            {index > 0 && <span aria-hidden="true"> · </span>}
+                                            <ViewLink
+                                                href={href('document', source.id)}
+                                                onClick={() => onUseCard?.(card.id, source.id)}
+                                                title={source.what}
+                                                className="underline decoration-stone-300 underline-offset-2 hover:text-stone-900 hover:decoration-stone-500"
+                                            >
+                                                {source.reference}
+                                            </ViewLink>
+                                        </Fragment>
+                                    ))}
+                                </p>
+                            )}
+                            <h2 className={cn(headingClass, "!text-xl")}>{card.title}</h2>
+                        </div>
                         <MarkdownContent
                             content={card.body}
                             className="text-[17px] leading-relaxed text-stone-700"
@@ -47,15 +83,13 @@ export function PlanCards({ overview, regulationData, focusId, href, commentCoun
                             onReferenceClick={onReferenceClick}
                             regulationData={regulationData}
                         />
-                        {card.commentOn ? (
+                        {commentOn ? (
                             <div className="flex items-center gap-3 pt-1">
                                 {active && (
-                                    <ViewLink href={href('comment', card.commentOn)} className={smallActionClass}>
-                                        {card.commentLabel ?? 'Σχολιάστε'}
-                                    </ViewLink>
+                                    <CommentLink href={href('comment', commentOn)} onClick={() => onUseCard?.(card.id, commentOn)}>{commentLabel}</CommentLink>
                                 )}
                                 {commentCount > 0 && (
-                                    <ViewLink href={href('comment', card.commentOn)} className="text-[15px] text-stone-600 underline-offset-2 hover:underline">
+                                    <ViewLink href={href('comment', commentOn)} onClick={() => onUseCard?.(card.id, commentOn)} className="text-[15px] text-stone-600 underline-offset-2 hover:underline">
                                         {commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}
                                     </ViewLink>
                                 )}

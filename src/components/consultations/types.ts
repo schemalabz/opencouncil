@@ -115,7 +115,8 @@ export interface OverviewCard {
     title: string;
     body: string; // markdown
     commentOn?: string; // id of the chapter, article, geoset or geometry that comments on this card go to
-    commentLabel?: string; // default "Σχολιάστε"
+    commentLabel?: string; // default: the name of `commentOn` when it is a chapter or an article, else "Σχολιάστε"
+    basedOn?: string[]; // ids of the chapters and articles that the card sums up; the card links to them. Default: `commentOn`
     explains?: string[]; // geoset ids this card explains; a place of those geosets links here
     linkLabel?: string; // text of that link; default the card's title
 }

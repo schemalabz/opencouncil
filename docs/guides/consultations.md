@@ -33,7 +33,7 @@ The regulation JSON file is the core data source for each consultation. It follo
     - `streetGeoSetIds`, `streetRadiusMeters` (30), `streetMaxItems` (4) — the area geometries on the reader's street, nearest first. The default is every area geoset except the zone geoset
     - `nearbyGeoSetIds`, `nearbyRadiusMeters` (400) — the nearest geometry of each of these geosets. The default is every point geoset
     - `noZoneText` — markdown for an address outside every zone
-- `overview` — the cards of the `plan` screen ("the plan in two minutes"): `{id, title, body, commentOn?, commentLabel?, explains?, linkLabel?}`. `body` is markdown. `commentOn` is the entity that the card's comment link targets. `explains` lists the geosets that the card explains: a place of those geosets links to the card, with `linkLabel` as the link text. Without `overview` there is no `plan` screen
+- `overview` — the cards of the `plan` screen ("the plan in two minutes"): `{id, title, body, commentOn?, commentLabel?, basedOn?, explains?, linkLabel?}`. `body` is markdown. `commentOn` is the entity that the card's comment link targets. When it is a chapter or an article, the link names it ("Σχολιάστε την παράγραφο 4.3"), unless `commentLabel` gives another text. `basedOn` lists the chapters and articles that the card sums up: the card shows a small link to each of them above its title. Without `basedOn` the card links to `commentOn`. `explains` lists the geosets that the card explains: a place of those geosets links to the card, with `linkLabel` as the link text. Without `overview` there is no `plan` screen
 - `regulation` — array of `Chapter` and `GeoSet` items (the main content). Order is draw order on the map: a later geoset draws on top and wins clicks, so put large areas (zones, communities) first and small clickable shapes after them
 
 **Chapter** (`type: "chapter"`):
@@ -158,7 +158,7 @@ sequenceDiagram
     * `ConsultationBar`: The computer's bar under the site header — title, deadline, and links to the plan, the comments and the study
     * `ConsultationMap`: Mapbox map with geoset rendering, the address search bar (`views/AddressSearchBar`), filter chips, the address pin, selection and street outlines, derived geometry computation (buffer/difference), and the superadmin geo-editor
     * `ConsultationDocument`: Renders chapters and articles with expand/collapse and the sources list
-    * `ChapterView` / `ArticleView`: Chapter and article cards with comment counts and a link to the comment screen; opening one names it in the URL
+    * `ChapterView` / `ArticleView`: Chapter and article cards with comment counts and a link to the comment screen; opening one names it in the URL. Every comment button has the same icon and names its item ("Σχολιάστε όλο το άρθρο 4"). The heading of an item has the icon too, so the reader does not scroll to the end of a long item to comment
     * `MarkdownContent`: Renders markdown with `{REF:id}` and `{DEF:id}` pattern handling as interactive links
     * `LayerControlsPanel`, `GeoSetItem`, `GeometryItem`, `EditingToolsPanel`: The geo-editor (superadmins only)
     * `SourcesList`: Regulation source documents and contact information
@@ -315,10 +315,13 @@ The seed adds one open consultation to a local database and to a preview: `/athe
 ### Text Without a Map
 1. A regulation without a geoset has no map. The `map` screen does not exist: a link to it opens the start screen. The bar and the start screen show no map link
 2. On a computer the full text takes the place of the map. The side panel shows the start screen with the plan cards, the comment form, the comments, or the selected item of the text. The text marks the item that the panel is about
-3. On a phone each screen is a page, as with a map. The start screen links to the plan, the comments and the full text
-4. `documentType: "regulation"` is for a legal text. The viewer calls a `chapter` "Άρθρο N" and an `article` "Παράγραφος C.N", in the text, in a comment's label, in the email to the municipality and in the printout. Without it the viewer calls them "Κεφάλαιο" and "Άρθρο", and calls the text "μελέτη"
-5. `documentType` and the map are independent: a regulation with geosets keeps the map layout and gets the words of a regulation
-6. Example: `public/consultations/athens-music-hours.json`, which the seed adds to Athens as the review consultation `music-hours` (see [Database Seeding](../database-seeding.md))
+3. On a computer a link to an item of the text moves the text, and the panel keeps its list: the start screen, the plan or the comments. The reader does not lose the place in the cards or in the comments. A reader who arrives at an item from another page has seen no list: the panel then names the item and has its comment button
+4. On a phone each screen is a page, as with a map. The start screen links to the plan, the comments and the full text. The text that a card opened returns to that card
+5. The reader who leaves a comment form that a card opened sees that card again, not the top of the cards. A comment form keeps the text that the reader did not send, for the time that the page stays open
+6. Without a map and without `overview`, the bar and the start screen of a computer have no "Σχολιάστε" button: each item of the text beside the panel has its own
+7. `documentType: "regulation"` is for a legal text. The viewer calls a `chapter` "Άρθρο N" and an `article` "Παράγραφος C.N", in the text, in a comment's label, in the email to the municipality and in the printout. Without it the viewer calls them "Κεφάλαιο" and "Άρθρο", and calls the text "μελέτη"
+8. `documentType` and the map are independent: a regulation with geosets keeps the map layout and gets the words of a regulation
+9. Example: `public/consultations/athens-music-hours.json`, which the seed adds to Athens as the review consultation `music-hours` (see [Database Seeding](../database-seeding.md))
 
 ### Navigation
 1. The URL holds the screen and the entity: `?view=map&entity=<id>`, `?view=comment&entity=<id>`, `?view=plan&entity=<card id>`. Old hash links (`#article-3`) and a view that does not match the entity are rewritten in place

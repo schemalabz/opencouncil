@@ -15,15 +15,23 @@ export interface DocumentWording {
     chapterLabel: (chapterNum: number | undefined) => string;
     /** The label over a second-level item's title: "Άρθρο 2", or "Παράγραφος 4.2". */
     articleLabel: (chapterNum: number | undefined, articleNum: number) => string;
+    /** A second-level item in a short reference, where no chapter is around it: "Ενότητα 4.2". */
+    articleReference: (chapterNum: number | undefined, articleNum: number) => string;
     /** The same items, named outside the text: in a comment, an email and the printout. */
     chapterWhere: (chapterNum: number | undefined) => string;
     articleWhere: (chapterNum: number | undefined, articleNum: number) => string;
     chapterCount: (count: number) => string;
     articleCount: (count: number) => string;
-    /** The comment link of a top-level item that has second-level items, and of one that has none. */
-    commentOnChapter: string;
-    commentOnChapterAlone: string;
-    commentOnArticle: string;
+    /**
+     * The comment buttons. Each names its item, so the reader knows where the comment goes: a
+     * top-level item that has second-level items, one that has none, and a second-level item.
+     * A second-level item has two names, as its label and its reference do: one under its text,
+     * and one where no chapter is around it.
+     */
+    commentOnChapter: (chapterNum: number | undefined) => string;
+    commentOnChapterAlone: (chapterNum: number | undefined) => string;
+    commentOnArticle: (chapterNum: number | undefined, articleNum: number) => string;
+    commentOnArticleReference: (chapterNum: number | undefined, articleNum: number) => string;
     /** The heading over the comments on the text, in the printout. */
     printedCommentsTitle: string;
     loadFailed: string;
@@ -39,13 +47,15 @@ const WORDING: Record<DocumentType, DocumentWording> = {
         sectionTitle: 'Στη μελέτη',
         chapterLabel: chapterNum => `Κεφάλαιο ${chapterNum}`,
         articleLabel: (_chapterNum, articleNum) => `Άρθρο ${articleNum}`,
+        articleReference: (chapterNum, articleNum) => `Ενότητα ${chapterNum}.${articleNum}`,
         chapterWhere: chapterNum => `Κεφάλαιο ${chapterNum} της μελέτης`,
         articleWhere: (chapterNum, articleNum) => `Ενότητα ${chapterNum}.${articleNum} της μελέτης`,
         chapterCount: n => count(n, 'κεφάλαιο', 'κεφάλαια'),
         articleCount: n => count(n, 'άρθρο', 'άρθρα'),
-        commentOnChapter: 'Σχολιάστε όλο το κεφάλαιο',
-        commentOnChapterAlone: 'Σχολιάστε αυτό το κεφάλαιο',
-        commentOnArticle: 'Σχολιάστε αυτό το άρθρο',
+        commentOnChapter: chapterNum => `Σχολιάστε όλο το κεφάλαιο ${chapterNum}`,
+        commentOnChapterAlone: chapterNum => `Σχολιάστε το κεφάλαιο ${chapterNum}`,
+        commentOnArticle: (_chapterNum, articleNum) => `Σχολιάστε το άρθρο ${articleNum}`,
+        commentOnArticleReference: (chapterNum, articleNum) => `Σχολιάστε την ενότητα ${chapterNum}.${articleNum}`,
         printedCommentsTitle: 'Σχόλια στα κεφάλαια και άρθρα της κανονιστικής',
         loadFailed: 'Δεν ήταν δυνατή η φόρτωση της μελέτης. Δοκιμάστε ξανά σε λίγο.',
         empty: 'Η μελέτη δεν έχει κεφάλαια.',
@@ -56,13 +66,15 @@ const WORDING: Record<DocumentType, DocumentWording> = {
         sectionTitle: 'Στο κείμενο',
         chapterLabel: chapterNum => `Άρθρο ${chapterNum}`,
         articleLabel: (chapterNum, articleNum) => `Παράγραφος ${chapterNum}.${articleNum}`,
+        articleReference: (chapterNum, articleNum) => `Παράγραφος ${chapterNum}.${articleNum}`,
         chapterWhere: chapterNum => `Άρθρο ${chapterNum} του σχεδίου`,
         articleWhere: (chapterNum, articleNum) => `Παράγραφος ${chapterNum}.${articleNum} του σχεδίου`,
         chapterCount: n => count(n, 'άρθρο', 'άρθρα'),
         articleCount: n => count(n, 'παράγραφος', 'παράγραφοι'),
-        commentOnChapter: 'Σχολιάστε όλο το άρθρο',
-        commentOnChapterAlone: 'Σχολιάστε αυτό το άρθρο',
-        commentOnArticle: 'Σχολιάστε αυτή την παράγραφο',
+        commentOnChapter: chapterNum => `Σχολιάστε όλο το άρθρο ${chapterNum}`,
+        commentOnChapterAlone: chapterNum => `Σχολιάστε το άρθρο ${chapterNum}`,
+        commentOnArticle: (chapterNum, articleNum) => `Σχολιάστε την παράγραφο ${chapterNum}.${articleNum}`,
+        commentOnArticleReference: (chapterNum, articleNum) => `Σχολιάστε την παράγραφο ${chapterNum}.${articleNum}`,
         printedCommentsTitle: 'Σχόλια στα άρθρα και στις παραγράφους του σχεδίου',
         loadFailed: 'Δεν ήταν δυνατή η φόρτωση του κειμένου. Δοκιμάστε ξανά σε λίγο.',
         empty: 'Το κείμενο δεν έχει άρθρα.',

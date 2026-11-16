@@ -17,6 +17,10 @@ export interface EntityDisplay {
     detail?: string;
     /** One sentence of meaning, markdown. */
     meaning?: string;
+    /** A chapter or an article in a short reference: "Παράγραφος 4.1". */
+    reference?: string;
+    /** The text of the button that opens its comment form: "Σχολιάστε την παράγραφο 4.1". */
+    commentLabel?: string;
     color?: string;
     geoSetId?: string;
 }
@@ -59,11 +63,29 @@ export function describeEntity(
     for (const item of regulationData.regulation) {
         if (item.type !== 'chapter') continue;
         if (item.id === entityId) {
-            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '', where: wording.chapterWhere(item.num), meaning: item.summary };
+            return {
+                id: entityId,
+                type: 'chapter',
+                commentType: COMMENT_TYPE.chapter,
+                what: item.title ?? '',
+                where: wording.chapterWhere(item.num),
+                meaning: item.summary,
+                reference: wording.chapterLabel(item.num),
+                commentLabel: item.articles?.length ? wording.commentOnChapter(item.num) : wording.commentOnChapterAlone(item.num),
+            };
         }
         const article = item.articles?.find((a) => a.id === entityId);
         if (article) {
-            return { id: entityId, type: 'article', commentType: COMMENT_TYPE.article, what: article.title, where: wording.articleWhere(item.num, article.num), meaning: article.summary };
+            return {
+                id: entityId,
+                type: 'article',
+                commentType: COMMENT_TYPE.article,
+                what: article.title,
+                where: wording.articleWhere(item.num, article.num),
+                meaning: article.summary,
+                reference: wording.articleReference(item.num, article.num),
+                commentLabel: wording.commentOnArticleReference(item.num, article.num),
+            };
         }
     }
     return null;

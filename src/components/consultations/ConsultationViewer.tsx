@@ -61,6 +61,8 @@ interface Place {
     entityId: string | null;
 }
 
+const isListScreen = (view: ConsultationView) => view === 'home' || view === 'plan' || view === 'comments';
+
 /** The computer layout (map beside a panel) starts where the side panel leaves the map enough room. */
 const DESKTOP_QUERY = '(min-width: 1024px)';
 
@@ -155,18 +157,26 @@ export default function ConsultationViewer({
         if (live.needsCanonicalUrl) navigateTo(live.canonicalUrl, { replace: true });
     }, [defaultView, regulationData, searchParams]);
 
-    // The screen before this one, for back links that return where the reader came from.
-    const [trail, setTrail] = useState<{ current: Place; previous: Place | null }>({
+    // The screen before this one, for back links that return where the reader came from. `panel` is
+    // the last screen that lists things (the start, the plan, the comments): the text returns to it.
+    const [trail, setTrail] = useState<{ current: Place; previous: Place | null; panel: ConsultationView | null }>({
         current: { view: urlState.view, entityId: urlState.entityId },
         previous: null,
+        panel: isListScreen(urlState.view) ? urlState.view : null,
     });
     if (trail.current.view !== urlState.view || trail.current.entityId !== urlState.entityId) {
         setTrail({
             current: { view: urlState.view, entityId: urlState.entityId },
             previous: trail.current.view !== urlState.view ? trail.current : trail.previous,
+            panel: isListScreen(urlState.view) ? urlState.view : trail.panel,
         });
     }
     const previous = trail.previous;
+    // The plan card that the reader last used, and the item of the text that it opened: the reader
+    // returns from that item to that card, not to the top of the cards.
+    const [usedCard, setUsedCard] = useState<{ cardId: string; entityId: string } | null>(null);
+    // The comments that the reader typed and did not send, by item: a form that leaves the screen keeps its text.
+    const [drafts] = useState(() => new Map<string, string>());
 
     // A confirmation link's result shows on its comment's screen only, and only until the reader leaves it.
     // A link that could not publish is kept in this tab instead, so that the reader can try it again later.
@@ -307,13 +317,22 @@ export default function ConsultationViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one event per opened place
     }, [view, entityDisplay?.id]);
 
+    // The reader left a comment form that a plan card opened, and the cards are on screen again:
+    // the cards show that card, not their top.
+    const listView = view === 'document' && !hasMap ? trail.panel : view;
+    const showsCards = listView === 'plan' || (listView === 'home' && !hasMap && isDesktop === true);
+    const returnedCardId = showsCards && previous?.view === 'comment' && usedCard?.entityId === previous.entityId
+        ? usedCard.cardId
+        : null;
+
     // A new screen starts at its top, unless it scrolls to a card or a section of its own.
     const panelRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
         if ((view === 'plan' || view === 'document') && urlState.entityId) return;
+        if (returnedCardId) return;
         window.scrollTo(0, 0);
         panelRef.current?.scrollTo(0, 0);
-    }, [view, urlState.entityId]);
+    }, [view, urlState.entityId, returnedCardId]);
 
     const [sheetRef, sheetHeight] = useElementHeight();
 
@@ -352,15 +371,24 @@ export default function ConsultationViewer({
         ? entityDisplay.id
         : null;
 
+    const markCardUsed = (cardId: string, entityId: string) => {
+        setUsedCard({ cardId, entityId });
+        // A source link changes nothing when the URL already names this section: scroll to it again.
+        if (urlState.view === 'document' && urlState.entityId === entityId) {
+            document.getElementById(entityId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     const planCards = (
         <PlanCards
             overview={regulationData.overview ?? []}
             regulationData={regulationData}
-            focusId={view === 'plan' ? urlState.entityId : null}
+            focusId={(view === 'plan' ? urlState.entityId : null) ?? returnedCardId}
             href={href}
             commentCounts={commentCounts}
             active={active}
             onReferenceClick={openReference}
+            onUseCard={markCardUsed}
         />
     );
 
@@ -408,7 +436,9 @@ export default function ConsultationViewer({
                 if (!entityDisplay) return homeView;
                 return (
                     <CommentView
+                        key={entityDisplay.id}
                         display={entityDisplay}
+                        drafts={drafts}
                         backHref={previous && previous.view !== 'comment'
                             ? href(previous.view, previous.entityId)
                             : href(getConsultationViewForEntityType(entityDisplay.type), entityDisplay.id)}
@@ -476,7 +506,11 @@ export default function ConsultationViewer({
                 }
                 return lookup ? renderPanel('street') : homeView;
             case 'document':
-                // Without a map the text is beside the panel: the panel shows the section a link opened.
+                // Without a map the text is beside the panel. A link to a section moves the text, and the
+                // panel keeps its list: the reader does not lose the place in the cards or in the comments.
+                // A reader who arrives at a section from another page has seen no list, so the panel names
+                // the section.
+                if (trail.panel) return renderPanel(trail.panel);
                 if (!entityDisplay) return homeView;
                 return (
                     <PlaceView
@@ -504,7 +538,9 @@ export default function ConsultationViewer({
             visible={view === 'document' || (!hasMap && isDesktop === true)}
             title={wording.documentTitle}
             href={href}
-            backHref={href('home')}
+            backHref={trail.panel === 'plan'
+                ? href('plan', usedCard?.entityId === urlState.entityId ? usedCard.cardId : null)
+                : href('home')}
             commentCounts={commentCounts}
             active={active}
             onReferenceClick={openReference}
@@ -576,12 +612,13 @@ export default function ConsultationViewer({
             deadlineActive={active}
             homeHref={href('home')}
             // Without a map the start panel shows the plan's cards, and the text is always on screen.
+            // With no plan either, "Σχολιάστε" has nowhere to go: each item of the text has its button.
             planHref={hasMap ? planHref : undefined}
             commentsHref={href('comments')}
             commentCount={liveComments.length}
             studyHref={hasMap ? href('document') : undefined}
             studyLabel={wording.documentLink}
-            commentHref={commentHref}
+            commentHref={hasMap || planHref ? commentHref : undefined}
         />
     );
 
