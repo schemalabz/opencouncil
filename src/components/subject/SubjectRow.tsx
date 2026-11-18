@@ -189,7 +189,7 @@ export function SubjectRow({ subject, city, meeting, showContext = true, pending
                                     context line above holds the body and the date, so the title. */}
                                 {showContext && <MetaItem icon={ScrollText}>{meetingDisplayName(meeting, locale, city.timezone)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
-                                {description && <AIGeneratedLabel className="sm:ml-auto" />}
+                                {description && <AIGeneratedLabel />}
                             </div>
                         </div>
                     </div>
