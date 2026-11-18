@@ -5,6 +5,8 @@ import { CityAdminTools } from '@/components/cities/CityAdminTools';
 import { CityMeetingsModule, type MeetingBookends } from '@/components/cities/overview/CityMeetingsModule';
 import { CityNotificationCard } from '@/components/cities/overview/CityNotificationCard';
 import { CityPetitionCard } from '@/components/cities/overview/CityPetitionCard';
+import { SecondaryBodiesCard } from '@/components/cities/overview/SecondaryBodiesCard';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 
 interface CityRailProps {
@@ -19,6 +21,9 @@ interface CityRailProps {
     petitionBucket: PetitionBucket | null;
     allMeetings: MeetingBookends;
     councilMeetings: MeetingBookends;
+    /** The secondary bodies with a released meeting, and their bookends (#829). */
+    secondaryBodies: PublicAdministrativeBody[];
+    secondaryMeetings: MeetingBookends;
     locale: string;
 }
 
@@ -43,6 +48,8 @@ export function CityRail({
     petitionBucket,
     allMeetings,
     councilMeetings,
+    secondaryBodies,
+    secondaryMeetings,
     locale,
 }: CityRailProps) {
     return (
@@ -74,6 +81,13 @@ export function CityRail({
                 <CityMeetingsModule
                     all={allMeetings}
                     council={councilMeetings}
+                    cityId={city.id}
+                    timezone={city.timezone}
+                    locale={locale}
+                />
+                <SecondaryBodiesCard
+                    bodies={secondaryBodies}
+                    meetings={secondaryMeetings}
                     cityId={city.id}
                     timezone={city.timezone}
                     locale={locale}

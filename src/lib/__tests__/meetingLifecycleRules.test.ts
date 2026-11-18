@@ -1,4 +1,6 @@
 import {
+    hasPublicRecording,
+    noRecordingReason,
     pickRecordInput,
     transcriptionRefusal,
     validateMeetingRecord,
@@ -21,6 +23,8 @@ function state(overrides: Partial<MeetingRecordState> = {}): MeetingRecordState 
         urgent: false,
         sessionNumber: null,
         format: 'inPerson',
+        noRecording: false,
+        youtubeUrl: null,
         postponedFromId: null,
         continuationOfId: null,
         ...overrides,
@@ -48,6 +52,13 @@ function codes(next: MeetingRecordState, ctx: LifecycleContext) {
 describe('validateMeetingRecord', () => {
     it('accepts an ordinary meeting with no links', () => {
         expect(codes(state(), context())).toEqual([]);
+    });
+
+    it('refuses a video on a meeting with no recording, from the form and from MCP alike (#829)', () => {
+        const video = 'https://www.youtube.com/watch?v=abc';
+        expect(codes(state({ noRecording: true, youtubeUrl: video }), context())).toEqual(['notRecordedHasVideo']);
+        expect(codes(state({ noRecording: true }), context())).toEqual([]);
+        expect(codes(state({ youtubeUrl: video }), context())).toEqual([]);
     });
 
     it('keeps the kind, the urgency and the session number for a city of the greece realm', () => {
@@ -184,7 +195,7 @@ describe('validateMeetingRecord', () => {
 });
 
 describe('transcriptionRefusal', () => {
-    const held = { scheduleStatus: 'scheduled' as const, format: 'inPerson' as const };
+    const held = { scheduleStatus: 'scheduled' as const, noRecording: false, format: 'inPerson' as const };
 
     it('accepts a scheduled meeting with a public recording', () => {
         expect(transcriptionRefusal(held)).toBeNull();
@@ -195,6 +206,7 @@ describe('transcriptionRefusal', () => {
     it.each([
         [{ ...held, scheduleStatus: 'postponed' as const }, 'Meeting is postponed'],
         [{ ...held, scheduleStatus: 'cancelled' as const }, 'Meeting is cancelled'],
+        [{ ...held, noRecording: true }, 'not recorded'],
         [{ ...held, format: 'byCirculation' as const }, 'byCirculation'],
     ])('refuses %o', (meeting, reason) => {
         expect(transcriptionRefusal(meeting)).toContain(reason);
@@ -210,5 +222,27 @@ describe('pickRecordInput', () => {
     it('leaves out the facts that the request left out, and keeps null', () => {
         expect(pickRecordInput({ kind: 'ordinary', place: null })).toEqual({ kind: 'ordinary', place: null });
         expect(pickRecordInput({})).toEqual({});
+    });
+});
+
+describe('noRecordingReason', () => {
+    it('names the written vote for a meeting by circulation, and the missing camera for an unrecorded one (#829)', () => {
+        expect(noRecordingReason({ format: 'byCirculation', noRecording: false })).toBe('byCirculation');
+        expect(noRecordingReason({ format: 'inPerson', noRecording: true })).toBe('notRecorded');
+        expect(noRecordingReason({ format: null, noRecording: true })).toBe('notRecorded');
+        // A meeting by circulation has a written vote whatever else the body marked.
+        expect(noRecordingReason({ format: 'byCirculation', noRecording: true })).toBe('byCirculation');
+    });
+
+    it('is null exactly where hasPublicRecording is true', () => {
+        for (const fields of [
+            { format: null, noRecording: false },
+            { format: 'inPerson', noRecording: false },
+            { format: 'remote', noRecording: false },
+            { format: 'hybrid', noRecording: true },
+            { format: 'byCirculation', noRecording: false },
+        ] as const) {
+            expect(noRecordingReason(fields) === null).toBe(hasPublicRecording(fields));
+        }
     });
 });

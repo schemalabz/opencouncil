@@ -13,6 +13,7 @@ import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
 import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getSecondaryBodyIdsCached } from '@/lib/db/administrativeBodies';
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
@@ -324,8 +325,9 @@ export async function searchSubjectsInRealm(
 
         // Build and execute the search query with retry logic, against the
         // index the alias serves and with that index's thresholds.
+        const secondaryBodyIds = await getSecondaryBodyIdsCached(realm);
         const response = await withIndexProfile(client, profile => {
-            const searchQuery = buildSearchQuery(mergedRequest, extractedFilters, processedFilters.locations, profile);
+            const searchQuery = buildSearchQuery(mergedRequest, secondaryBodyIds, extractedFilters, processedFilters.locations, profile);
             return executeElasticsearchWithRetry(
                 () => client.search<SubjectDocument>(searchQuery),
                 'Search'
@@ -568,7 +570,8 @@ const MAX_CACHE_TAGS = 128;
  * The tags a related-subjects entry carries, so the events that change the
  * answer revalidate it instead of waiting for the TTL:
  * - `cities:all`: a municipality's status or realm changes, which changes
- *   the city set the query is capped to.
+ *   the city set the query is capped to, or a body changes tier, which
+ *   changes the secondary bodies the query reads (getSecondaryBodyIdsCached).
  * - `city:{id}:meeting:{id}`: the seed itself is renamed or regenerated.
  * - `city:{id}:meetings` for every municipality of the scope: a meeting
  *   there is released, unreleased, deleted or reprocessed, so a neighbour
@@ -589,7 +592,8 @@ function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): str
  * written against the old index, where the alias name would have kept them.
  */
 function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm, profile: IndexProfile): string[] {
-    return ['subject', seed.id, 'related', scope, realm, String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
+    // The seed's tier decides which bodies the query spans (see relatedTierFilters).
+    return ['subject', seed.id, 'related', scope, realm, seed.tier, String(profile.relatedMinSimilarity), String(RELATED_SUBJECTS_SIZE), profile.index];
 }
 
 /**
@@ -628,8 +632,9 @@ export async function searchRelatedSubjectsInRealm(
         // still drops out on the next visit.
         const esHits = await withIndexProfile(client, profile => createCache(
             async () => {
+                const secondaryBodyIds = await getSecondaryBodyIdsCached(realm);
                 const response = await executeElasticsearchWithRetry(
-                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds, profile)),
+                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds, secondaryBodyIds, profile)),
                     'Related subjects'
                 );
                 return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));

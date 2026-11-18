@@ -29,6 +29,8 @@
     "invalidEmailList": "All entries must be valid email addresses",
     "documentRecipientRequired": "Enter the address that receives the document",
     "roleEndBeforeStart": "The end date must not be before the start date.",
+    "roleEndInFuture": "The end date must not be after today.",
+    "youthOnlyPersonPhoto": "A person whose every role is on a youth council keeps a photo only from their own account. Remove the photo in the same save, or keep a role outside the youth council.",
     "recipientNameMin2": "Recipient name must be at least 2 characters.",
     "platformPriceNonNegative": "Platform price must be a positive number.",
     "ingestionPriceNonNegative": "Ingestion price per hour must be a positive number.",

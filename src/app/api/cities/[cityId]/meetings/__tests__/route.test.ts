@@ -39,6 +39,22 @@ describe('GET /api/cities/[cityId]/meetings includeUnreleased', () => {
         expect(withUserAuthorizedToEdit).toHaveBeenCalledTimes(expected ? 1 : 0);
     });
 
+    it.each([
+        ['?includeUnreleased=true', 'all'],
+        ['?includeUnreleased=true&tier=primary', 'primary'],
+        ['', 'primary'],
+        ['?tier=all', 'all'],
+    ])('%s lists the %s tier: a tier it sends decides, and an editor gets every tier without one (#829)', async (query, tier) => {
+        await get(query);
+        expect(mockList.mock.calls[0][1]?.scope).toEqual({ tier });
+    });
+
+    it('refuses an unknown tier', async () => {
+        const response = await get('?tier=youth');
+        expect(response.status).toBe(400);
+        expect(mockList).not.toHaveBeenCalled();
+    });
+
     it('refuses a value outside the stringbool lists', async () => {
         const response = await get('?includeUnreleased=maybe');
         expect(response.status).toBe(400);

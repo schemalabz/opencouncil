@@ -45,7 +45,8 @@ When searching:
    - Full-text search on subject names, descriptions, and speaker segments
    - Greek language support with proper analysis
    - Nested queries for speaker segments
-   - Filtering by city, person, party, date, and location
+   - Filtering by city, person, party, administrative body, date, and location
+   - The index holds the type of a body and not its tier. The default search leaves out the secondary bodies of the realm by `administrative_body_id` (`searchTierFilter` in `src/lib/search/query.ts`), so a change of tier needs no reindex
 
 2. **Semantic Search**
    - Uses Elasticsearch's `semantic_text` field type
@@ -787,7 +788,7 @@ GET subjects/_search
       "functions": [{ "script_score": { "script": {
         "source": "<Painless: adminWeight * discussionFactor * recencyFactor>",
         "params": {
-          "councilWeight": 1.15, "committeeWeight": 1.075, "communityWeight": 1.0,
+          "councilWeight": 1.15, "committeeWeight": 1.075, "communityWeight": 1.0, "youthCouncilWeight": 1.0,
           "defaultAdminBodyWeight": 1.0, "discussionWeight": 0.03,
           "recencyWeight": 0.1, "recencyScaleDays": 365, "nowMillis": 1787242196648
         }

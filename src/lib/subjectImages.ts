@@ -7,7 +7,7 @@ import { getSubjectIdsForMeeting, getSubjectPromptInput } from '@/lib/db/subject
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { getRealmDisplayName } from '@/lib/realm';
 import { isStorageConfigured, s3Client } from '@/lib/s3';
-import { sendErrorAdminAlert } from '@/lib/discord-core';
+import { reportFailure } from '@/lib/reportFailure';
 
 /**
  * The app-side face of `@opencouncil/subject-images`: wires the library to the
@@ -95,14 +95,6 @@ function sleep(ms: number): Promise<void> {
     return new Promise((done) => setTimeout(done, ms));
 }
 
-/** Log and alert Discord; the alert's own failure must not surface. */
-function reportFailure(message: string, error: unknown, context: Record<string, string>): void {
-    console.error(`${message}:`, error);
-    const detail = error instanceof Error ? error.message : String(error);
-    sendErrorAdminAlert({ source: 'subject-images', error: detail, context })
-        .catch((alertError) => console.error('Failed to send subject image alert:', alertError));
-}
-
 /**
  * Why this deployment draws no image, or null where it does. Generation is on
  * only in production: every other deployment has a fallback (derived from
@@ -160,7 +152,7 @@ export function listSubjectsWithImages(): Promise<Set<string>> {
  */
 export async function reportLookupFailure(subjectId: string, error: unknown): Promise<void> {
     if (await claimAlertWindow(LOOKUP_ALERT_KEY, LOOKUP_ALERT_TTL_S)) {
-        reportFailure(`Subject image lookup failed for ${subjectId}`, error, { subjectId });
+        reportFailure('subject-images', `Subject image lookup failed for ${subjectId}`, error, { subjectId });
     } else {
         console.error(`Subject image lookup failed for ${subjectId}:`, error);
     }
@@ -210,7 +202,7 @@ async function recordFailure(subjectId: string, error: unknown): Promise<void> {
     const message = gaveUp
         ? `Subject image generation failed for ${subjectId}; giving up after ${count} attempts`
         : `Subject image generation failed for ${subjectId} (attempt ${count} of ${GIVE_UP_AFTER})`;
-    reportFailure(message, error, { subjectId, attempt: String(count) });
+    reportFailure('subject-images', message, error, { subjectId, attempt: String(count) });
 }
 
 /** Draw and store one subject; `before` is the object that was there when the run was claimed. */
@@ -219,7 +211,7 @@ async function generateAndStore(subjectId: string, apiKey: string, before: Resol
     if (!subject) {
         // Alerted, not counted: the subject is gone, not refused.
         const error = new Error(`Subject ${subjectId} not found`);
-        reportFailure(`Subject image generation failed for ${subjectId}`, error, { subjectId });
+        reportFailure('subject-images', `Subject image generation failed for ${subjectId}`, error, { subjectId });
         throw error;
     }
 
@@ -241,7 +233,7 @@ async function generateAndStore(subjectId: string, apiKey: string, before: Resol
             const first = !(await quotaPaused());
             if (isCacheConfigured()) await cacheSetJSON(QUOTA_KEY, { at: Date.now() }, QUOTA_PAUSE_S);
             else quotaPausedUntil = Date.now() + QUOTA_PAUSE_S * 1000;
-            if (first) reportFailure(`Subject image generation paused for ${QUOTA_PAUSE_S / 60} minutes: Gemini quota exhausted (at ${subjectId})`, error, { subjectId });
+            if (first) reportFailure('subject-images', `Subject image generation paused for ${QUOTA_PAUSE_S / 60} minutes: Gemini quota exhausted (at ${subjectId})`, error, { subjectId });
             throw error;
         }
         // The failure budget counts the model's refusals, which are about the
@@ -264,7 +256,7 @@ async function generateAndStore(subjectId: string, apiKey: string, before: Resol
         // so this is where it shows; pausing here keeps a misconfiguration
         // at one billed call and one alert instead of one per subject.
         await cacheSetJSON(STORE_BROKEN_KEY, { at: Date.now() }, STORE_BROKEN_TTL_S);
-        reportFailure(`Subject image store failed for ${subjectId}`, error, { subjectId });
+        reportFailure('subject-images', `Subject image store failed for ${subjectId}`, error, { subjectId });
         throw error;
     }
     await cacheDelete(failureKey(subjectId));
@@ -353,7 +345,7 @@ export async function generateImagesForMeeting(cityId: string, councilMeetingId:
     try {
         queue = await getSubjectIdsForMeeting(cityId, councilMeetingId);
     } catch (error) {
-        reportFailure(`Subject lookup for images failed for meeting ${councilMeetingId}`, error, { cityId, councilMeetingId });
+        reportFailure('subject-images', `Subject lookup for images failed for meeting ${councilMeetingId}`, error, { cityId, councilMeetingId });
         return;
     }
 

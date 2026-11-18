@@ -84,9 +84,40 @@ A body admin can also do these things:
 - Add and edit the members of their bodies. Every role in the payload must be
   on a body that they hold. `getRoleLimitForCity` and
   `validateRolesForBodyAdmin` apply this rule.
+- Run the roster tools of their bodies (#829): import a pasted list of
+  members, end a membership, start a new term, and make the claim links of the
+  members who have no account. `src/lib/db/bodyMembers.ts` gates each one on
+  the body. The admin gives the day that a membership or a term ends: today
+  by default, or a past day, and never a day after today in the city. A new
+  term ends the roles that started before that day, so a member whom the
+  admin added first for the new term stays. A council gets no new term: its
+  seats end after an election (`mayStartNewTerm`). An import with no start
+  date starts the memberships where the last membership of the body ended, so
+  the members of a new term stay out of the minutes of the old term. A claim
+  link claims the whole person, so it goes only to a member whose every role
+  is on the body. A member with a seat elsewhere in the municipality gets
+  their link from the city admin.
+
+A person whose every role is on a youth council consents to a voiceprint from
+their own account only (#829). The rule reads the body type, not the tier: a
+youth council can have members under 18. `youthCouncilOnly` in
+`src/lib/utils/youthCouncil.ts` names the rule. A superadmin cannot record a
+consent for them, and no voiceprint task starts for them without that consent.
+The consent counts only from the account that claimed their page: a delegate
+that a superadmin added cannot give it, and a consent from any other account
+does not start a voiceprint. The same account alone adds their photo.
+`withPersonImageAuthorized` in `src/lib/db/personImage.ts` refuses a photo from
+any other account, and the member form of a youth council offers no photo
+field. `withPersonImageKept` applies the rule after a change of roles too: a
+change that makes a person who keeps a photo youth-only answers 409, unless
+the photo goes in the same save or the member's own account makes the change.
 - Change the YouTube channel and the document send settings of their body.
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
+
+The page of the body, at `/{cityId}/bodies/{bodyId}`, holds these forms: the
+meeting form, the member form, the contact settings and the list of admins.
+The profile of a body admin links to it.
 
 A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
 the last admin of a body.

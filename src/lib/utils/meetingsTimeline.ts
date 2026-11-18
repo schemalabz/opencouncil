@@ -1,4 +1,5 @@
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
+import { isSecondaryBody } from './bodyTier';
 import { SUBJECT_PREVIEW_COUNT } from './subjects';
 
 /**
@@ -38,13 +39,15 @@ export type TimelineSide = 'left' | 'right';
  * Which side of the spine a meeting belongs to: committees left, the council
  * right — and a κοινότητα nowhere. Community meetings are neighbourhood-level;
  * on the δήμος's own overview they would crowd out the meetings that speak for
- * the whole municipality, so the timeline excludes them (null). A meeting with
- * no administrative body (cities imported before bodies existed) reads as the
- * council's, which is the default body everywhere else in the app.
+ * the whole municipality, so the timeline excludes them (null). So does a
+ * secondary body (see bodyTier), which does not speak for the municipality at
+ * all. A meeting with no administrative body (cities imported before bodies
+ * existed) reads as the council's, which is the default body everywhere else
+ * in the app.
  */
-export function timelineSide(type: AdministrativeBodyType | null | undefined): TimelineSide | null {
-    if (type === 'community') return null;
-    return type == null || type === 'council' ? 'right' : 'left';
+export function timelineSide(body: { type: AdministrativeBodyType; tier: BodyTier } | null | undefined): TimelineSide | null {
+    if (body?.type === 'community' || isSecondaryBody(body)) return null;
+    return body == null || body.type === 'council' ? 'right' : 'left';
 }
 
 /** A card's exact height for a meeting previewing `subjectCount` subjects. */

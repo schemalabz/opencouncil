@@ -16,6 +16,8 @@ import { formatClockTime, localCalendarDate } from '@/lib/formatters/time';
 import { errorMessage } from '@/lib/utils/errors';
 import { sendAgendaReadingAlert, sendTaskAdminAlert } from '@/lib/discord';
 import { webUrl } from '@/lib/zod-schemas/primitives';
+import { pipelineRunsUnattended } from '@/lib/utils/youthCouncil';
+import type { AdministrativeBodyType } from '@prisma/client';
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -173,12 +175,20 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
 /**
  * The success alert of the task, in the format of every task alert, with what
  * the result held. A problem for a person to decide goes in its own alert.
+ * No operator follows a meeting whose pipeline runs unattended (#829), so it
+ * gets neither alert, as its creation gets none.
  */
 async function reportAgenda(
     taskId: string,
-    meeting: Parameters<typeof meetingNameInCity>[0] & { id: string; cityId: string; city: { name_en: string } },
+    meeting: Parameters<typeof meetingNameInCity>[0] & {
+        id: string;
+        cityId: string;
+        city: { name_en: string };
+        administrativeBody: { type: AdministrativeBodyType } | null;
+    },
     { details, problems }: { details: { name: string; value: string; inline?: boolean }[]; problems: string[] },
 ) {
+    if (pipelineRunsUnattended(meeting.administrativeBody)) return;
     // The subjects are saved: an alert that fails must not fail the task.
     try {
         await sendTaskAdminAlert({

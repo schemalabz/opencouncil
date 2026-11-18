@@ -39,7 +39,7 @@ describe('getMeetingSummaries', () => {
     it('returns the requested meeting without consulting the meeting list', async () => {
         mockGetMeetingSummaryCached.mockResolvedValue(summary('m1'));
 
-        const result = await getMeetingSummaries('vouli', { meetingId: 'm1', limit: 3, administrativeBodyIds: ['b1'] });
+        const result = await getMeetingSummaries('vouli', { meetingId: 'm1', limit: 3, scope: { ids: ['b1'] } });
 
         expect(result.map(s => s.meeting.id)).toEqual(['m1']);
         expect(mockGetMeetingSummaryCached).toHaveBeenCalledWith('vouli', 'm1');
@@ -58,11 +58,11 @@ describe('getMeetingSummaries', () => {
             Promise.resolve(meetingId === 'm2' ? null : summary(meetingId)));
 
         const result = await getMeetingSummaries('vouli', {
-            limit: 3, administrativeBodyTypes: ['council'], administrativeBodyIds: ['b1'],
+            limit: 3, scope: { tier: 'all', types: ['council'] },
         });
 
         expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledWith('vouli', {
-            limit: 3, administrativeBodyTypes: ['council'], administrativeBodyIds: ['b1'], timeFilter: 'past',
+            limit: 3, scope: { tier: 'all', types: ['council'] }, timeFilter: 'past',
         });
         expect(result.map(s => s.meeting.id)).toEqual(['m3', 'm1']);
     });

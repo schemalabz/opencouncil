@@ -14,6 +14,7 @@ import prisma from '@/lib/db/prisma'
 import { getDecisionHealth, cityState } from '@/lib/db/decisionHealth'
 import { getCityDecisionDetail } from '@/lib/db/decisionHealthDetail'
 import { applyCandidateConflictResolution, getConflictingCandidates } from '@/lib/db/decisionCandidates'
+import { AWAITING_DECISIONS_MEETING_WHERE } from '@/lib/db/decisionEligibility'
 import { resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -405,6 +406,37 @@ describe('per-body breakdown', () => {
         expect(row.bodies[1]).toMatchObject({ meetings: 1, polledMeetings: 0, eligibleSubjects: 1, linkedSubjects: 0 })
         expect(row.bodies[2]).toMatchObject({ meetings: 0, eligibleSubjects: 0 })
         expect(row.bodies[3]).toMatchObject({ body: null, meetings: 1, eligibleSubjects: 1 })
+    })
+
+    // A secondary body publishes no decisions (#829): the poll never asks for
+    // them, so the dashboard counts none of its subjects as unlinked, and the
+    // body has no row of zeros.
+    test('reads the rule of the poll, so a secondary body has no unlinked subject and no row', async () => {
+        const city = await seedCityWithBodies()
+        const youth = await createAdministrativeBody(city.id, {
+            id: 'b-youth', name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        expect(youth.tier).toBe('secondary')
+        // The rule reads the tier: a youth council set to primary keeps its row.
+        await createAdministrativeBody(city.id, {
+            id: 'b-youth-primary', name: 'Δημοτικό Συμβούλιο Νέων Β', type: 'youthCouncil', tier: 'primary',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        const m4 = await createMeeting(city.id, {
+            id: 'm4', administrativeBodyId: youth.id, dateTime: new Date('2025-01-16T10:00:00Z'),
+        })
+        await createSubject(m4.id, city.id, { name: 'Y', agendaItemIndex: 1 })
+
+        const awaiting = await prisma.councilMeeting.findMany({ where: { cityId: city.id, ...AWAITING_DECISIONS_MEETING_WHERE }, select: { id: true } })
+        expect(awaiting.map(m => m.id)).not.toContain('m4')
+
+        const [row] = await getDecisionHealth(city.id)
+        expect(row.bodies.map(b => b.body?.id ?? null)).not.toContain('b-youth')
+        expect(row.bodies.map(b => b.body?.id ?? null)).toContain('b-youth-primary')
+        expect(row).toMatchObject({ meetings: 3, eligibleSubjects: 4 })
+        const detail = await getCityDecisionDetail(city.id)
+        expect(JSON.stringify(detail)).not.toContain('"m4"')
     })
 
     test('the window empties a body without removing it', async () => {

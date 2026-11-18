@@ -1,7 +1,8 @@
-import { AdministrativeBodyType, Realm } from "@prisma/client";
+import { Realm } from "@prisma/client";
+import type { BodyScope } from "@/lib/utils/bodyTier";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -12,7 +13,7 @@ import { countCityPetitions } from "@/lib/db/petitions";
 import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
 import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
-import { getPeopleForCity } from "@/lib/db/people";
+import { countPeopleOfCity, getPeopleOfCityForContent, listPeopleOfCity } from "@/lib/db/people";
 import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
 import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
@@ -55,6 +56,19 @@ export async function getAllCityIdsCached(realm: Realm) {
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Whether a city is public through a secondary body (#829). Keyed per city
+ * under its meetings tag, which a release busts — the one event that changes
+ * the answer.
+ */
+export async function getCityPublicThroughSecondaryCached(cityId: string): Promise<boolean> {
+  return createCache(
+    () => isCityPublicThroughSecondary(cityId),
+    ['city', cityId, 'publicThroughSecondary'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
 
@@ -116,13 +130,12 @@ export async function getCouncilMeetingsForCityPublicCached(cityId: string, opti
  * drifts from the query it stands for stays invisible until the day it serves
  * another filter's rows.
  */
-export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }: {
-  administrativeBodyTypes?: AdministrativeBodyType[];
-  administrativeBodyIds?: string[];
-}): string[] {
+export function bodyFilterKey(scope: BodyScope = {}): string[] {
+  // No tier means the primary tier, as in bodyScopeWhere.
   return [
-    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
-    administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
+    `tier:${scope.tier ?? 'primary'}`,
+    scope.types?.length ? `types:${[...scope.types].sort().join(',')}` : 'types:any',
+    scope.ids?.length ? `ids:${[...scope.ids].sort().join(',')}` : 'ids:all',
   ];
 }
 
@@ -135,7 +148,7 @@ function meetingListKey(options: MeetingListOptions): string[] {
   const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter, takesPlace } = options;
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
-    ...bodyFilterKey(options),
+    ...bodyFilterKey(options.scope),
     timeFilter ?? 'all',
     takesPlace ? 'takesPlace' : 'anyStatus',
     // from/to go into the where, so they have to go into the key — without them
@@ -272,12 +285,33 @@ export async function getPartiesForCityCached(cityId: string) {
 }
 
 /**
- * Cached version of getPeopleForCity that fetches and caches all people for a city
+ * Cached getPeopleOfCityForContent: every person of a city, in every tier,
+ * for the pages that name people in content.
  */
-export async function getPeopleForCityCached(cityId: string) {
+export async function getPeopleOfCityForContentCached(cityId: string) {
   return createCache(
-    () => getPeopleForCity(cityId),
+    () => getPeopleOfCityForContent(cityId),
     ['city', cityId, 'people'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:people`] }
+  )();
+}
+
+/** Cached listPeopleOfCity: the people of a city that a reader lists, primary unless `tier` widens. */
+export async function listPeopleOfCityCached(cityId: string, scope: Pick<BodyScope, 'tier'> = {}) {
+  const tier = scope.tier ?? 'primary';
+  return createCache(
+    () => listPeopleOfCity(cityId, { scope: { tier } }),
+    ['city', cityId, 'people', 'listing', tier],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:people`] }
+  )();
+}
+
+/** Cached countPeopleOfCity. */
+export async function countPeopleOfCityCached(cityId: string, scope: Pick<BodyScope, 'tier'> = {}) {
+  const tier = scope.tier ?? 'primary';
+  return createCache(
+    () => countPeopleOfCity(cityId, { tier }),
+    ['city', cityId, 'people', 'count', tier],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:people`] }
   )();
 }

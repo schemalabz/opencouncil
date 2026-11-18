@@ -6,10 +6,11 @@ jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
 import { Realm } from '@prisma/client';
 import { buildApiSubjectWhere } from '@/lib/db/subjectsApi';
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
+import { ALL_SCOPE, bodyScopeWhere, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 describe('buildApiSubjectWhere', () => {
     describe('the public view', () => {
-        it('serves released meetings of a published city in the realm of the request', () => {
+        it('serves released meetings of a published city in the realm of the request, of the primary tier (#829)', () => {
             const where = buildApiSubjectWhere(Realm.greece, 'athens', {});
 
             expect(where).toEqual({
@@ -17,6 +18,7 @@ describe('buildApiSubjectWhere', () => {
                 councilMeeting: {
                     released: true,
                     city: { ...PUBLIC_CITY_WHERE, realm: Realm.greece },
+                    AND: [primaryMeetingWhere],
                 },
             });
         });
@@ -26,7 +28,7 @@ describe('buildApiSubjectWhere', () => {
             // status constraint is what keeps their meetings out of the API.
             const { councilMeeting } = buildApiSubjectWhere(Realm.greece, 'pending-city', {});
 
-            expect(councilMeeting).toMatchObject({ city: { status: { in: ['demo', 'supported'] } } });
+            expect(councilMeeting).toMatchObject({ city: PUBLIC_CITY_WHERE });
         });
 
         it('scopes to the realm of the request', () => {
@@ -57,6 +59,16 @@ describe('buildApiSubjectWhere', () => {
         it('restricts to one meeting', () => {
             expect(buildApiSubjectWhere(Realm.greece, 'athens', { meetingId: 'm1' }))
                 .toMatchObject({ councilMeetingId: 'm1' });
+        });
+
+        it('reads the meeting it names in any tier, as its page does (#829)', () => {
+            const { councilMeeting } = buildApiSubjectWhere(Realm.greece, 'athens', { meetingId: 'm1' });
+
+            expect(councilMeeting).toEqual({
+                released: true,
+                city: { ...PUBLIC_CITY_WHERE, realm: Realm.greece },
+                AND: [bodyScopeWhere(ALL_SCOPE)],
+            });
         });
 
         it('restricts to one introducer', () => {

@@ -1,6 +1,6 @@
-import { AdministrativeBodyType } from '@prisma/client';
 import { localePathPrefix } from '@/i18n/config';
 import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
+import { readTier, type BodyScope } from '@/lib/utils/bodyTier';
 import {
     generateThemeVars,
     generateAppThemeShim,
@@ -49,9 +49,11 @@ export interface EmbedSearchParams {
     mode?: string;
     limit?: string;
     radius?: string;
-    /** Comma-separated admin-body types (council/committee/community). */
+    /** `primary` (the default), `secondary` or `all`: which tiers of body (see BodyScope). */
+    tier?: string;
+    /** Comma-separated admin-body types (the values of AdministrativeBodyType); they narrow inside the tier. */
     bodies?: string;
-    /** Comma-separated specific admin-body ids; takes precedence over `bodies`. */
+    /** Comma-separated specific admin-body ids, in any tier; takes precedence over `tier` and `bodies`. */
     bodyIds?: string;
 }
 
@@ -60,8 +62,8 @@ export interface ParsedEmbedConfig {
     radius: EmbedRadius;
     /** Number of cards to show, clamped to the widget's bounds (1–10 unless overridden). */
     limit: number;
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
+    /** Which bodies the widget shows. */
+    scope: BodyScope;
     themeVars: EmbedThemeVars;
     /** App design-token overrides for the shared SubjectCardContent in the subjects widget. */
     appThemeShim: AppThemeShim;
@@ -81,19 +83,21 @@ export function parseEmbedConfig(searchParams: EmbedSearchParams, options: { lim
         searchParams.radius === 'sharp' || searchParams.radius === 'pill'
             ? searchParams.radius
             : 'rounded';
-    const bodyTypeFilter = (searchParams.bodies?.split(',').filter(Boolean) || [])
+    const types = (searchParams.bodies?.split(',').filter(Boolean) || [])
         .filter(isAdministrativeBodyType);
-    const administrativeBodyTypes = bodyTypeFilter.length > 0 ? bodyTypeFilter : undefined;
-
-    const bodyIdFilter = (searchParams.bodyIds?.split(',').map(s => s.trim()).filter(Boolean)) || [];
-    const administrativeBodyIds = bodyIdFilter.length > 0 ? bodyIdFilter : undefined;
+    const ids = (searchParams.bodyIds?.split(',').map(s => s.trim()).filter(Boolean)) || [];
+    const tier = readTier(searchParams.tier);
+    const scope: BodyScope = {
+        ...(tier && { tier }),
+        ...(types.length > 0 && { types }),
+        ...(ids.length > 0 && { ids }),
+    };
 
     return {
         mode,
         radius,
         limit,
-        administrativeBodyTypes,
-        administrativeBodyIds,
+        scope,
         themeVars: generateThemeVars(accent, mode, radius),
         appThemeShim: generateAppThemeShim(accent, mode, radius),
     };

@@ -57,7 +57,7 @@ For both phases, the task must have completed in the last 7 days. A meeting olde
    - Notis sends its WhatsApp message on its own schedule, once per meeting and phase. The app cannot stop it.
 
 3. **Manual Creation**
-   - Admins can manually create notifications from meeting admin page:
+   - Only a superadmin can manually create notifications from the meeting admin page. The page hides the controls from every other admin, and the routes answer 403 to them:
      - first, by selecting a NotificationType (before/after meeting)
      - then, by choosing the following for each subject: (1) whether they are doNotNotify, normal or high importance (2) whether their proximity importance is none, near or wide
      - by setting a switch to either create pending or send immediately (by default "create pending"). 
@@ -137,6 +137,16 @@ Each administrative body will now have a property which configures notification 
 1. **NOTIFICATIONS_DISABLED**: Skip notification creation entirely
 2. **NOTIFICATIONS_AUTO**: Create notifications and immediately send them
 3. **NOTIFICATIONS_APPROVAL**: Create notifications with delivery records in `pending` status. The notifications then require admin approval.
+
+#### The setting binds every path (#829)
+
+Three paths create or send notifications for a meeting. All three read the setting of the meeting's body:
+
+- The automatic path, after `processAgenda` and `summarize` succeed, after a pasted agenda (`src/lib/agendaText.ts`), and on release. All of them decide through `notificationOutcome` in `src/lib/notifications/freshness.ts`, called from `src/lib/notifications/meetingNotifications.ts`.
+- The manual path, `POST /api/cities/{cityId}/meetings/{meetingId}/notifications`. It accepts a superadmin only. It answers 409 for a disabled body.
+- The Notis path. The view `notis_meeting_events` skips the meetings of a disabled body. A meeting with no body stays in the view.
+
+The default of a new body comes from `defaultNotificationBehavior` in `src/lib/utils/bodyTier.ts`, which reads the tier of the body. A primary body starts on `NOTIFICATIONS_APPROVAL`. A secondary body, such as a youth council, starts on `NOTIFICATIONS_DISABLED`. The meeting page does not promise a subscriber an update for a disabled body.
 
 ## Implementation Requirements
 

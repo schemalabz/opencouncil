@@ -1,4 +1,4 @@
-import { Prisma, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
+import { Prisma, type BodyTier, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
 import { CUSTOMER_CITY_WHERE, isCustomer } from '@/lib/cityStatus';
 import { TAKES_PLACE_WHERE, takesPlace } from '@/lib/meetingLifecycleRules';
 import { getPollableMeetingDateRange, takesNoDecisions, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
@@ -36,7 +36,8 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
 export const RECORD_SUBJECT_WHERE = { OR: DECISION_ELIGIBLE_SUBJECT_WHERE.OR } satisfies Prisma.SubjectWhereInput;
 
 // A meeting still waiting on decisions: a decision-eligible subject without
-// one, and not a meeting that takes no decisions (see takesNoDecisions). What the cron and
+// one, and not a meeting that takes no decisions (see takesNoDecisions, which
+// covers a secondary body's meeting). What the cron and
 // follow-up polls both require before polling a meeting. A postponed or
 // cancelled meeting took no decisions on its date.
 export const AWAITING_DECISIONS_MEETING_WHERE = {
@@ -72,6 +73,7 @@ export function isPolledOnItsOwn(meeting: {
     kind: MeetingKind | null;
     continuationOf: { kind: MeetingKind | null } | null;
     city: { diavgeiaUid: string | null; status: CityStatus };
+    administrativeBody: { tier: BodyTier } | null;
 }, now: Date = new Date()): boolean {
     const window = getPollableMeetingDateRange(now);
     return takesPlace(meeting)

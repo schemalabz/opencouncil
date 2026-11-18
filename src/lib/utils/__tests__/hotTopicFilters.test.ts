@@ -1,4 +1,4 @@
-import { HOT_PERIODS, HOT_SCOPES, isBeyondPeriod, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
+import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, isBeyondPeriod, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
 
 describe('readScope / readPeriod', () => {
     it('keeps a value the picker writes', () => {
@@ -28,6 +28,27 @@ describe('readScope / readPeriod', () => {
             expect(HOT_PERIODS[readPeriod(key)].months).toBe(3);
         },
     );
+});
+
+describe('the hot scopes and the tier (#829)', () => {
+    const council = { type: 'council' as const, tier: 'primary' as const };
+    const youth = { type: 'youthCouncil' as const, tier: 'secondary' as const };
+    const company = { type: 'council' as const, tier: 'secondary' as const };
+
+    it('ranks the secondary tier through a tier, not a type', () => {
+        expect(HOT_SCOPES.secondary.scope).toEqual({ tier: 'secondary' });
+        expect(readScope('secondary')).toBe('secondary');
+        expect(readScope('youthCouncil')).toBe('council');
+    });
+
+    it('offers a scope only when a body of its tier, and of its type, is present', () => {
+        expect(hotScopeAvailable('secondary', [council])).toBe(false);
+        expect(hotScopeAvailable('secondary', [council, youth])).toBe(true);
+        expect(hotScopeAvailable('council', [company])).toBe(false);
+        expect(hotScopeAvailable('council', [company, council])).toBe(true);
+        // Every primary meeting, the ones with no body among them.
+        expect(hotScopeAvailable('all', [])).toBe(true);
+    });
 });
 
 describe('monthsAgo', () => {

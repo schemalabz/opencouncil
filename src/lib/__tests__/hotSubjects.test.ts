@@ -40,7 +40,7 @@ jest.mock('../cache', () => ({
     },
     // The real helper sits in a module that reaches prisma, so the key
     // assertions below cover the fragments this file builds around it.
-    bodyFilterKey: () => ['types:all', 'ids:all'],
+    bodyFilterKey: () => ['tier:primary', 'types:any', 'ids:all'],
     getCouncilMeetingsForCityPublicCached: (...args: Parameters<typeof getCouncilMeetingsForCityPublicCached>) =>
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));
@@ -379,7 +379,7 @@ describe('getHotSubjectsNearPoint over a period', () => {
 
         const { subjects } = await getHotSubjectsNearPoint('athens', CENTER, 1000, 10, { months: 3 });
 
-        expect(mockCacheKeys).toEqual([['city', 'athens', 'hotPeriodMeetings', 'months:3']]);
+        expect(mockCacheKeys).toEqual([['city', 'athens', 'hotPeriodMeetings', 'tier:primary', 'types:any', 'ids:all', 'months:3']]);
         expect(mockGetCouncilMeetingsForCityPublicCached).not.toHaveBeenCalled();
         const [, options] = mockGetCouncilMeetingsForCity.mock.calls[0];
         expect(options?.from).toBeInstanceOf(Date);

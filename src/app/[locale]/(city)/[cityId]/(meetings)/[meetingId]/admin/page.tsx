@@ -19,11 +19,12 @@ export default async function AdminPage(props: {
     // anyway. Gate here, at city-admin scope (not superadmin), so the check
     // fires on every render path. `notFound()` hides the page's existence.
     const { cityId, meetingId } = await props.params;
-    const [editable, scope] = await Promise.all([
+    const [editable, scope, isSuperAdmin] = await Promise.all([
         isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }),
         // Which bodies the edit form offers: all of them to a city admin, the
         // admin's own bodies to a body admin.
         getUnreleasedScope(cityId),
+        isUserAuthorizedToEdit({}),
     ]);
     if (!editable) {
         notFound();
@@ -32,7 +33,11 @@ export default async function AdminPage(props: {
 
     return (
         <div className="container py-8">
-            <Admin notificationBehavior={bodySettings?.notificationBehavior ?? null} editableBodyIds={scope.all ? undefined : scope.bodyIds} />
+            <Admin
+                notificationBehavior={bodySettings?.notificationBehavior ?? null}
+                editableBodyIds={scope.all ? undefined : scope.bodyIds}
+                canCreateNotifications={isSuperAdmin}
+            />
         </div>
     );
 }

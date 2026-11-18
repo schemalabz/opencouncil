@@ -132,7 +132,7 @@ describe('requestGenerateVoiceprint with the chosen sample', () => {
 
     it('starts the task on the window of the chosen segment, not of the longest', async () => {
         mockPersonFindUnique
-            .mockResolvedValueOnce({ id: 'p1' })
+            .mockResolvedValueOnce({ id: 'p1', roles: [], voicePrintConsents: [], administrators: [] })
             .mockResolvedValueOnce(personWith([segment('longest', 'A', 0, 300), segment('chosen', 'B', 100, 160)]));
         mockMeetingFindMany.mockResolvedValue([meeting('A', 'https://cdn/a.mp3'), meeting('B', 'https://cdn/b.mp3')]);
 
@@ -147,7 +147,7 @@ describe('requestGenerateVoiceprint with the chosen sample', () => {
 
     it('refuses, as a value, a segment that is not one of the person\'s sources', async () => {
         mockPersonFindUnique
-            .mockResolvedValueOnce({ id: 'p1' })
+            .mockResolvedValueOnce({ id: 'p1', roles: [], voicePrintConsents: [], administrators: [] })
             .mockResolvedValueOnce(personWith([segment('s1', 'A', 0, 20)]));
 
         await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({
@@ -160,7 +160,7 @@ describe('requestGenerateVoiceprint with the chosen sample', () => {
 
 describe('requestGenerateVoiceprintsForCity', () => {
     it('uses the longest source whose meeting has media, as the dialog\'s first sample', async () => {
-        mockPersonFindMany.mockResolvedValue([{ ...personWith([segment('silent', 'A', 0, 300), segment('heard', 'B', 0, 60)]), name: 'Speaker' }]);
+        mockPersonFindMany.mockResolvedValue([{ ...personWith([segment('silent', 'A', 0, 300), segment('heard', 'B', 0, 60)]), name: 'Speaker', roles: [], voicePrintConsents: [], administrators: [] }]);
         mockPersonFindUnique.mockResolvedValue(personWith([segment('silent', 'A', 0, 300), segment('heard', 'B', 0, 60)]));
         mockMeetingFindMany.mockResolvedValue([meeting('A', null), meeting('B', 'https://cdn/b.mp3')]);
         mockStartTask.mockResolvedValue({ id: 'task-1' });

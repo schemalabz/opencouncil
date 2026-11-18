@@ -31,11 +31,14 @@ import { NotificationOutcomeIcon, NotificationOutcomeNote } from '@/components/n
 export default function AdminActions({
     notificationBehavior,
     editableBodyIds,
+    canCreateNotifications,
 }: {
     /** The notification setting of the meeting's body, null without a body. The page reads it for an editor; the public meeting does not carry it. */
     notificationBehavior: NotificationBehavior | null;
     /** The bodies a body admin may move the meeting to; absent for a city admin. */
     editableBodyIds?: string[],
+    /** Whether the viewer may create and send the notifications of the meeting by hand: a superadmin only. */
+    canCreateNotifications: boolean,
 }) {
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
@@ -522,41 +525,43 @@ export default function AdminActions({
             />
         </div>
 
-        <div className="mt-6">
-            <h3 className="text-lg font-semibold">{t('sections.notifications')}</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-                {t('sections.notificationsSubtitle')}
-            </p>
-            <div className="flex gap-2">
-                <Button
-                    onClick={() => {
-                        setNotificationType('beforeMeeting');
-                        setIsNotificationModalOpen(true);
-                    }}
-                >
-                    <Bell className="mr-2 h-4 w-4" />
-                    {t('buttons.beforeMeeting')}
-                </Button>
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        setNotificationType('afterMeeting');
-                        setIsNotificationModalOpen(true);
-                    }}
-                >
-                    <Bell className="mr-2 h-4 w-4" />
-                    {t('buttons.afterMeeting')}
-                </Button>
-            </div>
+        {canCreateNotifications && (
+            <div className="mt-6">
+                <h3 className="text-lg font-semibold">{t('sections.notifications')}</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                    {t('sections.notificationsSubtitle')}
+                </p>
+                <div className="flex gap-2">
+                    <Button
+                        onClick={() => {
+                            setNotificationType('beforeMeeting');
+                            setIsNotificationModalOpen(true);
+                        }}
+                    >
+                        <Bell className="mr-2 h-4 w-4" />
+                        {t('buttons.beforeMeeting')}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setNotificationType('afterMeeting');
+                            setIsNotificationModalOpen(true);
+                        }}
+                    >
+                        <Bell className="mr-2 h-4 w-4" />
+                        {t('buttons.afterMeeting')}
+                    </Button>
+                </div>
 
-            <CreateNotificationModal
-                open={isNotificationModalOpen}
-                onOpenChange={setIsNotificationModalOpen}
-                subjects={subjects}
-                notificationType={notificationType}
-                onCreateNotifications={handleCreateNotifications}
-            />
-        </div>
+                <CreateNotificationModal
+                    open={isNotificationModalOpen}
+                    onOpenChange={setIsNotificationModalOpen}
+                    subjects={subjects}
+                    notificationType={notificationType}
+                    onCreateNotifications={handleCreateNotifications}
+                />
+            </div>
+        )}
 
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.cacheManagement')}</h3>

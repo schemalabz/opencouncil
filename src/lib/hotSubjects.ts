@@ -1,4 +1,3 @@
-import { AdministrativeBodyType } from '@prisma/client';
 import { bodyFilterKey, createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetingsList';
 import { getContributionCount } from '@/lib/utils';
@@ -7,6 +6,7 @@ import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
 import { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 import { decodeGeohashToCenter } from '@/lib/geo';
 import { monthsAgo } from '@/lib/utils/hotTopicFilters';
+import type { BodyScope } from '@/lib/utils/bodyTier';
 
 /** Recent past meetings to draw "hot" subjects from when no period is given. */
 const HOT_MEETING_WINDOW = 8;
@@ -24,8 +24,8 @@ type Meeting = CouncilMeetingWithAdminBodyAndSubjects;
 export type HotSubject = { subject: Meeting['subjects'][number]; meeting: Meeting };
 
 interface BodyFilter {
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
+    /** Which bodies (see BodyScope). Absent, the primary tier. */
+    scope?: BodyScope;
     /** How far back to look. Omitted means the last {@link HOT_MEETING_WINDOW} meetings. */
     months?: number;
 }
@@ -62,11 +62,11 @@ async function meetingsFor(
  */
 function uncachedWindowMeetings(
     cityId: string,
-    { administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter,
+    { scope, months }: BodyFilter,
 ): Promise<Meeting[]> {
     return meetingsFor({ months }, window =>
         getCouncilMeetingsForCity(cityId, {
-            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+            includeUnreleased: false, ...window, scope, timeFilter: 'past',
         }),
     );
 }
@@ -131,11 +131,11 @@ async function rankSubjectsOf(meetings: Meeting[], limit: number): Promise<HotSu
 /** Recent hottest subjects across a city's recent past meetings (no location filter). */
 export async function getRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+    { limit, scope, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
     const meetings = await meetingsFor({ months }, window =>
         getCouncilMeetingsForCityPublicCached(cityId, {
-            ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+            ...window, scope, timeFilter: 'past',
         }),
     );
     return rankSubjectsOf(meetings, limit);
@@ -222,7 +222,7 @@ export async function getHotSubjectsNearPoint(
     center: [number, number],
     radiusMeters: number,
     limit: number,
-    { months }: Pick<BodyFilter, 'months'> = {}
+    { scope, months }: BodyFilter = {}
 ): Promise<{
     subjects: HotSubject[];
     meetingsScanned: number;
@@ -231,14 +231,14 @@ export async function getHotSubjectsNearPoint(
 }> {
     const meetings = months
         ? await createCache(
-              () => uncachedWindowMeetings(cityId, { months }),
+              () => uncachedWindowMeetings(cityId, { scope, months }),
               // `months`, not the date it resolves to: that date moves with `now`,
               // so keying on it would give every lookup its own entry. The TTL
               // bounds the drift, as it does for the city page's cards.
-              ['city', cityId, 'hotPeriodMeetings', `months:${months}`],
+              ['city', cityId, 'hotPeriodMeetings', ...bodyFilterKey(scope), `months:${months}`],
               { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`], revalidate: 900 },
           )()
-        : await getCouncilMeetingsForCityPublicCached(cityId, { limit: HOT_MEETING_WINDOW, timeFilter: 'past' });
+        : await getCouncilMeetingsForCityPublicCached(cityId, { limit: HOT_MEETING_WINDOW, scope, timeFilter: 'past' });
     const subjects = await rankSubjectsNearPoint(meetings, center, radiusMeters, limit);
     return {
         subjects,
@@ -291,7 +291,7 @@ export async function getHotSubjectsNearGeohash(
         // `months` keys the window the same way getHotSubjectCardsCached keys it:
         // the period is part of what the entry answers for, so two periods must
         // never share one.
-        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, ...bodyFilterKey(filter), `limit:${filter.limit}`, `months:${filter.months ?? 'default'}`],
+        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, ...bodyFilterKey(filter.scope), `limit:${filter.limit}`, `months:${filter.months ?? 'default'}`],
         {
             tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`],
             // The window is the last N *past* meetings, a function of `now` that

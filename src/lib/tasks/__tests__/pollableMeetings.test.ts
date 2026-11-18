@@ -3,7 +3,7 @@ import { partitionMeetingsForPolling, interleaveByCity, orderForPolling } from "
 describe("partitionMeetingsForPolling", () => {
     it("marks a meeting with unlinked eligible subjects as pollable, not complete", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             { m1: { linked: 1, eligible: 3 } },
         );
         expect(result.pollable).toHaveLength(1);
@@ -15,7 +15,7 @@ describe("partitionMeetingsForPolling", () => {
 
     it("flags fully-linked meetings as pollable but alreadyComplete", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             { m1: { linked: 3, eligible: 3 } },
         );
         expect(result.pollable).toHaveLength(1);
@@ -26,8 +26,8 @@ describe("partitionMeetingsForPolling", () => {
     it("skips a postponed or cancelled meeting: it took no decisions on its date", () => {
         const result = partitionMeetingsForPolling(
             [
-                { id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "cancelled" as const },
-                { id: "m2", name: "Συνεδρίαση 2", kind: "ordinary", continuationOf: null, scheduleStatus: "postponed" as const },
+                { id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "cancelled" as const, administrativeBody: null },
+                { id: "m2", name: "Συνεδρίαση 2", kind: "ordinary", continuationOf: null, scheduleStatus: "postponed" as const, administrativeBody: null },
             ],
             { m1: { linked: 0, eligible: 3 }, m2: { linked: 0, eligible: 3 } },
         );
@@ -37,7 +37,7 @@ describe("partitionMeetingsForPolling", () => {
 
     it("skips meetings with no eligible subjects", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             { m1: { linked: 0, eligible: 0 } },
         );
         expect(result.pollable).toHaveLength(0);
@@ -45,9 +45,23 @@ describe("partitionMeetingsForPolling", () => {
         expect(result.skipped[0].skipReason).toBe("noEligibleSubjects");
     });
 
+    // A secondary body publishes no decisions (#829), whatever its subjects look like.
+    it("skips the meetings of a secondary body even when they have eligible subjects", () => {
+        const result = partitionMeetingsForPolling(
+            [
+                { id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { tier: "secondary" as const } },
+                { id: "m2", name: "Συνεδρίαση 2", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { tier: "primary" as const } },
+                { id: "m3", name: "Συνεδρίαση 3", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null },
+            ],
+            { m1: { linked: 0, eligible: 2 }, m2: { linked: 0, eligible: 2 }, m3: { linked: 0, eligible: 2 } },
+        );
+        expect(result.skipped.map(m => [m.meetingId, m.skipReason])).toEqual([["m1", "noDecisions"]]);
+        expect(result.pollable.map(m => m.meetingId)).toEqual(["m2", "m3"]);
+    });
+
     it("skips Λογοδοσία meetings even when they have eligible subjects", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Δημοτικό Συμβούλιο 25/06/2026", kind: "accountability", continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Δημοτικό Συμβούλιο 25/06/2026", kind: "accountability", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             { m1: { linked: 0, eligible: 2 } },
         );
         expect(result.pollable).toHaveLength(0);
@@ -57,8 +71,8 @@ describe("partitionMeetingsForPolling", () => {
     it("skips an απολογισμός meeting and a later part of one", () => {
         const result = partitionMeetingsForPolling(
             [
-                { id: "m1", name: "Απολογισμός", kind: "activityReport", continuationOf: null, scheduleStatus: "scheduled" as const },
-                { id: "m2", name: "Απολογισμός (συνέχεια)", kind: null, continuationOf: { kind: "activityReport" }, scheduleStatus: "scheduled" as const },
+                { id: "m1", name: "Απολογισμός", kind: "activityReport", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null },
+                { id: "m2", name: "Απολογισμός (συνέχεια)", kind: null, continuationOf: { kind: "activityReport" }, scheduleStatus: "scheduled" as const, administrativeBody: null },
             ],
             { m1: { linked: 0, eligible: 2 }, m2: { linked: 0, eligible: 2 } },
         );
@@ -68,7 +82,7 @@ describe("partitionMeetingsForPolling", () => {
 
     it("polls a meeting of unknown kind, whatever its name says", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26", kind: null, continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26", kind: null, continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             { m1: { linked: 0, eligible: 2 } },
         );
         expect(result.pollable).toHaveLength(1);
@@ -77,7 +91,7 @@ describe("partitionMeetingsForPolling", () => {
 
     it("treats a meeting missing from decisionCounts as having no eligible subjects", () => {
         const result = partitionMeetingsForPolling(
-            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const }],
+            [{ id: "m1", name: "Συνεδρίαση 1", kind: "ordinary", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null }],
             {},
         );
         expect(result.skipped).toHaveLength(1);

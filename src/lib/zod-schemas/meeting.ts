@@ -1,9 +1,10 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
+import { AGENDA_TEXT_MAX_LENGTH, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { blankToNull, webUrl } from './primitives';
 import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
+import { TIER_SCOPE_RULE, tierScopeSchema } from './administrativeBody';
 import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
 import { vmsg } from './messages';
 
@@ -51,10 +52,14 @@ export const baseMeetingFields = {
         .meta({ description: 'How the meeting takes place. A meeting by circulation has a written vote and no recording.' }),
     closedToPublic: z.boolean()
         .meta({ description: 'The council decided to meet behind closed doors. The meeting is still recorded and transcribed.' }),
+    noRecording: z.boolean()
+        .meta({ description: 'The body states that no recording of the meeting exists: no video and no transcription. The agenda stays.' }),
     place: z.string().trim().max(200)
         .meta({ description: 'Where the meeting takes place, when it is not the usual hall of its body.' }),
     postponedFromId: z.string().min(1)
         .meta({ description: 'The id of the postponed meeting that this meeting replaces.' }),
+    agendaText: z.string().trim().max(AGENDA_TEXT_MAX_LENGTH)
+        .meta({ description: 'The agenda as pasted text, for a body that has no agenda PDF. The app extracts the subjects of the meeting from it after the write.' }),
 };
 
 // The name of a meeting is derived (src/lib/meetingName.ts), so the schema
@@ -85,7 +90,11 @@ export const meetingSchema = z.object({
     sessionNumber: baseMeetingFields.sessionNumber.nullable().optional(),
     format: baseMeetingFields.format.nullable().optional(),
     closedToPublic: baseMeetingFields.closedToPublic.optional(),
+    noRecording: baseMeetingFields.noRecording.optional(),
     place: blankToNull(baseMeetingFields.place),
+    // The agenda as pasted text, for a body that has no PDF (#829). The app
+    // extracts the subjects from it after the write; see lib/agendaText.ts.
+    agendaText: blankToNull(baseMeetingFields.agendaText),
     postponedFromId: baseMeetingFields.postponedFromId.nullable().optional(),
     continuationOfId: z.string().min(1).nullable().optional(),
 });
@@ -105,6 +114,8 @@ export const meetingListQuerySchema = z.object({
             example: '2025-12-31',
         }),
     includeUnreleased: includeUnreleasedQuery,
+    tier: tierScopeSchema.optional()
+        .meta({ description: `Which tiers of body: ${TIER_SCOPE_RULE}`, example: 'all' }),
 });
 
 // Frontend form schema (React Hook Form). The form picks the day in a calendar
@@ -134,6 +145,11 @@ export const meetingFormSchema = meetingSchema.extend({
     urgent: baseMeetingFields.urgent,
     scheduleStatus: baseMeetingFields.scheduleStatus,
     closedToPublic: baseMeetingFields.closedToPublic,
+    noRecording: baseMeetingFields.noRecording,
+    // The agenda as a link or a file, or as pasted text (#829, lib/agendaText.ts).
+    // The mode is the form's own: the request carries agendaUrl or agendaText.
+    agendaMode: z.enum(['link', 'text']),
+    agendaText: baseMeetingFields.agendaText.optional(),
     format: baseMeetingFields.format.nullable(),
     // A text input. The request sends it as a number.
     sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: vmsg('sessionNumberWholeNumber') })

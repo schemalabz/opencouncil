@@ -26,7 +26,8 @@ export const administrativeBodiesPaths: Paths = {
     '/api/cities/{cityId}/administrative-bodies': {
         post: {
             summary: 'Create an administrative body',
-            description: 'Creates a council, committee or community of the city. Requires admin authorization for the city.',
+            description: 'Creates a council, committee or community of the city. Requires admin authorization for the city. '
+                + 'A `tier` other than the default tier of the `type` requires a superadmin (403).',
             tags: ['Administrative bodies'],
             security: sessionAuthRequirement,
             requestParams: { path: cityIdParam },
@@ -51,7 +52,8 @@ export const administrativeBodiesPaths: Paths = {
                 + 'A body of `{ "confirmConventions": true, "decisionConventions": {…} }` instead confirms the '
                 + 'decision conventions of the body, and the meetings of the body are derived again. '
                 + 'An admin of the body who is not an admin of the city sends AdministrativeBodyContactsRequest. '
-                + 'That request changes only `youtubeChannelUrl` and `documentSendSettings`, and the route ignores the other fields.',
+                + 'That request changes only `youtubeChannelUrl` and `documentSendSettings`, and the route ignores the other fields. '
+                + 'Only a superadmin changes the tier, or changes the `type` to a type whose default tier differs from the stored tier (403).',
             tags: ['Administrative bodies'],
             security: sessionAuthRequirement,
             requestParams: { path: bodyIdParam },
@@ -77,6 +79,7 @@ export const administrativeBodiesPaths: Paths = {
                 204: { description: 'Administrative body deleted' },
                 ...editAuthResponses,
                 404: errorResponseOf('Administrative body not found'),
+                409: errorResponseOf('The body still holds meetings or member roles. Delete its meetings and its members (the people) first.'),
                 500: errorResponseOf('Server error'),
             },
             'x-access-level': 'superadmin',

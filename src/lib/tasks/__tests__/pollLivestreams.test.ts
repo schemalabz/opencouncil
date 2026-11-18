@@ -140,13 +140,74 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockMeetingFindMany).not.toHaveBeenCalled();
     });
 
-    it('takes candidates only in supported cities', async () => {
+    it('takes candidates in supported cities, and the meetings of a secondary body in any city (#829)', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();
-        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({ city: { status: 'supported' } });
+        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({
+            AND: [{ OR: [{ city: { status: 'supported' } }, { administrativeBody: { type: 'youthCouncil' } }] }],
+        });
     });
 
-    it('never takes a postponed, cancelled or by-circulation meeting as a candidate', async () => {
+    // No operator follows it, so the operators' channel gets no alert, as on its creation.
+    // The rule reads the type: this youth council is set to the primary tier.
+    it('takes a meeting of a body whose pipeline runs unattended without the agenda task, and sends no alert (#829)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil', tier: 'primary', youtubeChannelUrl: CHANNEL },
+            subjects: [],
+        })]);
+        taskRows([]);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.9, reasoning: 'aligned' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(1);
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledWith('https://www.youtube.com/watch?v=v1', 'm1', 'athens');
+        expect(mockMatchedAlert).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a youth council set to primary', { type: 'youthCouncil', tier: 'primary' }, [], false],
+        ['a council set to secondary', { type: 'council', tier: 'secondary' }, processAgendaDone(), true],
+    ])('sends the multi-meeting alert of %s only if an operator follows it (#829)', async (_name, body, tasks, alerted) => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Όργανο', youtubeChannelUrl: CHANNEL, ...body },
+        })]);
+        taskRows(tasks);
+        aiDecision({ decision: 'multiple_meetings', videoId: 'v1', confidence: 0.9, reasoning: 'combined' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.multipleMeetings).toBe(1);
+        expect(mockMultiAlert).toHaveBeenCalledTimes(alerted ? 1 : 0);
+    });
+
+    it('sends the match alert of a council set to secondary (#829)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Ζήρεια Α.Ε.', type: 'council', tier: 'secondary', youtubeChannelUrl: CHANNEL },
+        })]);
+        taskRows(processAgendaDone());
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'aligned' });
+
+        await pollLivestreamsForRecentMeetings();
+
+        expect(mockMatchedAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a meeting of an unattended body with a saved recording to the unattended pass (#829)', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil', youtubeChannelUrl: CHANNEL },
+            youtubeUrl: 'https://www.youtube.com/watch?v=saved',
+            subjects: [],
+        })]);
+        taskRows([]);
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(summary.candidates).toBe(0);
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+    });
+
+    it('never takes a postponed, cancelled, by-circulation or unrecorded meeting as a candidate', async () => {
         mockMeetingFindMany.mockResolvedValue([]);
         await pollLivestreamsForRecentMeetings();
         // A postponed meeting in the window would take the stream of its new meeting.

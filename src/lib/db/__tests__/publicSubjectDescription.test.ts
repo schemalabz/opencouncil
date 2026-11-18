@@ -17,7 +17,7 @@ describe('getPublicSubjectDescription', () => {
 
         expect(await getPublicSubjectDescription('s1', 'greece')).toBe('Η περιγραφή');
         expect(findFirstMock).toHaveBeenCalledWith({
-            where: { id: 's1', councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } } },
+            where: { id: 's1', councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' }, AND: [{}] } },
             select: { description: true },
         });
     });

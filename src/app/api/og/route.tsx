@@ -9,8 +9,7 @@ import { getCity, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
 import { getLatestSubjectsForSpeaker } from '@/lib/db/subject';
 import { getParty, getPartiesForCity } from '@/lib/db/parties';
-import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import prisma from '@/lib/db/prisma';
+import { getPerson, listPeopleOfCity } from '@/lib/db/people';
 import { RegulationData } from '@/components/consultations/types';
 import { getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
 import { getInitials, getLocalizedMunicipalityName, getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -163,12 +162,8 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
 // City: the seal, the name and the counts of the identity band, beside the
 // subjects the council has been arguing about, as the hot-topics list ranks them.
 const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
-    const [city, counts, cards] = await Promise.all([
+    const [city, cards] = await Promise.all([
         getCity(cityId),
-        prisma.$transaction([
-            prisma.person.count({ where: { cityId } }),
-            prisma.party.count({ where: { cityId } }),
-        ]),
         getHotSubjectCardsCached(cityId, { limit: 4, months: 3 }).catch(error => {
             console.error('[og] hot subjects failed:', error);
             return [];
@@ -180,8 +175,7 @@ const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
         getImageData(city.logoImage, { width: 224, height: 224, fit: 'inside' }),
         getSubjectIllustrations(cards.map(c => c.subject.id), ILLUSTRATION_BOX.tile),
     ]);
-    const [peopleCount, partiesCount] = counts;
-    const meetingsCount = city._count.councilMeetings;
+    const { persons: peopleCount, parties: partiesCount, councilMeetings: meetingsCount } = city._count;
 
     const element = (
         <OgFrame>
@@ -381,7 +375,7 @@ const PartyOGImage = async (cityId: string, partyId: string, locale: string, t: 
 
 // People: the council as a row of faces, and how the parties share it.
 const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
-    const [city, people, parties] = await Promise.all([getCity(cityId), getPeopleForCity(cityId, true), getPartiesForCity(cityId)]);
+    const [city, people, parties] = await Promise.all([getCity(cityId), listPeopleOfCity(cityId, { activeRolesOnly: true }), getPartiesForCity(cityId)]);
     if (!city) return null;
 
     const shown = people.slice(0, 8);

@@ -86,7 +86,7 @@ export async function buildMeetingArchive(
     const bodies = {} as Record<BodyKey, string>;
     for (const body of BODIES) {
         const created = await prisma.administrativeBody.create({
-            data: { cityId, name: body.name, name_en: body.name_en, type: body.type },
+            data: { cityId, name: body.name, name_en: body.name_en, type: body.type, tier: 'primary' },
         });
         bodies[body.key] = created.id;
     }

@@ -124,7 +124,7 @@ export default function SearchFilters({
                 disabled={disabled || !filters.cityId || bodyGroups.length === 0}
                 clear={{
                     label: t("clearField", { field: t("administration") }),
-                    onClear: () => setFilters({ adminBodyType: undefined, adminBodyId: undefined }),
+                    onClear: () => setFilters({ adminBodyType: undefined, adminBodyId: undefined, tier: undefined }),
                 }}
                 widthClassName="w-44"
             >

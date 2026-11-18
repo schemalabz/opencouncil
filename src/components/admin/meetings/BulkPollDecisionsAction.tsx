@@ -55,7 +55,7 @@ export function BulkPollDecisionsAction({
             .filter(m => selectedMeetingIds.has(m.id))
             .map(m => ({
                 id: m.id, name: meetingLabel(m, 'el', DEFAULT_TIMEZONE), kind: m.kind,
-                continuationOf: m.continuationOf, scheduleStatus: m.scheduleStatus,
+                continuationOf: m.continuationOf, scheduleStatus: m.scheduleStatus, administrativeBody: m.administrativeBody,
             }));
         return partitionMeetingsForPolling(selected, decisionCounts);
     }, [meetings, selectedMeetingIds, decisionCounts]);

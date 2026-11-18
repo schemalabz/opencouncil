@@ -3,8 +3,7 @@ import { ProcessAgendaRequest } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { getTopics } from "../db/topics";
-import { getPartyFromRoles } from "../utils";
-import { describeRolesAt } from "./speakerRoster";
+import { buildAgendaRoster } from "./speakerRoster";
 import { getPeopleForMeeting } from "../db/people";
 import { getRealmCountry } from "@/lib/realm";
 import { getRoleTitles } from "@/i18n/roleTitles";
@@ -72,26 +71,13 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
 
     const roleTitles = await getRoleTitles(councilMeeting.city.language);
 
-    // Build people array with deduplication by ID (keep last entry)
-    const peopleMap = new Map();
-    for (const p of people) {
-        const roleName = describeRolesAt(p.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles) ?? '';
-        const party = getPartyFromRoles(p.roles, councilMeeting.dateTime);
-
-        peopleMap.set(p.id, {
-            id: p.id,
-            name: p.name, // Use full name, not name_short
-            role: roleName,
-            party: party?.name || ''
-        });
-    }
-
-    console.log(`ProcessAgenda people array:`, Array.from(peopleMap.values()));
+    const roster = buildAgendaRoster(people, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles);
+    console.log(`ProcessAgenda people array:`, roster);
 
     const body: Omit<ProcessAgendaRequest, 'callbackUrl'> = {
         agendaUrl,
         date: councilMeeting.dateTime.toISOString(),
-        people: Array.from(peopleMap.values()),
+        people: roster,
         topicLabels: topicLabels.map(t => ({ name: t.name, description: t.description })),
         cityName: councilMeeting.city.name,
         cityLanguage: councilMeeting.city.language,

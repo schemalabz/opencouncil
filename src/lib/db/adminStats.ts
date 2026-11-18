@@ -5,6 +5,8 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
 import { peopleOnly } from "@/lib/db/types";
+import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { countMeetingHours } from "./meetingsList";
 import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
@@ -84,20 +86,13 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         prisma.notificationDelivery.count({ where: { status: 'sent', sentAt: { gte: sevenDaysAgo } } }),
         prisma.petition.count(),
         prisma.petition.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        // The content figures count the municipalities' own bodies; a
+        // secondary body's meetings are not our operation's output (#829).
+        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere } }),
         // There is no releasedAt column, so this counts meetings created this
         // week that are currently released — not release events this week.
-        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true } }),
-        prisma.$queryRaw<Array<{ total_hours: number }>>`
-            SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
-            FROM (
-                SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
-                FROM "CouncilMeeting" cm
-                JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                WHERE cm.released = true AND cm."createdAt" >= ${sevenDaysAgo}
-                GROUP BY cm.id, cm."cityId"
-            ) meetings
-        `,
+        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true, ...primaryMeetingWhere } }),
+        countMeetingHours({ released: true, createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere }),
         prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
         prisma.searchQuery.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.searchQuery.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
@@ -129,7 +124,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         content: {
             meetingsAddedThisWeek,
             releasedOfThose,
-            meetingHoursThisWeek: Math.round(Number(meetingHoursThisWeek[0]?.total_hours ?? 0)),
+            meetingHoursThisWeek: Math.round(meetingHoursThisWeek),
             supportedCities,
         },
         engagement,

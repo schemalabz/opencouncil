@@ -191,6 +191,20 @@ enum AdministrativeBodyType {
   council      // Συμβούλιο (π.χ. Δημοτικό Συμβούλιο)
   committee    // Επιτροπή (π.χ. Δημοτική Επιτροπή)
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
+  /// Δημοτικό Συμβούλιο Νέων. A new body of this type is secondary by default
+  /// (see defaultTierOf in src/lib/utils/bodyTier.ts). The rules for youth
+  /// councils read this type and not the tier (src/lib/utils/youthCouncil.ts).
+  youthCouncil
+}
+
+/// Where a body's content shows (#829). A primary body's content is what a reader
+/// gets when they ask for nothing in particular; a secondary body's content shows
+/// only when the reader asks for it. Each body holds its own, so an admin can move
+/// a body that does not belong in the defaults, whatever its type. A new body
+/// takes the default of its type; a later change of type keeps the tier.
+enum BodyTier {
+  primary
+  secondary
 }
 
 /// Whether the announced meeting is still expected. Whether it was held stays
@@ -233,6 +247,7 @@ model AdministrativeBody {
   name      String   // e.g. "5η Δημοτική Κοινότητα"
   name_en   String   // e.g. "5th Municipal Community"
   type      AdministrativeBodyType
+  tier      BodyTier
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
   showUnreviewedTranscript Boolean @default(true)
   youtubeChannelUrl String?
@@ -437,6 +452,11 @@ model CouncilMeeting {
   // invitation yet.
   format               MeetingFormat?
   closedToPublic       Boolean @default(false)
+  // The body states that no recording of the meeting exists: the page
+  // promises no video and no transcript. A body that records only some of
+  // its meetings sets it (#829). It differs from closedToPublic: the public
+  // was there, nobody filmed.
+  noRecording          Boolean @default(false)
   place                String? // overrides administrativeBody.place
 
   // "A was postponed to B", "B was postponed from A". One new meeting for each

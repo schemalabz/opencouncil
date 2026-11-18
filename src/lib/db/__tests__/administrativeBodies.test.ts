@@ -12,6 +12,7 @@ const mockGetCurrentUser = jest.fn();
 const mockSettingFindMany = jest.fn();
 const mockSettingUpsert = jest.fn();
 const mockTransaction = jest.fn();
+const mockDelete = jest.fn();
 
 jest.mock('@/lib/db/prisma', () => {
     const client = {
@@ -21,6 +22,7 @@ jest.mock('@/lib/db/prisma', () => {
             update: (...a: unknown[]) => mockUpdate(...a),
             create: (...a: unknown[]) => mockUpdate(...a),
             findMany: (...a: unknown[]) => mockFindMany(...a),
+            delete: (...a: unknown[]) => mockDelete(...a),
         },
         councilMeeting: {
             findUnique: (...a: unknown[]) => mockMeetingFindUnique(...a),
@@ -40,7 +42,7 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
-import { NotFoundError, UnauthorizedError } from '@/lib/api/errors';
+import { ConflictError, NotFoundError, UnauthorizedError } from '@/lib/api/errors';
 import {
     createAdministrativeBody,
     deleteAdministrativeBody,
@@ -167,7 +169,7 @@ describe('the public body reads select only the public fields', () => {
     });
 
     it('the public select names the identity of a body and nothing of its settings', () => {
-        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'place', 'type', 'youtubeChannelUrl']);
+        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'place', 'tier', 'type', 'youtubeChannelUrl']);
     });
 
     it.each([
@@ -350,6 +352,47 @@ describe('a write to a body that does not exist', () => {
 
     it('delete throws a NotFoundError', async () => {
         await expect(deleteAdministrativeBody('missing')).rejects.toBeInstanceOf(NotFoundError);
+    });
+});
+
+/**
+ * The schema leaves the meetings of a deleted body without a body and
+ * deletes its roles. The visibility rules read both as primary, so a
+ * deleted youth council would show its meetings and its members in every
+ * default list. The delete refuses a body that is not empty.
+ */
+describe('deleteAdministrativeBody of a body that is not empty', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+    });
+
+    it.each([
+        ['meetings', { meetings: 2, roles: 0 }],
+        ['member roles', { meetings: 0, roles: 3 }],
+    ])('throws a ConflictError for a body with %s, and deletes nothing', async (_label, counts) => {
+        mockFindUniqueOrThrow.mockResolvedValue({ id: 'body-1', _count: counts });
+
+        const refusal = deleteAdministrativeBody('body-1');
+
+        await expect(refusal).rejects.toBeInstanceOf(ConflictError);
+        await expect(refusal).rejects.toThrow(`${counts.meetings} meeting(s) and ${counts.roles} member role(s)`);
+        // A role cannot be moved, and a person whose last role goes is read as
+        // primary: the step is to delete the people, as for the whole body.
+        await expect(refusal).rejects.toThrow('Delete its meetings and its members (the people) first.');
+        await expect(refusal).rejects.not.toThrow(/move/i);
+        expect(mockDelete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a body with no meetings and no roles', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue({ id: 'body-1', _count: { meetings: 0, roles: 0 } });
+
+        await deleteAdministrativeBody('body-1');
+
+        expect(mockFindUniqueOrThrow).toHaveBeenCalledWith(expect.objectContaining({
+            select: expect.objectContaining({ _count: { select: { meetings: true, roles: true } } }),
+        }));
+        expect(mockDelete).toHaveBeenCalledWith({ where: { id: 'body-1' } });
     });
 });
 

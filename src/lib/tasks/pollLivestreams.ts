@@ -1,4 +1,5 @@
 import prisma from "../db/prisma";
+import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -162,9 +163,11 @@ async function distinctFailureErrors(cityId: string, councilMeetingId: string): 
  * Finds meetings whose livestream should now exist, matches each to a YouTube video
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
- * Candidate = processAgenda succeeded, scheduled within ±12h of now, in a supported city
- * (a transcribe is a paid task), the administrative body has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
- * is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
+ * Candidate = processAgenda succeeded (or the body's pipeline runs unattended, #829), scheduled
+ * within ±12h of now, in a supported city (a transcribe is a paid task) or of a body whose pipeline
+ * runs unattended in any city (#829), the administrative body has a youtubeChannelUrl, and no
+ * transcribe is succeeded or in flight (a failed-only meeting is retried, up to
+ * MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -194,7 +197,10 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
-            city: CUSTOMER_CITY_WHERE,
+            // A youth council runs its own meetings wherever its city stands
+            // (#829), as the unattended pass does: a youth council of a pending
+            // city has no other way to its recordings.
+            AND: [{ OR: [{ city: CUSTOMER_CITY_WHERE }, unattendedMeetingWhere] }],
             // A postponed meeting in the window would take the stream of its
             // new meeting. A meeting by circulation has no stream.
             ...TAKES_PLACE_WHERE,
@@ -239,9 +245,16 @@ export async function pollLivestreamsForRecentMeetings(
 
     // Candidate = processAgenda succeeded AND no transcribe that is succeeded or in flight.
     // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry).
+    // A body whose pipeline runs unattended (#829) rarely has an agenda PDF, so
+    // its meetings are candidates without the agenda task. One of them with a
+    // saved recording belongs to the unattended pass, which starts and retries
+    // it: the two passes run in the same tick, and a meeting that both started
+    // could keep the URL of the one whose task was refused.
     const candidates = meetings.filter(m => {
         const key = meetingKey(m.cityId, m.id);
-        return processAgendaSucceeded.has(key) && !transcribeActive.has(key);
+        if (transcribeActive.has(key)) return false;
+        if (pipelineRunsUnattended(m.administrativeBody)) return !m.youtubeUrl;
+        return processAgendaSucceeded.has(key);
     });
 
     if (candidates.length === 0) {
@@ -279,6 +292,11 @@ export async function pollLivestreamsForRecentMeetings(
         const cityId = meeting.cityId;
         const meetingId = meeting.id;
         const channelUrl = meeting.administrativeBody!.youtubeChannelUrl!;
+        // No operator follows a meeting whose pipeline runs unattended (#829),
+        // so it sends no alert to the operators' channel, as on its creation.
+        // The end of the retries needs no check: such a candidate has no saved
+        // recording, so no attempt on its video is counted.
+        const alertsOperators = !pipelineRunsUnattended(meeting.administrativeBody);
 
         try {
             const videos = await getChannelVideos(channelUrl);
@@ -368,7 +386,7 @@ export async function pollLivestreamsForRecentMeetings(
                 // the webhook transport logs HTTP and network failures without rejecting, so there
                 // is no delivery signal a non-blocking send could have acted on anyway.
                 const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
-                if (!(await cacheHas(matchedAlertKey))) {
+                if (alertsOperators && !(await cacheHas(matchedAlertKey))) {
                     await sendLivestreamMatchedAlert({
                         cityId,
                         cityName: meeting.city.name,
@@ -386,11 +404,10 @@ export async function pollLivestreamsForRecentMeetings(
             } else if (decision.decision === 'multiple_meetings') {
                 multipleMeetings++;
                 const dedupKey = `oc:livestream:multi-alert:${cityId}:${meetingId}`;
-                const alreadyAlerted = await cacheHas(dedupKey);
 
                 if (dryRun) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'dry_run' });
-                } else if (alreadyAlerted) {
+                } else if (!alertsOperators || await cacheHas(dedupKey)) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'alerted_multiple_skipped' });
                 } else {
                     const videoUrl = matchedVideo ? watchUrl(matchedVideo.videoId) : undefined;

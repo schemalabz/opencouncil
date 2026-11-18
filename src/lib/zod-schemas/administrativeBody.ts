@@ -1,6 +1,7 @@
 import * as z from 'zod';
-import { AdministrativeBodyType, DocumentKind, NotificationBehavior } from '@prisma/client';
+import { AdministrativeBodyType, BodyTier, DocumentKind, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsRecordSchema, decisionConventionsSchema } from '@/lib/decisionConventions';
+import { TIER_SCOPES } from '@/lib/utils/bodyTier';
 import { parseChannelRef } from '@/lib/utils/youtube';
 import { DOCUMENT_KINDS, splitRecipients } from '@/lib/documents/settings';
 import type { DocumentSendSettingRow } from '@/lib/db/types/documentSend';
@@ -9,6 +10,13 @@ import { vmsg } from './messages';
 
 export const administrativeBodyTypeSchema = z.enum(AdministrativeBodyType);
 export const notificationBehaviorSchema = z.enum(NotificationBehavior);
+export const bodyTierSchema = z.enum(BodyTier);
+
+/** The rule of the `tier` input of every reader list, for the API and MCP descriptions. */
+export const TIER_SCOPE_RULE = 'primary (the default), secondary or all. A secondary body (`tier: secondary` on the body; every youth council by default) shows only when you pass `tier` or its id. A body type narrows inside the tier and never widens it.';
+
+/** The `tier` input of a reader list (see BodyScope). */
+export const tierScopeSchema = z.enum(TIER_SCOPES);
 
 // Field rules of an administrative body — validation only, no defaults.
 // Shared by the body form, the body routes, and the city import
@@ -54,6 +62,8 @@ export const administrativeBodySchema = z.object({
     youtubeChannelUrl: youtubeChannelUrlRequest,
     // Absent: the settings of the body stay as they are
     documentSendSettings: z.array(documentSendSettingInputSchema).optional(),
+    // Absent on POST: the default of the type (defaultTierOf). Absent on PUT: as it is.
+    tier: bodyTierSchema.optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
@@ -147,6 +157,7 @@ export const administrativeBodyFormSchema = z.object({
     // Sent as it is: the request reads an empty field as a clear.
     youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal('')]).optional(),
     documentSendSettings: documentSendCardsSchema,
+    tier: bodyTierSchema,
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),
@@ -159,3 +170,6 @@ export const administrativeBodyFormSchema = z.object({
 
 export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFormSchema>;
 export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;
+
+// Frontend form of the page of the body: the fields that an admin of the body changes (#828, #874).
+export const bodyContactsFormSchema = administrativeBodyFormSchema.pick({ youtubeChannelUrl: true, documentSendSettings: true });

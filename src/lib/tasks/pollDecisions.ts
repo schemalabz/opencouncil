@@ -25,7 +25,7 @@ import { localCalendarDate } from "@/lib/formatters/time";
 import { dayBounds } from "@/lib/dates/dayBounds";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "@/lib/db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
-import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, type BackoffTier } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, TAKES_DECISIONS_WHERE, pendingPollTaskId, takesNoDecisions, DECISION_KIND_SELECT, type BackoffTier } from "./pollDecisionsBackoff";
 import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
@@ -114,6 +114,8 @@ export async function pollDecisionsForMeeting(
                 select: {
                     id: true,
                     name: true,
+                    type: true,
+                    tier: true,
                     diavgeiaUnitIds: true,
                     decisionConventions: true,
                 },
@@ -143,8 +145,10 @@ export async function pollDecisionsForMeeting(
     if (!takesPlace(councilMeeting)) {
         throw new Error("The meeting did not take place (postponed or cancelled), so it has no decisions to poll");
     }
+    // Here every poll arrives: the cron, the follow-ups, the admin batch and
+    // the subject page.
     if (takesNoDecisions(councilMeeting)) {
-        throw new Error("This kind of meeting takes no decisions");
+        throw new Error("This meeting takes no decisions on Diavgeia");
     }
 
     if (!councilMeeting.city.diavgeiaUid) {
@@ -423,6 +427,7 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             withdrawn: true,
             cityId: true,
             councilMeetingId: true,
+            councilMeeting: { select: DECISION_KIND_SELECT },
         },
     });
 
@@ -435,6 +440,9 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             `Subject not eligible for decisions (agendaItemIndex=${subject?.agendaItemIndex ?? 'null'}, ` +
             `nonAgendaReason=${subject?.nonAgendaReason ?? 'null'}, withdrawn=${subject?.withdrawn ?? 'n/a'})`,
         );
+    }
+    if (takesNoDecisions(subject.councilMeeting)) {
+        throw new Error('This meeting takes no decisions on Diavgeia');
     }
 
     // One poll per meeting at a time. Bounded by the task's own lifecycle rather
@@ -993,8 +1001,9 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // it, midnight-stored meetings would shift a day.
             const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
                 // A decision never belongs to a meeting that did not take place,
-                // or to one that takes no decisions. Such a meeting must neither
-                // receive a decision nor block an otherwise unambiguous heal.
+                // or to one that takes no decisions (a secondary body's among
+                // them, #829). Such a meeting must neither receive a decision
+                // nor block an otherwise unambiguous heal.
                 where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE },
                 select: { id: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },

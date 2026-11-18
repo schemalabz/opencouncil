@@ -1,4 +1,4 @@
-import { fromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { isCalendarDay } from '@/lib/zod-schemas/dates';
 
 /**
@@ -38,6 +38,11 @@ export function dayBounds(day: string, timeZone: string): { start: Date; end: Da
         start: zonedInstant(day, '00:00', timeZone),
         end: new Date(zonedInstant(nextDay, '00:00', timeZone).getTime() - 1),
     };
+}
+
+/** The first and the last millisecond of the calendar day that holds `at` in an IANA time zone. */
+export function dayBoundsAt(at: Date, timeZone: string): { start: Date; end: Date } {
+    return dayBounds(formatInTimeZone(at, timeZone, 'yyyy-MM-dd'), timeZone);
 }
 
 /**

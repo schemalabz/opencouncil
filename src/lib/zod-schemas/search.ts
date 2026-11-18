@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { latitude, longitude } from './primitives';
 import { isoUtcDateTime } from './dates';
-import { administrativeBodyTypeSchema } from './administrativeBody';
+import { administrativeBodyTypeSchema, TIER_SCOPE_RULE, tierScopeSchema } from './administrativeBody';
 import type { Location } from '@/lib/search/types';
 import { jsonPageFields, MAX_LIST_LIMIT } from './listQuery';
 
@@ -26,10 +26,12 @@ export const searchRequestSchema = z.strictObject({
     cityIds: z.array(z.string()).optional(),
     personIds: z.array(z.string()).optional(),
     partyIds: z.array(z.string()).optional(),
+    tier: tierScopeSchema.optional()
+        .describe(`Which tiers of body: ${TIER_SCOPE_RULE}`),
     administrativeBodyIds: z.array(z.string()).optional()
-        .describe('Keep subjects from meetings of these administrative bodies. With `administrativeBodyTypes` also set, a subject must match both'),
+        .describe('Keep subjects from meetings of these administrative bodies, in any tier. With `administrativeBodyTypes` also set, a subject must match both'),
     administrativeBodyTypes: z.array(administrativeBodyTypeSchema).optional()
-        .describe('Keep subjects from meetings of administrative bodies of these types'),
+        .describe('Keep subjects from meetings of administrative bodies of these types, inside the tier'),
     topicIds: z.array(z.string()).optional(),
     dateRange: z.strictObject({
         start: isoUtcDateTime(),

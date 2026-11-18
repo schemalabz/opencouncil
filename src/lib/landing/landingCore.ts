@@ -3,6 +3,7 @@ import type { Realm, Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
+import { readTier, type TierScope } from '@/lib/utils/bodyTier';
 import type {
     LandingHotSubject,
     LandingListCity,
@@ -104,15 +105,22 @@ export function canWidenRange(current: DateRangeKey): boolean {
  */
 export type MapFilters = {
     cityIds: string[];
+    /** Narrow inside the tier. */
     bodyTypes: string[];
+    /** `secondary` when the reader asked for the secondary tier (#829); null for the default. */
+    tier: TierScope | null;
     dateFrom: string | null;
     dateTo: string | null;
     /** minimum discussion minutes (client-side); null = any */
     minDuration: number | null;
 };
-export const EMPTY_FILTERS: MapFilters = { cityIds: [], bodyTypes: [], dateFrom: null, dateTo: null, minDuration: null };
+export const EMPTY_FILTERS: MapFilters = { cityIds: [], bodyTypes: [], tier: null, dateFrom: null, dateTo: null, minDuration: null };
 
-/** Administrative body types (matches the AdministrativeBodyType enum). */
+/**
+ * Administrative body types of the primary tier's chips (matches the
+ * AdministrativeBodyType enum). The youth council is the secondary tier's chip
+ * instead (see MapFilters.tier): a type narrows and never widens.
+ */
 export const BODY_TYPES = [
     { key: 'council', label: 'Συμβούλιο' },
     { key: 'committee', label: 'Επιτροπή' },
@@ -132,7 +140,7 @@ export function toggleValue(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 export function hasActiveFilters(f: MapFilters): boolean {
-    return f.cityIds.length > 0 || f.bodyTypes.length > 0 || !!f.dateFrom || !!f.dateTo || f.minDuration != null;
+    return f.cityIds.length > 0 || f.bodyTypes.length > 0 || f.tier !== null || !!f.dateFrom || !!f.dateTo || f.minDuration != null;
 }
 
 /**
@@ -384,15 +392,17 @@ export function parseInitialUrlState(search: string): InitialUrlState {
 
     const city = p.get('city');
     const body = p.get('body');
+    const tier = readTier(p.get('tier'));
     const from = p.get('from');
     const to = p.get('to');
     // The discussion-duration filter has no UI anymore; ignore a legacy `dur=` param so it can't
     // silently apply an invisible, unclearable constraint from a shared/restored URL.
     const filters: MapFilters =
-        city || body || from || to
+        city || body || tier || from || to
             ? {
                   cityIds: city ? [city] : [],
                   bodyTypes: body ? body.split(',').filter(Boolean) : [],
+                  tier,
                   dateFrom: from || null,
                   dateTo: to || null,
                   minDuration: null,

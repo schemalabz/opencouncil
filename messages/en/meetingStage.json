@@ -21,6 +21,7 @@
         "upcoming": "The meeting takes place on <b>{when}</b>. The agenda is already here; the transcript and the summaries are added after the meeting.",
         "upcomingNoAgenda": "The meeting takes place on <b>{when}</b>. The agenda appears here as soon as it is published.",
         "upcomingByCirculation": "The meeting takes place by circulation, with a written vote, on <b>{when}</b>. It is not broadcast; the decisions appear here as soon as Diavgeia publishes them.",
+        "upcomingNotRecorded": "The meeting takes place on <b>{when}</b>, with no recording. The agenda is here; there will be no video and no transcript.",
         "live": "The meeting is in progress. It started at {time}. The transcript arrives here a few hours after it ends.",
         "waiting": "The meeting took place on {date}. We are waiting for the recording; transcription starts as soon as it is published.",
         "transcribing": "We are transcribing the meeting. The transcript arrives in a few hours; the summaries follow after the review.",
@@ -32,7 +33,8 @@
         "postponed": "The meeting of {date} was postponed. When the municipality sets the new meeting, you will find it in the list of meetings.",
         "cancelled": "The meeting of {date} was cancelled and did not take place. The agenda stays here for reference.",
         "reason": "Reason: {reason}",
-        "byCirculation": "The meeting was held by circulation, with a written vote. There is no video and no transcript; the agenda and the decisions are available."
+        "byCirculation": "The meeting was held by circulation, with a written vote. There is no video and no transcript; the agenda and the decisions are available.",
+        "notRecorded": "The meeting was held with no recording. There is no video and no transcript; the agenda is available."
     },
     "actions": {
         "channel": "YouTube channel",

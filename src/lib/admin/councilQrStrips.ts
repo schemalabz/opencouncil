@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { getRoleTitles } from "@/i18n/roleTitles";
 import { catalogLocaleForCityLanguage } from "@/i18n/config";
 import { getCity } from "@/lib/db/cities";
-import { getPeopleForCity, type PersonWithRelations } from "@/lib/db/people";
+import { getPeopleOfCityForContent, type PersonWithRelations } from "@/lib/db/people";
 import { getClaimedPersonIds } from "@/lib/db/personClaim";
 import { claimExpiry, claimLastValidDay, personJoinUrl } from "@/lib/auth/personClaim";
 import { getCouncilTitle, isMayor } from "@/lib/utils/roles";
@@ -52,7 +52,7 @@ function isElectedMember(person: PersonWithRelations): boolean {
 async function eligibleMembers(cityId: string) {
     const [city, people, claimed] = await Promise.all([
         getCity(cityId),
-        getPeopleForCity(cityId, true),
+        getPeopleOfCityForContent(cityId, true),
         getClaimedPersonIds(cityId),
     ]);
     if (!city) return null;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStatisticsFor } from '@/lib/statistics';
+import { getStatisticsFor, type StatisticsFilter } from '@/lib/statistics';
 import { isUserAuthorizedToEdit, getUnreleasedScope } from '@/lib/auth';
+import { ALL_SCOPE, readTier, TIER_PARAM } from '@/lib/utils/bodyTier';
 
 // This route uses dynamic data from request params and can't be statically optimized
 export const dynamic = 'force-dynamic';
@@ -20,15 +21,22 @@ export async function GET(request: NextRequest) {
         const includeUnreleased = cityId && meetingId ? await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }) : false;
         const unreleased = cityId && !includeUnreleased ? await getUnreleasedScope(cityId) : undefined;
 
-        const params: any = {};
-        if (personId) params.personId = personId;
-        if (partyId) params.partyId = partyId;
-        if (meetingId) params.meetingId = meetingId;
-        if (cityId) params.cityId = cityId;
-        if (subjectId) params.subjectId = subjectId;
-        if (administrativeBodyId) params.administrativeBodyId = administrativeBodyId;
-        params.includeUnreleased = includeUnreleased;
-        params.unreleased = unreleased;
+        // A person, a meeting, a subject or a body names its own tier, as its
+        // page reads it. A total of a city or a party is the primary tier,
+        // unless `tier` widens it.
+        const namesOneItem = !!(personId || meetingId || subjectId || administrativeBodyId);
+        const tier = readTier(searchParams.get(TIER_PARAM));
+        const params: StatisticsFilter = {
+            ...(personId && { personId }),
+            ...(partyId && { partyId }),
+            ...(meetingId && { meetingId }),
+            ...(cityId && { cityId }),
+            ...(subjectId && { subjectId }),
+            ...(administrativeBodyId && { administrativeBodyId }),
+            includeUnreleased,
+            unreleased,
+            scope: namesOneItem ? ALL_SCOPE : { tier: tier ?? undefined },
+        };
 
         const groupBy = ['topic', 'person', 'party'] as ('topic' | 'person' | 'party')[];
         const statistics = await getStatisticsFor(params, groupBy);

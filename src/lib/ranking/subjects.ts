@@ -59,11 +59,16 @@ export const DEFAULT_SUBJECT_RANKING_WEIGHTS: SubjectRankingWeights = {
     location: 0.1,
 };
 
-/** Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. */
+/**
+ * Δημοτικό Συμβούλιο > Δημοτική Επιτροπή > Δημοτική Κοινότητα. The rank reads
+ * the type, not the tier: a youth council gets no boost, so it ranks among its
+ * own kind only, never against the council.
+ */
 export const ADMIN_BODY_TIER: Record<AdministrativeBodyType, number> = {
     council: 1,
     committee: 0.5,
     community: 0,
+    youthCouncil: 0,
 };
 
 export interface RankingComponent {

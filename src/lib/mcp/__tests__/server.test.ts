@@ -224,6 +224,27 @@ describe('administrative-body filtering', () => {
         });
     });
 
+    it('forwards the tier of list_meetings, list_people, list_hot_subjects, list_nearby_subjects and search to the data layer (#829)', async () => {
+        const { handlers, meta } = advertised(USER);
+        const base = { cityId: 'athens', lat: 38, lng: 23.7 };
+        for (const tool of ['list_meetings', 'list_people', 'list_hot_subjects', 'list_nearby_subjects', 'search'] as const) {
+            expect(meta[tool].inputSchema!.parse({ ...base, tier: 'all' })).toMatchObject({ tier: 'all' });
+            expect(() => meta[tool].inputSchema!.parse({ ...base, tier: 'youth' })).toThrow();
+        }
+        await handlers.list_meetings({ cityId: 'athens', page: 1, pageSize: 10, tier: 'all' } as never, ctxFor(USER));
+        expect(data.mcpListMeetings).toHaveBeenCalledWith('athens', expect.objectContaining({ tier: 'all' }), USER);
+        await handlers.list_people({ cityId: 'athens', activeOnly: true, tier: 'secondary' } as never, ctxFor(USER));
+        expect(data.mcpListPeople).toHaveBeenCalledWith('athens', true, 'secondary');
+        await handlers.list_people({ cityId: 'athens', activeOnly: false } as never, ctxFor(USER));
+        expect(data.mcpListPeople).toHaveBeenLastCalledWith('athens', false, undefined);
+        await handlers.search({ query: 'πάρκα', page: 1, pageSize: 10, tier: 'secondary' } as never, ctxFor(USER));
+        expect(data.mcpSearch).toHaveBeenCalledWith(expect.objectContaining({ tier: 'secondary' }), USER);
+        await handlers.list_hot_subjects({ daysBack: 7, limit: 10, tier: 'all' } as never, ctxFor(USER));
+        expect(data.mcpListHotSubjects).toHaveBeenCalledWith(expect.objectContaining({ tier: 'all' }));
+        await handlers.list_nearby_subjects({ lat: 38, lng: 23.7, radiusMeters: 1000, limit: 10, tier: 'all' } as never, ctxFor(USER));
+        expect(data.mcpListNearbySubjects).toHaveBeenCalledWith(expect.objectContaining({ tier: 'all' }));
+    });
+
     it('rejects a body type outside the schema enum', () => {
         const schema = advertised(USER).meta.list_meetings.inputSchema!;
         expect(() => schema.parse({ cityId: 'athens', administrativeBodyTypes: ['κοινότητα'] }))

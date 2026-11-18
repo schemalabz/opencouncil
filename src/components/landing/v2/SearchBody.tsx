@@ -294,6 +294,20 @@ export function SearchBody({
                         </button>
                     );
                 })}
+                {/* The secondary tier (#829), labelled as the youth councils. */}
+                <button
+                    type="button"
+                    aria-pressed={filters.tier === 'secondary'}
+                    onClick={() => onFiltersChange({ ...filters, tier: filters.tier === 'secondary' ? null : 'secondary' })}
+                    className={cn(
+                        'h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors',
+                        filters.tier === 'secondary'
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-background text-foreground hover:border-foreground/30',
+                    )}
+                >
+                    {t('bodyType.youthCouncil')}
+                </button>
             </div>
 
             <span data-filter="dates" />

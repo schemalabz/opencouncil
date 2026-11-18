@@ -1,4 +1,5 @@
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
+import type { BodyScope } from '@/lib/utils/bodyTier';
 
 /**
  * The two dials on the overview's ranking, defined once so the server that
@@ -6,7 +7,7 @@ import type { AdministrativeBodyType } from '@prisma/client';
  * what a value means or which one is the default.
  */
 
-export type HotScope = 'council' | 'committee' | 'community' | 'all';
+export type HotScope = 'council' | 'committee' | 'community' | 'secondary' | 'all';
 export type HotPeriod = '3m' | '6m' | '12m' | 'all';
 
 export const HOT_SCOPES: Record<HotScope, {
@@ -14,17 +15,19 @@ export const HOT_SCOPES: Record<HotScope, {
     label: string;
     /** What the body is called, for the open menu where there is room to say it. */
     fullLabel: string;
-    /** Undefined means every body — the meetings query reads it as no filter. */
-    types?: AdministrativeBodyType[];
+    /** The bodies it ranks. An empty scope is every primary body (see BodyScope). */
+    scope: BodyScope;
     isDefault: boolean;
 }> = {
     // The council is what a reader means by "the council decided", and the
     // committees and κοινότητες of a busy municipality would otherwise crowd it
     // out of its own ranking.
-    council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', types: ['council'], isDefault: true },
-    committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', types: ['committee'], isDefault: false },
-    community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', types: ['community'], isDefault: false },
-    all: { label: 'scopeAll', fullLabel: 'scopeAllFull', isDefault: false },
+    council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', scope: { types: ['council'] }, isDefault: true },
+    committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', scope: { types: ['committee'] }, isDefault: false },
+    community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', scope: { types: ['community'] }, isDefault: false },
+    // The secondary tier (#829). Its label keeps the youth wording.
+    secondary: { label: 'scopeYouthCouncil', fullLabel: 'scopeYouthCouncilFull', scope: { tier: 'secondary' }, isDefault: false },
+    all: { label: 'scopeAll', fullLabel: 'scopeAllFull', scope: {}, isDefault: false },
 };
 
 export const HOT_PERIODS: Record<HotPeriod, {
@@ -79,11 +82,22 @@ export function isBeyondPeriod(period: HotPeriod, meetingDates: (Date | string)[
 }
 
 /**
+ * Whether a scope would rank anything: a body of its tier, and of one of its
+ * types if it names types, has a public meeting. The primary tier with no
+ * types also holds meetings with no body, so it is always offered.
+ */
+export function hotScopeAvailable(value: HotScope, bodies: { type: AdministrativeBodyType; tier: BodyTier }[]): boolean {
+    const { tier = 'primary', types } = HOT_SCOPES[value].scope;
+    if (!types && tier === 'primary') return true;
+    return bodies.some(body => (tier === 'all' || body.tier === tier) && (!types || types.includes(body.type)));
+}
+
+/**
  * A URL value, or the default when it is absent or not one we recognise.
  *
  * Own keys only: `in` also answers true for `constructor`, `__proto__` and the
  * rest of Object.prototype, and such a value reaches the ranking as a scope or
- * a period with no `types` and no `months` behind it.
+ * a period with no `scope` and no `months` behind it.
  */
 export function readScope(value: string | undefined): HotScope {
     return value && Object.hasOwn(HOT_SCOPES, value) ? (value as HotScope) : 'council';

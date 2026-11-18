@@ -59,6 +59,7 @@ export async function GET(request: Request) {
             query,
             cityIds: filters.cityIds,
             topicIds: filters.topicIds,
+            tier: filters.tier,
             administrativeBodyTypes: filters.bodyTypes,
             dateRange,
             fallbackDateRange: windowStart && { start: windowStart.toISOString(), end: now.toISOString() },
@@ -79,7 +80,9 @@ export async function GET(request: Request) {
 
         // The search already applied the date window; re-applying the map's
         // default one here would drop results for being older than three months.
-        const hydrateFilters = { allTime: true, subjectIds };
+        // The tier is the one the search asked for, or the hydration would drop
+        // every hit of a secondary body (#829).
+        const hydrateFilters = { allTime: true, subjectIds, tier: filters.tier };
         const [located, general] = await Promise.all([
             getMapSubjects(realm, hydrateFilters),
             getGeneralSubjects(realm, hydrateFilters),

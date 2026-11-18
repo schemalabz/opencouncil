@@ -6,6 +6,7 @@ import "server-only";
 import { Prisma, NonAgendaReason, LocationType, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
+import { ALL_SCOPE } from '@/lib/utils/bodyTier';
 import { DEFAULT_SUBJECT_LIMIT, MAX_SUBJECT_LIMIT } from '@/lib/zod-schemas/subject';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { meetingNameSelect } from '@/lib/db/types';
@@ -100,8 +101,11 @@ function meetingWhere(realm: Realm, filters: ApiSubjectFilters): Prisma.CouncilM
     // The public view carries three constraints, not one. A city ID is not a
     // secret — /api/cities/all hands out every ID, `pending` ones included — so
     // the released flag alone would serve a city we do not publish, and would
-    // serve one realm's councils on another realm's domain.
-    const where: Prisma.CouncilMeetingWhereInput = filters.includeUnreleased ? {} : publicMeetingWhere(realm);
+    // serve one realm's councils on another realm's domain. A request that
+    // names its meeting reads it by its URL, in any tier.
+    const where: Prisma.CouncilMeetingWhereInput = filters.includeUnreleased
+        ? {}
+        : publicMeetingWhere(realm, filters.meetingId ? ALL_SCOPE : undefined);
 
     if (filters.from || filters.to) {
         where.dateTime = {

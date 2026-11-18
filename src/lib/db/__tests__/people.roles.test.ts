@@ -9,6 +9,8 @@ jest.mock('@/lib/auth', () => ({
     getRoleLimitForCity: (...args: unknown[]) => mockGetRoleLimitForCity(...args),
 }));
 
+jest.mock('@/lib/db/personImage', () => ({ rolesWithBodyType: jest.fn(), withPersonImageAuthorized: jest.fn(), withPersonImageKept: jest.fn() }));
+
 import { createPerson } from '../people';
 
 const person = (roles: { cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }[]) => ({

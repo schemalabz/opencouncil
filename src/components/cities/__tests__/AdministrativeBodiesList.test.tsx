@@ -43,6 +43,7 @@ const BODY: AdministrativeBodyWithSendSettings = {
     name: 'Δημοτικό Συμβούλιο',
     name_en: 'City Council',
     type: 'council',
+    tier: 'primary',
     youtubeChannelUrl: null,
     place: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),

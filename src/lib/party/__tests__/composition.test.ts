@@ -38,7 +38,7 @@ describe('bodySeatTotals', () => {
             person('b', memberOf('p2'), seatOn(COUNCIL)),
             person('independent', seatOn(COUNCIL)),
         ));
-        expect(totals).toEqual({ council: 3, committee: 0, community: 0 });
+        expect(totals).toEqual({ council: 3, committee: 0, community: 0, youthCouncil: 0 });
     });
 
     it('counts a person once per type of body', () => {
@@ -47,7 +47,7 @@ describe('bodySeatTotals', () => {
             person('both-communities', seatOn(FIRST_COMMUNITY), seatOn(SECOND_COMMUNITY)),
             person('council-and-committee', seatOn(COUNCIL), seatOn(COMMITTEE)),
         ));
-        expect(totals).toEqual({ council: 1, committee: 1, community: 1 });
+        expect(totals).toEqual({ council: 1, committee: 1, community: 1, youthCouncil: 0 });
     });
 
     it('counts no ended seat and no role outside a body', () => {
@@ -55,7 +55,7 @@ describe('bodySeatTotals', () => {
             person('former-councillor', seatOn(COUNCIL, ENDED)),
             person('member-without-seat', memberOf('p1')),
         ));
-        expect(totals).toEqual({ council: 0, committee: 0, community: 0 });
+        expect(totals).toEqual({ council: 0, committee: 0, community: 0, youthCouncil: 0 });
     });
 
     it('holds the party counts as a part of the totals', () => {

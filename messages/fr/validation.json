@@ -29,6 +29,8 @@
     "invalidEmailList": "Toutes les entrées doivent être des adresses e-mail valides",
     "documentRecipientRequired": "Saisissez l'adresse qui reçoit le document",
     "roleEndBeforeStart": "La date de fin ne doit pas précéder la date de début.",
+    "roleEndInFuture": "La date de fin ne doit pas être postérieure à aujourd'hui.",
+    "youthOnlyPersonPhoto": "Une personne dont tous les rôles sont au conseil municipal des jeunes ne garde une photo que depuis son propre compte. Retirez la photo dans le même enregistrement, ou gardez un rôle hors du conseil des jeunes.",
     "recipientNameMin2": "Le nom du destinataire doit contenir au moins 2 caractères.",
     "platformPriceNonNegative": "Le prix de la plateforme doit être un nombre positif.",
     "ingestionPriceNonNegative": "Le prix de traitement par heure doit être un nombre positif.",

@@ -69,7 +69,7 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
     const seen = new Set<string>();
     const now = new Date();
     const entries: Entry[] = [...upcoming].reverse().concat(recent).flatMap(meeting => {
-        const side = timelineSide(meeting.administrativeBody?.type);
+        const side = timelineSide(meeting.administrativeBody);
         if (side === null || seen.has(meeting.id)) return [];
         seen.add(meeting.id);
         const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));

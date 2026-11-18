@@ -4,9 +4,9 @@
 // concern: the list queries, their payload types and the page size.
 import "server-only";
 import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
-import { AdministrativeBodyType, Prisma } from '@prisma/client';
+import { bodyScopeWhere, type BodyScope } from '@/lib/utils/bodyTier';
+import { Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { meetingBodyTypeWhere } from "./meetingBodyFilter";
 import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
@@ -89,14 +89,15 @@ export interface MeetingListOptions {
     pageSize?: number;
     from?: Date;
     to?: Date;
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
+    /** Which bodies (see BodyScope). Absent, the primary tier. */
+    scope?: BodyScope;
     timeFilter?: 'upcoming' | 'past';
     /** Only meetings that take place on their date: no postponed or cancelled one. */
     takesPlace?: boolean;
     /**
      * Only these meetings. The search on the meetings tab finds the ids, and
      * this loads the card rows of one page of them in the list's own order.
+     * The ids carry their scope, so no tier default applies to them.
      * No cached wrapper accepts it: a cache key per id list is never reused.
      */
     meetingIds?: string[];
@@ -120,7 +121,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
+    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, scope, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -139,15 +140,10 @@ function meetingListQuery(
         ...(upperBound && { lte: upperBound }),
     };
 
-    // Specific bodies (ids) take precedence over the broader type filter.
-    let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
-    if (administrativeBodyIds && administrativeBodyIds.length > 0) {
-        bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
-    } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
-        // Without the no-body rule, the overview timeline would lose meetings
-        // that the rail beside it still lists.
-        bodyFilter = meetingBodyTypeWhere(administrativeBodyTypes);
-    }
+    // A list by ids takes its scope from whoever found the ids: the search ran
+    // this same query under the reader's scope, and the default here would
+    // drop its secondary rows between the count and the cards.
+    const bodyFilter = meetingIds ? {} : bodyScopeWhere(scope);
 
     // The visibility filter and the body filter can both be an OR, so they
     // meet under AND rather than spread into one object.
@@ -211,6 +207,32 @@ export async function getCouncilMeetingsWithSubjectPreview(cityId: string, optio
 export async function countCouncilMeetings(cityId: string, options: MeetingListOptions = {}): Promise<number> {
     const { where } = meetingListQuery(cityId, options);
     return prisma.councilMeeting.count({ where });
+}
+
+/** The id of the first meeting that the options select, in the list's order. Null when there is none. */
+export async function findFirstCouncilMeetingId(cityId: string, options: MeetingListOptions = {}): Promise<string | null> {
+    const meeting = await prisma.councilMeeting.findFirst({ ...meetingListQuery(cityId, options), select: { id: true } });
+    return meeting?.id ?? null;
+}
+
+/**
+ * The released meetings of every city that a scope covers (absent, the
+ * primary tier): the platform totals that the about page and the brochure
+ * quote.
+ */
+export function releasedMeetingsWhere(scope?: BodyScope): Prisma.CouncilMeetingWhereInput {
+    return { released: true, AND: [bodyScopeWhere(scope)] };
+}
+
+/** The hours of the meetings that `where` selects, each from its first speaker segment to its last. */
+export async function countMeetingHours(where: Prisma.CouncilMeetingWhereInput): Promise<number> {
+    const meetings = await prisma.speakerSegment.groupBy({
+        by: ['cityId', 'meetingId'],
+        where: { meeting: where },
+        _min: { startTimestamp: true },
+        _max: { endTimestamp: true },
+    });
+    return meetings.reduce((hours, meeting) => hours + ((meeting._max.endTimestamp ?? 0) - (meeting._min.startTimestamp ?? 0)) / 3600, 0);
 }
 
 /** What a meeting is found by: the columns of its label, and its subjects' names. */

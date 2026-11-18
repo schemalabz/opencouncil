@@ -6,7 +6,7 @@ import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData 
 import { getDecisionReadingsForMeeting } from '@/lib/db/decisionFacts';
 import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
 import { readingStatesFacts } from '@/lib/derivation/load';
-import { getPeopleForCity } from '@/lib/db/people';
+import { getPeopleOfCityForContent } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getRoleTitles } from '@/i18n/roleTitles';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
@@ -63,7 +63,7 @@ export async function getMinutesData(
         getCity(cityId),
         getSubjectsForMeeting(cityId, meetingId),
         getExtractedDataForMeeting(cityId, meetingId),
-        getPeopleForCity(cityId),
+        getPeopleOfCityForContent(cityId),
         getMeetingAttendance(cityId, meetingId),
         getDecisionReadingsForMeeting(cityId, meetingId),
     ]);

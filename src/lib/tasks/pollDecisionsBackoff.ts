@@ -3,19 +3,28 @@
 // (Prisma, `server-only`, ...) — one would break the client build from
 // here, with the error pointing at that page instead of this file.
 
-import type { MeetingKind, Prisma } from "@prisma/client";
+import type { BodyTier, MeetingKind, Prisma } from "@prisma/client";
 import { MEETING_KINDS, NO_DECISION_KINDS } from "@/lib/meetingLifecycleRules";
+import { isSecondaryBody, primaryMeetingWhere } from "@/lib/utils/bodyTier";
 
 // ─── Meetings that take no decisions ─────────────────────────────────
 
 /**
- * Returns true for a meeting that takes no decisions: a λογοδοσία or an
- * απολογισμός. Used to skip automated decision polling. A later part has no
+ * Returns true for a meeting that takes no decisions on Diavgeia: a
+ * λογοδοσία or an απολογισμός, and every meeting of a secondary body, which
+ * publishes no decisions (#829). Every surface and guard of the decisions
+ * reads this one rule: the poll, the cron, the admin batch, the decisions
+ * table and page, the subject page and the minutes. A later part has no
  * kind of its own, so the kind of its first part counts. A record that also
  * holds an ordinary meeting (e.g. "Λογοδοσία και Δημοτικό Συμβούλιο") has no
  * kind and is polled: its ordinary part produces decisions.
  */
-export function takesNoDecisions(meeting: { kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null }): boolean {
+export function takesNoDecisions(meeting: {
+    kind: MeetingKind | null;
+    continuationOf: { kind: MeetingKind | null } | null;
+    administrativeBody: { tier: BodyTier } | null;
+}): boolean {
+    if (isSecondaryBody(meeting.administrativeBody)) return true;
     const kind = meeting.kind ?? meeting.continuationOf?.kind ?? null;
     return kind !== null && !MEETING_KINDS[kind].takesDecisions;
 }
@@ -24,21 +33,25 @@ export function takesNoDecisions(meeting: { kind: MeetingKind | null; continuati
 export const DECISION_KIND_SELECT = {
     kind: true,
     continuationOf: { select: { kind: true } },
+    administrativeBody: { select: { tier: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 
 /**
- * The database form of `!takesNoDecisions`. `kind` is nullable, and in SQL
- * `kind NOT IN (…)` is not true for a null kind, so a bare `notIn` would drop
- * every meeting of unknown kind. The null case is explicit.
+ * The kind half of the database form of `!takesNoDecisions`. `kind` is
+ * nullable, and in SQL `kind NOT IN (…)` is not true for a null kind, so a
+ * bare `notIn` would drop every meeting of unknown kind. The null case is
+ * explicit.
  */
 const KIND_TAKES_DECISIONS_WHERE = {
     OR: [{ kind: null }, { kind: { notIn: NO_DECISION_KINDS } }],
 } satisfies Prisma.CouncilMeetingWhereInput;
 
+/** `!takesNoDecisions` as a database filter: the kind, and the primary tier (a meeting with no body is in it). */
 export const TAKES_DECISIONS_WHERE = {
     AND: [
         KIND_TAKES_DECISIONS_WHERE,
         { OR: [{ continuationOfId: null }, { continuationOf: KIND_TAKES_DECISIONS_WHERE }] },
+        primaryMeetingWhere,
     ],
 } satisfies Prisma.CouncilMeetingWhereInput;
 

@@ -18,9 +18,16 @@ jest.mock('next-intl', () => ({
 jest.mock('@/hooks/useRoleTitles', () => ({ useRoleTitles: () => ({}) }));
 jest.mock('@/components/persons/PersonCard', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/persons/PersonForm', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/components/admin/people/ElectedOrderSheet', () => ({ __esModule: true, default: () => null }));
+let mockSheetPeople: PersonWithRelations[] | null = null;
+jest.mock('@/components/admin/people/ElectedOrderSheet', () => ({
+    __esModule: true,
+    default: ({ people }: { people: PersonWithRelations[] }) => {
+        mockSheetPeople = people;
+        return null;
+    },
+}));
 jest.mock('@/components/admin/AdminStrip', () => ({
-    AdminToolButton: ({ children }: { children: ReactNode }) => <button type="button">{children}</button>,
+    AdminToolButton: ({ children, onClick }: { children: ReactNode; onClick: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
 }));
 
 // The order is the sorting module's own concern; here it only has to be the one asked for.
@@ -82,17 +89,18 @@ const people = [
     member('p3', 'body-a', 'Κοινότητα Α'),
 ];
 
-const draw = (query: string) => {
+const draw = (query: string, superAdminRoster: PersonWithRelations[] | null = people) => {
     mockSearchParams = new URLSearchParams(query);
     bodyPicker = null;
     return render(
         <CityPeople
-            allPeople={people}
+            people={people}
             partiesWithPersons={[]}
             administrativeBodies={[]}
             cityId="chania"
             canEdit={false}
-            isSuperAdmin
+            superAdminRoster={superAdminRoster}
+            secondaryTier={{ available: false, shown: false }}
         />
     );
 };
@@ -110,6 +118,20 @@ describe('CityPeople', () => {
         draw(oneBody);
         expect(listProps.adminTools(['community'])).not.toBeNull();
         draw('filters=adminBodyType_community');
+        expect(listProps.adminTools(['community'])).toBeNull();
+    });
+
+    // A member that the tier on show leaves out still has a place in the order (#829).
+    it('gives the elected-order tool every member of the body, not only the people on show', () => {
+        const offScreen = member('p4', 'body-a', 'Κοινότητα Α');
+        draw(oneBody, [...people, offScreen]);
+        const tool = render(<>{listProps.adminTools(['community'])}</>);
+        act(() => tool.getByRole('button').click());
+        expect(mockSheetPeople?.map(person => person.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    });
+
+    it('offers no superadmin tool without the roster', () => {
+        draw(oneBody, null);
         expect(listProps.adminTools(['community'])).toBeNull();
     });
 

@@ -1,6 +1,8 @@
 // Server-only: populateCity takes no identity and checks no session. The
 // caller authorizes first — the MCP admin tool populate_city does.
 import "server-only";
+import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier';
+import { youthCouncilOnly } from '@/lib/utils/youthCouncil';
 import prisma from './prisma';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
 import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
@@ -36,18 +38,21 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
         if (existingRows.some(count => count > 0)) throw new BadRequestError('City already has data');
 
         const adminBodies = await Promise.all(
-            validatedData.administrativeBodies.map(adminBody =>
-                tx.administrativeBody.create({
+            validatedData.administrativeBodies.map(adminBody => {
+                const tier = adminBody.tier ?? defaultTierOf(adminBody.type);
+                return tx.administrativeBody.create({
                     data: {
                         name: adminBody.name,
                         name_en: adminBody.name_en,
                         type: adminBody.type,
+                        tier,
+                        notificationBehavior: defaultNotificationBehavior(tier),
                         diavgeiaUnitIds: adminBody.diavgeiaUnitIds ?? [],
                         youtubeChannelUrl: adminBody.youtubeChannelUrl ?? null,
                         cityId: cityId,
                     },
-                })
-            )
+                });
+            })
         );
 
         const parties = await Promise.all(
@@ -66,6 +71,17 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
             )
         );
 
+        // The roles of a person as the photo rule reads them (db/personImage.ts).
+        const presenceRoles = (person: CityPopulationData['people'][number]) =>
+            (person.roles ?? []).map(role => {
+                const body = role.type === 'adminBody' && role.administrativeBodyName
+                    ? adminBodies.find(ab => ab.name === role.administrativeBodyName)
+                    : null;
+                return { administrativeBody: body ? { type: body.type } : null };
+            });
+
+        // Create people. A person on a youth council alone adds their own
+        // photo from their account (#829); the population saves none for them.
         const people = await Promise.all(
             validatedData.people.map(person =>
                 tx.person.create({
@@ -74,7 +90,7 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
                         name_en: person.name_en,
                         name_short: person.name_short,
                         name_short_en: person.name_short_en,
-                        image: person.image,
+                        image: youthCouncilOnly(presenceRoles(person)) ? null : person.image,
                         profileUrl: person.profileUrl,
                         cityId: cityId
                     },

@@ -24,6 +24,7 @@ const PEOPLE_SHOWN = 9;
 
 interface CouncilBandProps {
     parties: PartyWithPersons[];
+    /** The municipality's own roster (listPeopleOfCity): a member of a secondary body alone is not in it. */
     people: PersonWithRelations[];
     city: CityWithCounts;
     locale: string;

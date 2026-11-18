@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
 import { imageFile, stringBoolean, webUrl } from './primitives';
 import { vmsg } from './messages';
+import { TIER_SCOPE_RULE, tierScopeSchema } from './administrativeBody';
 
 // Field rules of a person — validation only, no defaults. Shared by the person
 // form, the person routes, and the city import (zod-schemas/cityPopulation.ts).
@@ -74,3 +75,9 @@ export const personUpdateFormDataSchema = personFormDataSchema.extend({
 
 export type PersonFormDataOutput = z.output<typeof personFormDataSchema>;
 export type PersonUpdateFormDataOutput = z.output<typeof personUpdateFormDataSchema>;
+
+/** Query parameters of GET /people. */
+export const personListQuerySchema = z.object({
+    tier: tierScopeSchema.optional()
+        .meta({ description: `Which tiers of body: ${TIER_SCOPE_RULE} A person is in the secondary tier when every role of the person is on a secondary body.`, example: 'all' }),
+});

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody, getBodyPageRow } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { getCityRealm } from '@/lib/db/cityRealm';
+import { cityListTags } from '@/lib/db/cityListing';
+import { upcomingMeetingsTag } from '@/lib/db/meetings';
+import { landingSubjectsTag } from '@/lib/db/subject';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodyContactsSchema, updateAdministrativeBodyRequestSchema } from '@/lib/zod-schemas/administrativeBody';
@@ -17,8 +21,12 @@ export async function PUT(
         const body = await request.json();
 
         // An admin of the body, not of the city, changes the YouTube channel
-        // and the document send settings, and nothing else (#828, #874).
-        if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
+        // and the document send settings, and nothing else (#828, #874). The page
+        // of the body sends those fields alone, for an admin of the city as well.
+        // A request with any other field is a full update, which answers 400
+        // without the required fields rather than 200 with nothing written.
+        const contactsOnly = !!body && typeof body === 'object' && Object.keys(body).every(key => key in administrativeBodyContactsSchema.shape);
+        if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
             const { youtubeChannelUrl, documentSendSettings } = administrativeBodyContactsSchema.parse(body);
             const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl }, documentSendSettings);
@@ -40,13 +48,15 @@ export async function PUT(
             return NextResponse.json(confirmed);
         }
 
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
+        const { name, name_en, type, tier, youtubeChannelUrl, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place, documentSendSettings } = parsed;
 
+        const previous = await getBodyPageRow(params.cityId, params.bodyId);
         // A field that the request leaves out keeps its value.
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
             name_en,
             type,
+            tier,
             youtubeChannelUrl,
             notificationBehavior,
             showUnreviewedTranscript,
@@ -56,6 +66,20 @@ export async function PUT(
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
+        // A new tier moves the meetings of the body, and its members, to the
+        // other tier (#829): every list that reads the tier learns it now, the
+        // city's route to the public lists with them. A new type changes the
+        // labels and the rules of a youth council.
+        if (previous && (previous.tier !== updatedBody.tier || previous.type !== updatedBody.type)) {
+            revalidateTag(`city:${params.cityId}:meetings`, 'max');
+            revalidateTag(`city:${params.cityId}:people`, 'max');
+            revalidateTag(`city:${params.cityId}:basic`, 'max');
+            revalidatePath(`/${params.cityId}`, 'layout');
+            const realm = await getCityRealm(params.cityId);
+            if (realm) {
+                [...cityListTags(realm), landingSubjectsTag(realm), upcomingMeetingsTag(realm)].forEach(tag => revalidateTag(tag, 'max'));
+            }
+        }
 
         return NextResponse.json(updatedBody);
     } catch (error) {

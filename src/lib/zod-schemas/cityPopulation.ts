@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
-import { baseAdministrativeBodyFields, youtubeChannelUrlValue } from './administrativeBody';
+import { baseAdministrativeBodyFields, bodyTierSchema, youtubeChannelUrlValue } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue, rolePeriodsOverlap } from './role';
 import { blankToNull, refuseDuplicateKeys, webUrl } from './primitives';
 
@@ -41,6 +41,8 @@ export const cityPopulationSchema = z.object({
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object({
         ...baseAdministrativeBodyFields,
+        tier: bodyTierSchema.optional()
+            .describe('primary: the content of the body shows in every default scope. secondary: it shows only when a reader asks for it. Absent: the default of the type (youthCouncil is secondary, every other type primary)'),
         // Found by research (the add-city skill).
         // The "unit" / "unit:signer" form that parseDiavgeiaUnitScope reads, narrowed to digits:
         // Diavgeia unit and signer uids are numbers, so a comma-joined paste ("1,2") or a stray
@@ -52,7 +54,7 @@ export const cityPopulationSchema = z.object({
             .describe('The YouTube channel that streams this body\'s meetings, for example https://www.youtube.com/@handle, or null'),
     }))
         .min(1, { error: 'Add at least one administrative body, e.g. the council.' })
-        .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
+        .describe('Administrative bodies like council, committees, communities, youth councils. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
         image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),

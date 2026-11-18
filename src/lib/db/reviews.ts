@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 
@@ -655,15 +656,22 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
 }
 
 /**
- * Combine multiple where conditions using AND
+ * The meetings of the review queue: the transcribed meetings of a customer
+ * city, in the status and the window asked for. The list and the counts of
+ * the /admin widget read this one where, so the widget counts the meetings
+ * that the list it links to shows. A meeting whose pipeline runs unattended
+ * has no review step: its transcript goes out under the unreviewed banner
+ * (#829), so it never leaves the queue and is not in it.
  */
-function combineWhereConditions(
-  conditions: Prisma.CouncilMeetingWhereInput[]
-): Prisma.CouncilMeetingWhereInput {
-  if (conditions.length === 0) return {};
-  if (conditions.length === 1) return conditions[0];
-
-  return { AND: conditions };
+function reviewQueueWhere(show: ReviewFilterOptions['show'], last30Days: boolean): Prisma.CouncilMeetingWhereInput {
+  return {
+    AND: [
+      { city: CUSTOMER_CITY_WHERE },
+      { NOT: unattendedMeetingWhere },
+      buildStatusWhereConditions(show),
+      buildDateFilter(last30Days),
+    ],
+  };
 }
 
 
@@ -938,30 +946,15 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   await withUserAuthorizedToEdit({});
   const { show = 'needsAttention', reviewerId, last30Days = false } = filters;
 
-  // Build database filter conditions
-  const conditions: Prisma.CouncilMeetingWhereInput[] = [];
-
-  // Only track reviews for officially supported cities
-  conditions.push({ city: CUSTOMER_CITY_WHERE });
-
-  // Add status filter
-  conditions.push(buildStatusWhereConditions(show));
-
-  // Add date filter
-  conditions.push(buildDateFilter(last30Days));
-
   // The reviewerId filter is applied after aggregation (primary-reviewer
   // check below). The deleted DB prefilter cost more than the aggregate it
   // narrowed (measured 5.4s against 2.3s at 300 candidates on
   // production-scale data): its nested-relation shape is the one issue
   // #560 removed. Restoring it is a loss at any candidate count.
 
-  // Combine all conditions
-  const whereConditions = combineWhereConditions(conditions);
-
   // Fetch meetings from database (lightweight - no nested data)
   const meetings = await prisma.councilMeeting.findMany({
-    where: whereConditions,
+    where: reviewQueueWhere(show, last30Days),
     include: includePattern.meetingWithReviewInfo(),
     orderBy: {
       dateTime: 'desc'
@@ -1032,13 +1025,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
   // excluded because they cannot need review yet. The widget states the
   // window and links the list with last30Days=false to show the same set.
   const candidates = await prisma.councilMeeting.findMany({
-    where: {
-      AND: [
-        { city: CUSTOMER_CITY_WHERE },
-        buildStatusWhereConditions('needsAttention'),
-        buildDateFilter(false),
-      ],
-    },
+    where: reviewQueueWhere('needsAttention', false),
     select: { cityId: true, id: true },
   });
 

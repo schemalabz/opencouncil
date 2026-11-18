@@ -10,6 +10,7 @@ import { REALMS } from '@/lib/realm';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { urlPrefixForLocale } from '@/i18n/config';
 import { meetingDatedLabel } from '@/lib/meetingName';
+import { readTier } from '@/lib/utils/bodyTier';
 
 export async function GET(
     request: NextRequest,
@@ -35,7 +36,9 @@ export async function GET(
     // The full include, not the card projection: each item's HTML content lists
     // every subject with its description, so the feed reads the prose the card
     // surfaces deliberately leave behind.
-    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, { limit });
+    // `?tier=` widens the feed to a secondary body (#829), as on the meetings tab.
+    const tier = readTier(searchParams.get('tier')) ?? undefined;
+    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, { limit, scope: { tier } });
 
     // The feed is served on the realm's domain and its default locale (el for
     // greece, fr for france) is the unprefixed one.

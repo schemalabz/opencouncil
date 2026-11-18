@@ -7,6 +7,8 @@ export type SearchFilterParams = {
     personId?: string;
     adminBodyType?: string;
     adminBodyId?: string;
+    /** `all` when the type above has a secondary body (#829): a type narrows inside the tier. */
+    tier?: string;
     /** Comma-separated topic ids. */
     topicIds?: string;
     /** yyyy-MM-dd. */
@@ -53,7 +55,7 @@ export function serializeDerivedKeys(keys: DerivedFilterKey[]): string | undefin
 
 /** The filter params, in the order a /search link spells them. */
 const SEARCH_FILTER_KEYS = [
-    "cityId", "partyId", "personId", "adminBodyType", "adminBodyId", "topicIds", "dateFrom", "dateTo",
+    "cityId", "partyId", "personId", "adminBodyType", "adminBodyId", "tier", "topicIds", "dateFrom", "dateTo",
 ] as const;
 
 /**

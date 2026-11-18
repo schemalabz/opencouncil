@@ -66,6 +66,7 @@ const OUT_OF_AGENDA_SUBJECT = {
     withdrawn: false,
     cityId: CITY_ID,
     councilMeetingId: MEETING_ID,
+    councilMeeting: { kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'primary' } },
 };
 
 function meetingWith(subjects: Array<Record<string, unknown>>) {
@@ -77,7 +78,7 @@ function meetingWith(subjects: Array<Record<string, unknown>>) {
         kind: 'ordinary',
         continuationOf: null,
         city: { diavgeiaUid: 'uid-1', timezone: 'Europe/Athens' },
-        administrativeBody: { id: 'body-1', name: 'Δημοτική Επιτροπή', diavgeiaUnitIds: [] },
+        administrativeBody: { id: 'body-1', name: 'Δημοτική Επιτροπή', type: 'committee', diavgeiaUnitIds: [] },
         subjects: subjects.map(s => ({ ...s, discussedIn: null, decision: null })),
     };
 }
@@ -115,7 +116,24 @@ describe('requestPollDecisionForSubject', () => {
         await requestPollDecisionForSubject('subject-1');
 
         const { select } = mockSubjectFindUnique.mock.calls[0][0];
-        expect(select).toMatchObject({ agendaItemIndex: true, nonAgendaReason: true, withdrawn: true });
+        expect(select).toMatchObject({
+            agendaItemIndex: true, nonAgendaReason: true, withdrawn: true,
+            councilMeeting: { select: { kind: true, continuationOf: { select: { kind: true } }, administrativeBody: { select: { tier: true } } } },
+        });
+    });
+
+    // A meeting that takes no decisions: a secondary body's (#829), or a
+    // λογοδοσία. The refusal happens before any task row is read or written,
+    // so the button cannot start a poll.
+    it.each([
+        ['a secondary body', { kind: 'ordinary', continuationOf: null, administrativeBody: { tier: 'secondary' } }],
+        ['a λογοδοσία', { kind: 'accountability', continuationOf: null, administrativeBody: { tier: 'primary' } }],
+    ])('refuses a subject of %s before it looks for a running task', async (_name, councilMeeting) => {
+        mockSubjectFindUnique.mockResolvedValue({ ...OUT_OF_AGENDA_SUBJECT, councilMeeting });
+
+        await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('takes no decisions');
+        expect(mockTaskStatusFindFirst).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
     });
 
     it('refuses a withdrawn out-of-agenda subject, which the body rejected as urgent', async () => {

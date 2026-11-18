@@ -18,32 +18,42 @@ import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { AdminToolButton } from '@/components/admin/AdminStrip';
 import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
+import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
 
 type CityPeopleProps = {
-    allPeople: PersonWithRelations[],
+    /** The people of the tiers on show; the people page reads them on the server (#829). */
+    people: PersonWithRelations[],
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: PublicAdministrativeBody[],
     cityId: string,
     cityLanguage?: string;
     canEdit: boolean,
-    /** Superadmin-only tools. `canEdit` is true for a city admin too, who must not get these. */
-    isSuperAdmin: boolean,
+    /**
+     * Every person of the city, in every tier, for the superadmin tools; null
+     * for anyone else. A tool that orders the members of a body must see all
+     * of them, whatever the tier on show (#829). `canEdit` is true for a city
+     * admin too, who must not get these tools.
+     */
+    superAdminRoster: PersonWithRelations[] | null,
     /**
      * The bodies a body admin may give roles on. Absent for a city admin, who
      * may give any role. The form then offers these bodies and no party.
      */
     editableBodyIds?: string[],
+    /** Whether the city has people of the secondary tier, and whether they are on show (#829); see the people page. */
+    secondaryTier: { available: boolean; shown: boolean },
 };
 
 export default function CityPeople({
-    allPeople,
+    people,
     partiesWithPersons,
     administrativeBodies,
     cityId,
     cityLanguage,
     canEdit,
-    isSuperAdmin,
+    superAdminRoster,
     editableBodyIds,
+    secondaryTier,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -78,15 +88,17 @@ export default function CityPeople({
         [partiesWithPersons]
     );
 
+    // The chips come from the people on show, so no chip leads to an empty
+    // roster.
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(allPeople, tCommon),
-        [allPeople, tCommon]
+        getAdministrativeBodyTypesForPeople(people, tCommon),
+        [people, tCommon]
     );
 
     // The council carries no sub-bodies, so only a narrower type offers a body.
     const bodyOptionsFor = useCallback((type: AdministrativeBodyType) =>
-        type === 'council' ? [] : getBodiesOfTypeFromPeople(allPeople, type),
-        [allPeople]
+        type === 'council' ? [] : getBodiesOfTypeFromPeople(people, type),
+        [people]
     );
 
     // One body named: that body's order. One type: the bodies of that type in
@@ -96,7 +108,7 @@ export default function CityPeople({
         return sortPeople(items, selectedValues.length === 1 ? selectedValues[0] : undefined);
     }, []);
 
-    const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(allPeople, {
+    const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(people, {
         filterOptions: typeOptions,
         bodyOptionsFor,
         filter: (selectedValues, person, bodyId) => {
@@ -126,12 +138,12 @@ export default function CityPeople({
             : selectedValues.length === 0 && typeOptions.length === 1 ? typeOptions[0].value
             : null;
         if (!typeInView) return null;
-        const bodies = getBodiesOfTypeFromPeople(allPeople, typeInView);
+        const bodies = getBodiesOfTypeFromPeople(people, typeInView);
         return bodies.length === 1 ? bodies[0].value : null;
-    }, [state.selectedBody, typeOptions, allPeople]);
+    }, [state.selectedBody, typeOptions, people]);
 
     const adminTools = useCallback((selectedValues: AdministrativeBodyType[]) => {
-        if (!isSuperAdmin) return null;
+        if (!superAdminRoster) return null;
         const bodyId = bodyOnScreen(selectedValues);
         if (!bodyId) return null;
         return (
@@ -139,7 +151,7 @@ export default function CityPeople({
                 {tElectedOrder('title')}
             </AdminToolButton>
         );
-    }, [isSuperAdmin, bodyOnScreen, tElectedOrder]);
+    }, [superAdminRoster, bodyOnScreen, tElectedOrder]);
 
     return (
         <>
@@ -155,16 +167,21 @@ export default function CityPeople({
                 : { cityId, parties, administrativeBodies }}
             t={t}
             renderFilter={({ selectedValues, onChange }) => {
-                if (typeOptions.length <= 1) return null;
+                if (typeOptions.length <= 1 && !secondaryTier.available) return null;
                 return (
-                    <BadgePicker
-                        options={typeOptions}
-                        selectedValues={selectedValues}
-                        onSelectionChange={onChange}
-                        allLabel={tCommon('allPeople')}
-                        collapsible={false}
-                        inline
-                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        {typeOptions.length > 1 && (
+                            <BadgePicker
+                                options={typeOptions}
+                                selectedValues={selectedValues}
+                                onSelectionChange={onChange}
+                                allLabel={tCommon('allPeople')}
+                                collapsible={false}
+                                inline
+                            />
+                        )}
+                        {secondaryTier.available && <SecondaryTierToggle shown={secondaryTier.shown} />}
+                    </div>
                 );
             }}
             renderAfterFilters={(selectedValues) => {
@@ -187,11 +204,11 @@ export default function CityPeople({
             mdColumns={2}
             lgColumns={3}
         />
-        {electedOrderBodyId && (
+        {electedOrderBodyId && superAdminRoster && (
             <ElectedOrderSheet
                 open={electedOrderOpen}
                 onOpenChange={setElectedOrderOpen}
-                people={allPeople}
+                people={superAdminRoster}
                 cityId={cityId}
                 administrativeBodyId={electedOrderBodyId}
             />

@@ -2,13 +2,14 @@
 import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
-import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { ApiError, UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, editCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
-import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
+import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE, PUBLIC_THROUGH_SECONDARY_WHERE } from "../cityStatus";
+import { countMeetingHours, releasedMeetingsWhere } from "./meetingsList";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY, cityListTags } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -140,18 +141,33 @@ function cityCoversPoint(lng: number, lat: number): Prisma.Sql {
     return Prisma.sql`geometry IS NOT NULL AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))`;
 }
 
-/** SQL counterparts of isPublic/isOutOfNetwork, for the raw queries below — the
- *  compiler cannot see enum values inside a template literal, so these keep the
- *  raw SQL from drifting away from src/lib/cityStatus.ts. `alias` qualifies the
- *  column when the query joins (e.g. `c.status`). */
+/** The City table as the raw predicates below name it: the alias of a join, or the table itself. */
+function cityTableSql(alias?: string): Prisma.Sql {
+    return Prisma.raw(alias ? `"${alias}"` : '"City"');
+}
+
+/** SQL twin of PUBLIC_THROUGH_SECONDARY_WHERE (src/lib/cityStatus.ts). */
+function publicThroughSecondarySql(table: Prisma.Sql): Prisma.Sql {
+    return Prisma.sql`EXISTS (
+        SELECT 1 FROM "CouncilMeeting" cm
+        JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
+        WHERE cm."cityId" = ${table}.id AND cm.released = true
+          AND ab.tier = 'secondary'
+    )`;
+}
+
+/** SQL counterparts of PUBLIC_CITY_WHERE/OUT_OF_NETWORK_CITY_WHERE, for the raw
+ *  queries below — the compiler cannot see enum values inside a template
+ *  literal, so these keep the raw SQL from drifting away from
+ *  src/lib/cityStatus.ts. `alias` qualifies the columns when the query joins. */
 function publicCityStatusSql(alias?: string): Prisma.Sql {
-    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
-    return Prisma.sql`${column} IN ('demo', 'supported')`;
+    const table = cityTableSql(alias);
+    return Prisma.sql`(${table}.status IN ('demo', 'supported') OR ${publicThroughSecondarySql(table)})`;
 }
 
 function outOfNetworkCityStatusSql(alias?: string): Prisma.Sql {
-    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
-    return Prisma.sql`${column} = 'pending'`;
+    const table = cityTableSql(alias);
+    return Prisma.sql`(${table}.status = 'pending' AND NOT ${publicThroughSecondarySql(table)})`;
 }
 
 export type CityAtPoint = {
@@ -246,6 +262,15 @@ export async function getCityCentroid(cityId: string): Promise<{ lng: number; la
     `;
     const row = rows[0];
     return row?.lng != null && row?.lat != null ? { lng: row.lng, lat: row.lat } : null;
+}
+
+/**
+ * Whether a city is public through a secondary body (see
+ * PUBLIC_THROUGH_SECONDARY_WHERE): the one fact of a city's publicness that
+ * its own row does not carry. The cached twin is in lib/cache/queries.ts.
+ */
+export async function isCityPublicThroughSecondary(cityId: string): Promise<boolean> {
+    return (await prisma.city.count({ where: { id: cityId, ...PUBLIC_THROUGH_SECONDARY_WHERE } })) > 0;
 }
 
 /** Publicly covered municipalities for the landing map — centroid, logo, simplified
@@ -372,7 +397,7 @@ export async function getListedCitiesCached(realm: Realm): Promise<CityWithCount
                 orderBy: CITY_ORDER_BY,
             }),
         ['cities', 'public', realm],
-        { revalidate: 900, tags: ['cities:all', `realm:${realm}:cities:all`] },
+        { revalidate: 900, tags: cityListTags(realm) },
     )();
 }
 
@@ -612,47 +637,31 @@ export interface AboutPageStats {
  * - Total subject count across all released meetings
  * - Total meeting hours (estimated from speaker segment timestamps)
  *
+ * The meetings are those of the primary tier (#829): a secondary body's
+ * meetings are not the municipalities' record that these totals describe.
+ *
  * Intentionally NOT realm-scoped: the about page is a marketing page that shows
  * platform-wide totals across all realms (so opencouncil.fr displays the same
  * achieved numbers as opencouncil.gr).
  */
 export async function getAboutPageStats(): Promise<AboutPageStats> {
     try {
-        const [municipalityCount, meetingCount, subjectCount, meetingDurations] = await Promise.all([
+        const meetings = releasedMeetingsWhere();
+        const [municipalityCount, meetingCount, subjectCount, meetingHours] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
                 where: CUSTOMER_CITY_WHERE
             }),
-            // Count published meetings
-            prisma.councilMeeting.count({
-                where: { released: true }
-            }),
-            // Count subjects in released meetings only
-            prisma.subject.count({
-                where: {
-                    councilMeeting: { released: true }
-                }
-            }),
-            // Get min/max timestamps per meeting to calculate duration
-            prisma.$queryRaw<Array<{ total_hours: number }>>`
-                SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
-                FROM (
-                    SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
-                    FROM "CouncilMeeting" cm
-                    JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                    WHERE cm.released = true
-                    GROUP BY cm.id, cm."cityId"
-                ) meetings
-            `
+            prisma.councilMeeting.count({ where: meetings }),
+            prisma.subject.count({ where: { councilMeeting: meetings } }),
+            countMeetingHours(meetings),
         ])
-
-        const totalHours = Number(meetingDurations[0]?.total_hours ?? 0)
 
         return {
             municipalityCount,
             meetingCount,
             subjectCount,
-            meetingHours: Math.round(totalHours)
+            meetingHours: Math.round(meetingHours)
         }
     } catch (error) {
         console.error('Error fetching about page stats:', error)

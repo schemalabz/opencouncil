@@ -96,10 +96,10 @@ describe('CityMeetings', () => {
         expect(listProps.announceCount).toBe(true);
     });
 
-    it('offers the bodies of each type except the council', () => {
+    it('offers the bodies of each type, the council included', () => {
         draw();
         const byType = Object.fromEntries(pickerProps.groups.map(group => [group.type, group.bodies.map(b => b.value)]));
-        expect(byType).toEqual({ council: [], community: ['body-a', 'body-b'] });
+        expect(byType).toEqual({ council: ['council'], community: ['body-a', 'body-b'] });
     });
 
     it('shows the selected body and sends a body pick to the source', () => {

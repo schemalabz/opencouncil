@@ -76,7 +76,7 @@ async function main() {
         select: {
             id: true, cityId: true, name: true, name_en: true, dateTime: true, agendaUrl: true, administrativeBodyId: true,
             scheduleStatus: true, kind: true, urgent: true, sessionNumber: true, format: true, continuationOfId: true, postponedFromId: true,
-            administrativeBody: { select: { name: true, type: true } },
+            administrativeBody: { select: { name: true, type: true, tier: true } },
             city: { select: { timezone: true, realm: true, name_municipality: true } },
         },
         orderBy: [{ cityId: 'asc' }, { dateTime: 'asc' }],
@@ -211,7 +211,7 @@ async function main() {
             agendaCombined ? 'a combined meeting' : null,
             nameKindRefused ? `the name says ${nameKindRead}, which a ${meeting.administrativeBody?.type} does not hold` : null,
             // The backfill gives a later part no kind, so the meeting's own kind is the one that changes.
-            !takesNoDecisions({ kind: meeting.kind, continuationOf: null }) && takesNoDecisions({ kind: proposedKind, continuationOf: null })
+            !takesNoDecisions({ kind: meeting.kind, continuationOf: null, administrativeBody: meeting.administrativeBody }) && takesNoDecisions({ kind: proposedKind, continuationOf: null, administrativeBody: meeting.administrativeBody })
                 && (decisions.get(`${meeting.cityId}/${meeting.id}`) ?? 0) > 0
                 ? `decisions on a meeting the decision poll would skip (${decisions.get(`${meeting.cityId}/${meeting.id}`)})` : null,
             // The agenda may show one meeting while the stream held two (a λογοδοσία invitation is often its own document).

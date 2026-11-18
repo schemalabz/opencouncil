@@ -350,6 +350,7 @@ export function MobileSearchOverlay({
             cats: [...c].sort(),
             cityIds: [...f.cityIds].sort(),
             bodyTypes: [...f.bodyTypes].sort(),
+            tier: f.tier,
             dateFrom: f.dateFrom,
             dateTo: f.dateTo,
         });
@@ -362,7 +363,7 @@ export function MobileSearchOverlay({
         if (!scrollToActiveFilter) return;
         const key = filters.cityIds.length
             ? 'municipalities'
-            : filters.bodyTypes.length
+            : filters.bodyTypes.length || filters.tier
               ? 'bodytype'
               : filters.dateFrom || filters.dateTo
                 ? 'dates'

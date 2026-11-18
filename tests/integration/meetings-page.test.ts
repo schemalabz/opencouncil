@@ -141,7 +141,7 @@ describe('meetings page - integration', () => {
 
     test('a body admin reaches the drafts of a body with no released meeting through its chip', async () => {
         const draftsOnly = await prisma.administrativeBody.create({
-            data: { cityId: archive.cityId, name: '3η Δημοτική Κοινότητα', name_en: '3rd Municipal Community', type: 'community' },
+            data: { cityId: archive.cityId, name: '3η Δημοτική Κοινότητα', name_en: '3rd Municipal Community', type: 'community', tier: 'primary' },
         })
         await prisma.councilMeeting.createMany({
             data: [1, 2].map(i => ({ id: `drafts-only-${i}`, cityId: archive.cityId, administrativeBodyId: draftsOnly.id, name: `Πρόχειρη ${i}`, name_en: `Draft ${i}`, dateTime: new Date(Date.UTC(2025, 0, i)), released: false })),
@@ -176,7 +176,7 @@ describe('meetings page - integration', () => {
 
     test('a city admin finds the drafts of a body with no released meeting under its type', async () => {
         const draftsOnly = await prisma.administrativeBody.create({
-            data: { cityId: archive.cityId, name: '4η Δημοτική Κοινότητα', name_en: '4th Municipal Community', type: 'community' },
+            data: { cityId: archive.cityId, name: '4η Δημοτική Κοινότητα', name_en: '4th Municipal Community', type: 'community', tier: 'primary' },
         })
         await prisma.councilMeeting.createMany({
             data: [1, 2].map(i => ({ id: `city-drafts-${i}`, cityId: archive.cityId, administrativeBodyId: draftsOnly.id, name: `Πρόχειρη ${i}`, name_en: `Draft ${i}`, dateTime: new Date(Date.UTC(2025, 1, i)), released: false })),

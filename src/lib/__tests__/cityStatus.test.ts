@@ -4,11 +4,17 @@ import {
     isCustomer,
     isOutOfNetwork,
     isPetitionable,
+    isPublicCity,
+    isOutOfNetworkCity,
+    isPublicThroughSecondaryOnly,
+    PUBLIC_STATUSES,
     PUBLIC_CITY_WHERE,
     publicMeetingWhere,
+    PUBLIC_THROUGH_SECONDARY_WHERE,
     CUSTOMER_CITY_WHERE,
     OUT_OF_NETWORK_CITY_WHERE,
 } from '../cityStatus';
+import { ALL_SCOPE, primaryMeetingWhere, secondaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 const ALL_STATUSES = Object.values(CityStatus);
 
@@ -48,12 +54,44 @@ describe('cityStatus predicates', () => {
     });
 });
 
+// The second route to publicness (#829): a released meeting of a secondary
+// body. It changes what is public and what is out of network; it changes
+// nothing about who is a customer or who can petition.
+describe('row-level predicates', () => {
+    it.each([
+        // status, publicThroughSecondary → isPublicCity, isOutOfNetworkCity, isPublicThroughSecondaryOnly
+        ['pending' as const, false, false, true, false],
+        ['pending' as const, true, true, false, true],
+        ['demo' as const, false, true, false, false],
+        ['demo' as const, true, true, false, false],
+        ['supported' as const, true, true, false, false],
+    ])('%s with secondary=%s: public=%s outOfNetwork=%s secondaryOnly=%s',
+        (status, publicThroughSecondary, pub, oon, secondaryOnly) => {
+            const city = { status, publicThroughSecondary };
+            expect(isPublicCity(city)).toBe(pub);
+            expect(isOutOfNetworkCity(city)).toBe(oon);
+            expect(isPublicThroughSecondaryOnly(city)).toBe(secondaryOnly);
+            // A row is public or out of network, never both, never neither.
+            expect(isPublicCity(city)).toBe(!isOutOfNetworkCity(city));
+        });
+});
+
 describe('where-clause fragments agree with the predicates', () => {
     // These fragments are spread into Prisma queries at ~10 call sites; if they
     // drift from the predicates, the DB filters one set and the UI another.
-    it('PUBLIC_CITY_WHERE selects exactly the statuses isPublic accepts', () => {
-        expect([...PUBLIC_CITY_WHERE.status.in].sort())
-            .toEqual(ALL_STATUSES.filter(isPublic).sort());
+    it('PUBLIC_CITY_WHERE accepts the statuses isPublic accepts, or the second route', () => {
+        expect([...PUBLIC_STATUSES].sort()).toEqual(ALL_STATUSES.filter(isPublic).sort());
+        expect(PUBLIC_CITY_WHERE.OR).toEqual([
+            { status: { in: [...PUBLIC_STATUSES] } },
+            PUBLIC_THROUGH_SECONDARY_WHERE,
+        ]);
+    });
+
+    it('the second route is a released meeting of a secondary body', () => {
+        expect(PUBLIC_THROUGH_SECONDARY_WHERE.councilMeetings.some).toEqual({
+            released: true,
+            administrativeBody: { tier: 'secondary' },
+        });
     });
 
     it('CUSTOMER_CITY_WHERE selects exactly the statuses isCustomer accepts', () => {
@@ -61,19 +99,25 @@ describe('where-clause fragments agree with the predicates', () => {
             .toEqual(ALL_STATUSES.filter(isCustomer));
     });
 
-    it('OUT_OF_NETWORK_CITY_WHERE selects exactly the statuses isOutOfNetwork accepts', () => {
+    it('OUT_OF_NETWORK_CITY_WHERE selects the status isOutOfNetwork accepts, minus the second route', () => {
         expect(ALL_STATUSES.filter((s) => s === OUT_OF_NETWORK_CITY_WHERE.status))
             .toEqual(ALL_STATUSES.filter(isOutOfNetwork));
+        expect(OUT_OF_NETWORK_CITY_WHERE.NOT).toBe(PUBLIC_THROUGH_SECONDARY_WHERE);
     });
 });
 
 describe('publicMeetingWhere', () => {
-    it('admits only a released meeting of a public city on the given realm', () => {
-        expect(publicMeetingWhere('greece')).toEqual({ released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } });
+    it('admits only a released meeting of a public city on the given realm, of the primary tier by default', () => {
+        expect(publicMeetingWhere('greece')).toEqual({ released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' }, AND: [primaryMeetingWhere] });
     });
 
     it('spans every realm only when the caller passes null', () => {
-        expect(publicMeetingWhere(null)).toEqual({ released: true, city: PUBLIC_CITY_WHERE });
+        expect(publicMeetingWhere(null)).toEqual({ released: true, city: PUBLIC_CITY_WHERE, AND: [primaryMeetingWhere] });
+    });
+
+    it('takes the scope of a reader who asked for more (#829)', () => {
+        expect(publicMeetingWhere('greece', ALL_SCOPE).AND).toEqual([{}]);
+        expect(publicMeetingWhere('greece', { tier: 'secondary' }).AND).toEqual([secondaryMeetingWhere]);
     });
 
     // meetingWhere in subjectsApi adds its date filters to the object it gets.

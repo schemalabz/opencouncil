@@ -9,6 +9,7 @@ import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { resolveDateRange } from '@/lib/dates/dayBounds';
+import { meetingListTier } from '@/lib/utils/bodyTier';
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
 
-        const { limit, from, to, includeUnreleased } = meetingListQuerySchema.parse(queryParams);
+        const { limit, from, to, includeUnreleased, tier } = meetingListQuerySchema.parse(queryParams);
 
         // includeUnreleased needs an editor of the city. A body admin is one:
         // they get the drafts of their bodies and no other, so the meeting form
@@ -65,6 +66,9 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
             unreleased,
             limit,
             ...resolveDateRange({ from, to }, timezone),
+            // The picker of a postponed meeting narrows the list to the body of
+            // the new meeting itself (#829).
+            scope: { tier: meetingListTier(tier, includeUnreleased) },
         });
 
         // An editor gets the rows as they are, links included, for the admin

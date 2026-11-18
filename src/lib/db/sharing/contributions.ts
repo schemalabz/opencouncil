@@ -2,6 +2,7 @@ import 'server-only';
 import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
+import { ALL_SCOPE } from '@/lib/utils/bodyTier';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { extractUtteranceIds } from '@/lib/utils/references';
@@ -19,7 +20,7 @@ export const MAX_CONTRIBUTION_REFERENCES = 100;
 export async function getPublicContribution(id: string, realm: Realm, locale: string) {
     if (!validSourceId(id)) return null;
     const contribution = await prisma.speakerContribution.findFirst({
-        where: { id, subject: { councilMeeting: publicMeetingWhere(realm) } }, select: contributionSelect,
+        where: { id, subject: { councilMeeting: publicMeetingWhere(realm, ALL_SCOPE) } }, select: contributionSelect,
     });
     if (!contribution) return null;
     const { subject } = contribution;

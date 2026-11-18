@@ -1,5 +1,6 @@
 import { __setSessionEmail } from '../mocks/auth'
 import prisma from '@/lib/db/prisma'
+import { defaultTierOf } from '@/lib/utils/bodyTier'
 import { NonAgendaReason, Prisma } from '@prisma/client'
 
 export async function createCity(data?: Partial<Prisma.CityCreateInput>) {
@@ -27,6 +28,9 @@ export async function createAdministrativeBody(cityId: string, data?: Partial<Pr
             type: data?.type ?? 'council',
             cityId,
             ...data,
+            // After the spread, so `{ tier: undefined }` still gets the default
+            // that every path of the app that creates a body sets.
+            tier: data?.tier ?? defaultTierOf(data?.type ?? 'council'),
         },
     })
 }

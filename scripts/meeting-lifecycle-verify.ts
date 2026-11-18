@@ -40,7 +40,7 @@ async function main() {
         select: {
             cityId: true, id: true, name: true, kind: true, urgent: true, sessionNumber: true, format: true, scheduleStatus: true, continuationOfId: true,
             postponedFromId: true, released: true,
-            administrativeBody: { select: { name: true, type: true } },
+            administrativeBody: { select: { name: true, type: true, tier: true } },
             city: { select: { realm: true } },
             _count: { select: { subjects: true } },
         },
@@ -86,8 +86,11 @@ async function main() {
                 problems.push(`${line.cityId}/${line.id}: the link from ${line.after.postponedTo} is missing`);
             }
         }
-        const skipped = (record: { kind: MeetingKind | null }) => takesNoDecisions({ kind: record.kind, continuationOf: null });
-        const nowSkipped = changed.filter((line) => !skipped(line.before) && skipped(line.after));
+        // A meeting of a secondary body is skipped whatever its kind, so a kind change does not newly skip it.
+        const bodyOf = new Map(meetings.map((m) => [`${m.cityId}/${m.id}`, m.administrativeBody]));
+        const skipped = (line: { cityId: string; id: string }, record: { kind: MeetingKind | null }) =>
+            takesNoDecisions({ kind: record.kind, continuationOf: null, administrativeBody: bodyOf.get(`${line.cityId}/${line.id}`) ?? null });
+        const nowSkipped = changed.filter((line) => !skipped(line, line.before) && skipped(line, line.after));
         for (const line of nowSkipped) {
             const decisions = await prisma.decision.count({ where: { subject: { cityId: line.cityId, councilMeetingId: line.id } } });
             const note = `${line.cityId}/${line.id}: now skipped by the decision poll (kind ${line.after.kind}), ${decisions} decisions`;

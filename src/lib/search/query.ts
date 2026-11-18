@@ -3,6 +3,7 @@ import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from '
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
+import type { TierScope } from '@/lib/utils/bodyTier';
 import { DEFAULT_SCORE_PROFILE, type QueryProfile } from './profile';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
@@ -436,11 +437,13 @@ const ADMIN_BODY_BOOST_SHARE: Record<AdministrativeBodyType, number> = {
     council: 1,
     committee: 0.5,
     community: 0,
+    youthCouncil: 0,
 };
 const ADMIN_BODY_WEIGHT: Record<AdministrativeBodyType, number> = {
     council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.council,
     committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.committee,
     community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.community,
+    youthCouncil: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.youthCouncil,
 };
 // No administrative body assigned ranks like the lowest tier (community), not the
 // best one — never below the floor of 1.0 (no penalty), just no boost.
@@ -504,6 +507,7 @@ const RANKING_SCRIPT = `
     double adminWeight = bodyType == 'council' ? params.councilWeight
         : bodyType == 'committee' ? params.committeeWeight
         : bodyType == 'community' ? params.communityWeight
+        : bodyType == 'youthCouncil' ? params.youthCouncilWeight
         : params.defaultAdminBodyWeight;
 
     double discussionMinutes = doc['discussion_speaking_seconds'].size() == 0 ? 0 : doc['discussion_speaking_seconds'].value / 60.0;
@@ -530,6 +534,7 @@ function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
                     councilWeight: ADMIN_BODY_WEIGHT.council,
                     committeeWeight: ADMIN_BODY_WEIGHT.committee,
                     communityWeight: ADMIN_BODY_WEIGHT.community,
+                    youthCouncilWeight: ADMIN_BODY_WEIGHT.youthCouncil,
                     defaultAdminBodyWeight: DEFAULT_ADMIN_BODY_WEIGHT,
                     discussionWeight: DISCUSSION_LENGTH_BOOST_WEIGHT,
                     recencyWeight: RECENCY_BOOST_WEIGHT,
@@ -595,8 +600,24 @@ function introducedOrSpokeFilter(
     };
 }
 
-// Build filters for the search query
-export function buildFilters(request: SearchRequest): QueryContainer[] {
+/**
+ * The index clause of a tier, or null when the tier needs none. The index
+ * holds the id of a body and not its tier, so the clause names the realm's
+ * secondary bodies by id (getSecondaryBodyIdsCached). A must_not keeps the
+ * documents with no body, which are primary.
+ */
+export function searchTierFilter(tier: TierScope, secondaryBodyIds: readonly string[]): QueryContainer | null {
+    if (tier === 'all') return null;
+    const ofSecondary: QueryContainer = { terms: { 'administrative_body_id': [...secondaryBodyIds] } };
+    if (tier === 'secondary') return ofSecondary;
+    return secondaryBodyIds.length ? { bool: { must_not: [ofSecondary] } } : null;
+}
+
+/**
+ * The filters of the search query. `secondaryBodyIds` are the ids of the
+ * secondary bodies of the realm, which the tier of the request reads.
+ */
+export function buildFilters(request: SearchRequest, secondaryBodyIds: readonly string[]): QueryContainer[] {
     const filters: QueryContainer[] = subjectVisibilityFilters();
 
     // Add city filter if specified
@@ -657,6 +678,10 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
             }
             : ofTypes);
     }
+
+    // The tier (see BodyScope): primary when absent. Named bodies are in any tier.
+    const tierFilter = request.administrativeBodyIds?.length ? null : searchTierFilter(request.tier ?? 'primary', secondaryBodyIds);
+    if (tierFilter) filters.push(tierFilter);
 
     // Add topic filter if specified
     if (request.topicIds && request.topicIds.length > 0) {
@@ -1112,9 +1137,13 @@ function buildSemanticFallbackQuery(
     };
 }
 
-// Build the search query
+/**
+ * The search query. `secondaryBodyIds` are the ids of the secondary bodies of
+ * the realm (see buildFilters).
+ */
 export function buildSearchQuery(
     request: SearchRequest,
+    secondaryBodyIds: readonly string[],
     extractedFilters: ExtractedFilters,
     extractedLocations?: Location[],
     profile: QueryProfile = DEFAULT_SCORE_PROFILE
@@ -1130,7 +1159,7 @@ export function buildSearchQuery(
     // (they require a query) and return the filtered set newest-first. Used e.g.
     // for "everything a person spoke about" or "all subjects in a date range".
     const queryText = request.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
-    const filters = buildFilters(request);
+    const filters = buildFilters(request, secondaryBodyIds);
     if (!queryText) {
         // An extracted location only boosts, and with no text there is nothing
         // to extract from. A caller's place reaches this path as the

@@ -29,7 +29,7 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     const city = await getCityCached(cityId);
     if (!city) notFound();
 
-    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars } = parseEmbedConfig(searchParams);
+    const { limit, scope, themeVars } = parseEmbedConfig(searchParams);
     const baseUrl = realmBaseUrl(city.realm);
     const showSubjects = searchParams.showSubjects !== 'false';
 
@@ -38,8 +38,8 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     // meetings when there are more upcoming than `limit`.
     const [upcomingAll, pastAll] = await Promise.all([
         // A postponed or cancelled meeting is not coming up; the past list keeps it, with its status.
-        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming', takesPlace: true }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past' }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit, scope, timeFilter: 'upcoming', takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit, scope, timeFilter: 'past' }),
     ]);
 
     // Prioritize upcoming; fill remaining slots with past meetings.

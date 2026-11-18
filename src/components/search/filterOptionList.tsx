@@ -78,7 +78,10 @@ export function AdminBodyOptions({
                             className={itemClassName}
                             selected={filters.adminBodyType === group.type && !filters.adminBodyId}
                             onSelect={() => {
-                                setFilters({ adminBodyType: group.type, adminBodyId: undefined });
+                                // A type narrows inside the tier, so a secondary
+                                // body of the type needs the tier widened (#829).
+                                const tier = group.bodies.some(body => body.tier === 'secondary') ? 'all' : undefined;
+                                setFilters({ adminBodyType: group.type, adminBodyId: undefined, tier });
                                 onSelected();
                             }}
                         />
@@ -93,7 +96,7 @@ export function AdminBodyOptions({
                             onSelect={() => {
                                 // Both, so the pill/section label and any future
                                 // type-level filter stay consistent.
-                                setFilters({ adminBodyType: group.type, adminBodyId: body.value });
+                                setFilters({ adminBodyType: group.type, adminBodyId: body.value, tier: undefined });
                                 onSelected();
                             }}
                         />

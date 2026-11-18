@@ -1,5 +1,6 @@
 "use client"
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { AdministrativeBodyType, BodyTier } from '@prisma/client'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -27,9 +28,10 @@ import {
     type AdministrativeBodyFormInput,
     type AdministrativeBodyFormOutput,
 } from "@/lib/zod-schemas/administrativeBody"
-import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS } from '@/lib/documents/settings'
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSendSettings, AdministrativeBodyWithSettings } from '@/lib/db/types'
+import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
+import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -37,6 +39,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
+import { DocumentSendFields } from './DocumentSendFields'
 import type { DecisionConventions } from '@/lib/decisionConventions'
 import { apiErrorMessage, formatValidationIssues, type FormattableIssue } from '@/lib/utils/validationIssues'
 
@@ -77,7 +80,8 @@ function getFormDefaults(body?: AdministrativeBodyWithSendSettings | null): Admi
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         place: body?.place || "",
-        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+        tier: body?.tier ?? defaultTierOf("council"),
+        notificationBehavior: body?.notificationBehavior ?? defaultNotificationBehavior(body?.tier ?? defaultTierOf("council")),
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: body?.decisionConventions ?? null,
@@ -102,6 +106,30 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         defaultValues: getFormDefaults(editingBody),
     })
 
+    // On a new body, the tier follows the type (see defaultTierOf) and the
+    // notification default follows the tier (see defaultNotificationBehavior),
+    // until the admin picks a value of that field. An existing body keeps what
+    // it has. A ref and not isDirty: isDirty clears when the admin picks the
+    // default value again, and a later type change then overwrites the choice.
+    const picked = useRef({ tier: false, notificationBehavior: false })
+
+    function openForm(body: AdministrativeBodyWithSendSettings | null) {
+        setEditingBody(body)
+        form.reset(getFormDefaults(body))
+        picked.current = { tier: false, notificationBehavior: false }
+    }
+
+    function followTier(tier: BodyTier) {
+        if (!editingBody && !picked.current.notificationBehavior) form.setValue('notificationBehavior', defaultNotificationBehavior(tier))
+    }
+
+    function followType(type: AdministrativeBodyType) {
+        if (editingBody || picked.current.tier) return
+        const tier = defaultTierOf(type)
+        form.setValue('tier', tier)
+        followTier(tier)
+    }
+
     async function onSubmit(values: AdministrativeBodyFormOutput) {
         setIsSubmitting(true)
         setFormError(null)
@@ -123,6 +151,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     name: values.name,
                     name_en: values.name_en,
                     type: values.type,
+                    // Only a superadmin sets the tier. A new body of a city admin takes the default of its type.
+                    tier: isSuperAdmin ? values.tier : undefined,
                     youtubeChannelUrl: values.youtubeChannelUrl,
                     place: values.place,
                     notificationBehavior: values.notificationBehavior,
@@ -134,8 +164,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
 
             if (response.ok) {
                 onUpdate()
-                setEditingBody(null)
-                form.reset(getFormDefaults())
+                openForm(null)
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
@@ -229,16 +258,22 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{t('type')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select
+                                            onValueChange={(type: AdministrativeBodyType) => {
+                                                field.onChange(type)
+                                                followType(type)
+                                            }}
+                                            defaultValue={field.value}
+                                        >
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder={t('selectType')} />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="council">{t('types.council')}</SelectItem>
-                                                <SelectItem value="committee">{t('types.committee')}</SelectItem>
-                                                <SelectItem value="community">{t('types.community')}</SelectItem>
+                                                {ADMIN_BODY_TYPE_ORDER.map((type) => (
+                                                    <SelectItem key={type} value={type}>{t(`types.${type}`)}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>
@@ -248,6 +283,39 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
+                            {isSuperAdmin && (
+                                <FormField
+                                    control={form.control}
+                                    name="tier"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('tier')}</FormLabel>
+                                            <Select
+                                                onValueChange={(tier: BodyTier) => {
+                                                    picked.current.tier = true
+                                                    field.onChange(tier)
+                                                    followTier(tier)
+                                                }}
+                                                value={field.value}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="primary">{t('tierOptions.primary')}</SelectItem>
+                                                    <SelectItem value="secondary">{t('tierOptions.secondary')}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>
+                                                {t('tierDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                             <FormField
                                 control={form.control}
                                 name="youtubeChannelUrl"
@@ -284,71 +352,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
-                            <div className="space-y-3">
-                                <div>
-                                    <h3 className="text-sm font-medium">{t('documentSends.title')}</h3>
-                                    <p className="text-sm text-muted-foreground">{t('documentSends.description')}</p>
-                                </div>
-                                {DOCUMENT_KINDS.map((document) => {
-                                    const enabled = form.watch(`documentSendSettings.${document}.enabled`)
-                                    // An address typed and then switched off still fails its check, so its field stays in view
-                                    const addressError = form.formState.errors.documentSendSettings?.[document]
-                                    return (
-                                        <div key={document} className="space-y-3 rounded-lg border p-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`documentSendSettings.${document}.enabled`}
-                                                render={({ field }) => (
-                                                    <FormItem className="space-y-1">
-                                                        {/* The name and the switch share the first line; the description sits under the name */}
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <FormLabel className="text-sm font-medium">{t(`documentSends.documents.${document}.name`)}</FormLabel>
-                                                            <FormControl>
-                                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                            </FormControl>
-                                                        </div>
-                                                        <FormDescription>
-                                                            {t(`documentSends.documents.${document}.description`, { days: MINUTES_THRESHOLD_DAYS })}
-                                                        </FormDescription>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            {/* The addresses show for a document that is on, where the schema requires a To address, and for one whose addresses fail their check */}
-                                            {(enabled || addressError) && (
-                                                <>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`documentSendSettings.${document}.to`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>{t('documentSends.to')}</FormLabel>
-                                                                <FormControl>
-                                                                    <Input {...field} type="email" placeholder={t('documentSends.toPlaceholder')} />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`documentSendSettings.${document}.cc`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>{t('documentSends.cc')}</FormLabel>
-                                                                <FormControl>
-                                                                    <Input {...field} type="text" placeholder={t('documentSends.ccPlaceholder')} />
-                                                                </FormControl>
-                                                                <FormDescription>{t('documentSends.ccDescription')}</FormDescription>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                            <DocumentSendFields form={form} />
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"
@@ -358,7 +362,10 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         <FormControl>
                                             <TripleToggle
                                                 value={field.value}
-                                                onChange={field.onChange}
+                                                onChange={(value) => {
+                                                    picked.current.notificationBehavior = true
+                                                    field.onChange(value)
+                                                }}
                                                 options={[
                                                     {
                                                         value: 'NOTIFICATIONS_DISABLED',
@@ -469,8 +476,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             className="h-7 gap-1.5 rounded-[6px] px-2 text-xs"
                             onClick={(e) => {
                                 e.preventDefault();
-                                setEditingBody(null)
-                                form.reset(getFormDefaults())
+                                openForm(null)
                                 setIsDialogOpen(true)
                             }}
                         >
@@ -485,7 +491,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{body.name}</span>
                                 <span className="block truncate text-xs text-muted-foreground">
-                                    {t(`types.${body.type.toLowerCase()}`)} · {body.name_en}
+                                    {t(`types.${body.type}`)} · {body.name_en}
                                 </span>
                             </span>
                             <Button
@@ -496,8 +502,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 aria-label={t('editBody')}
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    setEditingBody(body)
-                                    form.reset(getFormDefaults(body))
+                                    openForm(body)
                                     setIsDialogOpen(true)
                                 }}
                             >

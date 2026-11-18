@@ -160,6 +160,7 @@ async function main() {
             name,
             name_en: nameEn,
             type: 'community',
+            tier: 'primary',
             notificationBehavior: 'NOTIFICATIONS_APPROVAL',
             cityId: cityId,
           },

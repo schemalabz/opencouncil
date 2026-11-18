@@ -24,7 +24,7 @@ import { AdministrativeBodyType } from '@prisma/client';
 
 // Create mock implementations of the functions we want to test
 const mockPeopleModule = {
-  getPeopleForCity: jest.fn(),
+  getPeopleOfCityForContent: jest.fn(),
   getPeopleForMeeting: jest.fn(),
   getPerson: jest.fn(),
   createPerson: jest.fn(),
@@ -34,7 +34,7 @@ const mockPeopleModule = {
 
 jest.mock('../db/people', () => mockPeopleModule);
 
-const { getPeopleForMeeting, getPeopleForCity } = mockPeopleModule;
+const { getPeopleForMeeting, getPeopleOfCityForContent } = mockPeopleModule;
 
 describe('getPeopleForMeeting', () => {
   const cityId = 'test-city-id';
@@ -136,11 +136,11 @@ describe('getPeopleForMeeting', () => {
     jest.clearAllMocks();
 
     // Set up default mock implementations
-    getPeopleForCity.mockResolvedValue(allMockPeople);
+    getPeopleOfCityForContent.mockResolvedValue(allMockPeople);
 
     // Mock implementation for getPeopleForMeeting that simulates the actual logic
     getPeopleForMeeting.mockImplementation(async (cityId: string, administrativeBodyId: string | null) => {
-      const allPeople = await getPeopleForCity(cityId);
+      const allPeople = await getPeopleOfCityForContent(cityId);
 
       // If no administrative body, return all people
       if (!administrativeBodyId) {

@@ -66,6 +66,7 @@
   "notisExampleLabel": "exemple",
   "scopeCommittee": "Commission",
   "scopeCommunity": "Communes",
+  "scopeYouthCouncil": "Jeunes",
   "period3m": "3 mois",
   "period6m": "6 mois",
   "period12m": "12 mois",
@@ -77,7 +78,9 @@
   "scopeCouncilFull": "Conseil municipal",
   "scopeCommitteeFull": "Commission municipale",
   "scopeCommunityFull": "Communes déléguées",
+  "scopeYouthCouncilFull": "Conseil des jeunes",
   "scopeAllFull": "Tous les organes",
+  "allMeetingsOfBody": "Toutes les séances",
   "petitionTeaser": {
     "municipality": "Vous voulez OpenCouncil dans votre commune ?",
     "region": "Vous voulez OpenCouncil dans votre région ?"

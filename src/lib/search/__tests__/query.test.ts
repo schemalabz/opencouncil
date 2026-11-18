@@ -17,6 +17,9 @@ const NO_EXTRACTED_FILTERS: ExtractedFilters = {
     locationName: null,
 };
 
+// A realm with no secondary body: the primary tier adds no clause.
+const NO_SECONDARY_IDS: string[] = [];
+
 type BoolQuery = estypes.QueryDslBoolQuery;
 
 // `match` accepts a shorthand value as well as the full object form, so narrow
@@ -172,7 +175,7 @@ describe('buildFilters person filter', () => {
     it('OR-combines introduced-by and spoke-in clauses (issue #373)', () => {
         const request: SearchRequest = { query: 'roads', personIds: ['p1'] };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
         const personFilter = findPersonFilter(filters);
 
         expect(personFilter).toBeDefined();
@@ -201,7 +204,7 @@ describe('buildFilters person filter', () => {
     it('does not split the person filter into two separate AND-combined top-level clauses', () => {
         const request: SearchRequest = { query: 'roads', personIds: ['p1'] };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
 
         // Regression guard: the two person clauses must NOT appear as separate
         // top-level filter entries (that would AND them — the original bug).
@@ -224,7 +227,7 @@ describe('buildFilters person filter', () => {
             partyIds: ['party1'],
         };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
 
         const personFilter = findPersonFilter(filters);
         const partyFilter = findPartyFilter(filters);
@@ -236,7 +239,7 @@ describe('buildFilters person filter', () => {
     it('omits the person filter entirely when no personIds are given', () => {
         const request: SearchRequest = { query: 'roads' };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
 
         expect(findPersonFilter(filters)).toBeUndefined();
     });
@@ -244,7 +247,7 @@ describe('buildFilters person filter', () => {
     it('omits the person filter when personIds is an empty array', () => {
         const request: SearchRequest = { query: 'roads', personIds: [] };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
 
         expect(findPersonFilter(filters)).toBeUndefined();
     });
@@ -257,7 +260,7 @@ describe('buildFilters party filter', () => {
     it('OR-combines introduced-by-party and a speaker of the party', () => {
         const request: SearchRequest = { query: 'roads', partyIds: ['party1'] };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
         const partyFilter = findPartyFilter(filters);
 
         expect(partyFilter).toBeDefined();
@@ -283,14 +286,14 @@ describe('buildFilters party filter', () => {
     it('does not leave an introducer-only party clause at the top level', () => {
         const request: SearchRequest = { query: 'roads', partyIds: ['party1'] };
 
-        const filters = buildFilters(request);
+        const filters = buildFilters(request, NO_SECONDARY_IDS);
 
         expect(filters.filter((f) => f.terms?.['introduced_by_party_id'])).toHaveLength(0);
     });
 
     it('omits the party filter when partyIds is empty or absent', () => {
-        expect(findPartyFilter(buildFilters({ query: 'roads' }))).toBeUndefined();
-        expect(findPartyFilter(buildFilters({ query: 'roads', partyIds: [] }))).toBeUndefined();
+        expect(findPartyFilter(buildFilters({ query: 'roads' }, NO_SECONDARY_IDS))).toBeUndefined();
+        expect(findPartyFilter(buildFilters({ query: 'roads', partyIds: [] }, NO_SECONDARY_IDS))).toBeUndefined();
     });
 });
 
@@ -301,7 +304,7 @@ describe('buildFilters party filter', () => {
 // the lexical bool is the first branch of a dis_max against the semantic
 // fallback; with it off, it stands alone and there is no dis_max.
 function textArms(query: string, config?: SearchRequest['config']) {
-    const q = buildSearchQuery({ query, config }, NO_EXTRACTED_FILTERS);
+    const q = buildSearchQuery({ query, config }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
     const { inner } = unwrapRanking(q.query);
     const outer = inner?.bool as BoolQuery;
     const textClause = ((outer.must ?? []) as QueryContainer[])[0];
@@ -338,7 +341,7 @@ describe('buildSearchQuery lexical ranking', () => {
     const lexicalShouldClauses = scoredShouldClauses;
 
     it('nudges the text-relevance score with the ranking function, multiplicatively', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const { functionScore } = unwrapRanking(q.query);
 
         expect(functionScore.boost_mode).toBe('multiply');
@@ -523,6 +526,7 @@ describe('buildSearchQuery lexical ranking', () => {
         );
         const located = buildSearchQuery(
             { query: 'σχολεία Άργους' },
+            NO_SECONDARY_IDS,
             { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
         );
         const locationText = tierBaseByField(
@@ -632,6 +636,7 @@ describe('buildSearchQuery semantic fallback (dis_max)', () => {
     it('competes semantic against lexical via a pure-max dis_max, not a second retriever', () => {
         const q = buildSearchQuery(
             { query: 'δάνειο', config: { enableSemanticSearch: true } },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS
         );
         expect(q.retriever).toBeUndefined();
@@ -724,7 +729,7 @@ describe('buildSearchQuery ranking function', () => {
     }
 
     it('scores administrative bodies council > committee > community, and weighs discussion length and recency', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
 
         expect(params.councilWeight).toBeGreaterThan(params.committeeWeight);
@@ -741,7 +746,7 @@ describe('buildSearchQuery ranking function', () => {
     // administrative-body span is wider than its recency span, so a council
     // subject of any age would outrank a community subject from today.
     it('keeps the ranking function out of the filter-only branch', () => {
-        const q = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ personIds: ['p1'] }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(q.query?.function_score).toBeUndefined();
 
@@ -750,7 +755,7 @@ describe('buildSearchQuery ranking function', () => {
     });
 
     it('applies the ranking function multiplicatively on the text path', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const functionScore = q.query?.function_score as estypes.QueryDslFunctionScoreQuery;
 
         expect(functionScore.boost_mode).toBe('multiply');
@@ -763,7 +768,7 @@ describe('buildSearchQuery ranking function', () => {
     // stays. Search reads the magnitudes, so it cannot follow them. The shared
     // property is the ordering — assert exactly that, and nothing more.
     it('orders administrative bodies the way the standard subject ranking does', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
         const byDescending = (weights: Record<string, number>) =>
             Object.keys(weights).sort((a, b) => weights[b] - weights[a]);
@@ -772,6 +777,7 @@ describe('buildSearchQuery ranking function', () => {
             council: params.councilWeight,
             committee: params.committeeWeight,
             community: params.communityWeight,
+            youthCouncil: params.youthCouncilWeight,
         })).toEqual(byDescending(ADMIN_BODY_TIER));
     });
 
@@ -781,10 +787,10 @@ describe('buildSearchQuery ranking function', () => {
     // would both penalise subjects the comment promises never to penalise and
     // make the tier-margin check report unsafe pairs as safe.
     it('floors every administrative-body weight at 1.0, so none is a penalty', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
 
-        for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'defaultAdminBodyWeight']) {
+        for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'youthCouncilWeight', 'defaultAdminBodyWeight']) {
             expect(params[key]).toBeGreaterThanOrEqual(1);
         }
     });
@@ -796,7 +802,7 @@ describe('buildSearchQuery ranking function', () => {
     // leave the whole archive tied at no boost at all, which the emitted number
     // alone does not show.
     it('decays recency over years, not days', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
         const shareOfBoostLeft = (ageDays: number) =>
             Math.exp(-ageDays / params.recencyScaleDays);
@@ -807,7 +813,7 @@ describe('buildSearchQuery ranking function', () => {
     });
 
     it('scores recency against a concrete instant', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
 
         expect(typeof params.nowMillis).toBe('number');
@@ -868,6 +874,7 @@ describe('buildSearchQuery location handling', () => {
     it('keeps AI-extracted locations out of the hard filters', () => {
         const q = buildSearchQuery(
             { query: 'παλαιστίνη' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             LOCATIONS
         );
@@ -878,6 +885,7 @@ describe('buildSearchQuery location handling', () => {
     it('applies locations as a proximity boost that cannot match on its own', () => {
         const q = buildSearchQuery(
             { query: 'παλαιστίνη' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             LOCATIONS
         );
@@ -900,11 +908,13 @@ describe('buildSearchQuery location handling', () => {
     it('awards the proximity boost once, however many points one place geocoded to', () => {
         const one = buildSearchQuery(
             { query: 'πάρκα' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             LOCATIONS
         );
         const many = buildSearchQuery(
             { query: 'πάρκα' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             SAME_PLACE_GEOCODED_TWICE
         );
@@ -926,6 +936,7 @@ describe('buildSearchQuery location handling', () => {
     it('keeps the proximity boost below the weakest content tier', () => {
         const q = buildSearchQuery(
             { query: 'πάρκα' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             LOCATIONS
         );
@@ -944,7 +955,7 @@ describe('buildSearchQuery location handling', () => {
     // A clause that passed the point through would name a key the geo query
     // rejects.
     it('names the point the way Elasticsearch reads it', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS, LOCATIONS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS, LOCATIONS);
 
         expect(geoClausesOf(q)[0]?.geo_distance).toMatchObject({
             location_geojson: { lat: 38.0, lon: 23.7 },
@@ -954,6 +965,7 @@ describe('buildSearchQuery location handling', () => {
     it('emits the radius in metres, not kilometres', () => {
         const q = buildSearchQuery(
             { query: 'παλαιστίνη' },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             LOCATIONS
         );
@@ -964,7 +976,7 @@ describe('buildSearchQuery location handling', () => {
     });
 
     it('adds no geo clause when no locations are extracted', () => {
-        const q = buildSearchQuery({ query: 'παλαιστίνη' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'παλαιστίνη' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const lexical = lexicalQueryOf(q);
 
         expect(lexical?.bool?.must).toBeDefined();
@@ -976,6 +988,7 @@ describe('buildSearchQuery location handling', () => {
     it('applies an explicit location filter as a hard filter on a text search', () => {
         const q = buildSearchQuery(
             { query: 'πάρκα', location: LOCATIONS[0] },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS
         );
         const geo = hardFiltersOf(q).filter((f) => JSON.stringify(f).includes('geo_distance'));
@@ -990,6 +1003,7 @@ describe('buildSearchQuery location handling', () => {
         const extracted = [{ point: { lat: 37.0, lng: 22.0 }, radiusMeters: 2000 }];
         const q = buildSearchQuery(
             { query: 'πάρκα', location: LOCATIONS[0] },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS,
             extracted
         );
@@ -1002,7 +1016,7 @@ describe('buildSearchQuery location handling', () => {
     });
 
     it('applies an explicit location filter on the filter-only browse path', () => {
-        const q = buildSearchQuery({ location: LOCATIONS[0] }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ location: LOCATIONS[0] }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
         const filter = (q.query?.bool?.filter ?? []) as QueryContainer[];
 
         expect(JSON.stringify(filter)).toContain('geo_distance');
@@ -1146,7 +1160,7 @@ describe('buildSearchQuery punctuation variants', () => {
 
 describe('buildSearchQuery filter-only mode', () => {
     it('builds a single scored query (no retriever) when query text is present', () => {
-        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(q.retriever).toBeUndefined();
         expect(q.query).toBeDefined();
@@ -1162,6 +1176,7 @@ describe('buildSearchQuery filter-only mode', () => {
                     personIds: ['p1'],
                     dateRange: { start: '2026-07-01', end: '2026-07-31' },
                 },
+                NO_SECONDARY_IDS,
                 NO_EXTRACTED_FILTERS
             );
 
@@ -1185,7 +1200,7 @@ describe('buildSearchQuery filter-only mode', () => {
     // leaves large groups tied. Elasticsearch orders tied documents arbitrarily,
     // which lets paging repeat one subject and skip another.
     it('breaks meeting_date ties on a unique key so paging stays stable', () => {
-        const q = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ personIds: ['p1'] }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(q.sort).toEqual([
             { 'meeting_date': { order: 'desc' } },
@@ -1194,7 +1209,7 @@ describe('buildSearchQuery filter-only mode', () => {
     });
 
     it('respects pagination config in the filter-only branch', () => {
-        const q = buildSearchQuery({ config: { size: 5, from: 10 } }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ config: { size: 5, from: 10 } }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(q.size).toBe(5);
         expect(q.from).toBe(10);
@@ -1209,7 +1224,7 @@ describe('buildSearchQuery filter-only mode', () => {
         ['filter-only', { personIds: ['p1'], config: { size: 5, from: 10 } }],
     ];
     it.each(pagedRequests)('pages the %s branch and counts every hit behind it', (_branch, request) => {
-        const q = buildSearchQuery(request, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery(request, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(q.size).toBe(5);
         expect(q.from).toBe(10);
@@ -1350,6 +1365,7 @@ describe('buildSearchQuery cross-field coverage', () => {
     it('scores location_text against the extracted location, not the query text', () => {
         const q = buildSearchQuery(
             { query: 'σχολεία Άργους' },
+            NO_SECONDARY_IDS,
             { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
         );
         const { inner } = unwrapRanking(q.query);
@@ -1382,6 +1398,7 @@ describe('buildSearchQuery cross-field coverage', () => {
     it('normalizes the extracted location name and spells out its variants', () => {
         const q = buildSearchQuery(
             { query: 'μπαρ' },
+            NO_SECONDARY_IDS,
             { ...NO_EXTRACTED_FILTERS, locationName: 'ΔΙ΄ΕΥΧΩΝ' }
         );
         const { inner } = unwrapRanking(q.query);
@@ -1484,6 +1501,7 @@ describe('buildSearchQuery agreement with the index mapping', () => {
             location: { point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 },
             config: { enableSemanticSearch: true },
         },
+        NO_SECONDARY_IDS,
         { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' },
         [{ point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 }]
     );
@@ -1501,7 +1519,7 @@ describe('buildSearchQuery agreement with the index mapping', () => {
     });
 
     it('sorts the browse listing on fields the index mapping defines', () => {
-        const sort = buildSearchQuery({ personIds: ['p1'] }, NO_EXTRACTED_FILTERS)
+        const sort = buildSearchQuery({ personIds: ['p1'] }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS)
             .sort as estypes.SortCombinations[];
 
         const fields = sort.flatMap(entry => (isObject(entry) ? Object.keys(entry) : []));
@@ -1530,7 +1548,7 @@ describe('buildSearchQuery agreement with the index mapping', () => {
     // query time. This checks the field names and the types the script's own
     // operations require; only a run against a live index checks the Painless.
     it('reads doc fields the index can serve at scoring time', () => {
-        const { functionScore } = unwrapRanking(buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS).query);
+        const { functionScore } = unwrapRanking(buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS).query);
         const fn = functionScore.functions?.[0] as estypes.QueryDslFunctionScoreContainer;
         const source = (fn.script_score?.script as estypes.Script).source as string;
 
@@ -1572,7 +1590,7 @@ describe('buildSearchQuery city filter', () => {
     }
 
     it('filters on the city ids of the request', () => {
-        const q = buildSearchQuery({ query: 'πάρκα', cityIds: ['athens'] }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ query: 'πάρκα', cityIds: ['athens'] }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS);
 
         expect(cityIdsOf(q)).toEqual(['athens']);
     });
@@ -1580,6 +1598,7 @@ describe('buildSearchQuery city filter', () => {
     it('does not let extracted city ids replace the ids of the request', () => {
         const q = buildSearchQuery(
             { query: 'πάρκα στο Παρίσι', cityIds: ['athens'] },
+            NO_SECONDARY_IDS,
             { ...NO_EXTRACTED_FILTERS, cityIds: ['paris'] }
         );
 
@@ -1589,7 +1608,7 @@ describe('buildSearchQuery city filter', () => {
 
 describe('buildFilters visibility', () => {
     it('applies every visibility filter, whatever the request', () => {
-        const filters = buildFilters({ query: 'roads' });
+        const filters = buildFilters({ query: 'roads' }, NO_SECONDARY_IDS);
         for (const visibility of subjectVisibilityFilters()) {
             expect(filters).toContainEqual(visibility);
         }
@@ -1608,13 +1627,13 @@ describe('buildFilters administrative body filter', () => {
     }
 
     it('filters on the ids of named administrative bodies', () => {
-        const filters = buildFilters({ query: 'roads', administrativeBodyIds: ['body1'] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyIds: ['body1'] }, NO_SECONDARY_IDS);
 
         expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
     });
 
     it('filters on the administrative body type', () => {
-        const filters = buildFilters({ query: 'roads', administrativeBodyTypes: ['committee'] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyTypes: ['committee'] }, NO_SECONDARY_IDS);
 
         expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
     });
@@ -1623,7 +1642,7 @@ describe('buildFilters administrative body filter', () => {
     // reads it as the council's (list_meetings, the timeline). A plain terms
     // filter on 'council' dropped its subjects.
     it('admits subjects of a meeting with no body when the types include the council', () => {
-        const [clause] = buildFilters({ query: 'roads', administrativeBodyTypes: ['council'] })
+        const [clause] = buildFilters({ query: 'roads', administrativeBodyTypes: ['council'] }, NO_SECONDARY_IDS)
             .filter((f) => JSON.stringify(f).includes('administrative_body_type'));
 
         expect(clause).toEqual({
@@ -1642,21 +1661,21 @@ describe('buildFilters administrative body filter', () => {
             query: 'roads',
             administrativeBodyIds: ['body1'],
             administrativeBodyTypes: ['committee'],
-        });
+        }, NO_SECONDARY_IDS);
 
         expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
         expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
     });
 
     it('omits both clauses when no administrative body is given', () => {
-        const filters = buildFilters({ query: 'roads' });
+        const filters = buildFilters({ query: 'roads' }, NO_SECONDARY_IDS);
 
         expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
         expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();
     });
 
     it('omits both clauses for empty arrays', () => {
-        const filters = buildFilters({ query: 'roads', administrativeBodyIds: [], administrativeBodyTypes: [] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyIds: [], administrativeBodyTypes: [] }, NO_SECONDARY_IDS);
 
         expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
         expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();
@@ -1666,15 +1685,16 @@ describe('buildFilters administrative body filter', () => {
 
 describe('buildSearchQuery — the highlight block', () => {
     it('is omitted unless the caller asks for markup', () => {
-        expect(buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS).highlight).toBeUndefined();
+        expect(buildSearchQuery({ query: 'πάρκα' }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS).highlight).toBeUndefined();
         expect(
-            buildSearchQuery({ query: 'πάρκα', config: { enableHighlights: false } }, NO_EXTRACTED_FILTERS).highlight
+            buildSearchQuery({ query: 'πάρκα', config: { enableHighlights: false } }, NO_SECONDARY_IDS, NO_EXTRACTED_FILTERS).highlight
         ).toBeUndefined();
     });
 
     it('asks for a whole-field fragment of every MATCH_FIELD, marked with the sentinels', () => {
         const query = buildSearchQuery(
             { query: 'πάρκα', config: { enableHighlights: true } },
+            NO_SECONDARY_IDS,
             NO_EXTRACTED_FILTERS
         );
 
@@ -1687,5 +1707,55 @@ describe('buildSearchQuery — the highlight block', () => {
             fields: Object.fromEntries(MATCH_FIELDS.map(field => [field, {}])),
         });
         expect(Object.keys(query.highlight!.fields!)).toContain('location_text');
+    });
+});
+
+// The tier rule of #829: with no tier, search spans the primary tier. The
+// index holds no tier, so the clause names the secondary bodies by id. A
+// must_not, not a terms on the primary ids: a document with no body is the
+// council's and must stay in.
+describe('buildFilters secondary tier', () => {
+    const SECONDARY_IDS = ['youth-1', 'youth-2'];
+    const ofSecondary = { terms: { 'administrative_body_id': SECONDARY_IDS } };
+    const noSecondary = { bool: { must_not: [ofSecondary] } };
+    const tierClauses = (filters: QueryContainer[]) =>
+        filters.filter(f => f.bool?.must_not || (f.terms && 'administrative_body_id' in f.terms));
+
+    it('keeps the secondary bodies out when no tier is given, or the primary tier', () => {
+        expect(tierClauses(buildFilters({ query: 'πάρκα' }, SECONDARY_IDS))).toEqual([noSecondary]);
+        expect(tierClauses(buildFilters({ query: 'πάρκα', tier: 'primary' }, SECONDARY_IDS))).toEqual([noSecondary]);
+    });
+
+    it('keeps the secondary bodies alone for `tier: secondary`', () => {
+        expect(tierClauses(buildFilters({ query: 'πάρκα', tier: 'secondary' }, SECONDARY_IDS))).toEqual([ofSecondary]);
+    });
+
+    it('adds no tier clause for `tier: all`', () => {
+        expect(tierClauses(buildFilters({ query: 'πάρκα', tier: 'all' }, SECONDARY_IDS))).toEqual([]);
+    });
+
+    it('lets a type narrow inside the tier, and never widen it', () => {
+        const ofYouth = { terms: { 'administrative_body_type': ['youthCouncil'] } };
+        for (const tier of [undefined, 'primary', 'secondary', 'all'] as const) {
+            const filters = buildFilters({ query: 'πάρκα', tier, administrativeBodyTypes: ['youthCouncil'] }, SECONDARY_IDS);
+            expect(filters).toContainEqual(ofYouth);
+            expect(tierClauses(filters)).toEqual(tierClauses(buildFilters({ query: 'πάρκα', tier }, SECONDARY_IDS)));
+        }
+    });
+
+    it('takes named bodies in any tier', () => {
+        const filters = buildFilters({ query: 'πάρκα', administrativeBodyIds: ['youth-1'] }, SECONDARY_IDS);
+        expect(tierClauses(filters)).toEqual([{ terms: { 'administrative_body_id': ['youth-1'] } }]);
+    });
+
+    it('excludes nothing when the realm has no secondary body, and finds nothing for the secondary tier', () => {
+        expect(tierClauses(buildFilters({ query: 'πάρκα' }, NO_SECONDARY_IDS))).toEqual([]);
+        expect(tierClauses(buildFilters({ query: 'πάρκα', tier: 'secondary' }, NO_SECONDARY_IDS)))
+            .toEqual([{ terms: { 'administrative_body_id': [] } }]);
+    });
+
+    it('carries the tier into the search query', () => {
+        const query = buildSearchQuery({ query: 'πάρκα' }, SECONDARY_IDS, NO_EXTRACTED_FILTERS);
+        expect(JSON.stringify(query.query)).toContain(JSON.stringify(noSecondary));
     });
 });

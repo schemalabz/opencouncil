@@ -21,6 +21,7 @@
         "upcoming": "La séance a lieu le <b>{when}</b>. L'ordre du jour est déjà là ; la transcription et les résumés sont ajoutés après la séance.",
         "upcomingNoAgenda": "La séance a lieu le <b>{when}</b>. L'ordre du jour apparaît ici dès sa publication.",
         "upcomingByCirculation": "La séance a lieu par consultation écrite le <b>{when}</b>. Elle n’est pas diffusée ; les décisions apparaissent ici dès leur publication.",
+        "upcomingNotRecorded": "La séance a lieu le <b>{when}</b>, sans enregistrement. L’ordre du jour est ici ; il n’y aura ni vidéo ni transcription.",
         "live": "La séance est en cours. Elle a commencé à {time}. La transcription arrive ici quelques heures après la fin.",
         "waiting": "La séance a eu lieu le {date}. Nous attendons l'enregistrement ; la transcription commence dès sa publication.",
         "transcribing": "Nous transcrivons la séance. La transcription arrive dans quelques heures ; les résumés suivent après la relecture.",
@@ -32,7 +33,8 @@
         "postponed": "La séance du {date} a été reportée. Quand la commune fixera la nouvelle séance, vous la trouverez dans la liste des séances.",
         "cancelled": "La séance du {date} a été annulée et n’a pas eu lieu. L’ordre du jour reste ici pour référence.",
         "reason": "Motif : {reason}",
-        "byCirculation": "La séance s’est tenue par consultation écrite. Il n’y a ni vidéo ni transcription ; l’ordre du jour et les décisions sont disponibles."
+        "byCirculation": "La séance s’est tenue par consultation écrite. Il n’y a ni vidéo ni transcription ; l’ordre du jour et les décisions sont disponibles.",
+        "notRecorded": "La séance s’est tenue sans enregistrement. Il n’y a ni vidéo ni transcription ; l’ordre du jour est disponible."
     },
     "actions": {
         "channel": "Chaîne YouTube",

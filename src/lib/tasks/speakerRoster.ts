@@ -1,7 +1,7 @@
-import { RosterPerson } from '@/lib/apiTypes';
+import { ProcessAgendaRequest, RosterPerson } from '@/lib/apiTypes';
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleWithRelations } from '@/lib/db/types';
-import { filterActiveRoles, getRoleTitle, type RoleTitles } from '@/lib/utils/roles';
+import { filterActiveRoles, getPartyFromRoles, getRoleTitle, type RoleTitles } from '@/lib/utils/roles';
 
 /**
  * The people a transcript task is told about, described as of the meeting
@@ -14,7 +14,7 @@ import { filterActiveRoles, getRoleTitle, type RoleTitles } from '@/lib/utils/ro
 export function buildSpeakerRoster(people: PersonWithRelations[], meetingDate: Date, administrativeBodyId: string | null, roleTitles: RoleTitles): RosterPerson[] {
     return people
         .map(person => describePerson(person, meetingDate, administrativeBodyId, roleTitles))
-        // getPeopleForCity returns people in random order; a stable roster keeps requests comparable.
+        // getPeopleOfCityForContent returns people in random order; a stable roster keeps requests comparable.
         .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
@@ -52,4 +52,18 @@ function describeRole(role: RoleWithRelations, roleTitles: RoleTitles): string |
     const title = getRoleTitle(role, roleTitles);
     const parts = [title, role.administrativeBody?.name ?? null].filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : null;
+}
+
+/**
+ * The people an agenda reading is told about, as of the meeting date: the
+ * processAgenda task and the pasted agenda (lib/agendaText.ts) name the
+ * person who brings an item from this list. A person with no party has ''.
+ */
+export function buildAgendaRoster(people: PersonWithRelations[], meetingDate: Date, administrativeBodyId: string | null, roleTitles: RoleTitles): ProcessAgendaRequest['people'] {
+    return people.map(person => ({
+        id: person.id,
+        name: person.name,
+        role: describeRolesAt(person.roles, meetingDate, administrativeBodyId, roleTitles) ?? '',
+        party: getPartyFromRoles(person.roles, meetingDate)?.name ?? '',
+    }));
 }

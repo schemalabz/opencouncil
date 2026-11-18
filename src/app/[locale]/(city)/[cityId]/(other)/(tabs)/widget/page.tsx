@@ -6,6 +6,7 @@ import { Metadata } from 'next';
 import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies';
 import { meetingLabel } from '@/lib/meetingName';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { ALL_SCOPE } from '@/lib/utils/bodyTier';
 
 // Embed configurator for city admins — nothing to index.
 export const metadata: Metadata = {
@@ -30,8 +31,9 @@ export default async function WidgetPage(
         // Only bodies that have released meetings — the widget is public, so the
         // filter shouldn't offer bodies a visitor can't see any meetings for.
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
-        // Same rule for the summary widget's meeting picker: released past meetings only.
-        getCouncilMeetingsForCityPublicCached(cityId, { limit: RECENT_MEETINGS_LIMIT, timeFilter: 'past' }),
+        // Same rule for the summary widget's meeting picker: released past
+        // meetings only, of every tier. A pinned meeting shows whatever its body.
+        getCouncilMeetingsForCityPublicCached(cityId, { limit: RECENT_MEETINGS_LIMIT, timeFilter: 'past', scope: ALL_SCOPE }),
     ]);
 
     const bodyGroups: EmbedBodyGroup[] = ADMIN_BODY_TYPE_ORDER
@@ -39,7 +41,7 @@ export default async function WidgetPage(
             type,
             bodies: bodies
                 .filter(b => b.type === type)
-                .map(b => ({ id: b.id, name: b.name, name_en: b.name_en })),
+                .map(b => ({ id: b.id, name: b.name, name_en: b.name_en, tier: b.tier })),
         }))
         .filter(group => group.bodies.length > 0);
 

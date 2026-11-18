@@ -202,7 +202,7 @@ export default function SearchFilterSections({
                     disabled={disabled || !filters.cityId || bodyGroups.length === 0}
                     expanded={expanded === "administration"}
                     onToggle={() => toggleSection("administration")}
-                    onClear={adminBodyLabel ? () => setFilters({ adminBodyType: undefined, adminBodyId: undefined }) : undefined}
+                    onClear={adminBodyLabel ? () => setFilters({ adminBodyType: undefined, adminBodyId: undefined, tier: undefined }) : undefined}
                     clearLabel={t("clearField", { field: t("administration") })}
                 />
                 {expanded === "administration" && (

@@ -3,6 +3,7 @@
 // buildSearchQuery: which filters the search ran with, and whether the model
 // was consulted at all.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_URL: 'http://es.test', ELASTICSEARCH_API_KEY: 'k', ELASTICSEARCH_INDEX: 'subjects-test' } }));
+jest.mock('@/lib/ai', () => ({ aiChat: jest.fn() }));
 jest.mock('@elastic/elasticsearch', () => ({ Client: jest.fn().mockImplementation(() => ({ search: jest.fn(), indices: { getMapping: jest.fn() } })) }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
@@ -26,6 +27,7 @@ jest.mock('@/lib/db/cities', () => ({
     filterCityIdsByRealm: jest.fn(),
 }));
 jest.mock('@/lib/db/cityTimezone', () => ({ getCityTimezone: jest.fn() }));
+jest.mock('@/lib/db/administrativeBodies', () => ({ getSecondaryBodyIdsCached: jest.fn() }));
 jest.mock('../filters', () => ({
     ...jest.requireActual('../filters'),
     extractFilters: jest.fn(),
@@ -50,6 +52,7 @@ import { buildSearchQuery } from '../query';
 import { buildRelatedSubjectsQuery } from '../related';
 import { createCache } from '@/lib/cache/index';
 import { getCityTimezone } from '@/lib/db/cityTimezone';
+import { getSecondaryBodyIdsCached } from '@/lib/db/administrativeBodies';
 import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
@@ -64,6 +67,8 @@ const sendErrorAdminAlertMock = sendErrorAdminAlert as jest.MockedFunction<typeo
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
 const REALM_CITIES = ['athens', 'chania', 'argos'];
+const SECONDARY_IDS = ['youth-athens'];
+const getSecondaryBodyIdsCachedMock = getSecondaryBodyIdsCached as jest.MockedFunction<typeof getSecondaryBodyIdsCached>;
 
 const findManyMock = prisma.subject.findMany as jest.Mock;
 
@@ -88,6 +93,7 @@ beforeEach(() => {
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
+    getSecondaryBodyIdsCachedMock.mockResolvedValue(SECONDARY_IDS);
     // Every candidate id is inside the realm unless a case says otherwise.
     filterCityIdsByRealmMock.mockImplementation(async (ids: string[]) => ids.filter(id => REALM_CITIES.includes(id)));
     findManyMock.mockResolvedValue([]);
@@ -230,6 +236,15 @@ describe('searchInRealm — realm isolation', () => {
         expect(esSearchMock).not.toHaveBeenCalled();
     });
 
+    // The index holds no tier: the query names the realm's secondary bodies.
+    it('passes the secondary bodies of the realm and the tier of the request to the query', async () => {
+        await searchInRealm({ query: 'ανακύκλωση', tier: 'all' }, 'greece');
+
+        expect(getSecondaryBodyIdsCachedMock).toHaveBeenCalledWith('greece');
+        expect(buildSearchQueryMock.mock.calls[0][1]).toEqual(SECONDARY_IDS);
+        expect(requestSentToElasticsearch().tier).toBe('all');
+    });
+
     it('accepts a realm resolver as well as a realm', async () => {
         await searchInRealm({ query: 'ανακύκλωση' }, async () => 'greece');
 
@@ -290,7 +305,7 @@ describe('searchInRealm — reporting what the query text supplied', () => {
 
         const response = await searchInRealm({ query: 'πάρκα Άργους' }, 'greece');
 
-        expect(buildSearchQueryMock.mock.calls[0][2]).toEqual(derived);
+        expect(buildSearchQueryMock.mock.calls[0][3]).toEqual(derived);
         expect(requestSentToElasticsearch().location).toBeUndefined();
         expect(response.derivedFilters).toEqual({ locations: derived });
     });
@@ -440,7 +455,7 @@ describe('searchSubjectsInRealm — the resolved index is gone', () => {
 
         await searchSubjectsInRealm({ query: 'πάρκα' }, 'greece');
 
-        expect(buildSearchQueryMock.mock.calls.map(call => call[3]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(buildSearchQueryMock.mock.calls.map(call => call[4]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
         expect(sendErrorAdminAlertMock).not.toHaveBeenCalled();
 
         esSearchMock.mockRejectedValueOnce({ meta: { body: { error: { type: 'search_phase_execution_exception' } } } });
@@ -471,12 +486,13 @@ describe('searchSubjectsInRealm — failure alert', () => {
 });
 
 describe('searchRelatedSubjectsInRealm', () => {
-    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null, tier: 'primary' as const };
 
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
 
-        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES, expect.objectContaining({ index: 'subjects-test', relatedMinSimilarity: 0.75 }));
+        expect(getSecondaryBodyIdsCachedMock).toHaveBeenCalledWith('greece');
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES, SECONDARY_IDS, expect.objectContaining({ index: 'subjects-test', relatedMinSimilarity: 0.75 }));
         expect(esSearchMock).toHaveBeenCalled();
     });
 
@@ -490,7 +506,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece', '0.75', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'city', 'greece', 'primary', '0.75', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
     });
@@ -504,8 +520,8 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
-        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'city', REALM_CITIES, expect.objectContaining({ index: 'subjects-2026-08', relatedMinSimilarity: 0.93 }));
-        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-2026-08']);
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'city', REALM_CITIES, SECONDARY_IDS, expect.objectContaining({ index: 'subjects-2026-08', relatedMinSimilarity: 0.93 }));
+        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', 'primary', '0.93', '5', 'subjects-2026-08']);
     });
 
     // The index a profile names can be deleted before the next refresh. The
@@ -521,8 +537,8 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
-        expect(buildRelatedSubjectsQueryMock.mock.calls.map(call => call[3]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
-        expect(createCacheMock.mock.calls.map(call => call[1][7])).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(buildRelatedSubjectsQueryMock.mock.calls.map(call => call[4]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(createCacheMock.mock.calls.map(call => call[1][8])).toEqual(['subjects-2026-08', 'subjects-2026-10']);
         expect(sendErrorAdminAlertMock).not.toHaveBeenCalled();
     });
 
@@ -531,7 +547,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece', '0.75', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'other', 'greece', 'primary', '0.75', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,

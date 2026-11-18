@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, type BodyTier } from '@prisma/client';
 import { localCalendarDate } from '../formatters/time';
 import { DECISION_KIND_SELECT, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
@@ -16,6 +16,7 @@ import {
 } from './decisionHealthDerive';
 import { meetingLabel } from '@/lib/meetingName';
 import { takesPlace } from '@/lib/meetingLifecycleRules';
+import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 export { cityState, type CityState, type MissingSessionGroup } from './decisionHealthState';
 
 /**
@@ -50,7 +51,8 @@ export interface CityDecisionHealth extends CoverageMeasures, MeetingQueues {
     diavgeiaUid: string | null;
 
     /**
-     * Every administrative body of the city, plus a trailing no-body row when
+     * Every administrative body of the city that publishes decisions (not a
+     * secondary body), plus a trailing no-body row when
      * the city's meetings without a body have something to show: eligible
      * subjects at any time, or coverage or queue work now. Ordered by
      * compareBodyRows; the rows sum to the city's own coverage and queue fields.
@@ -68,7 +70,7 @@ export interface CityDecisionHealth extends CoverageMeasures, MeetingQueues {
 const cityFactsSelect = {
     id: true, name: true, name_en: true, diavgeiaUid: true, timezone: true,
     administrativeBodies: {
-        select: { id: true, name: true, name_en: true, type: true, diavgeiaUnitIds: true },
+        select: { id: true, name: true, name_en: true, type: true, tier: true, diavgeiaUnitIds: true },
     },
 } satisfies Prisma.CitySelect;
 type CityFacts = Prisma.CityGetPayload<{ select: typeof cityFactsSelect }>;
@@ -78,7 +80,7 @@ const meetingFactsSelect = {
     id: true, cityId: true, administrativeBodyId: true, name: true, name_en: true, sessionNumber: true, urgent: true, dateTime: true,
     scheduleStatus: true,
     ...DECISION_KIND_SELECT,
-    administrativeBody: { select: { name: true, name_en: true } },
+    administrativeBody: { select: { name: true, name_en: true, tier: true } },
     subjects: {
         where: DECISION_ELIGIBLE_SUBJECT_WHERE,
         select: { id: true, name: true, decision: { select: { id: true } } },
@@ -93,6 +95,8 @@ export type MeetingFacts = Omit<MeetingRow, 'subjects' | 'name' | 'name_en' | 's
     localDate: string;
     /** The meeting's decision-eligible subjects, with link status. */
     subjects: Array<{ id: string; name: string; linked: boolean }>;
+    /** What takesNoDecisions reads of the body. */
+    administrativeBody: { tier: BodyTier } | null;
 };
 
 const candidateFactsSelect = {
@@ -142,7 +146,9 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
             select: cityFactsSelect,
         }),
         prisma.councilMeeting.findMany({
-            where: cityId ? { cityId } : { city: cityWhere },
+            // A secondary body's meetings take no decisions from Diavgeia, so
+            // their subjects are never unlinked and no document belongs there.
+            where: { ...(cityId ? { cityId } : { city: cityWhere }), ...primaryMeetingWhere },
             select: meetingFactsSelect,
         }),
         prisma.decision.findMany({
@@ -173,6 +179,7 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
             name: meetingLabel(m, 'el', tzByCity.get(m.cityId)!), kind: m.kind, continuationOf: m.continuationOf, scheduleStatus: m.scheduleStatus, dateTime: m.dateTime,
             localDate: localCalendarDate(m.dateTime, tzByCity.get(m.cityId)!),
             subjects: m.subjects.map(s => ({ id: s.id, name: s.name, linked: s.decision !== null })),
+            administrativeBody: m.administrativeBody && { tier: m.administrativeBody.tier },
         }));
 
     const latestPollByMeeting = new Map<string, PollFacts>();
@@ -318,7 +325,10 @@ export async function getDecisionHealth(cityId?: string, sinceDays?: number): Pr
         ...emptyCoverage(),
         ...emptyMeetingQueues(),
         bodies: [
-            ...city.administrativeBodies.map((body): BodyDecisionHealth => ({ body, ...emptyCoverage(), ...emptyMeetingQueues() })),
+            // A secondary body publishes no decisions (#829), so it has no row.
+            ...city.administrativeBodies
+                .filter(body => !isSecondaryBody(body))
+                .map((body): BodyDecisionHealth => ({ body, ...emptyCoverage(), ...emptyMeetingQueues() })),
             ...(citiesWithBodylessMeetings.has(city.id) ? [{ body: null, ...emptyCoverage(), ...emptyMeetingQueues() }] : []),
         ].sort(compareBodyRows),
         unplaceable: { sameDayOtherBody: 0, nearbySessionMissing: 0, sessionUnknown: 0, total: 0 },

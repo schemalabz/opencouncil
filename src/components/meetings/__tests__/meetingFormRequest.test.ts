@@ -1,4 +1,4 @@
-import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl, POSTPONEMENT_WINDOW_DAYS } from '../meetingFormRequest';
+import { agendaRequestFields, meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl, POSTPONEMENT_WINDOW_DAYS } from '../meetingFormRequest';
 
 describe('meetingIdForRequest', () => {
     it('sends no id for a new meeting when the admin typed none, so a second meeting on the same day gets _2', () => {
@@ -27,6 +27,7 @@ describe('meetingRequestFields', () => {
         closedToPublic: false,
         scheduleStatusReason: null,
         place: null,
+        noRecording: false,
     };
 
     it('clears the optional fields when the inputs are empty, and sends no name', () => {
@@ -47,6 +48,10 @@ describe('meetingRequestFields', () => {
             scheduleStatus: 'postponed', scheduleStatusReason: 'Λόγω απεργίας', sessionNumber: 15,
             place: 'Πολιτιστικό Κέντρο', postponedFromId: 'mar12_2026',
         });
+    });
+
+    it('carries the no-recording switch with the record (#829)', () => {
+        expect(meetingRequestFields({ ...base, noRecording: true }, { linkChanged: false, greekCodeFacts: true }).noRecording).toBe(true);
     });
 
     it('drops the reason of a meeting that is scheduled again', () => {
@@ -101,5 +106,21 @@ describe('postponementCandidatesUrl', () => {
     it('follows the date of the meeting, not today, so a new meeting on another date finds its candidates', () => {
         const url = new URL(postponementCandidatesUrl('chania', new Date('2025-01-10T00:00:00Z')), 'http://localhost');
         expect(url.searchParams.get('from')!.startsWith('2024-11-11')).toBe(true);
+    });
+});
+
+describe('agendaRequestFields', () => {
+    const values = { agendaUrl: 'https://example.org/agenda.pdf', agendaText: '', processAgenda: true };
+
+    it('sends no link in text mode, so a save with an empty text keeps the saved agenda (#829)', () => {
+        expect(agendaRequestFields({ ...values, agendaMode: 'text' })).toEqual({ agendaText: undefined, processAgenda: false });
+    });
+
+    it('sends the pasted text alone: the server stores no link beside it', () => {
+        expect(agendaRequestFields({ ...values, agendaMode: 'text', agendaText: ' 1. Θέμα ' })).toEqual({ agendaText: '1. Θέμα', processAgenda: false });
+    });
+
+    it('sends the link and the task choice in link mode, and no text left over from the other mode', () => {
+        expect(agendaRequestFields({ ...values, agendaMode: 'link', agendaText: '1. Θέμα' })).toEqual({ agendaUrl: values.agendaUrl, processAgenda: true });
     });
 });

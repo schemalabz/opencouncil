@@ -1,9 +1,9 @@
-import { AdministrativeBodyType, Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
+import { AdministrativeBodyType, BodyTier, Role, Party } from '@prisma/client';
+import { getSpeakerDisplayInfo, getSpeakerLabels, isIndependentCouncilMember, getRoleKind, getRoleTitle, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf, lastMembershipEndOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 import { roleTitlesFor } from '../../../../tests/helpers/catalog';
 
-type TestRole = Role & { party?: Party | null; cityId?: string | null; administrativeBody?: { type: AdministrativeBodyType } | null };
+type TestRole = Role & { party?: Party | null; cityId?: string | null; administrativeBody: { type: AdministrativeBodyType; tier: BodyTier } | null };
 
 function makeRole(overrides: Partial<TestRole> = {}): TestRole {
   return {
@@ -20,6 +20,7 @@ function makeRole(overrides: Partial<TestRole> = {}): TestRole {
     endDate: null,
     createdAt: new Date('2020-01-01'),
     updatedAt: new Date('2020-01-01'),
+    administrativeBody: overrides.administrativeBodyId ? { type: 'committee', tier: 'primary' } : null,
     ...overrides,
   };
 }
@@ -96,9 +97,18 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.isIndependent).toBe(false);
   });
 
+  // The chair of a secondary body ranks as a member (#829): a person who also
+  // presides over the council is titled by the council.
+  it('titles the council president over the chair of a secondary body', () => {
+    const youthChair = makeRole({ id: 'youth-chair', isHead: true, administrativeBodyId: 'youth-1', administrativeBody: { type: 'youthCouncil', tier: 'secondary' } });
+    const president = makeRole({ id: 'president', isHead: true, administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } });
+
+    expect(getSpeakerDisplayInfo([youthChair, president], meetingDate).role?.id).toBe('president');
+  });
+
   it('returns independent for a council member with no party', () => {
     const roles = [
-      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } }),
     ];
 
     const result = getSpeakerDisplayInfo(roles, meetingDate);
@@ -581,6 +591,7 @@ function makeAdminBody(name: string) {
     name,
     name_en: name,
     type: 'community' as const,
+    tier: 'primary' as const,
     notificationBehavior: 'NOTIFICATIONS_DISABLED' as const,
     showUnreviewedTranscript: false,
     youtubeChannelUrl: null,
@@ -798,14 +809,14 @@ describe('mayorIsMemberOf', () => {
 
 describe('isIndependentCouncilMember', () => {
   it('is true for a council member with no active party role', () => {
-    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } })];
+    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } })];
     expect(isIndependentCouncilMember(roles, meetingDate)).toBe(true);
   });
 
   it('is false for a council member with an active party role', () => {
     const party = makeParty();
     const roles = [
-      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } }),
       makeRole({ id: 'party-role', partyId: party.id, party }),
     ];
     expect(isIndependentCouncilMember(roles, meetingDate)).toBe(false);
@@ -814,21 +825,21 @@ describe('isIndependentCouncilMember', () => {
   it('is true when the party role ended before the date', () => {
     const party = makeParty();
     const roles = [
-      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } }),
       makeRole({ id: 'party-role', partyId: party.id, party, endDate: new Date('2024-01-01') }),
     ];
     expect(isIndependentCouncilMember(roles, meetingDate)).toBe(true);
   });
 
   it('is false for a member of a community only', () => {
-    const roles = [makeRole({ administrativeBodyId: 'community-1', administrativeBody: { type: 'community' } })];
+    const roles = [makeRole({ administrativeBodyId: 'community-1', administrativeBody: { type: 'community', tier: 'primary' } })];
     expect(isIndependentCouncilMember(roles, meetingDate)).toBe(false);
   });
 });
 
 describe('getSpeakerLabels', () => {
   it('labels an independent council member whose role has no name', () => {
-    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } })];
+    const roles = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } })];
 
     expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({
       party: null,
@@ -840,7 +851,7 @@ describe('getSpeakerLabels', () => {
   it('prefers a named role over the independent label', () => {
     const roles = [makeRole({
       administrativeBodyId: 'council-1',
-      administrativeBody: { type: 'council' },
+      administrativeBody: { type: 'council', tier: 'primary' },
       isHead: true,
       name: 'Πρόεδρος Δημοτικού Συμβουλίου',
     })];
@@ -851,7 +862,7 @@ describe('getSpeakerLabels', () => {
   it('returns the short party name and no role for a party member', () => {
     const party = makeParty();
     const roles = [
-      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' } }),
+      makeRole({ id: 'council-role', administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } }),
       makeRole({ id: 'party-role', partyId: party.id, party, isHead: true }),
     ];
 
@@ -871,7 +882,7 @@ describe('getSpeakerLabels', () => {
   it('titles a president whose head role has no name', () => {
     const party = makeParty();
     const roles = [
-      makeRole({ id: 'chair', administrativeBodyId: 'council-1', administrativeBody: { type: 'council' }, isHead: true }),
+      makeRole({ id: 'chair', administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' }, isHead: true }),
       makeRole({ id: 'party-role', partyId: party.id, party }),
     ];
     expect(getSpeakerLabels(roles, roleT, meetingDate)).toEqual({ party: 'TP', partyLabel: 'TP', role: 'Πρόεδρος' });
@@ -932,3 +943,22 @@ describe('getRoleTitle', () => {
   });
 });
 
+describe('lastMembershipEndOf', () => {
+    const now = new Date('2026-10-22T12:00:00Z');
+    const role = (administrativeBodyId: string | null, endDate: string | null) =>
+        ({ administrativeBodyId, endDate: endDate ? new Date(endDate) : null });
+
+    it('is the latest past end of a role on the body', () => {
+        const people = [
+            { roles: [role('youth', '2024-12-31T00:00:00Z'), role('council', '2026-01-01T00:00:00Z')] },
+            { roles: [role('youth', '2025-06-30T00:00:00Z'), role('youth', null)] },
+        ];
+        expect(lastMembershipEndOf(people, 'youth', now)).toEqual(new Date('2025-06-30T00:00:00Z'));
+    });
+
+    it('is null when no membership of the body has ended, or an end lies ahead', () => {
+        expect(lastMembershipEndOf([{ roles: [role('youth', null)] }], 'youth', now)).toBeNull();
+        expect(lastMembershipEndOf([{ roles: [role('youth', '2027-01-01T00:00:00Z')] }], 'youth', now)).toBeNull();
+        expect(lastMembershipEndOf([], 'youth', now)).toBeNull();
+    });
+});

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { UnauthorizedError, handleApiError } from '@/lib/api/errors';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import { getNotificationImpactPreviewData } from '@/lib/db/notifications';
 import { calculateNotificationImpact } from '@/lib/notifications/matching';
 import { notificationImpactPreviewRequestSchema } from '@/lib/zod-schemas/notification';
@@ -11,8 +11,9 @@ export async function POST(
 ) {
     const params = await props.params;
     try {
-        const user = await getCurrentUser();
-        if (!user) throw new UnauthorizedError();
+        // A superadmin only, as on the send. The guard comes before the
+        // parse, so a caller without rights learns nothing of the schema.
+        await withUserAuthorizedToEdit({});
 
         const { subjectImportances } = notificationImpactPreviewRequestSchema.parse(await request.json());
 

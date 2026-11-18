@@ -36,6 +36,7 @@ export async function ensureSerbianFixture(db: PrismaClient, log: (line: string)
         name: 'Скупштина града Београда',
         name_en: 'City Assembly of Belgrade',
         type: 'council' as const,
+        tier: 'primary' as const,
         cityId: 'beograd',
     }
     await db.administrativeBody.upsert({

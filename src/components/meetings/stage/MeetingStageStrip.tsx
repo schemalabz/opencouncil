@@ -10,7 +10,7 @@ import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataC
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
 import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { presentationExplainHref, type PresentationKey, type PublicMeetingPresentation } from '@/lib/meetingPresentation';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { hasPublicRecording, noRecordingReason } from '@/lib/meetingLifecycleRules';
 import { cn } from '@/lib/utils';
 import { StageRing } from './StageRing';
 
@@ -46,7 +46,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const t = useTranslations('meetingStage');
     const tMeeting = useTranslations('CouncilMeeting');
     const locale = useLocale();
-    const { meeting, city, subjects, transcriptHiddenForReview } = useCouncilMeetingData();
+    const { meeting, city, subjects, transcriptHiddenForReview, notificationsDisabled } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const preference = useNotificationPreference();
     if (stage === 'complete') return null;
@@ -94,7 +94,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
     const agendaPill = meeting.agendaUrl
         ? pill('agenda', tMeeting('agendaDocument'), 'agenda_pdf', meeting.agendaUrl, FileText, { external: true })
         : null;
-    const notifyPill = !city.supportsNotifications
+    // A body with its notifications off sends none, so the strip must not
+    // promise a subscriber an update, nor invite a reader to wait for one.
+    const notifyPill = !city.supportsNotifications || notificationsDisabled
         ? null
         : preference
             ? <span key="notified" className="text-xs text-muted-foreground">{tMeeting('notificationComing')}</span>
@@ -107,7 +109,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
         case 'upcoming':
             text = t.rich(
                 subjects.length === 0 ? 'strip.upcomingNoAgenda'
-                    : hasPublicRecording(meeting) ? 'strip.upcoming' : 'strip.upcomingByCirculation',
+                    : noRecordingReason(meeting) === null ? 'strip.upcoming'
+                        : noRecordingReason(meeting) === 'byCirculation' ? 'strip.upcomingByCirculation'
+                            : 'strip.upcomingNotRecorded',
                 {
                     when: formatWeekdayDateTime(date, timezone, locale),
                     b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
@@ -163,7 +167,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             break;
         }
         case 'noRecording':
-            text = t('strip.byCirculation');
+            text = t(`strip.${presentation.type === 'noRecording' ? presentation.reason : 'byCirculation'}`);
             actions = [agendaPill];
             break;
     }

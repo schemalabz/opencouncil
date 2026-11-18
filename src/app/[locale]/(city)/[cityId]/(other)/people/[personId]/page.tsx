@@ -7,7 +7,9 @@ import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
-import { getUnreleasedScope, getRoleLimitForCity } from "@/lib/auth";
+import { ALL_SCOPE } from "@/lib/utils/bodyTier";
+import { getCurrentUser, getUnreleasedScope, getRoleLimitForCity } from "@/lib/auth";
+import { mayChangePersonImage } from "@/lib/db/personImage";
 import { Metadata } from "next";
 import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -98,9 +100,10 @@ export default async function PersonPage(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
 ) {
     const params = await props.params;
-    const [unreleased, roleLimit] = await Promise.all([
+    const [unreleased, roleLimit, user] = await Promise.all([
         getUnreleasedScope(params.cityId),
         getRoleLimitForCity(params.cityId),
+        getCurrentUser(),
     ]);
 
     const [person, city, parties, administrativeBodies, statistics, contributionTopics] = await Promise.all([
@@ -108,7 +111,7 @@ export default async function PersonPage(
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getPublicAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId, unreleased }, ['topic']),
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId, unreleased, scope: ALL_SCOPE }, ['topic']),
         getDistinctTopicsForSpeakerContributions(params.personId),
     ]);
 
@@ -124,5 +127,6 @@ export default async function PersonPage(
         statistics={statistics}
         contributionTopics={contributionTopics}
         editableBodyIds={roleLimit ? [...roleLimit] : undefined}
+        canEditImage={mayChangePersonImage(user, person.roles, person.id)}
     />;
 }

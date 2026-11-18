@@ -3,6 +3,7 @@
 jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
 
 import { buildMapSubjectWhere, parseMapSubjectFilters, quickRangeStart } from '../subject';
+import { primaryMeetingWhere, secondaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 const parse = (qs: string) => parseMapSubjectFilters(new URLSearchParams(qs));
 
@@ -23,6 +24,13 @@ describe('parseMapSubjectFilters', () => {
         expect(parse('daysBack=abc').daysBack).toBeNull();
         expect(parse('monthsBack=3').monthsBack).toBe(3);
         expect(parse('monthsBack=xyz').monthsBack).toBeUndefined();
+    });
+
+    it('reads the tier, and leaves an unknown one to the default (#829)', () => {
+        expect(parse('tier=secondary').tier).toBe('secondary');
+        expect(parse('tier=all').tier).toBe('all');
+        expect(parse('tier=youth').tier).toBeUndefined();
+        expect(parse('').tier).toBeUndefined();
     });
 
     it('parses the remaining filters', () => {
@@ -129,7 +137,15 @@ describe('buildMapSubjectWhere body types', () => {
     it('admits a meeting with no body when the council is asked for', () => {
         const where = buildMapSubjectWhere(null, { bodyTypes: ['council'] });
         expect(where.councilMeeting).toMatchObject({
-            OR: [{ administrativeBody: { type: { in: ['council'] } } }, { administrativeBodyId: null }],
+            AND: [{ AND: [primaryMeetingWhere, { OR: [{ administrativeBody: { type: { in: ['council'] } } }, { administrativeBodyId: null }] }] }],
+        });
+    });
+
+    it('stays in the primary tier for a type, and widens through the tier alone (#829)', () => {
+        expect(buildMapSubjectWhere(null, {}).councilMeeting).toMatchObject({ AND: [primaryMeetingWhere] });
+        expect(buildMapSubjectWhere(null, { tier: 'secondary' }).councilMeeting).toMatchObject({ AND: [secondaryMeetingWhere] });
+        expect(buildMapSubjectWhere(null, { bodyTypes: ['youthCouncil'] }).councilMeeting).toMatchObject({
+            AND: [{ AND: [primaryMeetingWhere, { administrativeBody: { type: { in: ['youthCouncil'] } } }] }],
         });
     });
 });

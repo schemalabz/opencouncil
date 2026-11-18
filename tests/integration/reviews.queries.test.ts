@@ -1,8 +1,10 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
 import { getReviewStats, getMeetingsNeedingReview } from '@/lib/db/reviews'
+import { getMeetingUploadLists } from '@/lib/db/meetings'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
+    createAdministrativeBody,
     createCity,
     createMeeting,
     createSpeakerSegment,
@@ -38,10 +40,12 @@ describe('review queries', () => {
         humanReview?: boolean
         humanReviewCreatedAt?: Date
         dateTime?: Date
+        administrativeBodyId?: string
     }) {
         await createMeeting(params.cityId, {
             id: params.meetingId,
             dateTime: params.dateTime ?? new Date(Date.now() - 24 * 60 * 60 * 1000),
+            administrativeBodyId: params.administrativeBodyId,
         })
         if (params.transcribe !== false) {
             await createTaskStatus(params.meetingId, params.cityId, {
@@ -97,6 +101,46 @@ describe('review queries', () => {
             expect(stats.inProgress).toBe(0)
             expect(stats.completedToday).toBe(1)
             expect(stats.completedThisWeek).toBe(1)
+        })
+
+        // The widget links to the list, so both count the same meetings (#829).
+        // A body whose pipeline runs unattended has no review step: its
+        // meetings are in neither, whatever its tier. The rule reads the type,
+        // so a council set to the secondary tier stays in the queue.
+        it('counts the meetings that the list shows, with youth councils present', async () => {
+            await createCity({ id: 'city1', status: 'supported' })
+            const youth = await createAdministrativeBody('city1', { type: 'youthCouncil', name: 'Συμβούλιο Νέων' })
+            const promoted = await createAdministrativeBody('city1', { type: 'youthCouncil', tier: 'primary', name: 'Συμβούλιο Νέων Β' })
+            const company = await createAdministrativeBody('city1', { type: 'council', tier: 'secondary', name: 'Εταιρεία' })
+            const editor = await createUser('editor@example.com')
+
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-no-body' })
+            const started = await seedMeeting({ cityId: 'city1', meetingId: 'm-company', administrativeBodyId: company.id })
+            await createUtteranceEdit(started.utterance.id, { editedBy: 'user', userId: editor.id })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-youth', administrativeBodyId: youth.id })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-promoted', administrativeBodyId: promoted.id })
+
+            const stats = await getReviewStats()
+            const list = await getMeetingsNeedingReview({ show: 'needsAttention', last30Days: false })
+            expect(list.map(m => m.meetingId).sort()).toEqual(['m-company', 'm-no-body'])
+            expect(stats.needsReview + stats.inProgress).toBe(list.length)
+            expect(stats).toMatchObject({ needsReview: 1, inProgress: 1 })
+        })
+
+        it('leaves the meetings of a body whose pipeline runs unattended off the upload dashboard', async () => {
+            await createCity({ id: 'city1', status: 'supported' })
+            const youth = await createAdministrativeBody('city1', { type: 'youthCouncil', name: 'Συμβούλιο Νέων' })
+            const company = await createAdministrativeBody('city1', { type: 'council', tier: 'secondary', name: 'Εταιρεία' })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-no-body', transcribe: false })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-company', transcribe: false, administrativeBodyId: company.id })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-youth', transcribe: false, administrativeBodyId: youth.id })
+            const future = new Date(Date.now() + 24 * 60 * 60 * 1000)
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-youth-next', transcribe: false, administrativeBodyId: youth.id, dateTime: future })
+            await seedMeeting({ cityId: 'city1', meetingId: 'm-next', transcribe: false, dateTime: future })
+
+            const { needsUpload, scheduled } = await getMeetingUploadLists(false)
+            expect(needsUpload.map(m => m.id).sort()).toEqual(['m-company', 'm-no-body'])
+            expect(scheduled.map(m => m.id)).toEqual(['m-next'])
         })
 
         it('counts completions inside the current week only', async () => {

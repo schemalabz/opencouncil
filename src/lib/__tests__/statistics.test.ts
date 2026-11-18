@@ -6,6 +6,7 @@ import {
   Stat
 } from '../statistics';
 import prisma from '../db/prisma';
+import { ALL_SCOPE, primaryMeetingWhere } from '../utils/bodyTier';
 
 // Mock prisma
 jest.mock('../db/prisma', () => ({
@@ -70,7 +71,7 @@ describe('Statistics', () => {
             meetingId: 'meeting-1',
             cityId: 'city-1',
             meeting: expect.objectContaining({
-              released: true
+              AND: [{ released: true }, primaryMeetingWhere],
             }),
             NOT: {
               summary: {
@@ -165,11 +166,23 @@ describe('Statistics', () => {
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           meeting: expect.objectContaining({
-            released: true,
-            administrativeBodyId: 'admin-body-1'
+            administrativeBodyId: 'admin-body-1',
+            AND: [{ released: true }, primaryMeetingWhere],
           })
         })
       }));
+    });
+
+    // A city total is the primary tier (#829); a caller that names one item passes every tier.
+    it('counts the primary tier unless the scope widens it', async () => {
+      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
+
+      await getStatisticsFor({ cityId: 'city-1' }, ['person']);
+      await getStatisticsFor({ personId: 'person-1', cityId: 'city-1', scope: ALL_SCOPE }, ['person']);
+
+      const meetingWhere = (call: number) => (prisma.speakerSegment.findMany as jest.Mock).mock.calls[call][0].where.meeting;
+      expect(meetingWhere(0).AND).toEqual([{ released: true }, primaryMeetingWhere]);
+      expect(meetingWhere(1).AND).toEqual([{ released: true }, {}]);
     });
   });
 

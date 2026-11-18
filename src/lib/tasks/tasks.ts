@@ -8,7 +8,7 @@ import { TaskUpdate } from '../apiTypes';
 import { parseMediaFailure, parseMediaSource, sanitizeMediaErrorText, encodeMediaFailureResponse, hasReplayableTaskResponse, MEDIA_FAILURE_RESPONSE_PREFIX } from './mediaMetadata';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type DiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
@@ -24,6 +24,7 @@ import { meetingLabelInCity } from '@/lib/meetingName';
 import { notifySubscribersOfTask } from '@/lib/notifications/meetingNotifications';
 import { isNewsPhase } from '@/lib/notifications/freshness';
 import { CLAIM_REPLAY_AFTER_MS, RESULT_PERSISTING_STAGE } from './resultStage';
+import { pipelineRunsUnattended } from '@/lib/utils/youthCouncil';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -95,6 +96,7 @@ const taskStatusWithMeetingInclude = {
     councilMeeting: {
         select: {
             ...meetingNameSelect,
+            administrativeBody: { select: { ...meetingNameSelect.administrativeBody.select, type: true } },
             city: {
                 select: {
                     name_en: true,
@@ -106,6 +108,16 @@ const taskStatusWithMeetingInclude = {
 } satisfies Prisma.TaskStatusInclude;
 
 type TaskStatusWithMeeting = Prisma.TaskStatusGetPayload<{ include: typeof taskStatusWithMeetingInclude }>;
+
+/**
+ * The alert mode of the started and completed alerts of a task on a meeting.
+ * No operator follows a meeting whose pipeline runs unattended (#829), so these
+ * alerts are not sent for it, as its creation sends none. Its failed alerts are
+ * sent: nothing else reports a failure of that pipeline.
+ */
+function taskAlertMode(taskType: string, meeting: TaskStatusWithMeeting['councilMeeting']): DiscordAlertMode {
+    return pipelineRunsUnattended(meeting.administrativeBody) ? 'none' : getDiscordAlertMode(taskType);
+}
 
 /** The task fields that every task admin alert carries. */
 function taskAlertTarget(task: TaskStatusWithMeeting) {
@@ -228,7 +240,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     });
 
     // Send Discord admin alert unless silent or alert mode is 'none'
-    if (!options.silent && getDiscordAlertMode(taskType) !== 'none') {
+    if (!options.silent && taskAlertMode(taskType, newTask.councilMeeting) !== 'none') {
         sendTaskAdminAlert({
             status: 'started',
             taskType: taskType,
@@ -269,8 +281,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     }
 
     // Check if generic Discord alerts should be sent for this task type
-    const alertMode = getDiscordAlertMode(task.type);
-    const sendGenericAlerts = alertMode !== 'none';
+    const alertMode = taskAlertMode(task.type, task.councilMeeting);
+    const sendFailureAlerts = getDiscordAlertMode(task.type) !== 'none';
 
     const mediaError = task.type === 'transcribe' && update.error ? sanitizeMediaErrorText(update.error) : update.error;
     const mediaFailure = task.type === 'transcribe' ? parseMediaFailure(update.mediaFailure) : undefined;
@@ -321,7 +333,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             console.log(`No result for task ${taskId}`);
 
             // Task succeeded but has no result to process - still send completion admin alert
-            if (sendGenericAlerts) {
+            if (alertMode !== 'none') {
                 sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
             }
         } else {
@@ -351,7 +363,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 await recordProcessingFailure(taskId, error, update.version);
 
                 // Send Discord admin alert for processing failure
-                if (sendGenericAlerts) {
+                if (sendFailureAlerts) {
                     sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: errorMessage(error) });
                 }
             }
@@ -407,7 +419,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         }
 
         // Send Discord admin alert for task failure
-        if (sendGenericAlerts) {
+        if (sendFailureAlerts) {
             sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: mediaError });
         }
     } else if (update.status === 'processing') {

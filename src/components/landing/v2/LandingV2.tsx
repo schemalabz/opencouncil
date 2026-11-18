@@ -253,6 +253,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
                 init.cats.length > 0 ||
                 init.filters.cityIds.length > 0 ||
                 init.filters.bodyTypes.length > 0 ||
+                init.filters.tier !== null ||
                 init.filters.dateFrom != null ||
                 init.filters.dateTo != null ||
                 init.filters.minDuration != null,
@@ -282,6 +283,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         if (range !== DEFAULT_RANGE) p.set('range', range);
         if (filters.cityIds.length) p.set('city', filters.cityIds[0]);
         if (filters.bodyTypes.length) p.set('body', filters.bodyTypes.join(','));
+        if (filters.tier) p.set('tier', filters.tier);
         if (filters.dateFrom) p.set('from', filters.dateFrom);
         if (filters.dateTo) p.set('to', filters.dateTo);
         const qs = p.toString();
@@ -766,6 +768,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
             type: 'pane',
             city_count: next.cityIds.length,
             body_types: next.bodyTypes,
+            tier: next.tier,
             date_from: next.dateFrom ?? null,
             date_to: next.dateTo ?? null,
             min_duration: next.minDuration ?? null,

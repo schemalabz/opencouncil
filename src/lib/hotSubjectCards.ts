@@ -1,4 +1,5 @@
-import type { AdministrativeBodyType, MeetingKind, NonAgendaReason, Topic } from '@prisma/client';
+import type { MeetingKind, NonAgendaReason, Topic } from '@prisma/client';
+import type { BodyScope } from '@/lib/utils/bodyTier';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { bodyFilterKey, createCache } from '@/lib/cache';
 import { getBatchStatisticsForSubjects } from '@/lib/statistics';
@@ -64,8 +65,8 @@ const HOT_CARDS_CACHE_VERSION = 'v4';
 
 interface Args {
     limit: number;
-    administrativeBodyTypes?: AdministrativeBodyType[];
-    administrativeBodyIds?: string[];
+    /** Which bodies (see BodyScope). Absent, the primary tier. */
+    scope?: BodyScope;
     /** How far back to rank. Omitted means the last few meetings. */
     months?: number;
     geohash?: string | null;
@@ -147,7 +148,7 @@ export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 
         async () => buildCards(await computeRecentHotSubjects(cityId, args), false),
         // `months`, not the date it resolves to: the window moves with `now`, and
         // the TTL below is what bounds that drift.
-        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, ...bodyFilterKey(args), `months:${months ?? 'default'}`],
+        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, ...bodyFilterKey(args.scope), `months:${months ?? 'default'}`],
         {
             tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
             // The ranking window is the last N *past* meetings, which is a

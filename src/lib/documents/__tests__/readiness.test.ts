@@ -34,6 +34,7 @@ function input(overrides: Omit<Partial<ReadinessInput>, 'meeting'> & { meeting?:
             continuationOfId: null,
             kind: 'ordinary',
             continuationOf: null,
+            administrativeBody: null,
             city: { timezone: 'Europe/Athens' },
             ...overrides.meeting,
         },
@@ -205,6 +206,12 @@ describe('evaluateReadiness', () => {
                     .toEqual({ state: 'complete' });
             });
 
+            it('is complete once summarized for a meeting of a secondary body, which publishes no decisions (#829)', () => {
+                const allUndecided = [{ id: 's1', decided: false }, { id: 's2', decided: false }];
+                expect(evaluateReadiness('minutes', input({ subjects: allUndecided, meeting: { administrativeBody: { tier: 'secondary' } }, now: daysAfter(1) })))
+                    .toEqual({ state: 'complete' });
+            });
+
             it('waits for the agenda otherwise, whatever the date, with no due date', () => {
                 expect(evaluateReadiness('minutes', input({ subjects: [], hasAgenda: false, now: daysAfter(60) }))).toEqual({ state: 'wait', reason: 'agenda', dueAt: null });
                 expect(evaluateReadiness('minutes', input({ subjects: [], hasAgenda: false, meeting: { kind: null } }))).toEqual({ state: 'wait', reason: 'agenda', dueAt: null });
@@ -263,7 +270,7 @@ describe('readinessInputFor', () => {
 
     it('reads the setting of the kind, the review, the subjects and the agenda from the facts', () => {
         const minutesSetting = settingOf('minutes', { recipientEmails: ['m@example.org'] });
-        const facts = readinessFacts({ administrativeBody: { documentSendSettings: [settingOf('transcript'), minutesSetting] } });
+        const facts = readinessFacts({ administrativeBody: { tier: 'primary' as const, documentSendSettings: [settingOf('transcript'), minutesSetting] } });
         const result = readinessInputFor(facts, 'minutes', daysAfter(3));
         expect(result).toMatchObject({
             setting: minutesSetting,

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser, getRoleLimitForCity } from "@/lib/auth";
+import { ALL_SCOPE, isSecondaryBody, readTier, tabTier } from "@/lib/utils/bodyTier";
 import CityPeople from "@/components/cities/CityPeople";
-import { getPartiesForCityCached, getPeopleForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
+import { countPeopleOfCityCached, getPartiesForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached, listPeopleOfCityCached } from "@/lib/cache";
 import { Metadata } from "next";
 import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -12,9 +13,8 @@ import { buildOgImageUrl } from '@/lib/og/locale';
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const params = await props.params;
     const t = await getTranslations({ locale: params.locale, namespace: 'metadata.people' });
-    const [city, people, parties] = await Promise.all([
+    const [city, parties] = await Promise.all([
         getCityCached(params.cityId),
-        getPeopleForCityCached(params.cityId),
         getPartiesForCityCached(params.cityId)
     ]);
 
@@ -25,7 +25,8 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
         };
     }
 
-    const peopleCount = people?.length || 0;
+    // The roster the page opens on, as the identity band counts it.
+    const peopleCount = city._count.persons;
     const partiesCount = parties?.length || 0;
 
     // Generate rich description
@@ -71,20 +72,21 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
 export default async function PeoplePage(
     props: {
-        params: Promise<{ cityId: string }>
+        params: Promise<{ cityId: string }>;
+        searchParams: Promise<{ tier?: string }>;
     }
 ) {
-    const params = await props.params;
+    const [params, search] = await Promise.all([props.params, props.searchParams]);
 
     const {
         cityId
     } = params;
 
-    const [city, partiesWithPersons, administrativeBodies, allPeople, roleLimit, currentUser] = await Promise.all([
+    const [city, partiesWithPersons, administrativeBodies, secondaryCount, roleLimit, currentUser] = await Promise.all([
         getCityCached(cityId),
         getPartiesForCityCached(cityId),
         getPublicAdministrativeBodiesForCityCached(cityId),
-        getPeopleForCityCached(cityId),
+        countPeopleOfCityCached(cityId, { tier: 'secondary' }),
         // null for a city admin; the bodies of a body admin; empty for a reader
         getRoleLimitForCity(cityId),
         // Only a superadmin gets the elected order control, as on /admin/people
@@ -93,22 +95,37 @@ export default async function PeoplePage(
         // way the tabs layout above does, rather than through the edit check.
         getCurrentUser()
     ]);
-    const canEdit = roleLimit === null || roleLimit.size > 0;
-
     if (!city || !partiesWithPersons) {
         notFound();
     }
 
+    const canEdit = roleLimit === null || roleLimit.size > 0;
+    // The server reads the tier, so the browser gets the people on show only.
+    const secondaryAvailable = secondaryCount > 0;
+    const tier = tabTier({
+        requested: readTier(search.tier),
+        secondaryAvailable,
+        administersSecondary: roleLimit !== null && administrativeBodies.some(body => roleLimit.has(body.id) && isSecondaryBody(body)),
+        primaryEmpty: city._count.persons === 0,
+    });
+    // The superadmin tools order every member of a body, whatever the tier on
+    // show. The same cache entry serves both when the tab shows every tier.
+    const [people, superAdminRoster] = await Promise.all([
+        listPeopleOfCityCached(cityId, { tier }),
+        currentUser?.isSuperAdmin ? listPeopleOfCityCached(cityId, ALL_SCOPE) : null,
+    ]);
+
     return (
         <CityPeople
-            allPeople={allPeople}
+            people={people}
             partiesWithPersons={partiesWithPersons}
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             cityLanguage={city.language}
             canEdit={canEdit}
-            isSuperAdmin={!!currentUser?.isSuperAdmin}
+            superAdminRoster={superAdminRoster}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}
+            secondaryTier={{ available: secondaryAvailable, shown: tier !== 'primary' }}
         />
     );
 } 

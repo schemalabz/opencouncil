@@ -52,7 +52,7 @@ describe('meetings list paging - integration', () => {
     })
 
     test('a body-id filter leaves out the meetings with no body', async () => {
-        const options = { includeUnreleased: false, administrativeBodyIds: [archive.bodies.council] }
+        const options = { includeUnreleased: false, scope: { ids: [archive.bodies.council] } }
         expect(await countCouncilMeetings(archive.cityId, options)).toBe(33)
         const ids = await readAllPages(archive.cityId, options)
         expect(ids).toHaveLength(33)
@@ -105,7 +105,7 @@ describe('meetings list paging - integration', () => {
         })
 
         test('follows the body filter', async () => {
-            const ids = await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', { ...reader, administrativeBodyIds: [archive.bodies.council] }, 'el', TZ)
+            const ids = await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', { ...reader, scope: { ids: [archive.bodies.council] } }, 'el', TZ)
             expect(ids).not.toEqual(expect.arrayContaining([archive.unassignedIds[0]]))
             expect(await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', reader, 'el', TZ)).toEqual(expect.arrayContaining(archive.unassignedIds))
         })
