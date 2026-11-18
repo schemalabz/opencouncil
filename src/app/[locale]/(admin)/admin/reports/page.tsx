@@ -1,7 +1,7 @@
 import { ReportForm, ReportContract } from "@/components/admin/reports/ReportForm";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
-import { getReportContract } from "@/lib/offers/state";
+import { effectiveEndDate, getReportContract } from "@/lib/offers/state";
 import { CUSTOMER_CITY_WHERE } from "@/lib/cityStatus";
 
 export default async function Page() {
@@ -24,7 +24,7 @@ export default async function Page() {
         if (contract) {
             contracts[city.id] = {
                 startDate: contract.startDate.toISOString(),
-                endDate: contract.endDate.toISOString(),
+                endDate: effectiveEndDate(contract).toISOString(),
                 adam: contract.adam,
             };
         }

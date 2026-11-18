@@ -175,6 +175,7 @@ function OfferLine({
                 <span className="text-xs text-muted-foreground">
                     {formatDate(offer.startDate)} →{" "}
                     {formatDate(offer.endDate)}
+                    {offer.extendedUntil && ` (extended to ${formatDate(offer.extendedUntil)})`}
                 </span>
             </div>
             <div className="flex items-center gap-3">
