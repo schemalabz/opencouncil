@@ -5,6 +5,8 @@ import { ArrowRight, Bot } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getPathname } from '@/i18n/routing';
+import { useRealm } from '@/hooks/useRealm';
+import { hasExplainPage } from '@/lib/explain/availability';
 import { cn } from '@/lib/utils';
 
 /**
@@ -26,11 +28,16 @@ const stopActivation = (e: KeyboardEvent) => {
  * Clicks and the keys that stand in for them stay inside the trigger, because
  * the cards around it select themselves on both. A plain anchor rather than
  * the router's Link: the map's popup cards mount in their own React root,
- * outside the router.
+ * outside the router. For the same reason the realm comes from the host and
+ * not from a server parent; the popover opens only after hydration, so the
+ * link is right by the time anyone sees it.
  */
 export function AIDisclosurePopover({ kind, children }: { kind: AIDisclosureKind; children: ReactNode }) {
     const t = useTranslations('Common');
     const locale = useLocale();
+    const learnMoreHref = hasExplainPage(useRealm())
+        ? `${getPathname({ href: '/explain', locale })}#oc-ai-what`
+        : `${getPathname({ href: '/about', locale })}#process`;
 
     return (
         <Popover>
@@ -46,7 +53,7 @@ export function AIDisclosurePopover({ kind, children }: { kind: AIDisclosureKind
                     {t(kind === 'illustrated' ? 'aiDisclosure.body' : 'aiDisclosure.bodyText')}
                 </p>
                 <a
-                    href={`${getPathname({ href: '/about', locale })}#process`}
+                    href={learnMoreHref}
                     className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[hsl(var(--orange))]"
                 >
                     {t('aiDisclosure.learnMore')}
