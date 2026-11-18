@@ -82,4 +82,7 @@ export const offerFormSchema = z.object({
     physicalPresenceHours: z.number().int().min(0).optional(),
     agreed: z.boolean().default(false),
     adam: adamSchema,
+    /** Day of the `<input type="date">`, `yyyy-MM-dd`; empty means no extension. */
+    extendedUntil: z.string().optional(),
+    extensionAdam: adamSchema,
 })

@@ -1289,6 +1289,10 @@ model Offer {
   // Lifecycle
   agreed Boolean @default(false) // Unofficially accepted (no ΑΔΑΜ yet)
   adam   String?                  // ΑΔΑΜ identifier; setting this implies signed
+  // Contract extension (παράταση): the contract stays in effect until this
+  // date. Prices and totals stay those of startDate..endDate.
+  extendedUntil DateTime?
+  extensionAdam String?           // ΑΔΑΜ of the extension
 }
 
 // Users and authentication

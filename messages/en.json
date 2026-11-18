@@ -842,7 +842,10 @@
         "agreed": "Agreed",
         "agreedDescription": "Offer has been accepted (officially or unofficially). When set, the offer counts as a signed contract.",
         "adam": "ΑΔΑΜ",
-        "adamDescription": "ΚΗΜΔΗΣ public-procurement identifier (e.g. 24PROC015123456). Setting this marks the offer as formally signed."
+        "adamDescription": "ΚΗΜΔΗΣ public-procurement identifier (e.g. 24PROC015123456). Setting this marks the offer as formally signed.",
+        "extendedUntil": "Extended until",
+        "extendedUntilDescription": "The contract stays in effect until this date. Prices and totals do not change.",
+        "extensionAdam": "Extension ΑΔΑΜ"
     },
     "Offer": {
         "title": "Offers",

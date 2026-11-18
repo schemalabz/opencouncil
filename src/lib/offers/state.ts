@@ -13,18 +13,30 @@ export function isSigned(offer: Offer): boolean {
 }
 
 /**
+ * The last day the contract is in effect: the extension date when the
+ * contract has an extension, else `endDate`. An extension date that is not
+ * after `endDate` has no effect. Lifecycle and overlap use this
+ * date. Prices and totals use `endDate`, because an extension adds no charge.
+ */
+export function effectiveEndDate(offer: Pick<Offer, 'endDate' | 'extendedUntil'>): Date {
+    return offer.extendedUntil && offer.extendedUntil > offer.endDate
+        ? offer.extendedUntil
+        : offer.endDate;
+}
+
+/**
  * Lifecycle state of an offer relative to `now`.
  * - pending:  not signed, regardless of dates
  * - upcoming: signed, startDate in the future
- * - active:   signed, now in [start, end]
- * - expired:  signed, endDate in the past
+ * - active:   signed, now in [start, effective end]
+ * - expired:  signed, effective end date in the past
  */
 export function getOfferState(offer: Offer, now: Date = new Date()): OfferState {
     if (!isSigned(offer)) return 'pending';
     if (now < offer.startDate) return 'upcoming';
     // End dates are stored at midnight (start of day) — a contract is still in
     // effect on its final day, so compare against end-of-day.
-    const endOfDay = new Date(offer.endDate);
+    const endOfDay = new Date(effectiveEndDate(offer));
     endOfDay.setHours(23, 59, 59, 999);
     if (now > endOfDay) return 'expired';
     return 'active';
@@ -43,7 +55,7 @@ export function getReportContract(cityOffers: Offer[], now: Date = new Date()): 
 
 /** True iff the two offers' coverage periods overlap. */
 export function periodsOverlap(a: Offer, b: Offer): boolean {
-    return a.startDate <= b.endDate && a.endDate >= b.startDate;
+    return a.startDate <= effectiveEndDate(b) && effectiveEndDate(a) >= b.startDate;
 }
 
 /**
@@ -209,13 +221,13 @@ export function categorizeCities(
 
     // Sort each section
     result.active.sort(
-        (a, b) => a.primaryOffer.endDate.getTime() - b.primaryOffer.endDate.getTime()
+        (a, b) => effectiveEndDate(a.primaryOffer).getTime() - effectiveEndDate(b.primaryOffer).getTime()
     );
     result.upcoming.sort(
         (a, b) => a.primaryOffer.startDate.getTime() - b.primaryOffer.startDate.getTime()
     );
     result.expired.sort(
-        (a, b) => b.primaryOffer.endDate.getTime() - a.primaryOffer.endDate.getTime()
+        (a, b) => effectiveEndDate(b.primaryOffer).getTime() - effectiveEndDate(a.primaryOffer).getTime()
     );
     result.prospects.sort(
         (a, b) => b.primaryOffer.createdAt.getTime() - a.primaryOffer.createdAt.getTime()
@@ -226,11 +238,12 @@ export function categorizeCities(
 
 /**
  * Annualized revenue for a single offer:
- *   total / contractMonths × 12
+ *   total / monthsInEffect × 12
+ * An extension adds months but no revenue, so it lowers the yearly rate.
  * Returns 0 for zero-month or zero-total contracts.
  */
 export function annualizeOffer(offer: Offer): number {
-    const months = monthsBetween(offer.startDate, offer.endDate);
+    const months = monthsBetween(offer.startDate, effectiveEndDate(offer));
     if (months === 0) return 0;
     const { total } = calculateOfferTotals(offer);
     return (total / months) * 12;

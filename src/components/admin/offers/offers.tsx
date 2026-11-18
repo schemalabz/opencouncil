@@ -1,11 +1,13 @@
 "use client";
 import { useState, useMemo } from "react";
+import { addDays, parseISO } from "date-fns";
 import { useTranslations } from "next-intl";
 import {
     ChevronRight,
     ChevronDown,
     Pencil,
     RefreshCw,
+    CalendarPlus,
     AlertTriangle,
     CheckCircle2,
 } from "lucide-react";
@@ -17,6 +19,9 @@ import {
     CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     Sheet,
     SheetContent,
@@ -26,7 +31,9 @@ import {
 } from "@/components/ui/sheet";
 import { Offer } from "@prisma/client";
 import OfferForm from "./offer-form";
-import { getOffers } from "@/lib/db/offers";
+import { getOffers, updateOffer } from "@/lib/db/offers";
+import { ADAM_REGEX, ADAM_FORMAT_MESSAGE } from "@/lib/zod-schemas/offer";
+import { dayInputValue } from "@/lib/utils/rosterDates";
 import { calculateOfferTotals, formatCurrency } from "@/lib/utils";
 import { formatDate } from "@/lib/formatters/time";
 import {
@@ -36,6 +43,7 @@ import {
     getOfferState,
     getDisplayState,
     getLivePendingOffers,
+    isSigned,
     type CityGroup as CityGroupType,
     type OfferDisplayState,
 } from "@/lib/offers/state";
@@ -131,6 +139,94 @@ function StatCard({
 }
 
 // ---------------------------------------------------------------------------
+// ExtendPopover — record a contract extension on a signed offer
+// ---------------------------------------------------------------------------
+
+function ExtendPopover({ offer, onChanged }: { offer: Offer; onChanged: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [day, setDay] = useState("");
+    const [adam, setAdam] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [failed, setFailed] = useState(false);
+    const adamValid = !adam || ADAM_REGEX.test(adam);
+
+    // Each open starts from the stored values: the edit form can change them,
+    // and a cancelled edit here must not stay.
+    const onOpenChange = (next: boolean) => {
+        if (next) {
+            setDay(offer.extendedUntil ? dayInputValue(offer.extendedUntil) : "");
+            setAdam(offer.extensionAdam ?? "");
+            setFailed(false);
+        }
+        setOpen(next);
+    };
+
+    const save = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setSaving(true);
+        try {
+            await updateOffer(offer.id, {
+                extendedUntil: parseISO(day),
+                extensionAdam: adam || null,
+            });
+            setOpen(false);
+            onChanged();
+        } catch {
+            setFailed(true);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Popover open={open} onOpenChange={onOpenChange}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <CalendarPlus className="h-4 w-4 mr-1" />
+                    Extend until
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end">
+                <form onSubmit={save} className="space-y-3">
+                    <div className="space-y-1">
+                        <Label htmlFor={`extend-day-${offer.id}`}>Extend until</Label>
+                        <Input
+                            id={`extend-day-${offer.id}`}
+                            type="date"
+                            required
+                            min={dayInputValue(addDays(offer.endDate, 1))}
+                            value={day}
+                            onChange={(e) => setDay(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor={`extend-adam-${offer.id}`}>Extension ΑΔΑΜ (optional)</Label>
+                        <Input
+                            id={`extend-adam-${offer.id}`}
+                            value={adam}
+                            onChange={(e) => setAdam(e.target.value.trim())}
+                            placeholder="26SYMV019872451"
+                        />
+                        {!adamValid && (
+                            <p className="text-xs text-destructive">{ADAM_FORMAT_MESSAGE}</p>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Prices and totals do not change.
+                    </p>
+                    {failed && (
+                        <p className="text-xs text-destructive">The extension was not saved.</p>
+                    )}
+                    <Button type="submit" size="sm" disabled={saving || !day || !adamValid}>
+                        Save
+                    </Button>
+                </form>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // OfferLine — single offer row, with optional edit Sheet
 // ---------------------------------------------------------------------------
 
@@ -175,11 +271,16 @@ function OfferLine({
                 <span className="text-xs text-muted-foreground">
                     {formatDate(offer.startDate)} →{" "}
                     {formatDate(offer.endDate)}
+                    {offer.extendedUntil && offer.extendedUntil > offer.endDate &&
+                        ` (extended to ${formatDate(offer.extendedUntil)})`}
                 </span>
             </div>
             <div className="flex items-center gap-3">
                 <span className="font-medium">{formatCurrency(totals.total)}</span>
                 {actions}
+                {editable && isSigned(offer) && (
+                    <ExtendPopover offer={offer} onChanged={onChanged} />
+                )}
                 {editable && (
                     <Sheet open={editOpen} onOpenChange={setEditOpen}>
                         <SheetTrigger asChild>

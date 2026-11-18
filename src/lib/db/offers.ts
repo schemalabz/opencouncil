@@ -8,6 +8,7 @@ import { isSigned, getSupersedingOffer } from "../offers/state";
 export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Offer> {
     await withUserAuthorizedToEdit({});
     validateAdam(offerData.adam);
+    validateAdam(offerData.extensionAdam);
     try {
         const newOffer = await prisma.offer.create({
             data: offerData,
@@ -22,6 +23,7 @@ export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'u
 export async function updateOffer(id: string, offerData: Partial<Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Offer> {
     await withUserAuthorizedToEdit({});
     if ('adam' in offerData) validateAdam(offerData.adam);
+    if ('extensionAdam' in offerData) validateAdam(offerData.extensionAdam);
     try {
         const updatedOffer = await prisma.offer.update({
             where: { id },
@@ -92,7 +94,8 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
 export async function getActiveContractAdamByCity(): Promise<Record<string, string>> {
     const now = new Date();
     // End dates are stored at midnight — a contract is still in effect on its
-    // final day, so include offers whose endDate is today or later.
+    // final day, so include offers whose endDate is today or later. An
+    // extension keeps the contract in effect after its endDate.
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -101,7 +104,10 @@ export async function getActiveContractAdamByCity(): Promise<Record<string, stri
             adam: { not: null },
             cityId: { not: null },
             startDate: { lte: now },
-            endDate: { gte: startOfToday },
+            OR: [
+                { endDate: { gte: startOfToday } },
+                { extendedUntil: { gte: startOfToday } },
+            ],
         },
         select: { cityId: true, adam: true },
         orderBy: { startDate: "desc" },

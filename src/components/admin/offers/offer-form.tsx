@@ -36,6 +36,9 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { offerFormSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
+import { effectiveEndDate } from '@/lib/offers/state'
+import { dayInputValue } from '@/lib/utils/rosterDates'
+import { parseISO } from 'date-fns'
 import { useSession } from 'next-auth/react'
 
 interface OfferFormProps {
@@ -103,6 +106,8 @@ const EMPTY_OFFER_DEFAULTS = {
     physicalPresenceHours: 0,
     agreed: false,
     adam: "",
+    extendedUntil: "",
+    extensionAdam: "",
 } satisfies Partial<z.input<typeof offerFormSchema>>
 
 /** Responder contact prefill from the signed-in session (fresh creates). */
@@ -146,14 +151,14 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     // including a renewal, gets the current version.
     const offerVersion = offer ? offer.version || 1 : CURRENT_OFFER_VERSION
 
-    // Renewal default dates: start = max(today, prev.endDate + 1 day),
+    // Renewal default dates: start = max(today, prev. effective end + 1 day),
     // end = day before the first anniversary — a 12-month inclusive term,
     // consistent with fresh-offer defaults (e.g. 2027-02-28 → 2028-02-27).
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const renewStart = renewFrom
         ? (() => {
-              const dayAfter = new Date(renewFrom.endDate)
+              const dayAfter = new Date(effectiveEndDate(renewFrom))
               dayAfter.setDate(dayAfter.getDate() + 1)
               return dayAfter > today ? dayAfter : today
           })()
@@ -192,6 +197,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             physicalPresenceHours: source?.physicalPresenceHours || 0,
             agreed: offer?.agreed || false,
             adam: offer?.adam || "",
+            extendedUntil: offer?.extendedUntil ? dayInputValue(offer.extendedUntil) : "",
+            extensionAdam: offer?.extensionAdam || "",
         },
     })
 
@@ -273,6 +280,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                     hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
                     agreed: values.agreed,
                     adam: values.adam || null,
+                    extendedUntil: values.extendedUntil ? parseISO(values.extendedUntil) : null,
+                    extensionAdam: values.extensionAdam || null,
                 });
             } else {
                 await createOffer({
@@ -282,6 +291,8 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
                     agreed: values.agreed,
                     adam: values.adam || null,
+                    extendedUntil: null,
+                    extensionAdam: null,
                 });
             }
 
@@ -811,6 +822,41 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                                     <FormDescription>
                                         {t('adamDescription')}
                                     </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="extendedUntil"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('extendedUntil')}</FormLabel>
+                                    <FormControl>
+                                        <Input type="date" {...field} value={field.value || ""} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('extendedUntilDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="extensionAdam"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('extensionAdam')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            value={field.value || ""}
+                                            placeholder="26SYMV019872451"
+                                        />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
