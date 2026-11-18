@@ -111,3 +111,19 @@ describe('SubjectListContainer rosters', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 });
+
+// The row is the meeting page's subject list and the search results; the card
+// is the search card mode. Both are one link, so the notice is a plain label.
+describe.each(['row', 'card'] as const)('AI notice, variant=%s', (variant) => {
+    it('labels the AI-written description, with nothing to click inside the link', async () => {
+        await renderList(variant, makeSubject());
+        const label = screen.getByText('aiGenerated');
+        expect(label.closest('a')).not.toBeNull();
+        expect(label.closest('button')).toBeNull();
+    });
+
+    it('has no notice when the subject has no description', async () => {
+        await renderList(variant, makeSubject({ description: '', description_en: '' } as Partial<SearchResultLight>));
+        expect(screen.queryByText('aiGenerated')).toBeNull();
+    });
+});

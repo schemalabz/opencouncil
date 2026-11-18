@@ -16,6 +16,8 @@ export interface SubjectCardContentProps {
     /** Inline content. The caller has already stripped markdown and resolved
      *  any search emphasis. */
     description?: React.ReactNode;
+    /** Shown under the description, e.g. the AI notice. Callers pass it only with a description. */
+    descriptionNote?: React.ReactNode;
     /** Optional media above the description (app: highlight video). */
     mediaSlot?: React.ReactNode;
     /** Optional footer (app: speaking stats + avatars; widget: none or a light row). */
@@ -43,6 +45,7 @@ export function SubjectCardContent({
     locationText,
     agendaLabel,
     description,
+    descriptionNote,
     mediaSlot,
     footer,
     overlay,
@@ -106,6 +109,9 @@ export function SubjectCardContent({
                             <div className={cn("text-xs sm:text-sm text-muted-foreground line-clamp-4 sm:line-clamp-5 group-hover/card:text-muted-foreground/80 transition-colors duration-300", compact && "sm:text-xs line-clamp-3 sm:line-clamp-3")}>
                                 {description}
                             </div>
+                        )}
+                        {description && descriptionNote && (
+                            <div className="mt-1.5 flex justify-end">{descriptionNote}</div>
                         )}
                     </CardContent>
                 )}

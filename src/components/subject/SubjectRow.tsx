@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { meetingDisplayName } from '@/lib/meetingName';
+import { AIGeneratedLabel } from "@/components/AIGeneratedLabel";
 
 
 interface SubjectRowProps {
@@ -188,6 +189,7 @@ export function SubjectRow({ subject, city, meeting, showContext = true, pending
                                     context line above holds the body and the date, so the title. */}
                                 {showContext && <MetaItem icon={ScrollText}>{meetingDisplayName(meeting, locale, city.timezone)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
+                                {description && <AIGeneratedLabel />}
                             </div>
                         </div>
                     </div>

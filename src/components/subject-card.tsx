@@ -21,6 +21,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { meetingDisplayName } from '@/lib/meetingName';
+import { AIGeneratedLabel } from "@/components/AIGeneratedLabel";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics; matches?: SearchMatches };
@@ -94,6 +95,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                 locationText={subjectLocation(subject, localize) ?? t("noLocation")}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subjectDescription(subject, localize)}
+                descriptionNote={<AIGeneratedLabel />}
                 mediaSlot={highlight?.muxPlaybackId ? (
                     <div className="mb-4" onClick={(e) => e.stopPropagation()}>
                         <HighlightVideo
