@@ -1,5 +1,6 @@
 import { createClient } from 'redis';
 import { env } from '@/env.mjs';
+import { withinDeadline } from '@/lib/utils/withinDeadline';
 
 /**
  * Shared Valkey/Redis client for application-level caching and dedup markers.
@@ -128,6 +129,63 @@ export async function cacheAcquire(key: string, ttlSeconds: number): Promise<Cac
         return (await redis.set(key, '1', { NX: true, EX: ttlSeconds })) === 'OK' ? 'acquired' : 'held';
     } catch (error) {
         console.error(`[valkey] acquire failed for ${key}:`, error instanceof Error ? error.message : error);
+        return 'unavailable';
+    }
+}
+
+export type CacheWindow =
+    /** the hits this key took inside its window, this one included, and when the window ends */
+    | { count: number; resetInMs: number }
+    /** nothing was counted: CACHE_URL is unset, or the command failed */
+    | 'unavailable';
+
+// INCR, then PEXPIRE on the first hit, as one script: a crash between the two
+// commands cannot leave a counter that never expires. A key found without a
+// TTL (a script that was cut short before this fix, or a manual SET) gets one.
+const INCR_WINDOW_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('PTTL', KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
+
+/**
+ * How long a rate-limit count may take, connect included. A sign-in waits
+ * for the count before its email goes out, so a Valkey that accepts the
+ * connection and then stops replying must not hold the sign-in: past this
+ * deadline the hit is 'unavailable' and the limiter lets it through. The
+ * client itself queues commands while it reconnects and never times one out.
+ */
+export const INCR_WINDOW_DEADLINE_MS = 1000;
+
+/**
+ * Count a hit against a key that expires windowMs after its first hit: a
+ * fixed window, so the count resets when the key does, not one hit at a
+ * time. Every container shares the count. The rate limiter
+ * (src/lib/rate-limit) is built on it. Answers within
+ * INCR_WINDOW_DEADLINE_MS, with 'unavailable' when Valkey does not.
+ */
+export async function cacheIncrWindow(key: string, windowMs: number): Promise<CacheWindow> {
+    const result = await withinDeadline(incrWindow(key, windowMs), INCR_WINDOW_DEADLINE_MS);
+    if (result !== 'timeout') return result;
+    console.error(`[valkey] incr timed out for ${key} after ${INCR_WINDOW_DEADLINE_MS} ms`);
+    return 'unavailable';
+}
+
+async function incrWindow(key: string, windowMs: number): Promise<CacheWindow> {
+    try {
+        const redis = await getClient();
+        if (!redis) return 'unavailable';
+        const reply = await redis.eval(INCR_WINDOW_SCRIPT, { keys: [key], arguments: [String(windowMs)] });
+        if (!Array.isArray(reply) || reply.length !== 2) {
+            throw new Error(`unexpected reply ${JSON.stringify(reply)}`);
+        }
+        return { count: Number(reply[0]), resetInMs: Number(reply[1]) };
+    } catch (error) {
+        console.error(`[valkey] incr failed for ${key}:`, error instanceof Error ? error.message : error);
         return 'unavailable';
     }
 }

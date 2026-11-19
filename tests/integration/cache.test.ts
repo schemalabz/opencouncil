@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers'
-import { cacheGetJSON, cacheSetJSON, cacheHas, disconnectCache } from '@/lib/cache/valkey'
+import { cacheGetJSON, cacheSetJSON, cacheHas, cacheIncrWindow, disconnectCache } from '@/lib/cache/valkey'
 
 /**
  * Integration coverage for the Valkey cache layer.
@@ -70,5 +70,24 @@ describe('valkey cache layer', () => {
         expect(await cacheGetJSON('falsy')).toBe(0)
         await cacheSetJSON('empty', '', 60)
         expect(await cacheGetJSON('empty')).toBe('')
+    })
+
+    it('counts hits in one fixed window and starts over when it ends', async () => {
+        const first = await cacheIncrWindow('window', 1000)
+        expect(first).toEqual({ count: 1, resetInMs: 1000 })
+        const second = await cacheIncrWindow('window', 1000)
+        expect(second).not.toBe('unavailable')
+        if (second === 'unavailable') return
+        expect(second.count).toBe(2)
+        expect(second.resetInMs).toBeLessThanOrEqual(1000)
+        expect(second.resetInMs).toBeGreaterThan(0)
+        await new Promise((r) => setTimeout(r, 1100))
+        expect(await cacheIncrWindow('window', 1000)).toEqual({ count: 1, resetInMs: 1000 })
+    })
+
+    it('counts concurrent hits without losing one', async () => {
+        const replies = await Promise.all(Array.from({ length: 20 }, () => cacheIncrWindow('burst', 60_000)))
+        const counts = replies.map((r) => (r === 'unavailable' ? -1 : r.count)).sort((a, b) => a - b)
+        expect(counts).toEqual(Array.from({ length: 20 }, (_, i) => i + 1))
     })
 })
