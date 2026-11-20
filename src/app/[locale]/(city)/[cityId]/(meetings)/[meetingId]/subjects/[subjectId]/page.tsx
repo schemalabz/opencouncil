@@ -186,6 +186,7 @@ export default async function SubjectPage(
                                         ? getLocalizedName(meetingData.meeting.administrativeBody, params.locale)
                                         : null,
                                     timezone: meetingData.city.timezone,
+                                    authorityType: meetingData.city.authorityType,
                                 }}
                             />
                         </Suspense>

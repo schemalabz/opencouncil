@@ -432,12 +432,18 @@
     },
     "scheduleStatusDescription": "Une séance reportée ou annulée reste visible. Le calendrier est mis à jour automatiquement.",
     "scheduleStatusReason": "Motif",
-    "scheduleStatusReasonPlaceholder": "Tel que publié par la commune",
+    "scheduleStatusReasonPlaceholder": {
+      "municipality": "Tel que publié par la commune",
+      "region": "Tel que publié par la commune"
+    },
     "postponedFrom": "Nouvelle séance d’une séance reportée",
     "postponedFromNone": "Aucune",
     "postponedFromDescription": "Choisissez la séance reportée si celle-ci est sa nouvelle séance. Quand celle-ci est publiée, l’ancienne est masquée pour les lecteurs.",
     "sessionNumber": "Numéro de séance",
-    "sessionNumberDescription": "Tel que la commune l’imprime. Une séance annulée garde son numéro, et la nouvelle séance après un report prend le même.",
+    "sessionNumberDescription": {
+      "municipality": "Tel que la commune l’imprime. Une séance annulée garde son numéro, et la nouvelle séance après un report prend le même.",
+      "region": "Tel que la commune l’imprime. Une séance annulée garde son numéro, et la nouvelle séance après un report prend le même."
+    },
     "format": "Format",
     "formatOptions": {
         "inPerson": "En présentiel",
@@ -1056,7 +1062,10 @@
     "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
     "youtubeChannelUrlDescription": "Saisissez l'URL de la chaîne YouTube pour cet organe administratif.",
     "place": "Salle des séances",
-    "placePlaceholder": "p. ex. Salle du conseil, Hôtel de ville",
+    "placePlaceholder": {
+      "municipality": "p. ex. Salle du conseil, Hôtel de ville",
+      "region": "p. ex. Salle du conseil, Hôtel de ville"
+    },
     "placeDescription": "Là où l’organe siège en règle générale. La page de chaque séance en présentiel l’affiche, sauf si la séance a son propre lieu.",
     "notificationBehavior": "Comportement des notifications",
     "notificationBehaviorDescription": "Choisissez le comportement des notifications pour les séances de cet organe.",
@@ -1180,9 +1189,15 @@
     "noStatementsByCirculation": "Lors d’une séance par consultation écrite, les membres votent par écrit, sans débat. Il n’y a donc pas d’interventions.",
     "noStatementsNotRecorded": "La séance s’est tenue sans enregistrement ; il n’y a donc pas d’interventions.",
     "relatedSubjects": "Sujets liés",
-    "relatedOtherCities": "Autres communes",
+    "relatedOtherCities": {
+      "municipality": "Autres communes",
+      "region": "Autres communes"
+    },
     "relatedSeeMore": "Voir plus dans la recherche",
-    "relatedSameCity": "Dans la même commune, au fil du temps",
+    "relatedSameCity": {
+      "municipality": "Dans la même commune, au fil du temps",
+      "region": "Dans la même commune, au fil du temps"
+    },
     "relatedCurrent": "Ce sujet",
     "relatedRecurring": "Sujets similaires dans les six mois",
     "transcript": "Transcription",

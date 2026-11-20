@@ -374,7 +374,7 @@ export default function AddMeetingForm({ cityId, realm, authorityType, timezone,
                                 <FormItem>
                                     <FormLabel>{t('scheduleStatusReason')}</FormLabel>
                                     <FormControl>
-                                        <Textarea {...field} value={field.value ?? ''} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
+                                        <Textarea {...field} value={field.value ?? ''} placeholder={t(authorityKey('scheduleStatusReasonPlaceholder', { authorityType }))} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -592,7 +592,7 @@ export default function AddMeetingForm({ cityId, realm, authorityType, timezone,
                                     <FormControl>
                                         <Input {...field} inputMode="numeric" className="max-w-[8rem]" />
                                     </FormControl>
-                                    <FormDescription>{t('sessionNumberDescription')}</FormDescription>
+                                    <FormDescription>{t(authorityKey('sessionNumberDescription', { authorityType }))}</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
