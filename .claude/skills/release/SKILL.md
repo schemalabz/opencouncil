@@ -154,6 +154,65 @@ The seed pipeline ships content tables to developers and previews, and never shi
 
 Stop the release when the test fails or when any row of the table disagrees. The user decides each disagreement. The fix lands through a pull request before the release continues. Do not change `tables.json` inside the release.
 
+### Privacy check
+
+The privacy policy (`src/app/[locale]/(other)/privacy/page.tsx`) must cover new processing of personal data before that processing reaches production. An author declares new processing in a `## Privacy` section of the pull request description (see "New processing of personal data" in `CLAUDE.md`). An author can forget, and a commit can reach the source branch without a pull request. The release therefore looks for new processing in the code first, and reads the declarations after that, so that they do not steer your judgement. The policy covers every service in this repository, `services/notis` included.
+
+1. Look for new processing in the code. Read these parts of the diff:
+
+   ```bash
+   # Keys of new external services
+   git diff $MERGE_RANGE -- '*.env.example'
+   # New dependencies, for example the SDK of a service or a log, trace or analytics exporter
+   git diff $MERGE_RANGE -- '*package.json'
+   # New external hosts in the code. Expect placeholders in UI code among the hits
+   git diff $MERGE_RANGE -- . ':!package-lock.json' ':!*.md' ':!**/*.test.*' | grep -E '^\+.*https?://' | grep -v '^+++'
+   # New prompt content for a language model
+   git diff --stat $MERGE_RANGE -- '**/prompt*' '**/*prompt*' 'services/notis/src/agent/'
+   ```
+
+   Also use the schema additions from the "Seed classification check": a new private model or column is new personal data. Check whether any code sends it out of the app.
+
+   These signals miss two cases. Check both:
+   - **New data to a known service.** A service that the policy names can receive new data, for example IP addresses, email addresses, log lines, or free text that a reader wrote. A new field in a prompt to a language model is such a case. Read the code that builds each payload.
+   - **A new sink.** A log, trace, or analytics forwarder sends data that code outside the diff produces. Audit every source that feeds the sink, across the codebase, not only in the diff. For console output, for example:
+
+     ```bash
+     grep -rnE 'console\.(log|info|warn|error|debug)\(.*(email|phone|name|address|ip|location)' src services --include='*.ts' --include='*.tsx'
+     ```
+
+   For each item, write down which service receives which data, with the file and line.
+
+2. Read the declarations. Get the pull requests that this release deploys, and print the `## Privacy` section of each. Also list the commits that name no pull request: nobody declared anything for them.
+
+   ```bash
+   git log --first-parent --format=%s $MERGE_RANGE | grep -oE '#[0-9]+' | tr -d '#' | sort -un |
+     while read -r n; do
+       body=$(gh pr view "$n" --repo "$REPO" --json body -q .body 2>/dev/null) || continue  # an issue number, not a pull request
+       section=$(printf '%s\n' "$body" | awk 'tolower($0) ~ /^#+ +privacy/{p=1; next} /^#+ /{p=0} p')
+       echo "#$n: ${section:-(no Privacy section)}"
+     done
+   git log --first-parent --format='%h %s' $MERGE_RANGE | grep -vE '#[0-9]+'
+   ```
+
+   A pull request without the section is not an error by itself. Compare the declarations with your findings from step 1. A finding that no declaration names needs the most care.
+
+3. Read the policy on the tip that this release deploys, and its changes in this release. The sections are long one-line strings, so print them one at a time:
+
+   ```bash
+   POLICY="src/app/[locale]/(other)/privacy/page.tsx"
+   git diff $MERGE_RANGE -- "$POLICY"
+   git show "$REMOTE/$SOURCE_BRANCH:$POLICY" | grep -E '"(title|content)"' | sed 's/\\n/\n/g'
+   ```
+
+   For each item, check that the policy names the service, the data, the purpose, and the retention. The comment at the top of the policy file lists the sections that a change touches. A retention that a service sets in its own settings is not in the repository. Ask the user for that value.
+
+4. Show the user a table with these columns: item, where you found it (code, declaration, or both), service, data, and coverage. Coverage is "covered" with the section, "partly covered" with what is missing (for example, the data is named but the receiver is not), or "not covered".
+
+When an item is partly covered or not covered, stop the release and show the table to the user. The user is the DPO and decides each item. A policy change lands through a pull request before the release continues. Do not edit the policy inside the release.
+
+This check cannot see processing that is configured outside the repository, for example a log destination in the DigitalOcean app spec, or a host that comes from an environment variable. The DPO's own periodic check covers that.
+
 ### Create backup branches
 
 Back up only what a release can actually lose, and clear the previous release's backups first — nothing in this workflow ever reads a backup older than one cycle.
