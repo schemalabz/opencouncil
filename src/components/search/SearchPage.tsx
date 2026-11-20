@@ -35,6 +35,7 @@ import { cn, getPartyFromRoles } from "@/lib/utils";
 import { toAdministrativeBodyType } from "@/lib/utils/administrativeBodies";
 import { readTier } from "@/lib/utils/bodyTier";
 import { readPageParam, totalPagesOf } from "@/lib/zod-schemas/listQuery";
+import { randomUuid } from "@/lib/utils/randomUuid";
 import { useTranslations } from 'next-intl';
 import posthog from "posthog-js";
 
@@ -51,6 +52,14 @@ export default function SearchPage() {
     // The last query persisted to the search log, so that filter and page
     // changes re-executing the same query don't log the same intent again.
     const lastLoggedQueryRef = useRef<string | null>(null);
+    // The id of the current query and the query it names. A query gets its id
+    // on its first run, on any page; the server writes the row under it on the
+    // query's first run on page 1. Every run of the query, and every result
+    // opened from it, carries the id in its analytics event, even when a run
+    // fails or a later one replaces it. An event joins the text in the
+    // database without sending the text.
+    const searchIdRef = useRef<string | null>(null);
+    const searchIdQueryRef = useRef<string | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
     // The filter panel is a full-screen layer; without this the results list
@@ -291,6 +300,8 @@ export default function SearchPage() {
             // filters again, since clearing the box took the filters the last
             // extraction supplied off the URL with it.
             lastLoggedQueryRef.current = null;
+            searchIdRef.current = null;
+            searchIdQueryRef.current = null;
             executedSearchRef.current = null;
             extractedQueryRef.current = null;
             setState(prev => ({ ...prev, results: [], total: 0 }));
@@ -306,8 +317,14 @@ export default function SearchPage() {
         try {
             // Only the database log dedupes repeats of one query — it is a record
             // of what people look for, not of what the page did.
-            const skipQueryLog = lastLoggedQueryRef.current === query;
-            lastLoggedQueryRef.current = query;
+            if (searchIdQueryRef.current !== query) {
+                searchIdQueryRef.current = query;
+                searchIdRef.current = randomUuid();
+            }
+            // The server writes a row only for page 1, so a query opened on a
+            // later page (a shared link, Back) is recorded when it reaches page 1.
+            const skipQueryLog = lastLoggedQueryRef.current === query || page !== 1;
+            if (!skipQueryLog) lastLoggedQueryRef.current = query;
 
             const response = await searchFn({
                 query,
@@ -330,7 +347,7 @@ export default function SearchPage() {
                     from: (page - 1) * PAGE_SIZE,
                     detailed: false
                 }
-            }, { skipQueryLog });
+            }, { skipQueryLog, searchId: searchIdRef.current ?? undefined });
 
             if (!isCurrentRun()) return;
 
@@ -394,6 +411,7 @@ export default function SearchPage() {
             // — both real searches, with different results — recorded nothing,
             // and the filter flags below described only a query's first run.
             posthog.capture("search_performed", {
+                search_id: searchIdRef.current,
                 query_length: query.length,
                 page,
                 has_city_filter: !!cityId,
@@ -416,6 +434,7 @@ export default function SearchPage() {
             // Without this a failed search and one that matched nothing are the
             // same event with results_count 0.
             posthog.capture("search_failed", {
+                search_id: searchIdRef.current,
                 query_length: query.length,
                 page,
                 duration_ms: Math.round(performance.now() - startedAt),
@@ -523,6 +542,7 @@ export default function SearchPage() {
             // and a click at rank 40 say different things about the ranking, and
             // that is the point of recording it at all.
             onSubjectOpen={(subject, index) => posthog.capture("search_result_opened", {
+                search_id: searchIdRef.current,
                 query_length: query.length,
                 rank: (page - 1) * PAGE_SIZE + index,
                 subject_id: subject.id,

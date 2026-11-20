@@ -43,9 +43,10 @@ export async function getPopularSearchQueries(): Promise<string[]> {
 
 /**
  * Persists a search query for usage analytics, attributing it to the current
- * user when one is logged in. Never throws — logging must not break search.
+ * user when one is logged in. The caller picks the id, so that it can name the
+ * search before the row exists. Never throws — logging must not break search.
  */
-export async function logSearchQuery(query: string): Promise<void> {
+export async function logSearchQuery(query: string, id: string): Promise<void> {
     try {
         const session = await auth();
         // Resolve only the user id: getCurrentUser() would join the full
@@ -58,6 +59,7 @@ export async function logSearchQuery(query: string): Promise<void> {
             : null;
         await prisma.searchQuery.create({
             data: {
+                id,
                 query: query.slice(0, MAX_LOGGED_QUERY_LENGTH),
                 userId: user?.id ?? null,
             },
