@@ -166,7 +166,10 @@
         "logoPreview": "Προεπισκόπηση Λογότυπου",
         "details": "Λεπτομέρειες",
         "boundary": "Όρια",
-        "boundaryDescription": "Τα γεωγραφικά όρια του δήμου, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM).",
+        "boundaryDescription": {
+            "municipality": "Τα γεωγραφικά όρια του δήμου, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM).",
+            "region": "Τα γεωγραφικά όρια της περιφέρειας, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM)."
+        },
         "boundaryPlaceholder": "Επικολλήστε εδώ το GeoJSON των ορίων…",
         "boundaryShowingStored": "Εμφανίζονται τα αποθηκευμένα όρια.",
         "boundaryPreviewingPasted": "Προεπισκόπηση των επικολλημένων ορίων — θα αποθηκευτούν με την υποβολή της φόρμας.",
@@ -177,16 +180,31 @@
         "toggle": "Εναλλαγή",
         "cityNameEnPlaceholder": "Όνομα Πόλης (Αγγλικά)",
         "cityNameEnDescription": "Εισάγετε το όνομα της πόλης στα Αγγλικά.",
-        "cityMunicipalityPlaceholder": "Όνομα Δήμου",
-        "cityMunicipalityDescription": "Εισάγετε το όνομα του δήμου.",
-        "cityMunicipalityEnPlaceholder": "Όνομα Δήμου (Αγγλικά)",
-        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+        "cityMunicipalityPlaceholder": {
+            "municipality": "Όνομα Δήμου",
+            "region": "Όνομα Περιφέρειας"
+        },
+        "cityMunicipalityDescription": {
+            "municipality": "Εισάγετε το όνομα του δήμου.",
+            "region": "Εισάγετε το όνομα της περιφέρειας."
+        },
+        "cityMunicipalityEnPlaceholder": {
+            "municipality": "Όνομα Δήμου (Αγγλικά)",
+            "region": "Όνομα Περιφέρειας (Αγγλικά)"
+        },
+        "cityMunicipalityEnDescription": {
+            "municipality": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+            "region": "Εισάγετε το όνομα της περιφέρειας στα Αγγλικά."
+        },
         "authorityType": "Τύπος Αρχής",
         "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
         "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί",
         "realm": "Ομάδα (Realm)",
         "selectRealm": "Επιλέξτε ομάδα",
-        "realmDescription": "Η ομάδα/χώρα στην οποία ανήκει αυτός ο δήμος.",
+        "realmDescription": {
+            "municipality": "Η ομάδα/χώρα στην οποία ανήκει αυτός ο δήμος.",
+            "region": "Η ομάδα/χώρα στην οποία ανήκει αυτή η περιφέρεια."
+        },
         "language": "Γλώσσα",
         "selectLanguage": "Επιλέξτε γλώσσα",
         "languageDescription": "Η γλώσσα στην οποία συνεδριάζει το συμβούλιο. Ορίζει τη γλώσσα της απομαγνητοφώνησης και των περιλήψεων· δεν αλλάζει τη γλώσσα της διεπαφής.",
@@ -236,11 +254,17 @@
             "activeLabel": "Ενεργό (ορατό σε όλους τους χρήστες)",
             "inactiveDescription": "Τα ανενεργά μηνύματα είναι ορατά μόνο στους διαχειριστές συστήματος για προεπισκόπηση."
         },
-        "sectionIdentity": "Στοιχεία δήμου",
+        "sectionIdentity": {
+            "municipality": "Στοιχεία δήμου",
+            "region": "Στοιχεία περιφέρειας"
+        },
         "sectionIdentityHint": "Ονομασία, τύπος αρχής και λογότυπο",
         "sectionSettings": "Ρυθμίσεις",
         "sectionSettingsHint": "Διεύθυνση, ζώνη ώρας, ενημερώσεις, διαβουλεύσεις, Διαύγεια",
-        "administrativeBodiesHint": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+        "administrativeBodiesHint": {
+            "municipality": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+            "region": "Περιφερειακό συμβούλιο και επιτροπές"
+        },
         "adminSettingsHint": "Κατάσταση, δικαιώματα, χώρα και γλώσσα"
     },
     "City": {

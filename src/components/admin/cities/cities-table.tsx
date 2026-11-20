@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import FormSheet from "@/components/FormSheet";
 import CityForm from "@/components/cities/CityForm";
+import { authorityKey, isRegion } from "@/lib/utils/authority";
 
 type CityCounts = { persons: number; parties: number; councilMeetings: number };
 type CityRow = City & { _count: CityCounts };
@@ -54,7 +55,11 @@ export function CitiesAdminTable({ cities, realmBaseUrls }: CitiesAdminTableProp
     const groupedByRealm = useMemo(() => {
         // Iterate every realm in config order and drop empty groups.
         return ALL_REALMS
-            .map((realm) => ({ realm, cities: filteredCities.filter((c) => c.realm === realm) }))
+            .map((realm) => {
+                const realmCities = filteredCities.filter((c) => c.realm === realm);
+                const regions = realmCities.filter(isRegion).length;
+                return { realm, cities: realmCities, regions, municipalities: realmCities.length - regions };
+            })
             .filter((group) => group.cities.length > 0);
     }, [filteredCities]);
 
@@ -93,14 +98,21 @@ export function CitiesAdminTable({ cities, realmBaseUrls }: CitiesAdminTableProp
             {groupedByRealm.length === 0 ? (
                 <p className="text-muted-foreground">{t("noCities")}</p>
             ) : (
-                groupedByRealm.map(({ realm, cities: realmCities }) => (
+                groupedByRealm.map(({ realm, cities: realmCities, regions, municipalities }) => (
                     <Card key={realm}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 {realmLabel(realm)}
-                                <Badge variant="secondary">
-                                    {t("cityCount", { count: realmCities.length })}
-                                </Badge>
+                                {municipalities > 0 && (
+                                    <Badge variant="secondary">
+                                        {t("cityCount", { count: municipalities })}
+                                    </Badge>
+                                )}
+                                {regions > 0 && (
+                                    <Badge variant="secondary">
+                                        {t("regionCount", { count: regions })}
+                                    </Badge>
+                                )}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -148,7 +160,7 @@ export function CitiesAdminTable({ cities, realmBaseUrls }: CitiesAdminTableProp
                                                     <FormSheet
                                                         FormComponent={CityForm}
                                                         formProps={{ city }}
-                                                        title={t("editCity")}
+                                                        title={t(authorityKey("editCity", city))}
                                                         type="edit"
                                                         closeOnSuccess
                                                     />

@@ -152,7 +152,10 @@
         "logoPreview": "Преглед логотипа",
         "details": "Детаљи",
         "boundary": "Границе",
-        "boundaryDescription": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза).",
+        "boundaryDescription": {
+            "municipality": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза).",
+            "region": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза)."
+        },
         "boundaryPlaceholder": "Налепите овде GeoJSON граница…",
         "boundaryShowingStored": "Приказане су тренутно сачуване границе.",
         "boundaryPreviewingPasted": "Преглед налепљених граница — биће сачуване када пошаљете формулар.",
@@ -163,16 +166,31 @@
         "toggle": "Прикажи/сакриј",
         "cityNameEnPlaceholder": "Назив града (енглески)",
         "cityNameEnDescription": "Унесите назив града на енглеском.",
-        "cityMunicipalityPlaceholder": "Назив општине",
-        "cityMunicipalityDescription": "Унесите назив општине.",
-        "cityMunicipalityEnPlaceholder": "Назив општине (енглески)",
-        "cityMunicipalityEnDescription": "Унесите назив општине на енглеском.",
+        "cityMunicipalityPlaceholder": {
+            "municipality": "Назив општине",
+            "region": "Назив општине"
+        },
+        "cityMunicipalityDescription": {
+            "municipality": "Унесите назив општине.",
+            "region": "Унесите назив општине."
+        },
+        "cityMunicipalityEnPlaceholder": {
+            "municipality": "Назив општине (енглески)",
+            "region": "Назив општине (енглески)"
+        },
+        "cityMunicipalityEnDescription": {
+            "municipality": "Унесите назив општине на енглеском.",
+            "region": "Унесите назив општине на енглеском."
+        },
         "authorityType": "Тип органа власти",
         "selectAuthorityType": "Изаберите тип органа власти",
         "authorityTypeDescription": "Изаберите тип органа власти.",
         "realm": "Домен",
         "selectRealm": "Изаберите домен",
-        "realmDescription": "Тенантска група којој овај град припада.",
+        "realmDescription": {
+            "municipality": "Тенантска група којој овај град припада.",
+            "region": "Тенантска група којој овај град припада."
+        },
         "language": "Језик",
         "selectLanguage": "Изаберите језик",
         "languageDescription": "Језик на којем веће одржава седнице. Одређује језик транскрипције и резимеа; не мења језик интерфејса.",
@@ -222,11 +240,17 @@
             "activeLabel": "Активна (видљива свим корисницима)",
             "inactiveDescription": "Неактивне поруке видљиве су само суперадминистраторима ради прегледа."
         },
-        "sectionIdentity": "Подаци о граду",
+        "sectionIdentity": {
+            "municipality": "Подаци о граду",
+            "region": "Подаци о граду"
+        },
         "sectionIdentityHint": "Назив, тип власти и логотип",
         "sectionSettings": "Подешавања",
         "sectionSettingsHint": "Адреса, временска зона, обавештења, јавне расправе, Диавгеиа",
-        "administrativeBodiesHint": "Скупштина, одбори и месне заједнице",
+        "administrativeBodiesHint": {
+            "municipality": "Скупштина, одбори и месне заједнице",
+            "region": "Скупштина, одбори и месне заједнице"
+        },
         "adminSettingsHint": "Статус, дозволе, држава и језик"
     },
     "City": {

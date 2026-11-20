@@ -11,12 +11,15 @@
       "privateLead": "Προσωπικό.",
       "private": "Μην μοιραστείτε αυτόν τον κωδικό. Μόνο για: {name}"
     },
-    "title": "Δήμοι",
-    "description": "Όλοι οι δήμοι ομαδοποιημένοι ανά ομάδα (realm).",
-    "addCity": "Προσθήκη Δήμου",
-    "editCity": "Επεξεργασία Δήμου",
-    "searchPlaceholder": "Αναζήτηση δήμων...",
-    "noCities": "Δεν βρέθηκαν δήμοι",
+    "title": "Δήμοι και Περιφέρειες",
+    "description": "Όλοι οι δήμοι και οι περιφέρειες, ομαδοποιημένοι ανά ομάδα (realm).",
+    "addCity": "Προσθήκη Δήμου ή Περιφέρειας",
+    "editCity": {
+      "municipality": "Επεξεργασία Δήμου",
+      "region": "Επεξεργασία Περιφέρειας"
+    },
+    "searchPlaceholder": "Αναζήτηση δήμων και περιφερειών...",
+    "noCities": "Δεν βρέθηκαν δήμοι ή περιφέρειες",
     "columnName": "Όνομα",
     "columnId": "Αναγνωριστικό",
     "columnLanguage": "Γλώσσα",
@@ -24,7 +27,8 @@
     "columnMeetings": "Συνεδριάσεις",
     "columnPeople": "Πρόσωπα",
     "columnParties": "Παρατάξεις",
-    "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}"
+    "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}",
+    "regionCount": "{count, plural, one {# περιφέρεια} other {# περιφέρειες}}"
   },
   "taskStatus": {
     "pending": "Σε εκκρεμότητα",

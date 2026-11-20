@@ -56,3 +56,22 @@ export function authorityAllowsBodyType(city: { authorityType: AuthorityType }, 
 export function bodyTypeRefusal(city: { authorityType: AuthorityType }, type: AdministrativeBodyType): string {
     return `A ${city.authorityType} has no administrative body of type ${type}`;
 }
+
+/** The word that opens the official name of each kind of authority. */
+const OFFICIAL_NAME: Record<AuthorityType, { own: string; en: string }> = {
+    municipality: { own: 'Δήμος', en: 'Municipality of' },
+    region: { own: 'Περιφέρεια', en: 'Region of' },
+};
+
+/**
+ * The official names that the city form proposes from the short name: "Δήμος
+ * Χανιά", "Region of Thessalia". A proposal only: Greek puts the place in the
+ * genitive ("Δήμος Χανίων"), so a person corrects it.
+ */
+export function proposedOfficialName(authorityType: AuthorityType, name: string): string {
+    return `${OFFICIAL_NAME[authorityType].own} ${name}`;
+}
+
+export function proposedOfficialNameEn(authorityType: AuthorityType, latinName: string): string {
+    return `${OFFICIAL_NAME[authorityType].en} ${latinName}`;
+}
