@@ -10,14 +10,16 @@ import { mcpRewriteTarget } from './lib/mcp/rewrite';
 import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
 import { applySessionMirror } from './lib/auth/sessionMirror';
 import { dottedPathVerdict } from './lib/dottedPaths';
+import { VALID_CITY_ID, cityIdCandidate } from './lib/pageSegments';
+import { isCityOfRealm } from './lib/db/cityRealm';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
-// Obvious bot-scanner paths. 404 them here, before any rendering, so they
-// can't create cache entries or trigger data fetches (#358). Only
-// extensionless probes are listed: dottedPathVerdict answers for a path with
-// a dot.
-const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
+// The answer for a first path segment that is not a page and not a city. A
+// reader with a wrong address gets a way to the home page. The page is fixed
+// text, because a scanner sends most of these requests and the styled
+// not-found page costs a render of the locale layout for each one.
+const NOT_FOUND_PAGE = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex"><title>404</title></head><body style="font:16px system-ui,sans-serif;text-align:center;padding:20vh 1rem"><h1>404</h1><p><a href="/">OpenCouncil</a></p></body></html>';
 
 // Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
 // dotted asset paths). Both the realm-locale rewrite and the i18n handoff
@@ -44,10 +46,6 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
             status: 401,
             headers: { 'WWW-Authenticate': 'Basic' },
         });
-    }
-
-    if (JUNK_PATH.test(req.nextUrl.pathname)) {
-        return new NextResponse(null, { status: 404 });
     }
 
     // Scanner probes for server actions; see isHeaderlessMultipartPost for
@@ -199,6 +197,18 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
         if (scriptRedirect !== null) {
             return NextResponse.redirect(new URL(scriptRedirect + req.nextUrl.search, req.url), 302);
         }
+    }
+
+    // A first segment that is not a page must be a city of this realm. Any
+    // other value would render the pages below `[cityId]`, with their
+    // queries, before the city layout answers 404 (#358). The check is after
+    // the redirects above, which cost nothing, and before the rewrites below.
+    const cityId = APP_PATH.test(pathname) ? cityIdCandidate(pathname) : null;
+    if (cityId !== null && !(VALID_CITY_ID.test(cityId) && (await isCityOfRealm(cityId, realm)))) {
+        return new NextResponse(NOT_FOUND_PAGE, {
+            status: 404,
+            headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' },
+        });
     }
 
     // Realm-locale handling: on a host whose realm default differs from the
