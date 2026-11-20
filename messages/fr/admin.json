@@ -527,6 +527,7 @@
       "minutesUndecided": "{n, plural, one {# sujet sans décision} other {# sujets sans décision}}",
       "minutesUndecidedHint": "{n, plural, one {Il figurera au procès-verbal sans numéro de décision.} other {Ils figureront au procès-verbal sans numéro de décision.}}",
       "minutesProvenance": "Rédigé à partir de la transcription et des décisions de cette page.",
+      "regionMinutes": "OpenCouncil ne rédige pas encore le procès-verbal d'une région.",
       "conventionsTitle": "Règles de lecture",
       "conventionsEdit": "Modifier les règles de l'organe",
       "conventionsNone": "Aucune règle n'est enregistrée pour cet organe. Ses pages de décision ne sont pas lues tant qu'une personne ne les a pas enregistrées ; les faits affichés ont été déduits avec les valeurs par défaut.",

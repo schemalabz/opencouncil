@@ -10,6 +10,7 @@ import el from '../../../../../messages/el.json';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import type { DerivationOutput, Issue } from '@/lib/derivation/types';
 import type { DocumentState } from '@/lib/documents/status';
+import type { AuthorityType } from '@prisma/client';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 /**
@@ -104,7 +105,7 @@ const mockMeetingData = {
         administrativeBodyId: null,
         administrativeBody: null,
     },
-    city: { id: CITY_ID, diavgeiaUid: '50026', timezone: 'Europe/Athens' },
+    city: { id: CITY_ID, diavgeiaUid: '50026', timezone: 'Europe/Athens', authorityType: 'municipality' as AuthorityType },
     people: [],
     getPerson: (_id: string): { name: string } | undefined => undefined,
     subjects: [
@@ -213,6 +214,25 @@ const renderPage = async () => {
 };
 
 const postsOf = (action: string) => store.posts.filter(p => p.action === action);
+
+describe('MeetingDecisionsPage — the minutes of a region (#993)', () => {
+    afterEach(() => { mockMeetingData.city.authorityType = 'municipality'; });
+
+    it('offers the document of a municipality', async () => {
+        await renderPage();
+
+        expect(screen.getByRole('button', { name: admin.decisionsPage.previewMinutes })).toBeInTheDocument();
+        expect(screen.queryByText(admin.decisionsPage.rail.regionMinutes)).not.toBeInTheDocument();
+    });
+
+    it('offers no document of a region, and says so', async () => {
+        mockMeetingData.city.authorityType = 'region';
+        await renderPage();
+
+        expect(screen.getByText(admin.decisionsPage.rail.regionMinutes)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: admin.decisionsPage.previewMinutes })).not.toBeInTheDocument();
+    });
+});
 
 describe('MeetingDecisionsPage — rejecting a proposal and taking it back from the receipt', () => {
     it('drops the receipt on the first undo and sends no second undismiss', async () => {
