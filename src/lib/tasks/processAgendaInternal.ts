@@ -81,6 +81,7 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         people: roster,
         topicLabels: topicLabels.map(t => ({ name: t.name, description: t.description })),
         cityName: councilMeeting.city.name,
+        authorityType: councilMeeting.city.authorityType,
         cityLanguage: councilMeeting.city.language,
         // Scopes geocoding of the agenda's locations to the right country.
         country: getRealmCountry(councilMeeting.city.realm),

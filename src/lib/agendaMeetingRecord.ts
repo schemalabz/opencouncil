@@ -105,12 +105,13 @@ export function describeMismatch(m: AgendaRecordMismatch): string {
 }
 
 /**
- * Lower case, no accents, final sigma folded, any dash a space, «Δήμος» or
- * «Δήμου» dropped: «ΔΗΜΟΣ ΑΡΓΟΥΣ - ΜΥΚΗΝΩΝ» is «Δήμος Άργους–Μυκηνών».
+ * Lower case, no accents, final sigma folded, any dash a space, the word for
+ * the authority dropped in either case: «ΔΗΜΟΣ ΑΡΓΟΥΣ - ΜΥΚΗΝΩΝ» is «Δήμος
+ * Άργους–Μυκηνών», and «ΠΕΡΙΦΕΡΕΙΑΣ ΘΕΣΣΑΛΙΑΣ» is «Περιφέρεια Θεσσαλίας» (#993).
  */
 export function foldMunicipality(text: string): string {
     return text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('el').replace(/ς/g, 'σ')
-        .replace(/[\s\-–—−]+/g, ' ').trim().replace(/^δημο[υσ] /, '');
+        .replace(/[\s\-–—−]+/g, ' ').trim().replace(/^(?:δημο[υσ]|περιφερειασ?) /, '');
 }
 
 /** The agenda's meetings of this meeting's body, as processAgenda marks them (`ofThisBody`). */
