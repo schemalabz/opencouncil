@@ -1,3 +1,4 @@
+import type { AuthorityType } from '@prisma/client';
 import { getTranslations } from 'next-intl/server';
 import { getRoleTitles } from '../roleTitles';
 import { getRoleTitle } from '@/lib/utils/roles';
@@ -7,12 +8,14 @@ import { roleTitlesFor } from '../../../tests/helpers/catalog';
 
 jest.mock('next-intl/server', () => ({ getTranslations: jest.fn() }));
 
+const city = (language: string, authorityType: AuthorityType = 'municipality') => ({ language, authorityType });
+
 beforeEach(() => {
     jest.mocked(getTranslations).mockResolvedValue(roleTitlesFor('en').t as Awaited<ReturnType<typeof getTranslations>>);
 });
 
 it('keeps an English council leader title in task speaker rosters', async () => {
-    const titles = await getRoleTitles('en');
+    const titles = await getRoleTitles(city('en'));
     const person = {
         id: 'leader', name: 'Jane Smith', roles: [{
             cityId: 'city', isHead: true, name: 'Council Leader',
@@ -24,12 +27,18 @@ it('keeps an English council leader title in task speaker rosters', async () => 
 });
 
 it('distinguishes an English translation from native English content', async () => {
-    const titles = await getRoleTitles('en', 'el');
+    const titles = await getRoleTitles(city('el'), 'en');
     expect(getRoleTitle({ cityId: 'city', isHead: true, name: 'Δήμαρχος' }, titles)).toBe('Mayor');
 });
 
+it('carries the kind of authority of the city, which names its head (#993)', async () => {
+    const titles = await getRoleTitles(city('el', 'region'), 'en');
+    expect(titles).toMatchObject({ locale: 'en', contentLanguage: 'el', authorityType: 'region' });
+    expect(getRoleTitle({ cityId: 'city', isHead: true, name: 'Περιφερειάρχης' }, titles)).toBe('Regional Governor');
+});
+
 it('keeps stored titles when a content language uses the English catalog fallback', async () => {
-    const titles = await getRoleTitles('bs');
+    const titles = await getRoleTitles(city('bs'));
     expect(getTranslations).toHaveBeenLastCalledWith({ locale: 'en', namespace: 'Person' });
     expect(getRoleTitle({ cityId: 'city', isHead: true, name: 'Gradonačelnik' }, titles)).toBe('Gradonačelnik');
 });

@@ -2,7 +2,7 @@
 import { useCallback, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, ExternalLink, Landmark } from 'lucide-react';
-import type { Party, Realm } from '@prisma/client';
+import type { AuthorityType, CityLanguage, Party, Realm } from '@prisma/client';
 import type { BodyContacts, PublicAdministrativeBody } from '@/lib/db/types';
 import { Link } from '@/i18n/routing';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -37,7 +37,7 @@ export const underlineTabClass =
 
 export interface BodyPageProps {
     /** The realm decides the fields of the meeting form: a Greek city records a kind, an urgency and a session number. */
-    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; supportsNotifications: boolean };
+    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; language: CityLanguage; authorityType: AuthorityType; supportsNotifications: boolean };
     body: BodyPageRow;
     meetings: CouncilMeetingWithSubjectPreview[];
     /** Everyone who holds, or held, a role on the body. */
@@ -210,6 +210,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                             <BodyMembersTab
                                 canEditImage={!isYouthCouncil(body)}
                                 cityId={city.id}
+                                roleCity={city}
                                 bodyId={body.id}
                                 people={people}
                                 members={members}

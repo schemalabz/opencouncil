@@ -23,7 +23,7 @@ import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { cn, filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
-import { getRoleTitle, isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
+import { getRoleTitle, isActivePartyMember, isPartyRole, type RoleTitleCity } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { sortInactivePartyMembers, sortPartyMembers, sortPeople } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
@@ -65,7 +65,7 @@ function PartyMembersTab({
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
-    const roleTitles = useRoleTitles(city.language);
+    const roleTitles = useRoleTitles(city);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
     // The picker sits in the current-members header and offers the bodies those
@@ -140,7 +140,7 @@ function PartyMembersTab({
                             <PersonCard
                                 key={person.id}
                                 item={person}
-                                cityLanguage={city.language}
+                                roleCity={city}
                                 editable={canEdit}
                                 analyticsSurface="party_members"
                             />
@@ -210,7 +210,7 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
-    cityLanguage,
+    roleCity,
     typeOptions,
     selectedType,
     onSelectType,
@@ -224,7 +224,7 @@ function SegmentsTab({
     allLabel,
     timezone
 }: {
-    cityLanguage: string,
+    roleCity: RoleTitleCity,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
@@ -292,7 +292,7 @@ function SegmentsTab({
                                 transition={{ delay: 0.1 * index }}
                             >
                                 <ContributionCard
-                                    cityLanguage={cityLanguage}
+                                    roleCity={roleCity}
                                     contribution={contribution}
                                     subjectId={contribution.subject.id}
                                     meeting={{
@@ -669,7 +669,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
 
                             <TabsContent value="contributions" className="mt-6">
                                 <SegmentsTab
-                                    cityLanguage={city.language}
+                                    roleCity={city}
                                     typeOptions={typeOptions}
                                     selectedType={selectedAdminBodyType}
                                     onSelectType={handleAdminBodyTypeSelect}

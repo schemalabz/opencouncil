@@ -56,7 +56,7 @@ export async function getMeetingForAgendaText(cityId: string, id: string) {
             cityId: true,
             administrativeBodyId: true,
             administrativeBody: { select: { name: true, name_en: true, notificationBehavior: true } },
-            city: { select: { name: true, name_en: true, language: true, realm: true, timezone: true } },
+            city: { select: { name: true, name_en: true, language: true, authorityType: true, realm: true, timezone: true } },
             // A summary, when there is one: an agenda does not replace it.
             taskStatuses: { where: { type: 'summarize', status: 'succeeded' }, select: { id: true }, take: 1 },
         },

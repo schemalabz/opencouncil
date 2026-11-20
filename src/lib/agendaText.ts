@@ -114,7 +114,7 @@ export async function processAgendaText(cityId: string, meetingId: string, text:
     const [people, topics, roleTitles] = await Promise.all([
         getPeopleForMeeting(cityId, meeting.administrativeBodyId, meeting.dateTime),
         getTopics(meeting.city.realm),
-        getRoleTitles(meeting.city.language),
+        getRoleTitles(meeting.city),
     ]);
     const roster = buildAgendaRoster(people, meeting.dateTime, meeting.administrativeBodyId, roleTitles);
 

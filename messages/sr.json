@@ -595,7 +595,10 @@
         "type": "Тип",
         "selectType": "Изаберите тип",
         "types": {
-            "city": "Град",
+            "city": {
+                "municipality": "Град",
+                "region": "Град"
+            },
             "party": "Одборничка група",
             "administrativeBody": "Управно тело"
         },
@@ -614,7 +617,10 @@
         "update": "Ажурирај",
         "create": "Креирај",
         "confirmDelete": "Да ли сте сигурни да желите да обришете ову функцију?",
-        "cityRole": "Одборник скупштине",
+        "cityRole": {
+            "municipality": "Одборник скупштине",
+            "region": "Одборник скупштине"
+        },
         "head": "Руководилац",
         "from": "од",
         "until": "до",
@@ -901,6 +907,7 @@
         "partyLeader": "Шеф одборничке групе",
         "formerMembers": "Бивши чланови",
         "mayor": "Градоначелник",
+        "regionalGovernor": "Градоначелник",
         "president": "Председник",
         "member": "Члан",
         "partyLeaderShort": "Шеф групе",
@@ -929,6 +936,7 @@
         "tryDifferentFilter": "Покушајте да промените филтере",
         "breadcrumbHome": "Почетна",
         "independentCouncilMember": "Независни одборник",
+        "independentRegionalCouncilMember": "Независни одборник",
         "biography": "Биографија",
         "moreRoles": "+{count} још",
         "present": "данас",
@@ -960,11 +968,6 @@
         "breadcrumbHome": "Почетна",
         "tabPeople": "Особе",
         "tabSegments": "Изјаве",
-        "breakdownMayor": "Градоначелник",
-        "breakdownCouncil": "{count} у скупштини",
-        "breakdownCommittees": "{count} у одборима",
-        "breakdownCommunities": "{count} у месним заједницама",
-        "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}",
         "peopleWithoutParties": "Особе изван одборничких група:",
         "compositionCard": "Састав",
         "membersTotal": "{count, plural, one {# члан укупно} few {# члана укупно} other {# чланова укупно}}"
@@ -1060,7 +1063,10 @@
     },
     "ElectedOrderSheet": {
         "title": "Изборни редослед",
-        "description": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице.",
+        "description": {
+            "municipality": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице.",
+            "region": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице."
+        },
         "currentOrder": "Тренутни редослед: {order}",
         "save": "Сачувај редослед",
         "saving": "Чување...",
