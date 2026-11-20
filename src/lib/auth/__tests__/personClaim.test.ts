@@ -77,7 +77,7 @@ describe('personJoinUrl', () => {
         const url = personJoinUrl({ id: PERSON, cityId: 'chania' }, 'greece');
         const parsed = new URL(url);
         expect(parsed.origin).toBe('https://opencouncil.gr');
-        // No dot in the path: the proxy skips dotted paths, and the page needs its locale routing.
+        // No dot in the path: the proxy answers 404 for a page path with a dot.
         expect(parsed.pathname).toBe('/chania/join');
         expect([...parsed.searchParams.keys()]).toEqual(['c']);
         expect(verifyPersonClaimToken(parsed.searchParams.get('c') as string)).toBe(PERSON);

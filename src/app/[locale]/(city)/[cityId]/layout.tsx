@@ -1,8 +1,7 @@
 import { getAllCityIdsCached } from "@/lib/cache";
 import { getRealm } from "@/lib/realm.server";
+import { VALID_CITY_ID } from "@/lib/pageSegments";
 import { notFound } from "next/navigation";
-
-const VALID_CITY_ID = /^[a-z][a-z0-9_-]*$/;
 
 export default async function CityLayout(
     props: {
@@ -25,6 +24,8 @@ export default async function CityLayout(
         notFound();
     }
 
+    // The proxy answers 404 for an unknown city before this layout renders.
+    // This check stays as the second line of defence.
     // Validate against the known city set via a SINGLE shared cache key.
     // The previous getCityCached(cityId) existence check was itself a cached
     // per-city query, so every junk slug that passed the regex (e.g. /wp-admin)

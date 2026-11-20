@@ -6,6 +6,11 @@ jest.mock('@/auth', () => ({
     auth: jest.fn(),
 }));
 
+// Every first segment is a city here, so that the proxy does not read the database.
+jest.mock('@/lib/db/cityRealm', () => ({
+    isCityOfRealm: jest.fn(async () => true),
+}));
+
 import { NextRequest } from 'next/server';
 import proxy from '@/proxy';
 

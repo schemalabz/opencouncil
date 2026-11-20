@@ -19,7 +19,7 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
  * the button holds as a cookie (see `startJoinGoogle`).
  *
  * Under /api because the path holds the code, the code holds a dot, and the
- * proxy skips every dotted path. Redirects are relative, so the reader
+ * proxy answers 404 for a page path with a dot. Redirects are relative, so the reader
  * stays on the realm they arrived on, and the utm parameters ride along.
  */
 export async function GET(req: NextRequest, props: { params: Promise<{ token: string }> }) {
