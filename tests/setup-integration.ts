@@ -6,16 +6,13 @@ import { assertEmptyTestDb, ensureTestDb } from './helpers/test-db'
 // sets process.env.DATABASE_URL. The Proxy delays creation until a test
 // actually calls prisma.something, by which time the URL is set.
 jest.mock('@/lib/db/prisma', () => {
-    const { PrismaClient } = jest.requireActual('@prisma/client')
-    let client: InstanceType<typeof PrismaClient> | null = null
+    const { createPrismaClient } = jest.requireActual('@/lib/db/createPrismaClient')
+    let client: ReturnType<typeof createPrismaClient> | null = null
 
     const handler: ProxyHandler<object> = {
         get: (_, prop: string) => {
             if (!client) {
-                client = new PrismaClient({
-                    log: ['error', 'warn'],
-                    datasourceUrl: process.env.DATABASE_URL,
-                })
+                client = createPrismaClient(process.env.DATABASE_URL)
             }
             const val = (client as any)[prop]
             return typeof val === 'function' ? val.bind(client) : val

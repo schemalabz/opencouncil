@@ -299,11 +299,6 @@ export async function saveNotificationPreferences(
     let onboardedUserId: string | null = null;
 
     console.log('Saving notification preferences for cityId:', cityId);
-    console.log('Locations:', locations);
-    console.log('Topic IDs:', topicIds);
-    console.log('Phone:', phone);
-    console.log('Email:', email);
-    console.log('Name:', name);
 
     try {
         // Get or create user

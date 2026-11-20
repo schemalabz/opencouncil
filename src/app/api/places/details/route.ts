@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
 import { env } from '@/env.mjs';
 
 export async function GET(request: Request) {
@@ -11,24 +10,26 @@ export async function GET(request: Request) {
     }
 
     try {
-        const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-            params: {
-                place_id: placeId,
-                fields: 'geometry,formatted_address,name,address_components',
-                language: 'el',
-                key: env.GOOGLE_API_KEY
-            }
+        // fetch, not axios: an AxiosError prints its request config, with the API key.
+        const params = new URLSearchParams({
+            place_id: placeId,
+            fields: 'geometry,formatted_address,name,address_components',
+            language: 'el',
+            key: env.GOOGLE_API_KEY,
         });
+        const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
+        if (!response.ok) throw new Error(`Google Places details answered HTTP ${response.status}`);
+        const data = await response.json();
 
-        if (response.data.status !== 'OK') {
-            console.error('Google Places Details API returned non-OK status:', response.data.status);
+        if (data.status !== 'OK') {
+            console.error('Google Places Details API returned non-OK status:', data.status);
             return NextResponse.json({
-                status: response.data.status,
+                status: data.status,
                 result: null
             });
         }
 
-        return NextResponse.json(response.data);
+        return NextResponse.json(data);
     } catch (error) {
         console.error('Error fetching place details:', error);
         return NextResponse.json({

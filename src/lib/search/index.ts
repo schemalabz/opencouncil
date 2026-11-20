@@ -3,7 +3,7 @@
 import { SearchRequest, SearchResponse } from './types';
 import { searchInRealm } from './core';
 import { getRealm } from '@/lib/realm.server';
-import { searchLocationSchema } from '@/lib/zod-schemas/search';
+import { searchIdSchema, searchLocationSchema } from '@/lib/zod-schemas/search';
 
 // Re-export types
 export type {
@@ -30,10 +30,12 @@ export type {
  */
 export async function search(
     request: SearchRequest,
-    options?: { skipQueryLog?: boolean }
+    options?: { skipQueryLog?: boolean; searchId?: string }
 ): Promise<SearchResponse> {
     // The location goes into a geo query as written, and Elasticsearch rejects
     // a bad point: a search failure and an alert for anyone who sends one.
     const location = request.location && searchLocationSchema.parse(request.location);
-    return searchInRealm({ ...request, location }, getRealm, options);
+    // The id becomes the primary key of a row, so only a UUID passes.
+    const searchId = options?.searchId === undefined ? undefined : searchIdSchema.parse(options.searchId);
+    return searchInRealm({ ...request, location }, getRealm, { skipQueryLog: options?.skipQueryLog, searchId });
 }

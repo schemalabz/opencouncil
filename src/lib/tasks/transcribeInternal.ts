@@ -181,7 +181,6 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
         }
     });
 
-    console.log(`Transcribe body: ${JSON.stringify(body)}`);
     return startTask('transcribe', body, councilMeetingId, cityId, { force });
 }
 

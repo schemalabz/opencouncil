@@ -42,11 +42,13 @@ jest.mock('../related', () => ({
     buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })),
 }));
 
+import { format } from 'node:util';
 import { Client } from '@elastic/elasticsearch';
 import { resetIndexProfileCache } from '../profile';
 import prisma from '@/lib/db/prisma';
 import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
+import { logSearchQuery } from '@/lib/db/searchQueries';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
 import { buildRelatedSubjectsQuery } from '../related';
@@ -64,6 +66,7 @@ const createCacheMock = createCache as jest.MockedFunction<typeof createCache>;
 const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
 const getListedCitiesCachedMock = getListedCitiesCached as jest.MockedFunction<typeof getListedCitiesCached>;
 const sendErrorAdminAlertMock = sendErrorAdminAlert as jest.MockedFunction<typeof sendErrorAdminAlert>;
+const logSearchQueryMock = logSearchQuery as jest.MockedFunction<typeof logSearchQuery>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
 const REALM_CITIES = ['athens', 'chania', 'argos'];
@@ -482,6 +485,101 @@ describe('searchSubjectsInRealm — failure alert', () => {
             administrativeBodyTypes: 'committee, community',
             location: '38,23.7 within 2000m',
         });
+    });
+
+    // The log stores must not hold what a reader typed or where they searched.
+    // The alert above keeps both, so that the team can repeat the search.
+    it('keeps the query and the location out of the console, from the start to the failure', async () => {
+        const lines: string[] = [];
+        const spies = (['log', 'info', 'warn', 'error'] as const).map((method) =>
+            jest.spyOn(console, method).mockImplementation((...args: unknown[]) => { lines.push(format(...args)); }));
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({
+            query: 'καναρίνι στην πλατεία',
+            location: { point: { lat: 38.123456, lng: 23.765432 }, radiusMeters: 500 },
+        }, 'greece')).rejects.toThrow('Failed to execute search');
+        spies.forEach((spy) => spy.mockRestore());
+
+        const output = lines.join('\n');
+        expect(output).toContain('Session Failed');
+        expect(output).not.toContain('καναρίνι');
+        expect(output).not.toContain('38.123456');
+    });
+});
+
+// One id names a search in the database row that keeps its text, in the log
+// lines, in the alert and in the page's analytics events, so that each of them
+// joins the text without holding it.
+describe('searchSubjectsInRealm — the search id', () => {
+    const captureLog = () => {
+        const lines: string[] = [];
+        const spy = jest.spyOn(console, 'log').mockImplementation((...args: unknown[]) => { lines.push(format(...args)); });
+        return { output: () => lines.join('\n'), restore: () => spy.mockRestore() };
+    };
+
+    it('names a typed search with the id of the row it writes, in the log lines and in the answer', async () => {
+        const log = captureLog();
+        const result = await searchSubjectsInRealm({ query: 'ποδηλατόδρομος' }, 'greece');
+        log.restore();
+
+        expect(logSearchQueryMock).toHaveBeenCalledTimes(1);
+        const [text, id] = logSearchQueryMock.mock.calls[0];
+        expect(text).toBe('ποδηλατόδρομος');
+        expect(result.searchId).toBe(id);
+        expect(log.output()).toMatch(new RegExp(`Search Session Started \\{\\s+searchId: '${id}'`));
+        expect(log.output()).toMatch(new RegExp(`Search Session Completed \\{\\s+searchId: '${id}'`));
+        expect(log.output()).not.toContain('ποδηλατόδρομος');
+    });
+
+    it('takes the id that the page picked', async () => {
+        const id = '7d0c7e4e-2b1a-4c55-9f3e-0a4b8a1c2d3e';
+
+        const result = await searchSubjectsInRealm({ query: 'ποδηλατόδρομος' }, 'greece', { searchId: id });
+
+        expect(logSearchQueryMock).toHaveBeenCalledWith('ποδηλατόδρομος', id);
+        expect(result.searchId).toBe(id);
+    });
+
+    it('writes the row even when the realm fails to resolve, so the alert names a row that exists', async () => {
+        const id = '7d0c7e4e-2b1a-4c55-9f3e-0a4b8a1c2d3e';
+
+        await expect(searchSubjectsInRealm({ query: 'ποδηλατόδρομος' }, () => Promise.reject(new Error('no host')), { searchId: id }))
+            .rejects.toThrow('Failed to execute search');
+
+        expect(logSearchQueryMock).toHaveBeenCalledWith('ποδηλατόδρομος', id);
+        expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({ searchId: id });
+    });
+
+    it('names a repeat run with the id the page sends, without a second row', async () => {
+        const id = '7d0c7e4e-2b1a-4c55-9f3e-0a4b8a1c2d3e';
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({ query: 'ποδηλατόδρομος', config: { from: 20 } }, 'greece', { skipQueryLog: true, searchId: id }))
+            .rejects.toThrow('Failed to execute search');
+
+        expect(logSearchQueryMock).not.toHaveBeenCalled();
+        expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({ searchId: id });
+    });
+
+    it.each([
+        ['a repeat that the page asks to skip', { query: 'ποδηλατόδρομος' }, { skipQueryLog: true }],
+        ['a next page', { query: 'ποδηλατόδρομος', config: { from: 20 } }, undefined],
+        ['a search with filters only', { query: '', cityIds: ['athens'] }, undefined],
+    ] as const)('writes no row and gives no id for %s', async (_case, request, options) => {
+        const result = await searchSubjectsInRealm(request as SearchRequest, 'greece', options);
+
+        expect(logSearchQueryMock).not.toHaveBeenCalled();
+        expect(result.searchId).toBeUndefined();
+    });
+
+    it('carries the id into the failure alert, so the team can read the text from the row', async () => {
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({ query: 'ποδηλατόδρομος' }, 'greece')).rejects.toThrow('Failed to execute search');
+
+        const [, id] = logSearchQueryMock.mock.calls[0];
+        expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({ searchId: id });
     });
 });
 

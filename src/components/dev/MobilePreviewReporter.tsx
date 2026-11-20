@@ -3,25 +3,14 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { IS_DEV } from '@/lib/utils'
-
-function generateId(): string {
-  // crypto.randomUUID() requires a secure context (HTTPS).
-  // Over plain HTTP on LAN it's unavailable, so fall back to Math.random.
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
+import { randomUuid } from '@/lib/utils/randomUuid'
 
 const DEVICE_ID_KEY = 'mobile-preview-device-id'
 
 function getOrCreateDeviceId(): string {
   let id = sessionStorage.getItem(DEVICE_ID_KEY)
   if (!id) {
-    id = generateId()
+    id = randomUuid()
     sessionStorage.setItem(DEVICE_ID_KEY, id)
   }
   return id

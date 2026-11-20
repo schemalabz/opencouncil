@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { claimAlertWindow } from "@/lib/cache/alertWindow";
 import { sendAdminAlert } from "@/lib/discord-core";
 import { REALMS } from "@/lib/realm";
@@ -32,8 +33,11 @@ export async function reportUnusualCodeRequest(input: {
     // Each signal alerts once per number per window: the fourth code says
     // nothing new after the third, and the thresholds are "at least".
     const signals: UnusualSignal[] = [];
+    // The key holds a hash of the number, not the number: the cache logs a key
+    // that it fails to write.
+    const phoneKey = createHash("sha256").update(input.phone).digest("hex").slice(0, 16);
     for (const signal of found) {
-        if (await claimAlertWindow(`phone-verification:${signal.kind}:${input.phone}`, SEND_WINDOW_MS / 1000)) {
+        if (await claimAlertWindow(`phone-verification:${signal.kind}:${phoneKey}`, SEND_WINDOW_MS / 1000)) {
             signals.push(signal);
         }
     }

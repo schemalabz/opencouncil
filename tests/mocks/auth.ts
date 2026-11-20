@@ -15,6 +15,16 @@ export async function auth() {
     return sessionEmail ? { user: { email: sessionEmail } } : null
 }
 
-export async function signIn() {
-    return
+// With `redirect: false`, Auth.js returns the URL it would redirect to: the
+// verify-request page when the magic link went out, the sign-in page with an
+// `error` when it did not (see signInFailurePath).
+const SIGN_IN_SENT = 'http://localhost:3000/api/auth/verify-request?provider=resend&type=email'
+let signInUrl = SIGN_IN_SENT
+
+export function __setSignInUrl(url: string | null) {
+    signInUrl = url ?? SIGN_IN_SENT
+}
+
+export async function signIn(): Promise<string> {
+    return signInUrl
 }

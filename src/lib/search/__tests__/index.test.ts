@@ -38,3 +38,20 @@ describe('search() Server Action location', () => {
         expect(searchInRealmMock.mock.calls[0][0].location).toBeUndefined();
     });
 });
+
+// The id becomes the primary key of a SearchQuery row, and a browser can send anything.
+describe('search() Server Action search id', () => {
+    it('passes a UUID on to the search', async () => {
+        const id = '7d0c7e4e-2b1a-4c55-9f3e-0a4b8a1c2d3e';
+
+        await search({ query: 'πλατεία' }, { searchId: id });
+
+        expect(searchInRealmMock.mock.calls[0][2]).toEqual({ skipQueryLog: undefined, searchId: id });
+    });
+
+    it('rejects any other value before the search runs', async () => {
+        await expect(search({ query: 'πλατεία' }, { searchId: "x'; DROP TABLE" })).rejects.toThrow();
+
+        expect(searchInRealmMock).not.toHaveBeenCalled();
+    });
+});

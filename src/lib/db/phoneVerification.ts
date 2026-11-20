@@ -285,7 +285,7 @@ async function carryCode(
         return { ok: false, code: "send_failed", settled: result.reason !== "unreachable" };
     }
     if (DEV_TOOLS_ALLOWED) {
-        console.log(`[phone-verification] SMS is not configured; the code for ${phone} is ${code}`);
+        console.log(`[phone-verification] SMS is not configured; the code is ${code}`);
         return { ok: true, channel: "log" };
     }
     console.error("Verification SMS is not configured (BIRD_API_KEY, BIRD_WORKSPACE_ID, BIRD_SMS_CHANNEL_ID)");

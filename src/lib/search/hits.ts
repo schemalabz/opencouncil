@@ -106,7 +106,7 @@ export async function reportOrphanedHits(
     const message = `Dropped ${parts.join(' and ')} from the ${params.source.toLowerCase()} results.`;
 
     if (env.DEPLOYMENT_ENV !== 'production') {
-        console.warn(`[${params.source}] ${message}`, { orphanedIds: newIds, unreleasedIds: newUnreleased, query: params.query });
+        console.warn(`[${params.source}] ${message}`, { orphanedIds: newIds, unreleasedIds: newUnreleased });
         return;
     }
 

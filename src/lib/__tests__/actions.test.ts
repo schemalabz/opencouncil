@@ -1,12 +1,12 @@
-import axios from 'axios';
+import { format } from 'node:util';
 import type { Result } from '@/lib/result';
 
-jest.mock('axios');
 jest.mock('@/lib/discord-core', () => ({
     sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined),
 }));
 
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 // actions.ts reads env at import time, so each case loads a fresh copy with the
 // env it needs. The discord mock factory re-runs per isolated registry, which
@@ -25,7 +25,7 @@ const load = (deploymentEnv: string) => {
 };
 
 const googleReplies = (data: unknown) => {
-    mockedAxios.get.mockResolvedValue({ data });
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => data });
 };
 
 describe('Google Places outage alerting', () => {
@@ -142,10 +142,23 @@ describe('Google Places status pass-through', () => {
 
     it('still fails the Result when the request throws', async () => {
         const { getPlaceSuggestions } = load('production');
-        mockedAxios.get.mockRejectedValue(new Error('Network Error'));
+        mockFetch.mockRejectedValue(new TypeError('fetch failed'));
 
         const result = await getPlaceSuggestions({ input: 'Πατησίων 100' });
 
         expect(result.success).toBe(false);
+    });
+
+    it('fails the Result on an HTTP error, and logs neither the key nor the input', async () => {
+        const { getPlaceSuggestions } = load('production');
+        mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+
+        const result = await getPlaceSuggestions({ input: 'Πατησίων 100' });
+
+        expect(result.success).toBe(false);
+        const logged = (console.error as jest.Mock).mock.calls.map((args: unknown[]) => format(...args)).join('\n');
+        expect(logged).toContain('Google Places autocomplete answered HTTP 500');
+        expect(logged).not.toContain('test-google-key');
+        expect(logged).not.toContain('Πατησίων');
     });
 });

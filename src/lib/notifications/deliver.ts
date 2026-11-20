@@ -165,7 +165,7 @@ async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promis
                 if (remaining > 0) {
                     failureBudget.set(payload.to, remaining - 1);
                     await updateDeliveryStatus(delivery.id, 'failed');
-                    console.error(`Failed to send email to ${payload.to}`);
+                    console.error(`Failed to send email for delivery ${delivery.id}`);
                     failed++;
                 } else {
                     await updateDeliveryStatus(delivery.id, 'sent');
@@ -174,7 +174,7 @@ async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promis
             }
 
             if (!result.success) {
-                console.error(`Notification email batch had per-recipient failures:`, result.failedTos);
+                console.error(`Notification email batch had ${result.failedTos.length} per-recipient failures`);
             }
         },
     });

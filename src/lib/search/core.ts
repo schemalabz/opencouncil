@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
@@ -81,6 +82,8 @@ export type SubjectSearchHits = {
     total: number;
     dropped: number;
     derivedFilters: DerivedFilters;
+    /** The id of the SearchQuery row that records this search; see searchSubjectsInRealm. */
+    searchId?: string;
 };
 
 /**
@@ -92,8 +95,9 @@ export type SubjectSearchHits = {
 type SearchFailureContext = Record<string, string | undefined>;
 
 /** The context a typed search fails with: what the person asked for. */
-function searchFailureContext(request: SearchRequest): SearchFailureContext {
+function searchFailureContext(request: SearchRequest, searchId: string | undefined): SearchFailureContext {
     return {
+        searchId,
         query: request.query,
         cityIds: request.cityIds?.join(', '),
         personIds: request.personIds?.join(', '),
@@ -118,7 +122,11 @@ function searchFailureContext(request: SearchRequest): SearchFailureContext {
 function failSearch(error: unknown, source: string, context: SearchFailureContext): never {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    logEssential(`${source} Session Failed`, { error: errorMessage, ...context });
+    // The query and the location stay out of the log: the reader wrote the one
+    // and chose the other. The alert keeps both, so that the team can repeat
+    // the failed search.
+    const { query, location, ...loggedContext } = context;
+    logEssential(`${source} Session Failed`, { error: errorMessage, ...loggedContext, queryLength: query?.length, hasLocation: location !== undefined });
 
     // Notify team via Discord (fire-and-forget)
     sendErrorAdminAlert({ source, error: errorMessage, context }).catch(() => {});
@@ -204,16 +212,23 @@ async function resolveVisibleHits(
 export async function searchSubjectsInRealm(
     request: SearchRequest,
     realmSource: RealmSource,
-    options?: { skipQueryLog?: boolean }
+    options?: { skipQueryLog?: boolean; searchId?: string }
 ): Promise<SubjectSearchHits> {
+    // Persist the query for usage analytics. Skipped for paginated requests
+    // (same query, next page), filter-only searches and internal callers.
+    // The row's id names the query everywhere else: in the log lines and the
+    // alert below, and in the analytics events of the page. The page picks the
+    // id before it asks, and sends it again with each later run of the query
+    // (a filter change, another page), so the id names every run, while only
+    // the first one writes the row. The text itself stays in the row.
+    const queryText = request.query?.trim() ?? '';
+    const writesRow = !options?.skipQueryLog && queryText !== '' && (request.config?.from ?? 0) === 0;
+    const searchId = options?.searchId ?? (writesRow ? randomUUID() : undefined);
+    // Before the realm resolves, so that a search that fails there still has
+    // the row that its alert and its events name.
+    if (writesRow && searchId) void logSearchQuery(queryText, searchId);
     try {
         const realm = typeof realmSource === 'function' ? await realmSource() : realmSource;
-        // Persist the query for usage analytics. Skipped for paginated requests
-        // (same query, next page), filter-only searches and internal callers.
-        const queryText = request.query?.trim() ?? '';
-        if (!options?.skipQueryLog && queryText && (request.config?.from ?? 0) === 0) {
-            void logSearchQuery(queryText);
-        }
 
         // Tenant isolation: a search never leaves the realm it arrived on. An
         // absent city filter defaults to the realm's municipalities, and an
@@ -231,13 +246,15 @@ export async function searchSubjectsInRealm(
         // nothing can match. Returning early matters: an empty list means "no
         // city filter" to buildFilters, which would search every realm.
         if (cityIds.length === 0) {
-            logEssential('Search Session Skipped — no city in realm', { query: request.query, realm });
-            return { hits: [], total: 0, dropped: 0, derivedFilters: {} };
+            logEssential('Search Session Skipped — no city in realm', { searchId, realm });
+            return { hits: [], total: 0, dropped: 0, derivedFilters: {}, searchId };
         }
 
-        // Log search session start with query and filters
+        // The log names the filters, not the query text or the location: both
+        // come from the reader.
         logEssential('Search Session Started', {
-            query: request.query,
+            searchId,
+            queryLength: request.query?.length ?? 0,
             realm,
             filters: {
                 cityIds,
@@ -248,7 +265,7 @@ export async function searchSubjectsInRealm(
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
                 fallbackDateRange: request.fallbackDateRange,
-                location: request.location
+                hasLocation: request.location !== undefined
             }
         });
 
@@ -263,7 +280,7 @@ export async function searchSubjectsInRealm(
         if (queryText && derivingFilters) {
             try {
                 extractedFilters = await extractFilters(queryText, realm);
-                logEssential('[Search] Extracted filters:', extractedFilters);
+                logEssential('[Search] Extracted filters:', { ...extractedFilters, locationName: extractedFilters.locationName === null ? null : '[named]' });
             } catch (error) {
                 console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
             }
@@ -340,7 +357,7 @@ export async function searchSubjectsInRealm(
 
         // Log search session completion with results summary
         logEssential('Search Session Completed', {
-            query: request.query,
+            searchId,
             results: {
                 totalHits,
                 resultCount: response.hits.hits.length,
@@ -361,9 +378,9 @@ export async function searchSubjectsInRealm(
         // count degrades along with the results. Still approximate — other pages
         // may hold more drops, so callers that must not leak the existence of
         // hidden content should withhold the total whenever `dropped` > 0.
-        return { hits, total: totalHits - dropped, dropped, derivedFilters };
+        return { hits, total: totalHits - dropped, dropped, derivedFilters, searchId };
     } catch (error) {
-        failSearch(error, 'Search', searchFailureContext(request));
+        failSearch(error, 'Search', searchFailureContext(request, searchId));
     }
 }
 
@@ -537,9 +554,9 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
 export async function searchInRealm(
     request: SearchRequest,
     realmSource: RealmSource,
-    options?: { skipQueryLog?: boolean }
+    options?: { skipQueryLog?: boolean; searchId?: string }
 ): Promise<SearchResponse> {
-    const { hits, total, dropped, derivedFilters } = await searchSubjectsInRealm(request, realmSource, options);
+    const { hits, total, dropped, derivedFilters, searchId } = await searchSubjectsInRealm(request, realmSource, options);
     if (hits.length === 0) return { results: [], total, dropped, derivedFilters };
 
     try {
@@ -547,7 +564,7 @@ export async function searchInRealm(
 
         return { results, total, dropped, derivedFilters };
     } catch (error) {
-        failSearch(error, 'Search', searchFailureContext(request));
+        failSearch(error, 'Search', searchFailureContext(request, searchId));
     }
 }
 

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
         const { notificationIds } = releaseNotificationsRequestSchema.parse(await request.json());
 
-        console.log(`Admin ${currentUser.email} releasing ${notificationIds.length} notifications`);
+        console.log(`Admin ${currentUser.id} releasing ${notificationIds.length} notifications`);
 
         // Look up meeting/city context from the notifications being released
         const notification = await prisma.notification.findFirst({

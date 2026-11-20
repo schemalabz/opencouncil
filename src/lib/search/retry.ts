@@ -104,20 +104,69 @@ export async function executeElasticsearchWithRetry<T>(
   fn: () => Promise<T>,
   context: string = 'Elasticsearch operation'
 ): Promise<T> {
-  return retryWithBackoff(fn, {
-    ...ELASTICSEARCH_RETRY_CONFIG,
-    onRetry: (error, attempt, delayMs) => {
-      const errorDetails = error instanceof errors.ResponseError
-        ? `Status ${error.statusCode}: ${error.message}`
-        : error instanceof Error
-        ? error.message
-        : 'Unknown error';
-      
-      console.log(
-        `[${context}] Retry attempt ${attempt} after ${delayMs}ms delay. ` +
-        `Error: ${errorDetails}`
-      );
-    },
-  });
+  try {
+    return await retryWithBackoff(fn, {
+      ...ELASTICSEARCH_RETRY_CONFIG,
+      onRetry: (error, attempt, delayMs) => {
+        console.log(
+          `[${context}] Retry attempt ${attempt} after ${delayMs}ms delay. ` +
+          `Error: ${error instanceof errors.ResponseError ? `Status ${error.statusCode}: ${responseErrorTypes(error)}` : error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      },
+    });
+  } catch (error) {
+    throw withoutQuery(error);
+  }
 }
 
+/**
+ * Rewrites an Elasticsearch error so that it no longer holds the query, in
+ * place. The client keeps the request body in `meta`, and the reasons in a
+ * failed query's answer can quote the query ("failed to create query: {…}"),
+ * in the message and in `meta.body`. The message keeps the types of the error
+ * and of its causes, and `meta.body` keeps the types only: isIndexNotFound
+ * reads them. The class stays.
+ */
+function withoutQuery(error: unknown): unknown {
+  if (!(error instanceof errors.ElasticsearchClientError)) return error;
+  const diagnostic = 'meta' in error ? (error.meta as Diagnostic | undefined) : undefined;
+  const params = diagnostic?.meta?.request?.params;
+  if (params) {
+    delete params.body;
+    delete params.bulkBody;
+    delete params.querystring;
+  }
+  if (error instanceof errors.ResponseError) {
+    const frames = (error.stack ?? '').split('\n').filter(line => /^\s+at /.test(line));
+    error.message = `Status ${error.statusCode}: ${responseErrorTypes(error)}`;
+    error.stack = [`${error.name}: ${error.message}`, ...frames].join('\n');
+    const answer = errorBodyOf(error).error;
+    error.meta.body = answer?.type ? {
+      error: {
+        type: answer.type,
+        caused_by: answer.caused_by?.type ? { type: answer.caused_by.type } : undefined,
+        root_cause: (answer.root_cause ?? []).map(cause => ({ type: cause.type })),
+      },
+    } : undefined;
+  }
+  return error;
+}
+
+type Diagnostic = { body?: unknown; meta?: { request?: { params?: { body?: unknown; bulkBody?: unknown; querystring?: unknown } } } };
+
+type ErrorBody = { error?: { type?: string; caused_by?: { type?: string }; root_cause?: { type?: string }[] } };
+
+function errorBodyOf(error: InstanceType<typeof errors.ResponseError>): ErrorBody {
+  return (typeof error.body === 'object' && error.body !== null ? error.body : {}) as ErrorBody;
+}
+
+function responseErrorTypes(error: InstanceType<typeof errors.ResponseError>): string {
+  const body = errorBodyOf(error);
+  if (!body.error?.type) return 'Response Error';
+  const rootCauses = [...new Set((body.error.root_cause ?? []).map(cause => cause.type).filter(Boolean))];
+  return [
+    body.error.type,
+    body.error.caused_by?.type ? `caused by: ${body.error.caused_by.type}` : null,
+    rootCauses.length > 0 ? `root causes: ${rootCauses.join(', ')}` : null,
+  ].filter(Boolean).join('; ');
+}

@@ -192,7 +192,9 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     let response;
     let error;
     try {
-        console.log(`Calling ${env.TASK_API_URL}/${taskType} with body ${JSON.stringify({ ...requestBody, callbackUrl: callbackUrl.split('?')[0] })}`);
+        // The body stays out of the log: a transcribe body carries voiceprints. The
+        // task row above stores the whole body.
+        console.log(`Calling ${env.TASK_API_URL}/${taskType} (body keys: ${Object.keys(requestBody).join(', ')})`);
         response = await fetch(`${env.TASK_API_URL}/${taskType}`, {
             method: 'POST',
             headers: {

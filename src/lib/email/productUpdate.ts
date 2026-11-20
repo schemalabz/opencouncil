@@ -142,7 +142,7 @@ export async function sendProductUpdateTest(params: {
         }
         return { sent: 0, failed: 1, failedEmails: [testEmail] };
     } catch (error) {
-        console.error(`Product update test send failed for ${testEmail}:`, error);
+        console.error('Product update test send failed:', error);
         return { sent: 0, failed: 1, failedEmails: [testEmail] };
     }
 }

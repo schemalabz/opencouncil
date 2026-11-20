@@ -5,6 +5,9 @@ import { administrativeBodyTypeSchema, TIER_SCOPE_RULE, tierScopeSchema } from '
 import type { Location } from '@/lib/search/types';
 import { jsonPageFields, MAX_LIST_LIMIT } from './listQuery';
 
+/** The id a page gives a search: the id of the SearchQuery row that records it. */
+export const searchIdSchema = z.uuid();
+
 /**
  * A point and a radius in metres: the search's Location. The public API, the
  * search() Server Action and the response spec share it, so a point the
