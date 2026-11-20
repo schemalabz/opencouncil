@@ -148,7 +148,7 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.23.15",
-    "vaul": "^0.9.1",
+    "vaul": "^1.1.2",
     "yargs": "^18.2.0",
     "zod": "^4.6.7",
     "zod-openapi": "^6.0.2"
