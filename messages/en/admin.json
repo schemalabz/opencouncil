@@ -523,6 +523,7 @@
       "minutesUndecided": "{n, plural, one {# subject without a decision} other {# subjects without a decision}}",
       "minutesUndecidedHint": "{n, plural, one {It will appear in the minutes with no decision number.} other {They will appear in the minutes with no decision number.}}",
       "minutesProvenance": "Drafted from the transcript and the decisions on this page.",
+      "regionMinutes": "OpenCouncil does not draft the minutes of a region yet.",
       "conventionsTitle": "Reading rules",
       "conventionsEdit": "Edit the rules on the body",
       "conventionsNone": "No rules are recorded for this body. Its decision pages are not read until a person records them; any facts shown were derived on the defaults.",

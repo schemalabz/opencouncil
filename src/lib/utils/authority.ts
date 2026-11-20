@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType, AuthorityType } from '@prisma/client';
+import type { AdministrativeBodyType, AuthorityType, DocumentKind } from '@prisma/client';
 
 /**
  * The rules that depend on the kind of local authority (#993). A `City` row
@@ -55,6 +55,18 @@ export function authorityAllowsBodyType(city: { authorityType: AuthorityType }, 
 /** The text of the error for a body type that an authority of this kind may not have. */
 export function bodyTypeRefusal(city: { authorityType: AuthorityType }, type: AdministrativeBodyType): string {
     return `A ${city.authorityType} has no administrative body of type ${type}`;
+}
+
+/**
+ * Whether the platform builds this document for an authority of this kind.
+ *
+ * The minutes hold municipal law: the mayor attends the council and has no
+ * vote, and the document prints the line of the mayor. Nobody checked the rule
+ * for the head of a region yet (#993, task 8), so a region gets no minutes: no
+ * preview, no DOCX and no email to its back office.
+ */
+export function authorityHasDocument(city: { authorityType: AuthorityType }, kind: DocumentKind): boolean {
+    return kind !== 'minutes' || !isRegion(city);
 }
 
 /** The word that opens the official name of each kind of authority. */

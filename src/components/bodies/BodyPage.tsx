@@ -223,7 +223,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         {canEdit && (
                             <TabsContent value="admin" className="mt-6 space-y-8">
-                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
+                                {contacts && <BodyContactsForm cityId={city.id} authorityType={city.authorityType} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
                                 <BodyAdminsCard cityId={city.id} authorityType={city.authorityType} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
                                 <BodyEmbedCard cityId={city.id} bodyId={body.id} />

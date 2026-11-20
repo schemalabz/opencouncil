@@ -30,7 +30,7 @@ const members = (n: number, prefix: string): MinutesMember[] => Array.from({ len
 
 function data(o: Partial<MinutesData>): MinutesData {
     return {
-        city: { name: 'Δ', name_municipality: 'Δ', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' },
+        city: { name: 'Δ', name_municipality: 'Δ', timezone: 'Europe/Athens', logoImage: null, realm: 'greece', authorityType: 'municipality' },
         meeting: { id: 'm', cityId: 'c', name: 'Σ', dateTime: '2026-06-15T18:00:00.000Z' },
         administrativeBody: null, councilComposition: null, absentMembers: null, preambleEntries: [],
         attendanceChanges: [], discussionOrderLabel: null, proceduralVotes: [], subjects: [], epilogueEntries: [], ...o,
@@ -76,6 +76,7 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
             auditMode={false}
             onAuditModeChange={jest.fn()}
             conventions={null}
+            minutesAvailable
             onPreviewMinutes={jest.fn()}
             onExportDocx={jest.fn()}
             onExportDecisionsTable={jest.fn()}
@@ -98,6 +99,12 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
 }
 
 describe('DecisionsRail', () => {
+    it('gives the minutes card the word that an authority gets no minutes (#993)', () => {
+        renderRail({ minutesAvailable: false });
+        expect(screen.getByText('rail.regionMinutes')).toBeInTheDocument();
+        expect(screen.queryByText('previewMinutes')).not.toBeInTheDocument();
+    });
+
     it('renders the presence, attendance-changes, discussion-order and minutes cards for everyone', () => {
         renderRail();
         expect(screen.getByText('attendance')).toBeInTheDocument();

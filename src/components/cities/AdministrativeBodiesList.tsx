@@ -361,7 +361,7 @@ export default function AdministrativeBodiesList({ cityId, authorityType, bodies
                                     </FormItem>
                                 )}
                             />
-                            <DocumentSendFields form={form} />
+                            <DocumentSendFields form={form} authorityType={authorityType} />
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"
