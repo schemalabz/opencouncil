@@ -12,7 +12,7 @@ jest.mock('@/lib/db/cityRealm', () => ({
 }));
 
 import { NextRequest } from 'next/server';
-import proxy from '@/proxy';
+import proxy, { config } from '@/proxy';
 import { auth } from '@/auth';
 import { isCityOfRealm } from '@/lib/db/cityRealm';
 
@@ -57,7 +57,7 @@ describe('proxy on a path with a dot', () => {
 });
 
 describe('proxy on a first segment that is not a page', () => {
-    it.each(['/etc/environment', '/actuator/heapdump', '/HEAD', '/%2eenv', '/en/etc/environment', '/wp-admin/setup-config', '/en/wp-login'])(
+    it.each(['/etc/environment', '/actuator/heapdump', '/HEAD', '/%2eenv', '/en/etc/environment', '/wp-admin/setup-config', '/en/wp-login', '/api', '/api-catalog', '/_next/unknown', '/_vercel/insights'])(
         'answers 404 for %s',
         async (path) => {
             const res = await get(path);
@@ -91,4 +91,27 @@ describe('proxy on a first segment that is not a page', () => {
 
         expect(isCityOfRealm).not.toHaveBeenCalled();
     });
+});
+
+/**
+ * The matcher skips only the trees that Next serves with no page below them.
+ * A wider prefix lets a path such as `/api-catalog` skip the proxy and match
+ * `[locale]`.
+ */
+describe('proxy matcher', () => {
+    const matches = (path: string) => config.matcher.some(source => new RegExp(`^${source}$`).test(path));
+
+    it.each(['/api/health', '/api/unknown', '/ingest/e/', '/_next/static/chunks/a.js', '/_next/image'])(
+        'skips %s',
+        (path) => {
+            expect(matches(path)).toBe(false);
+        },
+    );
+
+    it.each(['/', '/athens', '/.env', '/favicon.ico', '/api', '/api-catalog', '/ingest', '/_next/unknown', '/_vercel/insights'])(
+        'sends %s to the proxy',
+        (path) => {
+            expect(matches(path)).toBe(true);
+        },
+    );
 });

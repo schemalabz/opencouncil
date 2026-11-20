@@ -21,10 +21,11 @@ const i18nMiddleware = createIntlMiddleware(routing);
 // not-found page costs a render of the locale layout for each one.
 const NOT_FOUND_PAGE = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex"><title>404</title></head><body style="font:16px system-ui,sans-serif;text-align:center;padding:20vh 1rem"><h1>404</h1><p><a href="/">OpenCouncil</a></p></body></html>';
 
-// Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
-// dotted asset paths). Both the realm-locale rewrite and the i18n handoff
-// gate on this.
-const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
+// Page paths that go through i18n routing: every path that reaches
+// proxyInner, but for the `/qr/[code]` route handler. The matcher skips the
+// api and the build assets, and dottedPathVerdict answers for a path with a
+// dot.
+const APP_PATH = /^\/(?!qr\/)/;
 
 
 export default async function proxy(req: NextRequest) {
@@ -282,8 +283,11 @@ export const config = {
     // `ingest` is the PostHog reverse proxy (rewrites in next.config.mjs):
     // its extensionless endpoints (/ingest/e/, /ingest/flags/) must bypass
     // basic auth and i18n routing, or events get swallowed by locale 404s.
-    // A path with a dot does reach the proxy: see dottedPathVerdict.
-    matcher: ['/((?!api|ingest|_next|_vercel).*)'],
+    // Each prefix ends where its tree starts: `/api-catalog` and
+    // `/_next/unknown` are not in a tree that Next serves, so they must reach
+    // the proxy, which answers 404. A path with a dot does reach the proxy
+    // too: see dottedPathVerdict.
+    matcher: ['/((?!api/|ingest/|_next/static/|_next/image).*)'],
 };
 
 /*
