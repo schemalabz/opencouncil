@@ -48,6 +48,21 @@ const useClientEnvSelector = {
     message: envMjsMessage,
 };
 
+// A console line reaches the log stores (Better Stack, PostHog Logs), which must
+// not hold a reader's contact data or a password. Log an id instead. A line that
+// only counts them, such as `recipientEmails.length`, passes. The rule sees names
+// only: data under another name (`payload.to`, a search query) needs review.
+// Names: email, emails, any name that ends in Email(s), phone, phoneNumber,
+// any name that ends in password or Password, and failedTos.
+const PERSONAL_FIELD = "/(^|[a-z])[Ee]mails?$|^phone(Number)?$|[Pp]assword$|^failedTos$/";
+const LOGGING_CALL = "CallExpression:matches([callee.object.name='console'], [callee.name='logEssential'])";
+const consolePersonalDataSelectors = [{
+    // A variable and a property (`user.email`) are both an Identifier node. The
+    // key of an object literal names a field, so it passes; its value does not.
+    selector: `${LOGGING_CALL} Identifier[name=${PERSONAL_FIELD}]:not(MemberExpression[property.name='length'] *):not(Property > Identifier.key)`,
+    message: "Do not write an email address, a phone number or a password to the console: the log stores must not hold them. Log the id of the user or of the row instead.",
+}];
+
 export default defineConfig([{
     // services/* are separate workspace apps with their own lint setup;
     // the root app's Next config must not walk into them.
@@ -151,12 +166,12 @@ export default defineConfig([{
 }, {
     files: ["src/**/*.{ts,tsx,mjs}"],
     rules: {
-        "no-restricted-syntax": ["error", ...dateFormattingSelectors, ...zodNamespaceImportSelectors, useClientEnvSelector],
+        "no-restricted-syntax": ["error", ...dateFormattingSelectors, ...zodNamespaceImportSelectors, useClientEnvSelector, ...consolePersonalDataSelectors],
     },
 }, {
     files: ["src/lib/formatters/**"],
     rules: {
-        "no-restricted-syntax": ["error", ...zodNamespaceImportSelectors, useClientEnvSelector],
+        "no-restricted-syntax": ["error", ...zodNamespaceImportSelectors, useClientEnvSelector, ...consolePersonalDataSelectors],
     },
 }, {
     // The zod import rule holds for every zod import: the shared UI package
