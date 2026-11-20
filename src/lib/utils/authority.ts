@@ -1,4 +1,4 @@
-import type { AuthorityType } from '@prisma/client';
+import type { AdministrativeBodyType, AuthorityType } from '@prisma/client';
 
 /**
  * The rules that depend on the kind of local authority (#993). A `City` row
@@ -24,4 +24,35 @@ export function isRegion(city: { authorityType: AuthorityType } | null | undefin
  */
 export function authorityKey(key: string, city: { authorityType: AuthorityType }): string {
     return `${key}.${city.authorityType}`;
+}
+
+/**
+ * The body types of a region: the regional council and its committees. A
+ * region has no communities and no youth council.
+ *
+ * A const array: translation-key-references.test.ts reads from it the members
+ * of the message group that names the bodies of a region.
+ */
+export const REGION_BODY_TYPES = ['council', 'committee'] as const satisfies readonly AdministrativeBodyType[];
+export type RegionBodyType = (typeof REGION_BODY_TYPES)[number];
+
+export function isRegionBodyType(type: AdministrativeBodyType): type is RegionBodyType {
+    return (REGION_BODY_TYPES as readonly AdministrativeBodyType[]).includes(type);
+}
+
+/** The body types each kind of authority may have. Null is every type. */
+const BODY_TYPES: Record<AuthorityType, readonly AdministrativeBodyType[] | null> = {
+    municipality: null,
+    region: REGION_BODY_TYPES,
+};
+
+/** Whether an authority of this kind may have a body of this type. */
+export function authorityAllowsBodyType(city: { authorityType: AuthorityType }, type: AdministrativeBodyType): boolean {
+    const allowed = BODY_TYPES[city.authorityType];
+    return allowed === null || allowed.includes(type);
+}
+
+/** The text of the error for a body type that an authority of this kind may not have. */
+export function bodyTypeRefusal(city: { authorityType: AuthorityType }, type: AdministrativeBodyType): string {
+    return `A ${city.authorityType} has no administrative body of type ${type}`;
 }

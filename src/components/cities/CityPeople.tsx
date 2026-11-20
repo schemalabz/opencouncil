@@ -91,8 +91,8 @@ export default function CityPeople({
     // The chips come from the people on show, so no chip leads to an empty
     // roster.
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(people, tCommon),
-        [people, tCommon]
+        getAdministrativeBodyTypesForPeople(people, roleCity, tCommon),
+        [people, roleCity, tCommon]
     );
 
     // The council carries no sub-bodies, so only a narrower type offers a body.

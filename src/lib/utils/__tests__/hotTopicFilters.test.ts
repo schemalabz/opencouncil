@@ -1,4 +1,5 @@
-import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, isBeyondPeriod, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
+import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, hotScopeLabelKey, isBeyondPeriod, monthsAgo, readPeriod, readScope, type HotScope } from '../hotTopicFilters';
+import cityOverview from '../../../../messages/en/cityOverview.json';
 
 describe('readScope / readPeriod', () => {
     it('keeps a value the picker writes', () => {
@@ -48,6 +49,26 @@ describe('the hot scopes and the tier (#829)', () => {
         expect(hotScopeAvailable('council', [company, council])).toBe(true);
         // Every primary meeting, the ones with no body among them.
         expect(hotScopeAvailable('all', [])).toBe(true);
+    });
+});
+
+// The picker reads these keys through a table, so the scan of the literal keys does not see them.
+describe('the label of a hot scope (#993)', () => {
+    const read = (key: string): unknown =>
+        key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], cityOverview);
+    const scopes = Object.keys(HOT_SCOPES) as HotScope[];
+    const cases = scopes.flatMap(scope => (['label', 'fullLabel'] as const).flatMap(form =>
+        (['municipality', 'region'] as const).map(authorityType => ({ scope, form, authorityType }))));
+
+    it.each(cases)('has a message for $form of $scope in a $authorityType', ({ scope, form, authorityType }) => {
+        expect(typeof read(hotScopeLabelKey(scope, form, { authorityType }))).toBe('string');
+    });
+
+    it('names the authority in the council and the committee scopes only', () => {
+        expect(scopes.filter(scope => hotScopeLabelKey(scope, 'label', { authorityType: 'region' }).endsWith('.region')))
+            .toEqual(['council', 'committee']);
+        expect(read(hotScopeLabelKey('council', 'fullLabel', { authorityType: 'region' }))).toBe('Regional council');
+        expect(read(hotScopeLabelKey('council', 'fullLabel', { authorityType: 'municipality' }))).toBe('City council');
     });
 });
 

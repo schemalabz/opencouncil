@@ -70,7 +70,7 @@ describe('AdministrativeBodiesList', () => {
     it('opens a body with its conventions and saves it', async () => {
         fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'b1' }) });
         const onUpdate = jest.fn();
-        renderList(<AdministrativeBodiesList cityId="athens" bodies={[BODY]} onUpdate={onUpdate} />);
+        renderList(<AdministrativeBodiesList cityId="athens" authorityType="municipality" bodies={[BODY]} onUpdate={onUpdate} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
         expect(await screen.findByRole('checkbox', { name: enAdmin.conventions.attendanceChangeAnchors.phase.label })).toBeChecked();
@@ -88,7 +88,7 @@ describe('AdministrativeBodiesList', () => {
     });
 
     it('keeps an invalid address in view after its document is switched off, and saves nothing', async () => {
-        renderList(<AdministrativeBodiesList cityId="athens" bodies={[BODY]} onUpdate={jest.fn()} />);
+        renderList(<AdministrativeBodiesList cityId="athens" authorityType="municipality" bodies={[BODY]} onUpdate={jest.fn()} />);
         fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
 
         const minutes = await screen.findByRole('switch', { name: 'Minutes' });

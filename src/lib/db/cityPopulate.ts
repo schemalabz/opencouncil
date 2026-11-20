@@ -1,6 +1,8 @@
 // Server-only: populateCity takes no identity and checks no session. The
 // caller authorizes first — the MCP admin tool populate_city does.
 import "server-only";
+import type { AuthorityType } from '@prisma/client';
+import { authorityAllowsBodyType, bodyTypeRefusal } from '@/lib/utils/authority';
 import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier';
 import { youthCouncilOnly } from '@/lib/utils/youthCouncil';
 import type { Prisma } from '@prisma/client';
@@ -127,8 +129,11 @@ function cityHasRows(cityId: string): Promise<boolean> {
 function writePopulation(validatedData: CityPopulationData, images: StoredImages): Promise<CityPopulationStats> {
     const { cityId } = validatedData;
     return prisma.$transaction(async (tx) => {
-        const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "City" WHERE id = ${cityId} FOR UPDATE`;
+        const locked = await tx.$queryRaw<{ id: string; authorityType: AuthorityType }[]>`SELECT id, "authorityType" FROM "City" WHERE id = ${cityId} FOR UPDATE`;
         if (locked.length === 0) throw new NotFoundError('City not found');
+        // A region has a council and committees only (#993).
+        const refused = validatedData.administrativeBodies.find(adminBody => !authorityAllowsBodyType(locked[0], adminBody.type));
+        if (refused) throw new BadRequestError(bodyTypeRefusal(locked[0], refused.type));
 
         await assertNoCityData(tx, cityId);
 

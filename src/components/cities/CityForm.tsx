@@ -449,6 +449,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     <CityFormSection title={t('administrativeBodies')} hint={t('administrativeBodiesHint')}>
                         <AdministrativeBodiesList
                             cityId={city.id}
+                            authorityType={city.authorityType}
                             bodies={administrativeBodies}
                             onUpdate={refreshAdminBodies}
                         />

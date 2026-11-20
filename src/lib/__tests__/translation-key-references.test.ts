@@ -323,6 +323,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
     },
     { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'Common.regionBodyType_', members: { file: 'src/lib/utils/authority.ts', constArray: 'REGION_BODY_TYPES' } },
     { group: 'editing.speakerHints.status.', members: { file: 'src/lib/speakerIdentifications.ts', type: 'SpeakerIdentificationsStatus' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AddMeetingForm.kindOptions.', members: { prismaEnum: 'MeetingKind' } },

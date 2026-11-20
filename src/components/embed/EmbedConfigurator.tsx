@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { AdministrativeBodyType, BodyTier } from '@prisma/client';
+import { AdministrativeBodyType, AuthorityType, BodyTier } from '@prisma/client';
 // @ts-ignore
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { Button } from '@/components/ui/button';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { getBodyTypeLabel } from '@/lib/utils/administrativeBodies';
 import { urlPrefixForLocale } from '@/i18n/config';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -45,6 +46,8 @@ interface EmbedConfiguratorProps {
     cityName?: string;
     /** For the dates in the summary widget's meeting picker. */
     cityTimezone?: string;
+    /** Names the body types of the filter. Absent reads as a municipality. */
+    cityAuthorityType?: AuthorityType;
     /** Only types/bodies that have released meetings — pre-filtered server-side. */
     bodyGroups: EmbedBodyGroup[];
     /** Released past meetings, newest first — choices for the summary widget's meeting picker. */
@@ -57,7 +60,7 @@ interface EmbedConfiguratorProps {
     lockedBody?: { id: string; name: string; name_en: string; type: AdministrativeBodyType } | null;
 }
 
-export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, recentMeetings, lockedBody = null }: EmbedConfiguratorProps) {
+export function EmbedConfigurator({ cityId, cityName, cityTimezone, cityAuthorityType = 'municipality', bodyGroups, recentMeetings, lockedBody = null }: EmbedConfiguratorProps) {
     const t = useTranslations('EmbedConfigurator');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
@@ -85,10 +88,10 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
     const bodyPickerGroups = useMemo<AdminBodyGroup[]>(
         () => bodyGroups.map(g => ({
             type: g.type,
-            typeLabel: tCommon(`adminBodyType_${g.type}`),
+            typeLabel: getBodyTypeLabel(g.type, { authorityType: cityAuthorityType }, tCommon),
             bodies: g.bodies.map(b => ({ value: b.id, label: getLocalizedName(b, locale) })),
         })),
-        [bodyGroups, tCommon, locale]
+        [bodyGroups, cityAuthorityType, tCommon, locale]
     );
 
     useEffect(() => {
