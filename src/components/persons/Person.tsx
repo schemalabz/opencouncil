@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
-import { isIndependentCouncilMember, isMayorRole, type RoleTitles } from '@/lib/utils/roles';
+import { getIndependentMemberLabel, isIndependentCouncilMember, isMayorRole, type RoleTitles } from '@/lib/utils/roles';
 import { TIER_PARAM } from '@/lib/utils/bodyTier';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
@@ -80,7 +80,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const locale = useLocale();
-    const roleTitles = useRoleTitles(city.language);
+    const roleTitles = useRoleTitles(city);
     const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
     const personParty = getPartyFromRoles(person.roles);
     const speakingMinutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
@@ -280,7 +280,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 );
                             })}
                             {isIndependent && (
-                                <span className="text-sm italic text-muted-foreground">{t('independentCouncilMember')}</span>
+                                <span className="text-sm italic text-muted-foreground">{getIndependentMemberLabel(roleTitles)}</span>
                             )}
                             </>
                         )}
@@ -315,13 +315,14 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             ? {
                                                 person,
                                                 cityId: person.cityId,
+                                                authorityType: city.authorityType,
                                                 parties: [],
                                                 administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)),
                                                 canEditRoles: editableBodyIds.length > 0,
                                                 roleTypes: ['administrativeBody' as const],
                                                 canEditImage,
                                             }
-                                            : { person, cityId: person.cityId, parties, administrativeBodies, canEditImage }}
+                                            : { person, cityId: person.cityId, authorityType: city.authorityType, parties, administrativeBodies, canEditImage }}
                                         title={t('editPerson')}
                                         type="edit"
                                         triggerVariant="ghost"
@@ -391,7 +392,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         transition={{ delay: 0.1 * index }}
                                     >
                                         <ContributionCard
-                                            cityLanguage={city.language}
+                                            roleCity={city}
                                             contribution={contribution}
                                             subjectId={contribution.subject.id}
                                             meeting={{
@@ -474,7 +475,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 {activeRoles.map(role => <RoleRow key={role.id} role={role} roleTitles={roleTitles} tCommon={tCommon} />)}
                                 {activeRoles.length === 0 && (
                                     <li className="text-sm text-muted-foreground">
-                                        {isIndependent ? t('independentCouncilMember') : '—'}
+                                        {isIndependent ? getIndependentMemberLabel(roleTitles) : '—'}
                                     </li>
                                 )}
                             </ul>

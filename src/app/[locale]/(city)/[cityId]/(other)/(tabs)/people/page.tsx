@@ -121,7 +121,7 @@ export default async function PeoplePage(
             partiesWithPersons={partiesWithPersons}
             administrativeBodies={administrativeBodies}
             cityId={cityId}
-            cityLanguage={city.language}
+            roleCity={{ language: city.language, authorityType: city.authorityType }}
             canEdit={canEdit}
             superAdminRoster={superAdminRoster}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}

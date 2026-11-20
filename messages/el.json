@@ -551,6 +551,7 @@
         "partyLeader": "Επικεφαλής",
         "formerMembers": "Παλαιότερα μέλη",
         "mayor": "Δήμαρχος",
+        "regionalGovernor": "Περιφερειάρχης",
         "president": "Πρόεδρος",
         "member": "Μέλος",
         "partyLeaderShort": "Επικ.",
@@ -579,6 +580,7 @@
         "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
         "breadcrumbHome": "Αρχική",
         "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
+        "independentRegionalCouncilMember": "Ανεξάρτητος Περιφερειακός Σύμβουλος",
         "biography": "Βιογραφικό",
         "moreRoles": "+{count} ακόμη",
         "present": "σήμερα",
@@ -610,11 +612,6 @@
         "breadcrumbHome": "Αρχική",
         "tabPeople": "Πρόσωπα",
         "tabSegments": "Τοποθετήσεις",
-        "breakdownMayor": "Δήμαρχος",
-        "breakdownCouncil": "{count} στο Δημοτικό Συμβούλιο",
-        "breakdownCommittees": "{count} σε επιτροπές",
-        "breakdownCommunities": "{count} σε κοινότητες",
-        "breakdownOthers": "{count} άλλοι",
         "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:",
         "compositionCard": "Σύνθεση",
         "membersTotal": "{count, plural, one {# μέλος συνολικά} other {# μέλη συνολικά}}"
@@ -689,7 +686,10 @@
         "type": "Τύπος",
         "selectType": "Επιλέξτε τύπο",
         "types": {
-            "city": "Δήμος",
+            "city": {
+                "municipality": "Δήμος",
+                "region": "Περιφέρεια"
+            },
             "party": "Παράταξη",
             "administrativeBody": "Διοικητικό Όργανο"
         },
@@ -708,7 +708,10 @@
         "update": "Ενημέρωση",
         "create": "Δημιουργία",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον ρόλο;",
-        "cityRole": "Δημοτικός Σύμβουλος",
+        "cityRole": {
+            "municipality": "Δημοτικός Σύμβουλος",
+            "region": "Περιφερειακός Σύμβουλος"
+        },
         "head": "Επικεφαλής",
         "from": "από",
         "until": "έως",
@@ -1056,7 +1059,10 @@
     },
     "ElectedOrderSheet": {
         "title": "Σειρά Εκλογής",
-        "description": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο δημοτικό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά.",
+        "description": {
+            "municipality": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο δημοτικό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά.",
+            "region": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο περιφερειακό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά."
+        },
         "currentOrder": "Τρέχουσα σειρά: {order}",
         "save": "Αποθήκευση Σειράς",
         "saving": "Αποθήκευση...",

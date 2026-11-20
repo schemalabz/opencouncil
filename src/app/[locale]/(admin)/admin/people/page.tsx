@@ -33,7 +33,7 @@ export default async function PeoplePage(props: PageProps) {
         qrEligibleIds = qrIds;
     }
 
-    const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
+    const selectedCity = cities.find(c => c.id === selectedCityId);
 
     return (
         <div className='container mx-auto py-8'>
@@ -47,15 +47,17 @@ export default async function PeoplePage(props: PageProps) {
                 </div>
             </div>
 
-            {/* Keyed by city: a selection belongs to one city's people. */}
-            <People
-                key={selectedCityId}
-                people={people}
-                consents={consents}
-                currentCityName={currentCityName}
-                cityLanguage={cities.find(c => c.id === selectedCityId)?.language}
-                qrEligibleIds={qrEligibleIds}
-            />
+            {/* Keyed by city: a selection belongs to one city's people. No city, no people to list. */}
+            {selectedCity && (
+                <People
+                    key={selectedCityId}
+                    people={people}
+                    consents={consents}
+                    currentCityName={selectedCity.name}
+                    roleCity={{ language: selectedCity.language, authorityType: selectedCity.authorityType }}
+                    qrEligibleIds={qrEligibleIds}
+                />
+            )}
         </div>
     );
 }

@@ -551,6 +551,7 @@
     "partyLeader": "Chef de groupe",
     "formerMembers": "Anciens membres",
     "mayor": "Maire",
+    "regionalGovernor": "Maire",
     "president": "Président(e)",
     "member": "Membre",
     "partyLeaderShort": "Chef",
@@ -579,6 +580,7 @@
     "tryDifferentFilter": "Essayez de modifier les filtres",
     "breadcrumbHome": "Accueil",
     "independentCouncilMember": "Conseiller municipal indépendant",
+    "independentRegionalCouncilMember": "Conseiller municipal indépendant",
     "biography": "Biographie",
     "moreRoles": "+{count} autres",
     "present": "aujourd’hui",
@@ -610,11 +612,6 @@
     "breadcrumbHome": "Accueil",
     "tabPeople": "Personnes",
     "tabSegments": "Interventions",
-    "breakdownMayor": "Maire",
-    "breakdownCouncil": "{count} au conseil municipal",
-    "breakdownCommittees": "{count} en commissions",
-    "breakdownCommunities": "{count} en communautés",
-    "breakdownOthers": "{count} autres",
     "peopleWithoutParties": "Personnes sans groupe :",
     "compositionCard": "Composition",
     "membersTotal": "{count, plural, one {# membre au total} other {# membres au total}}"
@@ -689,7 +686,10 @@
     "type": "Type",
     "selectType": "Sélectionnez un type",
     "types": {
-      "city": "Ville",
+      "city": {
+        "municipality": "Ville",
+        "region": "Ville"
+      },
       "party": "Groupe",
       "administrativeBody": "Organe administratif"
     },
@@ -708,7 +708,10 @@
     "update": "Mettre à jour",
     "create": "Créer",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce rôle ?",
-    "cityRole": "Conseiller municipal",
+    "cityRole": {
+      "municipality": "Conseiller municipal",
+      "region": "Conseiller municipal"
+    },
     "head": "Responsable",
     "from": "de",
     "until": "à",
@@ -1056,7 +1059,10 @@
   },
   "ElectedOrderSheet": {
     "title": "Ordre d'élection",
-    "description": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
+    "description": {
+      "municipality": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
+      "region": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels."
+    },
     "currentOrder": "Ordre actuel : {order}",
     "save": "Enregistrer l'ordre",
     "saving": "Enregistrement...",

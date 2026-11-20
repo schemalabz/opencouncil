@@ -23,7 +23,7 @@ const row = (administrators: { userId: string }[], supportsNotifications = true,
     name: 'Αδάμ Μπούτζουκας',
     image: null,
     cityId: 'chania',
-    city: { name: 'Χανιά', language: 'el', supportsNotifications },
+    city: { name: 'Χανιά', language: 'el', authorityType: 'municipality', supportsNotifications },
     roles,
     administrators,
 });
@@ -60,7 +60,7 @@ describe('getJoinStage', () => {
     it('titles a mayor without a stored role name in the city language', async () => {
         mockGetJoinPerson.mockResolvedValue({
             ...row([]),
-            city: { name: 'Rouen', language: 'fr', supportsNotifications: true },
+            city: { name: 'Rouen', language: 'fr', authorityType: 'municipality', supportsNotifications: true },
             roles: [{ name: null, isHead: true, cityId: 'rouen', partyId: null, administrativeBodyId: null, administrativeBody: null }],
         });
         expect(await getJoinStage(token(), null)).toMatchObject({ person: { title: 'Maire' } });
