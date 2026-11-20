@@ -22,7 +22,7 @@ async function hasMigrationsTable(databaseUrl: string): Promise<boolean> {
         (await client.query<{ present: boolean }>(`SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS present`)).rows[0].present);
 }
 
-/** The Serbian review city is a demo city that the fixtures add, so its meeting does not count. */
+/** The fixtures add the Serbian review city (demo) and the review region (pending), so their meetings do not count. */
 async function countSupportedMeetings(databaseUrl: string): Promise<number> {
     return withClient(databaseUrl, async (client) =>
         (await client.query<{ n: number }>(
