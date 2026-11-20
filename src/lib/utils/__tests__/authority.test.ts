@@ -1,7 +1,7 @@
 import { AdministrativeBodyType, AuthorityType } from '@prisma/client';
 import {
-    authorityAllowsBodyType, authorityHasDocument, authorityKey, authorityRequiresMeetingBody, isRegion,
-    isRegionBodyType,
+    authorityAllowsBodyType, authorityBoundsSubjectLocations, authorityHasDocument, authorityKey,
+    authorityRequiresMeetingBody, isRegion, isRegionBodyType,
     proposedOfficialName, proposedOfficialNameEn, REGION_BODY_TYPES,
 } from '../authority';
 
@@ -60,6 +60,15 @@ describe('the body of a meeting of a local authority (#993)', () => {
         ['a region', true, { authorityType: AuthorityType.region }],
     ])('%s: each meeting must name its body %s', (_name, required, city) => {
         expect(authorityRequiresMeetingBody(city)).toBe(required);
+    });
+});
+
+describe('the location of a subject of a local authority (#993)', () => {
+    it.each([
+        ['a municipality', false, { authorityType: AuthorityType.municipality }],
+        ['a region', true, { authorityType: AuthorityType.region }],
+    ])('%s: a location must be inside the boundary %s', (_name, bounded, city) => {
+        expect(authorityBoundsSubjectLocations(city)).toBe(bounded);
     });
 });
 

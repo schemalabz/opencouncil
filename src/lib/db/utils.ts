@@ -9,6 +9,7 @@ import { getPeopleWhoMaySpeak } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
+import { getGeometriesOutsideCity } from "./citiesAdmin";
 import { getCouncilMeetingDirect } from "./meetings";
 import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
 import { buildSpeakerRoster, describeRolesAt } from "@/lib/tasks/speakerRoster";
@@ -22,6 +23,7 @@ import { getLatestProcessAgendaSubjects } from "./tasksInternal";
 import { getRealmCountry } from "@/lib/realm";
 import { getCityRealm } from "./cityRealm";
 import { getRoleTitles } from "@/i18n/roleTitles";
+import { authorityBoundsSubjectLocations } from "@/lib/utils/authority";
 
 // discussionStatus arrives from the external task server, so it is validated before it
 // reaches Prisma. An unknown value is a PrismaClientValidationError, which would abort the
@@ -249,6 +251,14 @@ async function validateSubjectPersons(subjects: Subject[], cityId: string) {
     return { topicsByName, validSpeakerIds, existingIntroducerIds };
 }
 
+function locationGeoJson(location: NonNullable<Subject['location']>): string {
+    return JSON.stringify({
+        type: location.type === 'point' ? 'Point' :
+              location.type === 'lineString' ? 'LineString' : 'Polygon',
+        coordinates: location.coordinates[0]
+    });
+}
+
 async function createLocationInTx(
     tx: PrismaTxClient,
     location: NonNullable<Subject['location']>
@@ -262,15 +272,40 @@ async function createLocationInTx(
             ${cuid[0].cuid}::text,
             ${location.type}::"LocationType",
             ${location.text}::text,
-            ST_GeomFromGeoJSON(${JSON.stringify({
-                type: location.type === 'point' ? 'Point' :
-                      location.type === 'lineString' ? 'LineString' : 'Polygon',
-                coordinates: location.coordinates[0]
-            })})
+            ST_GeomFromGeoJSON(${locationGeoJson(location)})
         )
         RETURNING id
     `;
     return result[0].id;
+}
+
+/**
+ * The subjects as they go to the database. A subject of a region keeps its
+ * location only when the location is in the region (#993): the geocoder of the
+ * task backend can put a pin in a town of the same name in another region. A
+ * location outside the boundary is dropped and the subject is saved with none,
+ * because a wrong pin on the map is worse than no pin.
+ *
+ * Before the transaction, so that the boundary query does not hold it open.
+ */
+async function dropLocationsOutsideAuthority(subjects: Subject[], cityId: string): Promise<Subject[]> {
+    const located = subjects.flatMap((subject, index) =>
+        subject.location ? [{ index, geoJson: locationGeoJson(subject.location) }] : []);
+    if (located.length === 0) return subjects;
+
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { authorityType: true } });
+    if (!city || !authorityBoundsSubjectLocations(city)) return subjects;
+
+    const outside = new Set(
+        (await getGeometriesOutsideCity(cityId, located.map(({ geoJson }) => geoJson)))
+            .map(position => located[position].index));
+    if (outside.size === 0) return subjects;
+
+    return subjects.map((subject, index) => {
+        if (!outside.has(index)) return subject;
+        console.warn(`Subject "${subject.name}": the location "${subject.location?.text}" is outside the boundary of ${cityId}. The subject is saved with no location.`);
+        return { ...subject, location: null };
+    });
 }
 
 async function createHighlightInTx(
@@ -423,6 +458,7 @@ export async function saveSubjectsForMeeting(
      *  asks for it; a summary is not, so summarize does not. */
     options: { pruneUnmatched?: boolean } = {},
 ): Promise<Map<string, string>> {
+    subjects = await dropLocationsOutsideAuthority(subjects, cityId);
     const { topicsByName, validSpeakerIds, existingIntroducerIds } = await validateSubjectPersons(subjects, cityId);
     const subjectIdMap = new Map<string, string>();
 
