@@ -63,6 +63,9 @@ export const env = createEnv({
     // Powers the playground's address search + map. Optional: without it the
     // simulator falls back to free-text location chips.
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().optional(),
+    // The commit the build carries, published by /api/health. The app-level
+    // variable of the App Platform app sets it for both components.
+    NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
   },
   runtimeEnv: {
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -85,6 +88,7 @@ export const env = createEnv({
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
+    NEXT_PUBLIC_BUILD_COMMIT_SHA: process.env.NEXT_PUBLIC_BUILD_COMMIT_SHA,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   // A blank platform secret (`NOTIS_SERVICE_TOKEN=`) is "unset", not a

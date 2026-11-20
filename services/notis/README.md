@@ -119,7 +119,7 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Source dir | `/` (repo root — the workspace install needs the root lockfile) |
 | Build command | `npm ci && SKIP_ENV_VALIDATION=1 npm run build -w notis` |
 | Run command | `npm start -w notis` (Next.js honors DO's injected `PORT`) — a `prestart` runs `prisma migrate deploy` first when `NOTIS_DATABASE_URL` is set, so the buildpack deploy migrates its own database on boot; the Nix preview path runs migrations in its createHook instead |
-| Health check | `GET /api/health` |
+| Health check | `GET /api/health` (also names the commit: the app-level `NEXT_PUBLIC_BUILD_COMMIT_SHA` reaches this component too) |
 | Domain | `notis.opencouncil.gr` |
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL`, `NOTIS_SERVICE_TOKEN` (see [Subscriptions API](#subscriptions-api-service-token)) |
