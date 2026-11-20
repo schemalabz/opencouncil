@@ -76,3 +76,29 @@ describe('MeetingStageStrip and the update it promises', () => {
         }
     });
 });
+
+/** The postponed strip names the authority that sets the new meeting (#993). The cancelled strip names none. */
+describe('MeetingStageStrip of a meeting that does not take place', () => {
+    function text(type: 'postponed' | 'cancelled', authorityType: 'municipality' | 'region') {
+        mockMeetingData.mockReturnValue({
+            meeting: {
+                id: 'm1', cityId: 'chania', dateTime: new Date('2026-11-20T16:00:00Z'), administrativeBody: COUNCIL,
+                youtubeUrl: null, agendaUrl: null, format: null, noRecording: false,
+            },
+            city: { id: 'chania', timezone: 'Europe/Athens', realm: 'greece', supportsNotifications: true, authorityType },
+            subjects: [],
+            transcriptHiddenForReview: false,
+            notificationsDisabled: false,
+        });
+        mockPreference.mockReturnValue(null);
+        const { container, unmount } = render(<MeetingStageStrip presentation={{ type, reason: null }} stage={type} deadline={null} />);
+        const shown = container.textContent!;
+        unmount();
+        return shown;
+    }
+
+    it.each(['municipality', 'region'] as const)('reads the postponed text of a %s', authorityType => {
+        expect(text('postponed', authorityType)).toContain(`strip.postponed.${authorityType}`);
+        expect(text('cancelled', authorityType)).toContain('strip.cancelled');
+    });
+});

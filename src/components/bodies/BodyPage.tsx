@@ -27,6 +27,7 @@ import { bodyOffersFollow, isSecondaryBody } from '@/lib/utils/bodyTier';
 import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { isRoleActive } from '@/lib/utils/roles';
 import { getBodyTypeLabel, mayStartNewTerm } from '@/lib/utils/administrativeBodies';
+import { authorityKey } from '@/lib/utils/authority';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
@@ -223,7 +224,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         {canEdit && (
                             <TabsContent value="admin" className="mt-6 space-y-8">
                                 {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
-                                <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
+                                <BodyAdminsCard cityId={city.id} authorityType={city.authorityType} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
                                 <BodyEmbedCard cityId={city.id} bodyId={body.id} />
                             </TabsContent>
@@ -233,7 +234,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                     <aside className="space-y-4">
                         <RailCard title={t('aboutTitle')}>
                             <p className="text-sm text-muted-foreground">
-                                {isSecondaryBody(body) ? t('aboutSecondary', { type: typeLabel }) : t('aboutPrimary', { type: typeLabel })}
+                                {isSecondaryBody(body) ? t(authorityKey('aboutSecondary', city), { type: typeLabel }) : t(authorityKey('aboutPrimary', city), { type: typeLabel })}
                             </p>
                         </RailCard>
                     </aside>

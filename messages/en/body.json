@@ -15,8 +15,14 @@
   "noMembers": "No members have been recorded for this body.",
   "addMember": "Add a member",
   "aboutTitle": "About",
-  "aboutPrimary": "{type} of the municipality. Its meetings appear on the pages of the municipality with the other bodies.",
-  "aboutSecondary": "{type}. The body publishes its own meetings here. They stay apart from the municipal council on the pages of the municipality.",
+  "aboutPrimary": {
+    "municipality": "{type} of the municipality. Its meetings appear on the pages of the municipality with the other bodies.",
+    "region": "{type} of the region. Its meetings appear on the pages of the region with the other bodies."
+  },
+  "aboutSecondary": {
+    "municipality": "{type}. The body publishes its own meetings here. They stay apart from the municipal council on the pages of the municipality.",
+    "region": "{type}. The body publishes its own meetings here. They stay apart from the regional council on the pages of the region."
+  },
   "contactsTitle": "Contact details",
   "contactsIntro": "The channel that streams the meetings, and the documents that the platform sends by email.",
   "youtubeChannel": "YouTube channel",
@@ -39,7 +45,10 @@
   "removeConfirm": "Remove {name} from the administrators of the body?",
   "removed": "Account removed",
   "removeFailed": "Could not remove",
-  "lastAdmin": "Only an administrator of the municipality can remove the last administrator.",
+  "lastAdmin": {
+    "municipality": "Only an administrator of the municipality can remove the last administrator.",
+    "region": "Only an administrator of the region can remove the last administrator."
+  },
   "importMembers": "Import from a list",
   "importIntro": "Paste the list of members as the decision writes it. One person per line, with their title when there is one.",
   "importCheckIntro": "Check the names and the titles. Remove any line that is not a member, then confirm.",

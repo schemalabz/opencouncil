@@ -333,7 +333,6 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'AdministrativeBodiesList.documentSends.documents.', members: { prismaEnum: 'DocumentKind' } },
     { group: 'reviews.completeDialog.automatic.', why: 'only the documents the review sends on its own (AUTOMATIC_DOCUMENTS in src/lib/documents/readiness.ts); the transcript has its own checkbox' },
     { group: 'meetingStage.label.', members: { file: 'src/lib/meetingPresentation.ts', constArray: 'PRESENTATION_KEYS' } },
-    { group: 'meetingStage.strip.', why: 'computed only for postponed and cancelled (MeetingStageStrip); the other strip keys are literal' },
     { group: 'meetingStage.facts.format.', why: 'only remote and hybrid: the formats that the facts row names (meeting page)' },
     { group: 'meetingStage.rows.', why: 'the leaf is a PendingKind with processing folded into review (SubjectRow)' },
     { group: 'meetingStage.subject.', why: 'two leaves: the piece (summary, statements) and a PendingKind with processing folded into before (PendingNote)' },

@@ -352,7 +352,7 @@ export default function AdministrativeBodiesList({ cityId, authorityType, bodies
                                     <FormItem>
                                         <FormLabel>{t('place')}</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder={t('placePlaceholder')} />
+                                            <Input {...field} placeholder={t(authorityKey('placePlaceholder', { authorityType }))} />
                                         </FormControl>
                                         <FormDescription>
                                             {t('placeDescription')}
