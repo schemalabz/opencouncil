@@ -688,6 +688,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         <Map
             // remount on basemap switch; the camera is restored from cameraRef
             key={mapStyle}
+            // The map of every city has no kind of its own. It keeps the name that it had.
+            authorityType="municipality"
             mapStyle={mapStyle}
             className="absolute inset-0 h-full w-full"
             center={cameraRef.current.center}

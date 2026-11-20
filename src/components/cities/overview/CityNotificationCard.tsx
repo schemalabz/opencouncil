@@ -123,7 +123,7 @@ function SubscribedCard({
                 </Link>
                 <FactDot className="text-border" />
                 <Link href="/profile" className="text-xs text-muted-foreground hover:text-foreground">
-                    {t('allMyCities')}
+                    {t(authorityKey('allMyCities', city))}
                 </Link>
             </div>
         </RailDisclosure>

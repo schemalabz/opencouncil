@@ -121,14 +121,16 @@ describe('PR1: server-side awaits run concurrently', () => {
         jest.clearAllMocks();
     });
 
-    it('parties/page.tsx kicks off people + parties + auth concurrently', async () => {
+    it('parties/page.tsx kicks off city + people + parties + auth concurrently', async () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
 
+        const cityD = deferred<unknown>();
         const peopleD = deferred<unknown[]>();
         const partiesD = deferred<unknown[]>();
         const authD = deferred<boolean>();
 
+        cache.getCityCached.mockReturnValue(cityD.promise);
         cache.listPeopleOfCityCached.mockReturnValue(peopleD.promise);
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
@@ -139,10 +141,12 @@ describe('PR1: server-side awaits run concurrently', () => {
 
         await flushMicrotasks();
 
+        expect(cache.getCityCached).toHaveBeenCalledTimes(1);
         expect(cache.listPeopleOfCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
 
+        cityD.resolve({ id: 'athens', authorityType: 'municipality' });
         peopleD.resolve([]);
         partiesD.resolve([{ id: 'p1', people: [] }]);
         authD.resolve(false);

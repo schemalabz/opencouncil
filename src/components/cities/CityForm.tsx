@@ -464,7 +464,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                 </CityFormSection>
 
                 <CityFormSection title={t('boundary')} hint={t(authorityKey('boundaryDescription', authority))}>
-                    <CityBoundaryEditor cityId={city?.id} onBoundaryChange={setBoundary} />
+                    <CityBoundaryEditor cityId={city?.id} authorityType={authority.authorityType} onBoundaryChange={setBoundary} />
                 </CityFormSection>
 
                 {city && (

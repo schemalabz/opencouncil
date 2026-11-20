@@ -33,20 +33,32 @@
     "adminOnly": "Réservé aux administrateurs",
     "collapse": "Réduire",
     "filter": "Filtre : {label}",
-    "municipalityMap": "Carte de la commune",
+    "municipalityMap": {
+      "municipality": "Carte de la commune",
+      "region": "Carte de la commune"
+    },
     "webglNotSupported": "La carte interactive n'est pas disponible",
     "webglFallbackMessage": "Votre navigateur ne prend pas en charge WebGL, qui est nécessaire pour la carte interactive. Vous consultez une version statique de la carte.",
     "transcript": "Transcription",
     "meetingNavigation": "Navigation dans la séance",
-    "searchAddressInMunicipality": "Rechercher une adresse dans {cityName}",
-    "searchAddressPlaceholder": "Rechercher une adresse dans {cityName}…",
+    "searchAddressInMunicipality": {
+      "municipality": "Rechercher une adresse dans {cityName}",
+      "region": "Rechercher une adresse dans {cityName}"
+    },
+    "searchAddressPlaceholder": {
+      "municipality": "Rechercher une adresse dans {cityName}…",
+      "region": "Rechercher une adresse dans {cityName}…"
+    },
     "selectedLocationsCount": "Emplacements sélectionnés ({count})",
     "remove": "Supprimer",
     "removeShort": "Suppr.",
     "noLocationsSelected": "Vous n'avez pas encore sélectionné d'emplacement.",
     "noLocationsHint": "Utilisez la recherche pour ajouter des emplacements qui vous intéressent.",
     "locationLabel": "Emplacement {index}",
-    "locationSearchNoResults": "Aucun résultat trouvé pour « {query} » dans {cityName}",
+    "locationSearchNoResults": {
+      "municipality": "Aucun résultat trouvé pour « {query} » dans {cityName}",
+      "region": "Aucun résultat trouvé pour « {query} » dans {cityName}"
+    },
     "locationSearchUnavailable": "Le service de recherche d'emplacements est actuellement indisponible. Veuillez réessayer plus tard.",
     "locationSearchLimitExceeded": "La limite de recherches a été dépassée. Veuillez réessayer plus tard.",
     "locationSearchApiError": "Erreur du service de recherche ({status}). Veuillez réessayer.",
@@ -103,7 +115,10 @@
     "mcpShort": "MCP",
     "login": "Connexion",
     "notificationsBreadcrumb": "Notifications",
-    "petitionBreadcrumb": "Soutenez votre commune",
+    "petitionBreadcrumb": {
+      "municipality": "Soutenez votre commune",
+      "region": "Soutenez votre commune"
+    },
     "explain": "Guide des collectivités locales",
     "explainShort": "Guide",
     "canEditHint": "Ce que vous changez est publié aussitôt.",
@@ -291,7 +306,10 @@
     "noItems": "Il n'y a aucune ville sur OpenCouncil.",
     "allAdministrativeBodies": "Tous les organes",
     "filterByAdminBody": "Filtrer par organe administratif",
-    "citySections": "Sections de la commune",
+    "citySections": {
+      "municipality": "Sections de la commune",
+      "region": "Sections de la commune"
+    },
     "openConsultations": "{count, plural, one {# consultation ouverte} other {# consultations ouvertes}}",
     "widget": "Widget",
     "supportBadgeOfficialAthens": "Avec le soutien de la municipalité et de DAEM S.A.",

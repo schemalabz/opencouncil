@@ -540,6 +540,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                 <MountOnVisible>
                                 <div className="h-[150px] overflow-hidden rounded-[10px] border border-border">
                                     <Map
+                                        authorityType={city.authorityType}
                                         center={location.coordinates ? [location.coordinates.x, location.coordinates.y] : undefined}
                                         zoom={15}
                                         features={mapFeatures}

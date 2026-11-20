@@ -12,6 +12,8 @@ import { publicEnv } from '@/lib/publicEnv'
 import { isWebGLSupported } from '@/lib/webgl'
 import MapFallback from './MapFallback'
 import MapErrorBoundary from './MapErrorBoundary'
+import type { AuthorityType } from '@prisma/client'
+import { authorityKey } from '@/lib/utils/authority'
 
 mapboxgl.accessToken = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -44,6 +46,8 @@ export const SATELLITE_MAP_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12
 
 interface MapProps {
     className?: string
+    /** The kind of authority the map shows, for its accessible name. Mandatory, so the compiler finds a map that does not say. */
+    authorityType: AuthorityType
     center?: [number, number] // Longitude, latitude coordinates
     zoom?: number
     animateRotation?: boolean
@@ -102,7 +106,8 @@ const Map = memo(function Map({
     drawingMode = 'point',
     selectedGeometryForEdit = null,
     zoomToGeometry,
-    zoomPadding
+    zoomPadding,
+    authorityType
 }: MapProps) {
     const t = useTranslations('Common')
     const mapContainer = useRef<HTMLDivElement>(null)
@@ -1097,12 +1102,13 @@ const Map = memo(function Map({
     }, [zoomToGeometry, zoomPadding, mapReady]);
 
     return (
-        <div ref={mapContainer} className={cn("w-full h-full", className)} role="img" aria-label={t('municipalityMap')} />
+        <div ref={mapContainer} className={cn("w-full h-full", className)} role="img" aria-label={t(authorityKey('municipalityMap', { authorityType }))} />
     );
 }, (prevProps, nextProps) => {
     // Custom comparison to prevent unnecessary rerenders
     // Only rerender if specific props change
     return (
+        prevProps.authorityType === nextProps.authorityType &&
         prevProps.center === nextProps.center &&
         prevProps.zoom === nextProps.zoom &&
         prevProps.animateRotation === nextProps.animateRotation &&
@@ -1142,11 +1148,11 @@ function MapWithFallback(props: MapProps) {
     }
 
     if (!webglSupported) {
-        return <MapFallback className={props.className} center={props.center} features={props.features} />
+        return <MapFallback className={props.className} center={props.center} features={props.features} authorityType={props.authorityType} />
     }
 
     return (
-        <MapErrorBoundary className={props.className} center={props.center} features={props.features}>
+        <MapErrorBoundary className={props.className} center={props.center} features={props.features} authorityType={props.authorityType}>
             <Map {...props} />
         </MapErrorBoundary>
     )

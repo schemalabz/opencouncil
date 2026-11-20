@@ -28,14 +28,26 @@
   },
   "scopeAll": "Све",
   "noMeetingsForScope": "Још нема седница овог тела.",
-  "councilEyebrow": "Скупштина",
+  "councilEyebrow": {
+    "municipality": "Скупштина",
+    "region": "Скупштина"
+  },
   "councilTitle": "Одборничке групе и људи",
   "allParties": "Све групе",
   "allPeople": "Сви људи",
   "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
-  "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
-  "inCommittees": "{count} у одбору",
-  "governingParty": "Владајућа група",
+  "seatsInCouncil": {
+    "municipality": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
+    "region": "{count, plural, =1 {место у скупштини} other {места у скупштини}}"
+  },
+  "inCommittees": {
+    "municipality": "{count} у одбору",
+    "region": "{count} у одбору"
+  },
+  "governingParty": {
+    "municipality": "Владајућа група",
+    "region": "Владајућа група"
+  },
   "notisName": "Нотис",
   "notisIntro": {
     "municipality": "дигитални упућени комшија који прати шта се дешава у граду",
@@ -51,7 +63,10 @@
   "channelEmail": "Мејл",
   "channelPhone": "Вотсап и СМС",
   "changePreferences": "Промени подешавања",
-  "allMyCities": "Сви моји градови",
+  "allMyCities": {
+    "municipality": "Сви моји градови",
+    "region": "Сви моји градови"
+  },
   "notisMsg1": "Трг у твом крају се мења: високо дрвеће, вода, земља уместо бетона. Пројекат је синоћ усвојен једногласно.",
   "notisMsg2": "Хоће ли бити игралишта?",
   "notisMsg3": "Не званично — прописи траже пластичну подлогу и не дозвољавају дрвеће. Биће справе од природних материјала, а право игралиште је затражено на другом месту.",

@@ -33,20 +33,32 @@
         "adminOnly": "Admin only",
         "collapse": "Collapse",
         "filter": "Filter: {label}",
-        "municipalityMap": "Municipality map",
+        "municipalityMap": {
+            "municipality": "Municipality map",
+            "region": "Region map"
+        },
         "webglNotSupported": "Interactive map unavailable",
         "webglFallbackMessage": "Your browser does not support WebGL, which is required for the interactive map. You are viewing a static map instead.",
         "transcript": "Transcript",
         "meetingNavigation": "Meeting navigation",
-        "searchAddressInMunicipality": "Search address in {cityName}",
-        "searchAddressPlaceholder": "Search address in {cityName}…",
+        "searchAddressInMunicipality": {
+            "municipality": "Search address in {cityName}",
+            "region": "Search address in {cityName}"
+        },
+        "searchAddressPlaceholder": {
+            "municipality": "Search address in {cityName}…",
+            "region": "Search address in {cityName}…"
+        },
         "selectedLocationsCount": "Selected locations ({count})",
         "remove": "Remove",
         "removeShort": "Remove",
         "noLocationsSelected": "You haven't selected any locations yet.",
         "noLocationsHint": "Use the search to add locations of interest.",
         "locationLabel": "Location {index}",
-        "locationSearchNoResults": "No results found for \"{query}\" in {cityName}",
+        "locationSearchNoResults": {
+            "municipality": "No results found for \"{query}\" in {cityName}",
+            "region": "No results found for \"{query}\" in {cityName}"
+        },
         "locationSearchUnavailable": "The location search service is currently unavailable. Please try again later.",
         "locationSearchLimitExceeded": "The search limit has been exceeded. Please try again later.",
         "locationSearchApiError": "Location search error ({status}). Please try again.",
@@ -89,7 +101,10 @@
         "mcpShort": "MCP",
         "login": "Sign in",
         "notificationsBreadcrumb": "Notifications",
-        "petitionBreadcrumb": "Support your municipality",
+        "petitionBreadcrumb": {
+            "municipality": "Support your municipality",
+            "region": "Support your region"
+        },
         "explain": "Guide to local government",
         "explainShort": "Guide",
         "canEditHint": "Whatever you change is published at once.",
@@ -277,7 +292,10 @@
         "noItems": "There are no cities in OpenCouncil.",
         "allAdministrativeBodies": "All Bodies",
         "filterByAdminBody": "Filter by Administrative Body",
-        "citySections": "City sections",
+        "citySections": {
+            "municipality": "City sections",
+            "region": "Region sections"
+        },
         "openConsultations": "{count, plural, one {# open consultation} other {# open consultations}}",
         "widget": "Widget",
         "supportBadgeOfficialAthens": "With the support of the municipality and DAEM S.A.",

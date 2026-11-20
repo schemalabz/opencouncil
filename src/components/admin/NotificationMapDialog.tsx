@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
+import type { AuthorityType } from '@prisma/client';
 import Map, { MapFeature } from '@/components/map/map';
 import { createCircleBuffer } from '@/lib/geo';
 
@@ -29,6 +30,7 @@ interface NotificationMapDialogProps {
     onOpenChange: (open: boolean) => void;
     meetingId: string;
     cityId: string;
+    authorityType: AuthorityType;
     meetingName: string;
 }
 
@@ -37,6 +39,7 @@ export function NotificationMapDialog({
     onOpenChange,
     meetingId,
     cityId,
+    authorityType,
     meetingName,
 }: NotificationMapDialogProps) {
     const [mapData, setMapData] = useState<MapData | null>(null);
@@ -172,6 +175,7 @@ export function NotificationMapDialog({
                         </div>
                     ) : (
                         <Map
+                            authorityType={authorityType}
                             features={mapFeatures}
                             center={mapCenter}
                             zoom={13}

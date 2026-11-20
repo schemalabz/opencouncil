@@ -99,7 +99,7 @@ export default function MeetingPage() {
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
-                <MapView className="w-full h-full" features={mapFeatures}
+                <MapView className="w-full h-full" authorityType={city.authorityType} features={mapFeatures}
                     center={cityCenter}
                     zoom={12}
                 />
