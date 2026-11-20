@@ -12,7 +12,8 @@ jest.mock('@/lib/db/cityRealm', () => ({
 }));
 
 import { NextRequest } from 'next/server';
-import proxy from '@/proxy';
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
+import proxy, { config } from '@/proxy';
 import { auth } from '@/auth';
 import { isCityOfRealm } from '@/lib/db/cityRealm';
 
@@ -73,6 +74,9 @@ describe('proxy on a first segment that is not a page', () => {
         ['/HEAD', '/'],
         ['/%2eenv', '/'],
         ['/wp-admin/setup-config', '/'],
+        ['/api-catalog', '/'],
+        ['/_next/unknown', '/'],
+        ['/_vercel/insights', '/'],
         ['/en/etc/environment', '/en'],
         ['/EN/etc', '/en'],
         ['/en/wp-login', '/en'],
@@ -151,4 +155,29 @@ describe('proxy order around the city check', () => {
         expect(res!.status).toBe(404);
         expect(res!.headers.get('x-middleware-rewrite')).toBeNull();
     });
+});
+
+/**
+ * The matcher skips only the trees that Next serves with no page below them.
+ * A wider prefix lets a path such as `/api-catalog` skip the proxy and match
+ * `[locale]`.
+ */
+describe('proxy matcher', () => {
+    // Next's own check, which compiles the matcher as Next does: with the
+    // optional prefixes and suffixes (`/_next/data/...`, `.rsc`).
+    const matches = (path: string) => unstable_doesMiddlewareMatch({ config, url: `https://opencouncil.gr${path}` });
+
+    it.each(['/api', '/api/health', '/api/unknown', '/api/.env', '/ingest/e/', '/_next/static/chunks/a.js', '/_next/image'])(
+        'skips %s',
+        (path) => {
+            expect(matches(path)).toBe(false);
+        },
+    );
+
+    it.each(['/', '/athens', '/.env', '/favicon.ico', '/api-catalog', '/apis', '/ingest', '/_next/unknown', '/_vercel/insights'])(
+        'sends %s to the proxy',
+        (path) => {
+            expect(matches(path)).toBe(true);
+        },
+    );
 });
