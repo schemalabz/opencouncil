@@ -30,7 +30,7 @@ import { YouTubePreview } from "./YouTubePreview"
 import { AdministrativeBodyType, AuthorityType, CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
 import { AGENDA_TEXT_MAX_LENGTH, COUNCIL_ONLY_KINDS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
 import { meetingLabel } from '@/lib/meetingName'
-import { authorityKey } from '@/lib/utils/authority'
+import { authorityKey, authorityRequiresMeetingBody } from '@/lib/utils/authority'
 import { getRegionBodyTypeLabel } from '@/lib/utils/administrativeBodies'
 import { localCalendarDate, localClockTime } from '@/lib/formatters/time'
 import { zonedInstant } from '@/lib/dates/dayBounds'
@@ -98,6 +98,9 @@ export default function AddMeetingForm({ cityId, realm, authorityType, timezone,
     const tCommon = useTranslations('Common')
     const locale = useLocale()
     const greekCodeFacts = recordsGreekCodeFacts(realm)
+    // A region has no meeting without a body: the select offers no "none", and
+    // shows its placeholder until the admin picks a body.
+    const requiresBody = authorityRequiresMeetingBody({ authorityType })
     const validationMessage = useValidationMessage()
 
     const form = useForm({
@@ -182,6 +185,10 @@ export default function AddMeetingForm({ cityId, realm, authorityType, timezone,
     }, [currentLink, form])
 
     async function onSubmit(values: z.output<typeof meetingFormSchema>) {
+        if (requiresBody && !uploadBodyId(values.administrativeBodyId)) {
+            form.setError('administrativeBodyId', { message: t('selectAdministrativeBody') })
+            return
+        }
         setIsSubmitting(true)
         setFormError(null)
 
@@ -272,14 +279,14 @@ export default function AddMeetingForm({ cityId, realm, authorityType, timezone,
                         render={({ field: { value, onChange, ...field } }) => (
                             <FormItem>
                                 <FormLabel>{t('administrativeBody')}</FormLabel>
-                                <Select onValueChange={onChange} value={value?.toString() || "none"}>
+                                <Select onValueChange={onChange} value={requiresBody ? (uploadBodyId(value) ?? "") : (value?.toString() || "none")}>
                                     <FormControl>
                                         <SelectTrigger {...field}>
                                             <SelectValue placeholder={t('selectAdministrativeBody')} />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {!allowedBodyIds && (
+                                        {!allowedBodyIds && !requiresBody && (
                                             <SelectItem value="none">
                                                 {t('noAdministrativeBody')}
                                             </SelectItem>

@@ -106,6 +106,29 @@ describe('meeting API routes', () => {
         expect(await created.json()).toMatchObject({ code: 'bodyMissing' })
     })
 
+    test('refuses a meeting of a region that names no body with 422, on create and on update (#993)', async () => {
+        const region = 'thessalia'
+        await createCity({ id: region, authorityType: 'region' })
+        const council = await createAdministrativeBody(region, { type: 'council', name: 'Περιφερειακό Συμβούλιο' })
+        const params = { params: Promise.resolve({ cityId: region }) }
+        const date = '2026-09-21T15:00:00.000Z'
+
+        const refused = await POST(request(`/api/cities/${region}/meetings`, { date }), params)
+        expect(refused.status).toBe(422)
+        expect(await refused.json()).toMatchObject({ code: 'regionNeedsBody' })
+        expect(await prisma.councilMeeting.count({ where: { cityId: region } })).toBe(0)
+
+        const created = await POST(request(`/api/cities/${region}/meetings`, { date, administrativeBodyId: council.id }), params)
+        expect(created.status).toBe(201)
+        const { id } = await created.json()
+
+        // Null clears the body on PUT, which a region does not allow.
+        const cleared = await PUT(request(`/api/cities/${region}/meetings/${id}`, { date, administrativeBodyId: null }),
+            { params: Promise.resolve({ cityId: region, meetingId: id }) })
+        expect(cleared.status).toBe(422)
+        expect(await cleared.json()).toMatchObject({ code: 'regionNeedsBody' })
+    })
+
     test('refuses the kind, the urgency and the session number outside Greece with 422', async () => {
         const rennes = 'rennes'
         await createCity({ id: rennes, realm: 'france', timezone: 'Europe/Paris' })

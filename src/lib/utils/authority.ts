@@ -58,6 +58,19 @@ export function bodyTypeRefusal(city: { authorityType: AuthorityType }, type: Ad
 }
 
 /**
+ * Whether each meeting of an authority of this kind must name its body.
+ *
+ * A meeting with no body reads as a meeting of the council everywhere: on the
+ * pages, and in the task backend, which names the council in its prompts. A
+ * municipality has such meetings from the time before the bodies. A region
+ * has several committees, and a committee meeting with no body would read as a
+ * meeting of the regional council, so a region has no such meeting.
+ */
+export function authorityRequiresMeetingBody(city: { authorityType: AuthorityType }): boolean {
+    return isRegion(city);
+}
+
+/**
  * Whether the platform builds this document for an authority of this kind.
  *
  * The minutes hold municipal law: the mayor attends the council and has no
