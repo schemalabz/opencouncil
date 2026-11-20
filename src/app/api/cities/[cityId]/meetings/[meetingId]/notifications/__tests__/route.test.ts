@@ -4,19 +4,18 @@ import type { NextRequest } from 'next/server';
 jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('@/lib/db/notifications', () => ({
     createNotificationsForMeeting: jest.fn().mockResolvedValue({ notificationsCreated: 0, subjectsTotal: 2, notificationIds: [] }),
-    getNotificationImpactPreviewData: jest.fn().mockResolvedValue({ subjects: [], usersWithPreferences: [] }),
+    previewNotificationImpact: jest.fn().mockResolvedValue({ totalUsers: 0, subjectImpact: {} }),
+    requireManualNotificationsAllowed: jest.fn(),
 }));
 jest.mock('@/lib/notifications/deliver', () => ({ releaseNotifications: jest.fn() }));
-jest.mock('@/lib/notifications/matching', () => ({ calculateNotificationImpact: jest.fn().mockResolvedValue({ users: 0 }) }));
 jest.mock('@/lib/discord', () => ({ sendNotificationsCreatedAdminAlert: jest.fn(), sendNotificationsSentAdminAlert: jest.fn() }));
-// The route first reads the body's notification setting of the meeting; a meeting with no body sends.
+// The Discord alert reads the meeting.
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { councilMeeting: { findUnique: jest.fn().mockResolvedValue({ administrativeBody: null }) } } }));
 
 import { POST } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/route';
 import { POST as PREVIEW } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/preview/route';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { createNotificationsForMeeting, getNotificationImpactPreviewData } from '@/lib/db/notifications';
-import { calculateNotificationImpact } from '@/lib/notifications/matching';
+import { createNotificationsForMeeting, previewNotificationImpact } from '@/lib/db/notifications';
 import { ForbiddenError, UnauthorizedError, validationErrorSchema } from '@/lib/api/errors';
 
 const params = { params: Promise.resolve({ cityId: 'athens', meetingId: 'm1' }) };
@@ -64,7 +63,8 @@ describe('POST /api/cities/[cityId]/meetings/[meetingId]/notifications/preview',
         const response = await PREVIEW(request({ subjectImportances: { s1: { topicImportance: 'normal' } } }), params);
 
         expect(response.status).toBe(200);
-        expect(calculateNotificationImpact).toHaveBeenCalledWith([], [], { s1: { topicImportance: 'normal', proximityImportance: 'none' } });
+        expect(await response.json()).toEqual({ totalUsers: 0, subjectImpact: {} });
+        expect(previewNotificationImpact).toHaveBeenCalledWith('athens', 'm1', { s1: { topicImportance: 'normal', proximityImportance: 'none' } });
     });
 
     it('answers 401 JSON without a session, from the superadmin guard', async () => {
@@ -75,11 +75,11 @@ describe('POST /api/cities/[cityId]/meetings/[meetingId]/notifications/preview',
         expect(withUserAuthorizedToEdit).toHaveBeenCalledWith({});
         expect(response.status).toBe(401);
         expect(await response.json()).toEqual({ error: 'Authentication required' });
-        expect(getNotificationImpactPreviewData).not.toHaveBeenCalled();
+        expect(previewNotificationImpact).not.toHaveBeenCalled();
     });
 
     it('answers 403 JSON when the read refuses the user', async () => {
-        (getNotificationImpactPreviewData as jest.Mock).mockRejectedValueOnce(new ForbiddenError());
+        (previewNotificationImpact as jest.Mock).mockRejectedValueOnce(new ForbiddenError());
 
         const response = await PREVIEW(request({}), params);
 
@@ -91,6 +91,6 @@ describe('POST /api/cities/[cityId]/meetings/[meetingId]/notifications/preview',
         const response = await PREVIEW(request({ subjectImportances: { s1: { proximityImportance: 'far' } } }), params);
 
         expect(response.status).toBe(400);
-        expect(calculateNotificationImpact).not.toHaveBeenCalled();
+        expect(previewNotificationImpact).not.toHaveBeenCalled();
     });
 });

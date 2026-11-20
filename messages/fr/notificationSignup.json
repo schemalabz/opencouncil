@@ -65,6 +65,23 @@
     "close": "Fermer les thèmes",
     "footer": "Facultatif. Sans choix, Notis décide lui-même."
   },
+  "bodies": {
+    "title": "Autres organes de la commune",
+    "hint": "Vous ne recevez leurs mises à jour que si vous les cochez."
+  },
+  "bodiesScope": {
+    "title": "Quel organe voulez-vous suivre ?",
+    "lead": "Notis n’écrit pas encore sur le conseil, les commissions et les communautés de cette commune. D’ici là, Notis vous écrit seulement sur les organes que vous choisissez.",
+    "choicesTitle": "Organes que vous suivez",
+    "choicesHint": "Notis vous écrit pour chacune de leurs séances.",
+    "unfollow": "Ne plus suivre",
+    "unfollowNote": "Vous n’avez choisi aucun organe. Si vous continuez, votre abonnement à cette commune est supprimé.",
+    "unfollowedTitle": "Votre abonnement est supprimé",
+    "unfollowedLead": "Vous ne recevez plus de mises à jour sur cette commune. Pour suivre à nouveau un organe, revenez sur cette page.",
+    "unfollowing": "Suppression…",
+    "unfollowFailedButton": "Non supprimé",
+    "unfollowFailedLine": "L’abonnement n’a pas été supprimé. Réessayez."
+  },
   "channelsTitle": "Où vous écrire ?",
   "channelsLead": "Sur votre mobile, par e-mail, ou les deux.",
   "phoneChannel": "WhatsApp ou SMS",
@@ -113,5 +130,6 @@
   "pickerPreview": "Voyez à quoi ça ressemble",
   "noCityTitle": "Vous ne voyez pas votre commune ?",
   "noCityCta": "Demandez le soutien de votre commune",
-  "pickerChannels": "Les notifications arrivent par WhatsApp ou SMS — et par e-mail, si vous voulez."
+  "pickerChannels": "Les notifications arrivent par WhatsApp ou SMS — et par e-mail, si vous voulez.",
+  "summaryBodies": "Autres organes"
 }

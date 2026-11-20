@@ -72,10 +72,12 @@ export function ReleaseMeetingDialog({ open, onOpenChange, cityId, meetingId, on
         return t(email.outcome.kind === "sends" ? "emailSends" : "emailWaits", { count: email.recipients, phase });
     }
 
-    // The manual notifications are the way out when the rule creates none, unless the body has them off.
+    // The manual notifications are the way out when the rule creates none, unless the body has them off
+    // or the city sends nothing of its own bodies: a manual send then has no audience either.
     const showManual = outlook?.email.outcome.kind === "none"
         && outlook.email.outcome.reason !== "noBody"
-        && outlook.email.outcome.reason !== "disabled";
+        && outlook.email.outcome.reason !== "disabled"
+        && outlook.email.outcome.reason !== "cityUnsupported";
 
     return (
         <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>

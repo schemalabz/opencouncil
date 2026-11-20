@@ -73,11 +73,14 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change the YouTube channel and the document send settings, and no
-// other field (#828, #874).
+// who may change the YouTube channel, the document send settings and, on a
+// secondary body, the updates switch, and no other field (#828, #874, #829).
+// The updates switch is on or off: a secondary body has nobody to approve a
+// pending notification, so NOTIFICATIONS_APPROVAL is not offered.
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: youtubeChannelUrlRequest,
     documentSendSettings: z.array(documentSendSettingInputSchema).optional(),
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO']).optional(),
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision
@@ -172,4 +175,8 @@ export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFor
 export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;
 
 // Frontend form of the page of the body: the fields that an admin of the body changes (#828, #874).
-export const bodyContactsFormSchema = administrativeBodyFormSchema.pick({ youtubeChannelUrl: true, documentSendSettings: true });
+// The updates switch of a secondary body (#829) is a boolean here: the page sends
+// NOTIFICATIONS_AUTO or NOTIFICATIONS_DISABLED, and only when the switch moved.
+export const bodyContactsFormSchema = administrativeBodyFormSchema
+    .pick({ youtubeChannelUrl: true, documentSendSettings: true })
+    .extend({ updatesOn: z.boolean() });

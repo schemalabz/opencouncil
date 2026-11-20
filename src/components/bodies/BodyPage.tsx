@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ExternalLink, Landmark } from 'lucide-react';
+import { Bell, ExternalLink, Landmark } from 'lucide-react';
 import type { Party, Realm } from '@prisma/client';
 import type { BodyContacts, PublicAdministrativeBody } from '@/lib/db/types';
 import { Link } from '@/i18n/routing';
@@ -16,13 +16,14 @@ import { BodyMembersTab } from '@/components/bodies/BodyMembersTab';
 import { BodyContactsForm } from '@/components/bodies/BodyContactsForm';
 import { BodyAdminsCard } from '@/components/bodies/BodyAdminsCard';
 import { BodyClaimLinksCard } from '@/components/bodies/BodyClaimLinksCard';
+import { BodyEmbedCard } from '@/components/bodies/BodyEmbedCard';
 import type { BodyPageRow } from '@/lib/db/administrativeBodies';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { meetingLabel } from '@/lib/meetingName';
 import { meetingsTabHrefForBody } from '@/lib/meetingsTab';
-import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { bodyOffersFollow, isSecondaryBody } from '@/lib/utils/bodyTier';
 import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { isRoleActive } from '@/lib/utils/roles';
 import { mayStartNewTerm } from '@/lib/utils/administrativeBodies';
@@ -36,7 +37,7 @@ export const underlineTabClass =
 
 export interface BodyPageProps {
     /** The realm decides the fields of the meeting form: a Greek city records a kind, an urgency and a session number. */
-    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm };
+    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; supportsNotifications: boolean };
     body: BodyPageRow;
     meetings: CouncilMeetingWithSubjectPreview[];
     /** Everyone who holds, or held, a role on the body. */
@@ -45,7 +46,7 @@ export interface BodyPageProps {
     formBodies: PublicAdministrativeBody[];
     /** The parties the member form may offer. Empty for an admin of the body alone. */
     parties: Party[];
-    /** The contact settings of the body. Null for a reader. */
+    /** The settings of the body its admin changes. Null for a reader. */
     contacts: BodyContacts | null;
     /** An admin of the body, of its city, or a superadmin. */
     canEdit: boolean;
@@ -63,8 +64,8 @@ export interface BodyPageProps {
 /**
  * The page of one administrative body (#829). The meetings and the members
  * are public. The third tab exists for the admins of the body: it holds the
- * contact settings and the list of admins, the two things a secretary runs
- * without us (#828).
+ * contact settings, the list of admins, the claim links of the members and
+ * the way to the embed widget, the things a secretary runs without us (#828).
  */
 export default function BodyPage({ city, body, meetings, people, formBodies, parties, contacts, canEdit, canEditCity, now, cappedAt }: BodyPageProps) {
     const t = useTranslations('body');
@@ -151,6 +152,16 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                     </a>
                                 </>
                             )}
+                            {/* The way to the follow of a secondary body (#829): the signup, with its tick on. The municipality's own card covers a primary body. */}
+                            {bodyOffersFollow(body, { hasReleasedMeeting: body._count.meetings > 0 }) && (
+                                <>
+                                    <FactDot />
+                                    <Link href={`/${city.id}/notifications?step=2&body=${body.id}`} className="inline-flex items-center gap-1 hover:underline">
+                                        <Bell className="h-3.5 w-3.5" aria-hidden />
+                                        {t('follow')}
+                                    </Link>
+                                </>
+                            )}
                         </>
                     )}
                 />
@@ -210,9 +221,10 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         {canEdit && (
                             <TabsContent value="admin" className="mt-6 space-y-8">
-                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} />}
+                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
                                 <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
+                                <BodyEmbedCard cityId={city.id} bodyId={body.id} />
                             </TabsContent>
                         )}
                     </Tabs>

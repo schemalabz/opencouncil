@@ -268,6 +268,8 @@ model AdministrativeBody {
   roles Role[]
   administrators Administers[]
   documentSendSettings DocumentSendSetting[]
+  /// The preferences that follow this body (#829); meaningful for a secondary body.
+  notificationPreferences NotificationPreference[] @relation("NotificationBody")
 
   @@index([cityId])
 }
@@ -1592,6 +1594,11 @@ model NotificationPreference {
   // Many-to-many relations with locations and topics/interests
   locations Location[] @relation("NotificationLocation")
   interests Topic[]    @relation("NotificationTopic")
+  /// The secondary bodies of the city the reader follows (#829). A meeting of
+  /// such a body reaches these readers alone. The city's own bodies reach
+  /// every preference of the city when the city supports notifications
+  /// (preferenceCoversBody in src/lib/utils/bodyTier.ts).
+  bodies    AdministrativeBody[] @relation("NotificationBody")
   
   @@unique([userId, cityId])
   @@index([userId])

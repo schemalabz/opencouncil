@@ -65,6 +65,23 @@
     "close": "Close topics",
     "footer": "Optional. With none chosen, Notis decides on his own."
   },
+  "bodies": {
+    "title": "Other bodies of the municipality",
+    "hint": "You get their updates only if you tick them."
+  },
+  "bodiesScope": {
+    "title": "Which body do you want to follow?",
+    "lead": "Notis does not write about the council, the committees and the communities of this municipality yet. Until then, Notis writes to you only about the bodies you pick.",
+    "choicesTitle": "Bodies you follow",
+    "choicesHint": "Notis writes to you about each of their meetings.",
+    "unfollow": "Stop following",
+    "unfollowNote": "You picked no body. If you go on, your subscription to this municipality is deleted.",
+    "unfollowedTitle": "Your subscription is deleted",
+    "unfollowedLead": "You get no more updates about this municipality. To follow a body again, come back to this page.",
+    "unfollowing": "Deleting…",
+    "unfollowFailedButton": "Not deleted",
+    "unfollowFailedLine": "The subscription was not deleted. Try again."
+  },
   "channelsTitle": "Where should we write?",
   "channelsLead": "On your phone, by email, or both.",
   "phoneChannel": "WhatsApp or SMS",
@@ -113,5 +130,6 @@
   "pickerPreview": "See what it looks like",
   "noCityTitle": "Don't see your municipality here?",
   "noCityCta": "Ask for your municipality to be supported",
-  "pickerChannels": "Notifications arrive by WhatsApp or SMS — and by email, if you like."
+  "pickerChannels": "Notifications arrive by WhatsApp or SMS — and by email, if you like.",
+  "summaryBodies": "Other bodies"
 }

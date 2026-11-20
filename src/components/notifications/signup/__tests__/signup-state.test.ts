@@ -6,6 +6,8 @@ import {
     notisActionFor,
     phoneChannelDefault,
     phoneChannelLocked,
+    preferencesAction,
+    withBody,
     type SignupState,
 } from '../signup-state';
 
@@ -13,9 +15,12 @@ const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
 
 const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001', notifyByPhone: true };
+const youth = { id: 'ab_youth', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' as const, tier: 'secondary' as const, cityId: 'athens', youtubeChannelUrl: null, place: null };
 const existing = {
+    id: 'pref-1',
     locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] as [number, number] }],
     topics: [topic('t1')],
+    bodies: [youth],
     notifyByEmail: true,
 };
 
@@ -26,6 +31,7 @@ describe('initialSignupState', () => {
             step: 1,
             locations: [],
             topics: [],
+            bodies: [],
             phoneChannel: true,
             emailChannel: false,
             phone: '+306900000001',
@@ -45,6 +51,38 @@ describe('initialSignupState', () => {
         expect(state.locations).toEqual(existing.locations);
         expect(state.topics).toEqual(existing.topics);
         expect(state.emailChannel).toBe(true);
+    });
+
+    it('ticks the bodies a signup for bodies alone is about, unless the row follows a body already', () => {
+        const other = { ...youth, id: 'ab_other' };
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null, preselectedBodies: [youth] }).bodies).toEqual([youth]);
+        expect(initialSignupState({ initialStep: 2, existing, account, preselectedBodies: [other] }).bodies).toEqual([youth]);
+        // A row that follows no body, for example topics and places saved while
+        // the city supported notifications, gets the offered bodies ticked.
+        expect(initialSignupState({ initialStep: 2, existing: { ...existing, bodies: [] }, account, preselectedBodies: [other] }).bodies).toEqual([other]);
+        // The city signup passes no preselection: the row's empty list stays.
+        expect(initialSignupState({ initialStep: 2, existing: { ...existing, bodies: [] }, account }).bodies).toEqual([]);
+    });
+
+    it('ticks the body whose page the reader came from, on top of what the row follows', () => {
+        const other = { ...youth, id: 'ab_other' };
+        // A new reader in a city signup, and a city subscriber who follows no body yet.
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null, requestedBody: youth }).bodies).toEqual([youth]);
+        expect(initialSignupState({ initialStep: 2, existing: { ...existing, bodies: [] }, account, requestedBody: youth }).bodies).toEqual([youth]);
+        // A row that follows another body keeps it, and gains the requested one.
+        expect(initialSignupState({ initialStep: 2, existing, account, requestedBody: other }).bodies).toEqual([youth, other]);
+        // A body already ticked is not ticked twice.
+        expect(initialSignupState({ initialStep: 2, existing, account, requestedBody: youth }).bodies).toEqual([youth]);
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null, preselectedBodies: [youth], requestedBody: youth }).bodies).toEqual([youth]);
+    });
+});
+
+describe('withBody', () => {
+    it('adds a body once, and leaves the list alone without one', () => {
+        const other = { ...youth, id: 'ab_other' };
+        expect(withBody([youth], other)).toEqual([youth, other]);
+        expect(withBody([youth], youth)).toEqual([youth]);
+        expect(withBody([youth], undefined)).toEqual([youth]);
     });
 });
 
@@ -105,6 +143,7 @@ describe('channelIssues', () => {
         step: 3,
         locations: [],
         topics: [],
+        bodies: [],
         phoneChannel: true,
         emailChannel: false,
         phone: '+306900000001',
@@ -142,6 +181,7 @@ describe('buildSubmission', () => {
         step: 3,
         locations: [{ id: 'old', text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
         topics: [topic('t1'), topic('t2')],
+        bodies: [youth],
         phoneChannel: true,
         emailChannel: false,
         phone: '+306900000001',
@@ -154,6 +194,7 @@ describe('buildSubmission', () => {
             cityId: 'athens',
             locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
             topicIds: ['t1', 't2'],
+            bodyIds: ['ab_youth'],
             notifyByPhone: true,
             notifyByEmail: false,
             phone: '+306900000001',
@@ -174,5 +215,35 @@ describe('buildSubmission', () => {
         expect(submission).not.toHaveProperty('name');
         expect(submission).not.toHaveProperty('email');
         expect(submission).toMatchObject({ notifyByPhone: false, notifyByEmail: true });
+    });
+});
+
+describe('preferencesAction', () => {
+    const row = (over: { bodies?: typeof youth[]; topics?: Topic[]; locations?: typeof existing.locations }) =>
+        ({ bodies: [], topics: [], locations: [], ...over });
+
+    it('goes on whenever a body is ticked, and always in the signup of the municipality', () => {
+        expect(preferencesAction({ bodies: [youth] }, 'bodies', null)).toBe('continue');
+        expect(preferencesAction({ bodies: [youth] }, 'bodies', row({ bodies: [youth] }))).toBe('continue');
+        expect(preferencesAction({ bodies: [] }, 'city', null)).toBe('continue');
+        expect(preferencesAction({ bodies: [] }, 'city', row({ bodies: [youth] }))).toBe('continue');
+    });
+
+    it('blocks a new reader with no body ticked: a new row that follows nothing receives nothing', () => {
+        expect(preferencesAction({ bodies: [] }, 'bodies', null)).toBe('blocked');
+    });
+
+    it('deletes only a row whose whole content is the follows', () => {
+        expect(preferencesAction({ bodies: [] }, 'bodies', row({ bodies: [youth] }))).toBe('unfollow');
+    });
+
+    it('keeps the topics and the places of a row: unticking every body then saves an empty list of bodies', () => {
+        expect(preferencesAction({ bodies: [] }, 'bodies', row({ bodies: [youth], topics: [topic('t1')] }))).toBe('continue');
+        expect(preferencesAction({ bodies: [] }, 'bodies', row({ locations: existing.locations }))).toBe('continue');
+        expect(preferencesAction({ bodies: [] }, 'bodies', row({ topics: [topic('t1')] }))).toBe('continue');
+    });
+
+    it('blocks a row that holds nothing at all, as a new reader', () => {
+        expect(preferencesAction({ bodies: [] }, 'bodies', row({}))).toBe('blocked');
     });
 });

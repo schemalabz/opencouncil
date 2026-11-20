@@ -28,7 +28,17 @@ interface SubjectMatch {
 export async function matchUsersToSubjects(
     subjects: Subject[],
     usersWithPreferences: UserPreference[],
-    subjectImportanceOverrides?: Record<string, SubjectImportance>
+    subjectImportanceOverrides?: Record<string, SubjectImportance>,
+    options: {
+        /**
+         * The meeting is a body's that every reader here follows by name
+         * (#829). The follow is their choice of every meeting of the body, so
+         * the topics and the places of their municipality preference do not
+         * narrow it: each subject that the editors did not mark do-not-notify
+         * matches, as a subject of general interest does.
+         */
+        followedBody?: boolean;
+    } = {},
 ): Promise<Map<string, Set<SubjectMatch>>> {
     const userSubjectMatches = new Map<string, Set<SubjectMatch>>();
 
@@ -53,6 +63,12 @@ export async function matchUsersToSubjects(
             }
 
             const matches = userSubjectMatches.get(userId)!;
+
+            // Rule 0: a body the reader follows by name (see options.followedBody).
+            if (options.followedBody && topicImportance !== 'doNotNotify') {
+                matches.add({ subjectId: subject.id, reason: 'generalInterest' });
+                continue;
+            }
 
             // Rule 1: High importance - notify everyone
             if (topicImportance === 'high') {
@@ -97,55 +113,4 @@ export async function matchUsersToSubjects(
     }
 
     return userSubjectMatches;
-}
-
-/**
- * Calculate notification impact - how many users will be notified for each subject
- * Returns total unique users and per-subject impact counts
- */
-export async function calculateNotificationImpact(
-    subjects: Subject[],
-    usersWithPreferences: UserPreference[],
-    subjectImportanceOverrides?: Record<string, SubjectImportance>
-): Promise<{
-    totalUsers: number;
-    subjectImpact: Record<string, number>;
-}> {
-    // Ensure no duplicate users in input
-    const uniqueUsersMap = new Map<string, UserPreference>();
-    for (const userPref of usersWithPreferences) {
-        const userId = String(userPref.userId).trim();
-        if (!uniqueUsersMap.has(userId)) {
-            uniqueUsersMap.set(userId, {
-                ...userPref,
-                userId: userId
-            });
-        }
-    }
-    const deduplicatedUsers = Array.from(uniqueUsersMap.values());
-
-    const userSubjectMatches = await matchUsersToSubjects(subjects, deduplicatedUsers, subjectImportanceOverrides);
-
-    // Track user counts for each subject
-    const subjectImpact = new Map<string, number>();
-    const totalUniqueUsers = new Set<string>();
-
-    // Count matches per subject
-    // Only count users who actually have matches (non-empty Sets)
-    for (const [userId, matches] of userSubjectMatches.entries()) {
-        // Only add to totalUniqueUsers if the user has at least one match
-        if (matches.size > 0) {
-            const normalizedUserId = String(userId).trim();
-            totalUniqueUsers.add(normalizedUserId);
-            for (const match of matches) {
-                const currentCount = subjectImpact.get(match.subjectId) || 0;
-                subjectImpact.set(match.subjectId, currentCount + 1);
-            }
-        }
-    }
-
-    return {
-        totalUsers: totalUniqueUsers.size,
-        subjectImpact: Object.fromEntries(subjectImpact)
-    };
 }

@@ -1,11 +1,16 @@
 import {
     ALL_SCOPE,
+    bodyOffersFollow,
+    bodyOffersUpdates,
     bodyScopeWhere,
+    bodySendsUpdates,
     defaultTierOf,
     defaultNotificationBehavior,
     isSecondaryBody,
+    meetingAudienceWhere,
     meetingListTier,
     personTierWhere,
+    preferenceCoversBody,
     primaryMeetingWhere,
     primaryPresenceWhere,
     readTier,
@@ -128,5 +133,96 @@ describe('readTier', () => {
         expect(readTier(null)).toBeNull();
         expect(readTier('x')).toBeNull();
         expect(readTier(['all'])).toBeNull();
+    });
+});
+
+describe('bodyOffersFollow', () => {
+    const youth = (sendsUpdates: boolean) => ({ tier: 'secondary' as const, sendsUpdates });
+    const released = { hasReleasedMeeting: true };
+
+    it('offers the follow of a secondary body that sends updates and has released a meeting', () => {
+        expect(bodyOffersFollow(youth(true), released)).toBe(true);
+        // The same answer as the meeting-level rule, in either kind of city.
+        for (const supportsNotifications of [true, false]) {
+            expect(bodyOffersUpdates({ supportsNotifications }, youth(true))).toBe(true);
+        }
+    });
+
+    it('offers no follow before the first released meeting, with the updates off, or for a primary body', () => {
+        expect(bodyOffersFollow(youth(true), { hasReleasedMeeting: false })).toBe(false);
+        expect(bodyOffersFollow(youth(false), released)).toBe(false);
+        expect(bodyOffersFollow({ tier: 'primary', sendsUpdates: true }, released)).toBe(false);
+    });
+});
+
+describe('preferenceCoversBody', () => {
+    const supported = { supportsNotifications: true };
+    const unsupported = { supportsNotifications: false };
+    const follows = { bodies: [{ id: 'youth' }] };
+    const nobody = { bodies: [] };
+
+    it('reaches every preference of a city that supports notifications for a primary body or no body', () => {
+        expect(preferenceCoversBody(nobody, { id: 'council', tier: 'primary' }, supported)).toBe(true);
+        expect(preferenceCoversBody(nobody, null, supported)).toBe(true);
+        // The accepted flip: a follower of a youth council gets the council's meetings too.
+        expect(preferenceCoversBody(follows, { id: 'council', tier: 'primary' }, supported)).toBe(true);
+    });
+
+    it('reaches nobody for a primary body or no body in a city without notifications', () => {
+        expect(preferenceCoversBody(nobody, { id: 'council', tier: 'primary' }, unsupported)).toBe(false);
+        expect(preferenceCoversBody(follows, { id: 'council', tier: 'primary' }, unsupported)).toBe(false);
+        expect(preferenceCoversBody(follows, null, unsupported)).toBe(false);
+    });
+
+    it('reaches the followers of a secondary body alone, whatever the city', () => {
+        for (const city of [supported, unsupported]) {
+            expect(preferenceCoversBody(follows, { id: 'youth', tier: 'secondary' }, city)).toBe(true);
+            expect(preferenceCoversBody(nobody, { id: 'youth', tier: 'secondary' }, city)).toBe(false);
+            expect(preferenceCoversBody(follows, { id: 'other', tier: 'secondary' }, city)).toBe(false);
+        }
+    });
+});
+
+describe('meetingAudienceWhere', () => {
+    it('asks for the followers of a secondary body, and for the city flag otherwise', () => {
+        expect(meetingAudienceWhere('chania', { id: 'youth', tier: 'secondary' })).toEqual({ cityId: 'chania', bodies: { some: { id: 'youth' } } });
+        expect(meetingAudienceWhere('chania', { id: 'council', tier: 'primary' })).toEqual({ cityId: 'chania', city: { supportsNotifications: true } });
+        expect(meetingAudienceWhere('chania', null)).toEqual({ cityId: 'chania', city: { supportsNotifications: true } });
+    });
+});
+
+describe('bodyOffersUpdates', () => {
+    const supported = { supportsNotifications: true };
+    const unsupported = { supportsNotifications: false };
+    const council = (notificationBehavior: 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_DISABLED') => ({ tier: 'primary' as const, sendsUpdates: bodySendsUpdates(notificationBehavior) });
+    const youth = (notificationBehavior: 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_DISABLED') => ({ tier: 'secondary' as const, sendsUpdates: bodySendsUpdates(notificationBehavior) });
+
+    it('sends nothing for a body with its notifications off', () => {
+        expect(bodyOffersUpdates(supported, council('NOTIFICATIONS_DISABLED'))).toBe(false);
+        expect(bodyOffersUpdates(supported, youth('NOTIFICATIONS_DISABLED'))).toBe(false);
+    });
+
+    it('sends for a primary body, or no body, only in a municipality that supports notifications', () => {
+        expect(bodyOffersUpdates(supported, council('NOTIFICATIONS_AUTO'))).toBe(true);
+        expect(bodyOffersUpdates(supported, null)).toBe(true);
+        expect(bodyOffersUpdates(unsupported, council('NOTIFICATIONS_AUTO'))).toBe(false);
+        expect(bodyOffersUpdates(unsupported, null)).toBe(false);
+    });
+
+    it('sends for a secondary body wherever it is: its admin switched its updates on', () => {
+        expect(bodyOffersUpdates(unsupported, youth('NOTIFICATIONS_AUTO'))).toBe(true);
+    });
+});
+
+describe('bodySendsUpdates with an approval step', () => {
+    it('counts a body whose notifications wait for an approval as a body that sends, as the send does', () => {
+        // NOTIFICATIONS_APPROVAL is the default of a primary body, and a body
+        // moved from primary to secondary keeps it. Its notifications go out
+        // after an approval, so a reader may sign up for them.
+        expect(bodySendsUpdates('NOTIFICATIONS_APPROVAL')).toBe(true);
+        expect(bodySendsUpdates('NOTIFICATIONS_APPROVAL')).toBe(bodySendsUpdates('NOTIFICATIONS_AUTO'));
+        expect(bodySendsUpdates('NOTIFICATIONS_APPROVAL')).not.toBe(bodySendsUpdates('NOTIFICATIONS_DISABLED'));
+        const unsupported = { supportsNotifications: false };
+        expect(bodyOffersUpdates(unsupported, { tier: 'secondary', sendsUpdates: bodySendsUpdates('NOTIFICATIONS_APPROVAL') })).toBe(true);
     });
 });

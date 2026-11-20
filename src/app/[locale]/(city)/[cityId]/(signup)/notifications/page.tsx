@@ -5,12 +5,13 @@ import { getTranslations } from "next-intl/server";
 import { NotificationSignup } from "@/components/notifications/signup/NotificationSignup";
 import { getCurrentUser } from "@/lib/auth";
 import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
-import { getCityCached } from "@/lib/cache";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached } from "@/lib/cache";
 import { getCity } from "@/lib/db/cities";
 import { getSignupPreference } from "@/lib/db/signup";
 import { getTopics } from "@/lib/db/topics";
 import { getRealm } from "@/lib/realm.server";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
+import { bodyOffersFollow } from "@/lib/utils/bodyTier";
 import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
@@ -34,8 +35,11 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
 interface PageProps {
     params: Promise<{ cityId: string }>;
-    /** `q` is the search the picker row came from, so «Αλλαγή» can return to it. */
-    searchParams: Promise<{ step?: string; q?: string | string[] }>;
+    /**
+     * `q` is the search the picker row came from, so «Αλλαγή» can return to it.
+     * `body` is the secondary body whose page linked here: it starts ticked.
+     */
+    searchParams: Promise<{ step?: string; q?: string | string[]; body?: string | string[] }>;
 }
 
 /**
@@ -46,30 +50,52 @@ interface PageProps {
  * the background for step 3.
  */
 export default async function NotificationSignupPage(props: PageProps) {
-    const [{ cityId }, { step, q }] = await Promise.all([props.params, props.searchParams]);
-    const [city, realm, user, requestHeaders] = await Promise.all([
+    const [{ cityId }, { step, q, body: bodyParam }] = await Promise.all([props.params, props.searchParams]);
+    const [city, realm, user, requestHeaders, publicBodies] = await Promise.all([
         getCity(cityId, { includeGeometry: true }),
         getRealm(),
         getCurrentUser(),
         headers(),
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
     ]);
 
     if (!city) {
         notFound();
     }
-    if (!city.supportsNotifications) {
-        redirect(`/${cityId}/petition`);
-    }
+    // A secondary body with a public meeting and its updates on is offered
+    // behind a tick (#829); its page links here by the same rule
+    // (bodyOffersFollow). A municipality that does not support notifications
+    // still offers these bodies: their admin switched them on without the
+    // municipality, and the signup is the readers' only way to them. The page
+    // then shows the bodies alone. With no such body and nothing followed,
+    // the reader is sent to the petition.
+    const scope = city.supportsNotifications ? 'city' : 'bodies';
+    // Every body of publicBodies has released a meeting.
+    const offered = publicBodies.filter(body => bodyOffersFollow(body, { hasReleasedMeeting: true }));
 
     const [topics, existing] = await Promise.all([
         getTopics(realm),
         user ? getSignupPreference(user.id, city.id) : null,
     ]);
+    // A body the reader follows stays on offer while it has no public
+    // meeting, or after its updates went off, so the reader can still untick
+    // it; the page stays open for them for the same reason.
+    const followed = existing?.bodies ?? [];
+    if (scope === 'bodies' && offered.length === 0 && followed.length === 0) {
+        redirect(`/${cityId}/petition`);
+    }
+    const bodies = new Map([...offered, ...followed].map(body => [body.id, body]));
+    // Only a body on offer: a stale or foreign id ticks nothing.
+    const requestedBodyId = firstSearchParam(bodyParam);
+    const requestedBody = offered.find(body => body.id === requestedBodyId);
 
     return (
         <NotificationSignup
             city={city}
+            scope={scope}
             topics={topics}
+            secondaryBodies={[...bodies.values()]}
+            requestedBody={requestedBody}
             initialStep={step === "2" ? 2 : 1}
             pickerQuery={firstSearchParam(q)}
             existing={existing}

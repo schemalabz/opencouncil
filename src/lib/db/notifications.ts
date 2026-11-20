@@ -10,7 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
-import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
+import { ConflictError, NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 import { publicAdministrativeBodyRelation, publicAdministrativeBodySelect } from "./types/administrativeBody";
 import { peopleOnly } from "./types/user";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
@@ -25,7 +25,7 @@ import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
-import { ALL_SCOPE } from '@/lib/utils/bodyTier';
+import { ALL_SCOPE, isSecondaryBody, meetingAudienceWhere } from '@/lib/utils/bodyTier';
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -87,7 +87,9 @@ export async function getNotificationPreferenceForCity(userId: string, cityId: s
     await requireSelfOrSuperadmin(userId);
     return prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
-        include: { interests: true, locations: true },
+        // The bodies the reader follows (#829): the meeting page promises an
+        // update only where one will come.
+        include: { interests: true, locations: true, bodies: { select: { id: true } } },
     });
 }
 
@@ -275,7 +277,7 @@ export async function saveNotificationPreferences(
     // person's (User.notifyByPhone), the email summary is this municipality's.
     const {
         cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
-        notifyByPhone, notifyByEmail, returnTo,
+        notifyByPhone, notifyByEmail, bodyIds, returnTo,
     } = validation.data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
@@ -396,6 +398,15 @@ export async function saveNotificationPreferences(
             validTopicIds = topics.map(topic => topic.id);
         }
 
+        // The bodies a reader may follow: secondary bodies of this city. Any
+        // other id is dropped, as an unknown topic is.
+        const validBodyIds = bodyIds?.length
+            ? (await prisma.administrativeBody.findMany({
+                  where: { id: { in: bodyIds }, cityId, tier: 'secondary' },
+                  select: { id: true },
+              })).map(body => body.id)
+            : [];
+
         // Create the locations and the preference in one transaction. The
         // locations are created here (server-side, at submit time) rather than
         // by a separate client action, and they commit only together with the
@@ -423,6 +434,9 @@ export async function saveNotificationPreferences(
             const interestConnect = validTopicIds.length > 0
                 ? { connect: validTopicIds.map(id => ({ id })) }
                 : undefined;
+            // The whole list, so an unticked body leaves; nothing when the
+            // caller did not ask about the bodies at all.
+            const bodiesWrite = bodyIds === undefined ? {} : { bodies: { set: validBodyIds.map(id => ({ id })) } };
 
             // Only the channels the caller decided on are written: an older
             // caller that sends neither leaves the flags alone and a new row on
@@ -453,7 +467,7 @@ export async function saveNotificationPreferences(
                 });
                 const updated = await tx.notificationPreference.update({
                     where: { id: existing.id },
-                    data: { locations: locationConnect, interests: interestConnect, ...channels },
+                    data: { locations: locationConnect, interests: interestConnect, ...bodiesWrite, ...channels },
                     include: { city: true, locations: true, interests: true },
                 });
                 // The places this save replaced, removed ones included.
@@ -462,7 +476,10 @@ export async function saveNotificationPreferences(
             }
 
             const created = await tx.notificationPreference.create({
-                data: { userId, cityId, locations: locationConnect, interests: interestConnect, ...channels },
+                data: {
+                    userId, cityId, locations: locationConnect, interests: interestConnect, ...channels,
+                    ...(validBodyIds.length > 0 ? { bodies: { connect: validBodyIds.map(id => ({ id })) } } : {}),
+                },
                 include: { city: true, locations: true, interests: true },
             });
             return { preference: created, wasNew: true };
@@ -724,7 +741,9 @@ export async function getMeetingForNotifications(cityId: string, meetingId: stri
 /**
  * The readers of a city that a meeting's subjects match, by subject importance
  * and their preferences. createNotificationsForMeeting notifies them; the
- * release preview counts them.
+ * release preview (countEmailRecipientsForMeeting) and the impact preview of a
+ * manual send (previewNotificationImpact) count them. The audience is
+ * meetingAudienceWhere (src/lib/utils/bodyTier.ts).
  */
 async function matchMeetingRecipients(
     cityId: string,
@@ -747,12 +766,11 @@ async function matchMeetingRecipients(
     });
 
     if (!meeting) {
-        throw new Error(`Meeting ${meetingId} not found`);
+        throw new NotFoundError(`Meeting ${meetingId} not found`);
     }
 
-    // Get all users with notification preferences for this city
     const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId, user: peopleOnly },
+        where: { ...meetingAudienceWhere(cityId, meeting.administrativeBody), user: peopleOnly },
         include: {
             user: true,
             locations: true,
@@ -761,7 +779,6 @@ async function matchMeetingRecipients(
     });
 
     if (notificationPreferences.length === 0) {
-        console.log('No users with notification preferences for this city');
         return { meeting, recipients: [] };
     }
 
@@ -798,8 +815,6 @@ async function matchMeetingRecipients(
 
     const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
 
-    console.log(`Found ${usersWithPreferences.length} users with preferences`);
-
     // Transform subjects to the format expected by matching function
     const subjectsForMatching = meeting.subjects.map(subject => ({
         id: subject.id,
@@ -821,11 +836,14 @@ async function matchMeetingRecipients(
         }
     }
 
-    // Use shared matching logic to determine which users should be notified
+    // Use shared matching logic to determine which users should be notified.
+    // The audience of a secondary body's meeting is its followers (see
+    // meetingAudienceWhere), and the follow is the match.
     const userSubjectMatches = await matchUsersToSubjects(
         subjectsForMatching,
         usersWithPreferences,
-        effectiveOverrides
+        effectiveOverrides,
+        { followedBody: isSecondaryBody(meeting.administrativeBody) },
     );
 
     // Filter out users with no matching subjects
@@ -1376,6 +1394,13 @@ export async function getUserNotificationPreferences(userId: string) {
                         name: true,
                         colorHex: true
                     }
+                },
+                bodies: {
+                    select: {
+                        id: true,
+                        name: true,
+                        name_en: true
+                    }
                 }
             },
             orderBy: {
@@ -1716,101 +1741,49 @@ export async function deleteNotification(id: string): Promise<void> {
 }
 
 /**
- * Get notification impact preview data for a meeting
- * Returns transformed subjects and users with preferences for matching calculation
+ * The checks of a manual send that come before any matching, shared by the
+ * send route and previewNotificationImpact. A missing meeting is a
+ * NotFoundError (404). A meeting whose body has its notifications off is a
+ * ConflictError (409): the body's setting binds the manual path as
+ * notificationOutcome binds the automatic one.
  */
-export async function getNotificationImpactPreviewData(
-    meetingId: string,
-    cityId: string
-): Promise<{
-    subjects: Array<{
-        id: string;
-        topicId: string | null;
-        locationId: string | null;
-    }>;
-    usersWithPreferences: Array<{
-        userId: string;
-        locations: { id: string }[];
-        interests: { id: string }[];
-    }>;
-}> {
-    // A superadmin only, as on the send.
-    await withUserAuthorizedToEdit({});
-    // Fetch meeting with subjects
+// Caller-gated: both callers authorize a superadmin first.
+export async function requireManualNotificationsAllowed(cityId: string, meetingId: string): Promise<void> {
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
-        include: {
-            subjects: {
-                include: {
-                    topic: true,
-                    location: true
-                }
-            }
-        }
+        select: { administrativeBody: { select: { notificationBehavior: true } } },
     });
-
-    if (!meeting) {
-        throw new Error('Meeting not found');
+    if (!meeting) throw new NotFoundError('Meeting not found');
+    if (meeting.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED') {
+        throw new ConflictError('Notifications are disabled for the administrative body of this meeting');
     }
+}
 
-    // Get all users with notification preferences for this city
-    const notificationPreferences = await prisma.notificationPreference.findMany({
-        where: { cityId, user: peopleOnly },
-        include: {
-            user: true,
-            locations: true,
-            interests: true
-        }
-    });
-
-    // Transform notification preferences to the format expected by matching function
-    // Group by userId to ensure we only have one entry per user (even though unique constraint should prevent duplicates)
-    const usersWithPreferencesMap = new Map<string, {
-        userId: string;
-        locations: { id: string }[];
-        interests: { id: string }[];
-    }>();
-
-    for (const pref of notificationPreferences) {
-        const userId = String(pref.userId).trim();
-        if (!usersWithPreferencesMap.has(userId)) {
-            usersWithPreferencesMap.set(userId, {
-                userId: userId,
-                locations: pref.locations.map(loc => ({ id: String(loc.id).trim() })),
-                interests: pref.interests.map(interest => ({ id: String(interest.id).trim() }))
-            });
-        } else {
-            // If user already exists, merge locations and interests (shouldn't happen due to unique constraint, but be safe)
-            const existing = usersWithPreferencesMap.get(userId)!;
-            const locationIds = new Set([
-                ...existing.locations.map(l => String(l.id).trim()),
-                ...pref.locations.map(l => String(l.id).trim())
-            ]);
-            const interestIds = new Set([
-                ...existing.interests.map(i => String(i.id).trim()),
-                ...pref.interests.map(i => String(i.id).trim())
-            ]);
-            usersWithPreferencesMap.set(userId, {
-                userId: userId,
-                locations: Array.from(locationIds).map(id => ({ id })),
-                interests: Array.from(interestIds).map(id => ({ id }))
-            });
-        }
+/**
+ * The impact preview of a manual send: how many readers the send would notify
+ * with these subject importances, in all and per subject.
+ *
+ * It shares with the send the checks of requireManualNotificationsAllowed,
+ * the audience (meetingAudienceWhere) and the matching: both read the
+ * recipients of matchMeetingRecipients. It does not share the two filters
+ * that the send applies when it writes: the send skips a reader with neither
+ * an email nor a phone channel, and a reader who already has a notification
+ * of the chosen type. The preview counts those readers.
+ */
+export async function previewNotificationImpact(
+    cityId: string,
+    meetingId: string,
+    subjectImportances: Record<string, SubjectImportance>,
+): Promise<{ totalUsers: number; subjectImpact: Record<string, number> }> {
+    // A superadmin only, as on the send.
+    await withUserAuthorizedToEdit({});
+    await requireManualNotificationsAllowed(cityId, meetingId);
+    const { recipients } = await matchMeetingRecipients(cityId, meetingId, subjectImportances);
+    const subjectImpact: Record<string, number> = {};
+    for (const { matches } of recipients) {
+        for (const { subjectId } of matches) subjectImpact[subjectId] = (subjectImpact[subjectId] ?? 0) + 1;
     }
-
-    const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
-
-    // Transform subjects to the format expected by matching function
-    const subjects = meeting.subjects.map(subject => ({
-        id: subject.id,
-        topicId: subject.topicId,
-        locationId: subject.locationId
-    }));
-
-    return {
-        subjects,
-        usersWithPreferences
-    };
+    return { totalUsers: recipients.length, subjectImpact };
 }
 
 /**

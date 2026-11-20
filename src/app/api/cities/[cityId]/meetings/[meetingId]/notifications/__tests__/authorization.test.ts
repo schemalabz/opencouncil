@@ -16,8 +16,6 @@ const mockPrisma = {
     councilMeeting: { findUnique: jest.fn() },
 };
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: mockPrisma }));
-jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: jest.fn().mockResolvedValue({ id: 'm1' }) }));
-jest.mock('@/lib/db/administrativeBodies', () => ({ getMeetingBodySettings: jest.fn().mockResolvedValue(null) }));
 // The preview runs the real read of `@/lib/db/notifications`, whose guard is under test.
 jest.mock('@/env.mjs', () => ({ env: {} }));
 jest.mock('@/lib/db/notifications', () => ({
@@ -30,7 +28,6 @@ jest.mock('@/lib/discord', () => ({ sendNotificationsCreatedAdminAlert: jest.fn(
 import { POST } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/route';
 import { POST as PREVIEW } from '@/app/api/cities/[cityId]/meetings/[meetingId]/notifications/preview/route';
 import { createNotificationsForMeeting } from '@/lib/db/notifications';
-import { getMeetingBodySettings } from '@/lib/db/administrativeBodies';
 
 const CITY = 'athens';
 const MEETING = 'm1';
@@ -94,12 +91,19 @@ describe('a superadmin', () => {
         expect(createNotificationsForMeeting).toHaveBeenCalledWith(CITY, MEETING, 'beforeMeeting', {});
     });
 
-    it('gets 409 for a body with its notifications off, after the guard', async () => {
-        jest.mocked(getMeetingBodySettings).mockResolvedValueOnce({ notificationBehavior: 'NOTIFICATIONS_DISABLED' } as Awaited<ReturnType<typeof getMeetingBodySettings>>);
+    // The send and the preview run the same checks (requireManualNotificationsAllowed).
+    it('gets 409 from the send and from the preview for a body with its notifications off, after the guard', async () => {
+        mockPrisma.councilMeeting.findUnique.mockResolvedValue({ administrativeBody: { notificationBehavior: 'NOTIFICATIONS_DISABLED' } });
 
-        const response = await POST(request(SEND_NOW), params);
-
-        expect(response.status).toBe(409);
+        expect((await POST(request(SEND_NOW), params)).status).toBe(409);
+        expect((await PREVIEW(request({ subjectImportances: {} }), params)).status).toBe(409);
         expect(createNotificationsForMeeting).not.toHaveBeenCalled();
+    });
+
+    it('gets 404 from the send and from the preview for a meeting that does not exist', async () => {
+        mockPrisma.councilMeeting.findUnique.mockResolvedValue(null);
+
+        expect((await POST(request(SEND_NOW), params)).status).toBe(404);
+        expect((await PREVIEW(request({ subjectImportances: {} }), params)).status).toBe(404);
     });
 });

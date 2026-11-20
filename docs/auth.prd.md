@@ -97,6 +97,12 @@ A body admin can also do these things:
   link claims the whole person, so it goes only to a member whose every role
   is on the body. A member with a seat elsewhere in the municipality gets
   their link from the city admin.
+- Change the YouTube channel and the document send settings of their body. On a
+  secondary body, switch the updates to its followers on and off (#829).
+- Invite and remove the admins of their body through
+  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
+- Open the embed configurator of their body, at `/{cityId}/widget?body={bodyId}`
+  (#829). The configurator is locked to the body.
 
 A person whose every role is on a youth council consents to a voiceprint from
 their own account only (#829). The rule reads the body type, not the tier: a
@@ -111,13 +117,11 @@ any other account, and the member form of a youth council offers no photo
 field. `withPersonImageKept` applies the rule after a change of roles too: a
 change that makes a person who keeps a photo youth-only answers 409, unless
 the photo goes in the same save or the member's own account makes the change.
-- Change the YouTube channel and the document send settings of their body.
-- Invite and remove the admins of their body through
-  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 
 The page of the body, at `/{cityId}/bodies/{bodyId}`, holds these forms: the
-meeting form, the member form, the contact settings and the list of admins.
-The profile of a body admin links to it.
+meeting form, the member form, the contact settings, the list of admins, the
+claim links and the way to the embed configurator. The profile of a body admin
+links to it.
 
 A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
 the last admin of a body.

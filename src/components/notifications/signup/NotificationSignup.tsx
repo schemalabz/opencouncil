@@ -10,10 +10,11 @@ import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { notisStatusFromChannelState } from '@/lib/notis/phone-channel';
 import type { Location } from '@/lib/types/onboarding';
 import { ChannelsStep } from './ChannelsStep';
-import { CompleteAside, CompleteScreen } from './CompleteScreen';
+import { CompleteAside, CompleteScreen, UnfollowedScreen } from './CompleteScreen';
 import { IntroAside, IntroStep } from './IntroStep';
 import { PreferencesAside, PreferencesStep } from './PreferencesStep';
 import { SignupSummary } from './SignupSummary';
@@ -22,6 +23,7 @@ import {
     type ExistingPreference,
     type NotisStatus,
     type SignupAccount,
+    type SignupScope,
     type SignupState,
     buildSubmission,
     channelIssues,
@@ -29,6 +31,8 @@ import {
     notisActionFor,
     phoneChannelDefault,
     phoneChannelLocked,
+    preferencesAction,
+    withBody,
 } from './signup-state';
 
 const TOTAL_STEPS = 3;
@@ -38,12 +42,18 @@ const TOTAL_STEPS = 3;
  * from the URL, not the draft, and the account fields are the hook's rule
  * (see useSignupFlow). The WhatsApp tick is Notis's answer and is never
  * restored — a stale tick over his could resubscribe a reader who said ΣΤΟΠ.
+ * The body the reader came to follow stays ticked over the draft.
  */
-function applyNotificationsDraft(state: SignupState, stored: Partial<SignupState>): SignupState {
+function applyNotificationsDraft(
+    state: SignupState,
+    stored: Partial<SignupState>,
+    requestedBody: PublicAdministrativeBody | undefined,
+): SignupState {
     return {
         ...state,
         locations: stored.locations ?? state.locations,
         topics: stored.topics ?? state.topics,
+        bodies: withBody(stored.bodies ?? state.bodies, requestedBody),
         emailChannel: stored.emailChannel ?? state.emailChannel,
     };
 }
@@ -62,7 +72,10 @@ function applyNotificationsDraft(state: SignupState, stored: Partial<SignupState
  */
 export function NotificationSignup({
     city,
+    scope,
     topics,
+    secondaryBodies,
+    requestedBody,
     initialStep,
     pickerQuery,
     existing,
@@ -70,7 +83,13 @@ export function NotificationSignup({
     googleAvailable,
 }: {
     city: CityWithGeometry;
+    /** A signup for bodies alone leaves out the intro, the places and the topics, and starts with the bodies ticked. */
+    scope: SignupScope;
     topics: Topic[];
+    /** The secondary bodies of the municipality a reader may follow (#829). */
+    secondaryBodies: PublicAdministrativeBody[];
+    /** The body of `secondaryBodies` whose page the reader came from (`?body=`). It starts ticked. */
+    requestedBody?: PublicAdministrativeBody;
     initialStep: 1 | 2;
     /** The search the picker row carried here, so «Αλλαγή» returns to that list. */
     pickerQuery: string;
@@ -82,15 +101,26 @@ export function NotificationSignup({
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const signedIn = account !== null;
+    const bodiesScope = scope === 'bodies';
+    // A signup for bodies alone has no intro step: its progress counts from the preferences.
+    const stepOffset = bodiesScope ? 1 : 0;
     const flow = useSignupFlow<SignupState>({
-        initial: () => initialSignupState({ initialStep, existing, account }),
+        initial: () => initialSignupState({
+            initialStep: bodiesScope ? 2 : initialStep,
+            existing,
+            account,
+            preselectedBodies: bodiesScope ? secondaryBodies : undefined,
+            requestedBody,
+        }),
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
         // Nothing is kept for a reader who is editing what they already
         // saved: the server's answers are the truth, and a draft from an
         // abandoned session would put yesterday's places over them.
-        draft: existing ? undefined : { flow: 'notifications', account, apply: applyNotificationsDraft },
+        draft: existing
+            ? undefined
+            : { flow: 'notifications', account, apply: (state, stored) => applyNotificationsDraft(state, stored, requestedBody) },
     });
     const { state, patch, goTo, edited, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
@@ -124,6 +154,32 @@ export function NotificationSignup({
     useEffect(() => {
         if (notisStatus === 'active') setKnown(true);
     }, [notisStatus]);
+
+    // A reader who unticks their last body in a signup for bodies alone may
+    // stop following: the delete of the profile removes the row (preferencesAction).
+    const [unfollowed, setUnfollowed] = useState(false);
+    const [unfollowing, setUnfollowing] = useState(false);
+    const [unfollowFailures, setUnfollowFailures] = useState(0);
+    const preferencesNext = preferencesAction(state, scope, existing);
+    const unfollow = async () => {
+        if (!existing || unfollowing) return;
+        setUnfollowing(true);
+        setUnfollowFailures(0);
+        const response = await fetch(`/api/user/notification-preferences/${existing.id}`, { method: 'DELETE' }).catch(() => null);
+        setUnfollowing(false);
+        if (response?.ok) {
+            captureEvent('notification_signup_unfollowed', { city_id: city.id });
+            setUnfollowed(true);
+        } else {
+            setUnfollowFailures((count) => count + 1);
+        }
+    };
+    const unfollowFailureLabels = {
+        issuesButton: t('bodiesScope.unfollowFailedButton'),
+        issuesLine: t('bodiesScope.unfollowFailedLine'),
+        refusedButton: t('bodiesScope.unfollowFailedButton'),
+        refusedLine: t('bodiesScope.unfollowFailedLine'),
+    };
 
     const notisPending = notisStatus === 'pending';
     // The card is not the reader's to change until Notis has answered, and a
@@ -179,6 +235,7 @@ export function NotificationSignup({
                 city_id: city.id,
                 location_count: state.locations.length,
                 topic_count: state.topics.length,
+                body_count: state.bodies.length,
                 has_phone: Boolean(state.phone),
                 notify_by_phone: state.phoneChannel,
                 notify_by_email: state.emailChannel,
@@ -203,19 +260,31 @@ export function NotificationSignup({
         );
     }
 
+    if (unfollowed) {
+        return (
+            <SignupLayout aside={<CompleteAside city={city} signedIn={signedIn} />}>
+                <UnfollowedScreen city={city} signedIn={signedIn} />
+            </SignupLayout>
+        );
+    }
+
     // The desktop's second column: what the step is about, beside the step.
     const aside =
         state.step === 1 ? (
             <IntroAside city={city} />
         ) : state.step === 2 ? (
-            <PreferencesAside city={city} locations={state.locations} nearby={nearby} />
+            bodiesScope ? null : <PreferencesAside city={city} locations={state.locations} nearby={nearby} />
         ) : (
-            <SignupSummary city={city} state={state} onEdit={() => goTo(2)} />
+            <SignupSummary city={city} scope={scope} state={state} onEdit={() => goTo(2)} />
         );
 
     return (
         <SignupLayout aside={aside}>
-            <SignupProgress step={state.step} total={TOTAL_STEPS} label={ts('stepOf', { step: state.step, total: TOTAL_STEPS })} />
+            <SignupProgress
+                step={state.step - stepOffset}
+                total={TOTAL_STEPS - stepOffset}
+                label={ts('stepOf', { step: state.step - stepOffset, total: TOTAL_STEPS - stepOffset })}
+            />
 
             {state.step === 1 && (
                 <IntroStep city={city} pickerQuery={pickerQuery} dirty={edited} existing={existing !== null} />
@@ -223,15 +292,23 @@ export function NotificationSignup({
             {state.step === 2 && (
                 <PreferencesStep
                     city={city}
+                    scope={scope}
                     pickerQuery={pickerQuery}
                     dirty={edited}
                     existing={existing !== null}
                     topics={topics}
+                    bodies={secondaryBodies}
                     locations={state.locations}
                     selectedTopics={state.topics}
+                    selectedBodies={state.bodies}
                     nearby={nearby}
                     onLocationsChange={(locations: Location[]) => patch({ locations })}
                     onTopicsChange={(selected: Topic[]) => patch({ topics: selected })}
+                    willUnfollow={preferencesNext === 'unfollow'}
+                    onBodiesChange={(selected: PublicAdministrativeBody[]) => {
+                        setUnfollowFailures(0);
+                        patch({ bodies: selected });
+                    }}
                 />
             )}
             {state.step === 3 && (
@@ -262,20 +339,34 @@ export function NotificationSignup({
 
             {state.step === 1 && <SignupFooter actionLabel={t('ctaStart')} onAction={() => goTo(2)} />}
             {state.step === 2 && (
+                preferencesNext === 'unfollow' ? (
+                    <SignupFooter
+                        actionLabel={unfollowing ? t('bodiesScope.unfollowing') : t('bodiesScope.unfollow')}
+                        onAction={unfollow}
+                        disabled={unfollowing}
+                        failure={unfollowFailures > 0 ? 'refused' : null}
+                        failures={unfollowFailures}
+                        failureLabels={unfollowFailureLabels}
+                        arrow={false}
+                    />
+                ) : (
                 <SignupFooter
                     // The label says what pressing it means: skipping the places is allowed, but it is a choice.
-                    actionLabel={state.locations.length > 0 ? t('ctaContinue') : t('ctaContinueWithoutPlace')}
+                    actionLabel={bodiesScope || state.locations.length > 0 ? t('ctaContinue') : t('ctaContinueWithoutPlace')}
+                    disabled={preferencesNext === 'blocked'}
                     onAction={() => {
                         captureEvent('notification_signup_preferences_continued', {
                             city_id: city.id,
                             location_count: state.locations.length,
                             topic_count: state.topics.length,
+                            body_count: state.bodies.length,
                         });
                         goTo(3);
                     }}
-                    backLabel={ts('back')}
-                    onBack={() => goTo(1)}
+                    // There is no intro step to go back to in a signup for bodies alone.
+                    {...(!bodiesScope && { backLabel: ts('back'), onBack: () => goTo(1) })}
                 />
+                )
             )}
             {state.step === 3 && (
                 <SignupFooter

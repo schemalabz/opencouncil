@@ -1,5 +1,6 @@
-import type { MeetingScheduleStatus, NotificationBehavior, NotificationType } from '@prisma/client';
+import type { BodyTier, MeetingScheduleStatus, NotificationBehavior, NotificationType } from '@prisma/client';
 import { takesPlace } from '@/lib/meetingLifecycleRules';
+import { bodyOffersUpdates } from '@/lib/utils/bodyTier';
 import { notificationsEnabled } from './behavior';
 import {
     classifyEvent,
@@ -47,6 +48,8 @@ export function classifyMeetingNews(
 export type NotificationSkipReason =
     | 'noBody'
     | 'disabled'
+    // A primary body in a city without notifications: its audience is empty (#829).
+    | 'cityUnsupported'
     | 'unreleased'
     | 'not-taking-place'
     // A release of a meeting that no processAgenda or summarize task covers yet.
@@ -72,6 +75,10 @@ export function notificationOutcome(
         dateTime: Date | string;
         scheduleStatus: MeetingScheduleStatus;
         notificationBehavior: NotificationBehavior | null | undefined;
+        /** The tier of the meeting's body, null without a body. */
+        bodyTier: BodyTier | null | undefined;
+        /** City.supportsNotifications. */
+        supportsNotifications: boolean;
     },
     phase: NewsPhase,
     taskCompletedAt: Date,
@@ -79,6 +86,8 @@ export function notificationOutcome(
 ): NotificationOutcome {
     if (!meeting.notificationBehavior) return { kind: 'none', reason: 'noBody' };
     if (!notificationsEnabled(meeting.notificationBehavior)) return { kind: 'none', reason: 'disabled' };
+    const body = meeting.bodyTier ? { tier: meeting.bodyTier, sendsUpdates: true } : null;
+    if (!bodyOffersUpdates(meeting, body)) return { kind: 'none', reason: 'cityUnsupported' };
     if (!meeting.released) return { kind: 'none', reason: 'unreleased' };
     // releaseNotifications skips a beforeMeeting email for such a meeting, so
     // none is created. Notis does not check it.

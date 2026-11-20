@@ -118,10 +118,12 @@ export const administrativeBodyWithSendSettingsInclude = {
     documentSendSettings: { select: documentSendSettingSelect },
 } satisfies Prisma.AdministrativeBodyInclude;
 
-/** What an admin of the body changes on the page of the body (#828, #874): the channel and the document sends. */
+/** What an admin of the body changes on the page of the body (#828, #874, #829): the channel, the document sends and the updates switch. */
 export const bodyContactsSelect = {
     youtubeChannelUrl: true,
     documentSendSettings: { select: documentSendSettingSelect },
+    // The updates switch of a secondary body (#829).
+    notificationBehavior: true,
 } satisfies Prisma.AdministrativeBodySelect;
 
 export type BodyContacts = Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyContactsSelect }>;

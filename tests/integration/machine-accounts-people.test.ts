@@ -11,7 +11,7 @@ import { getProductUpdateRecipientCount, getProductUpdateRecipients } from '@/li
 import { getAdminDashboardStats } from '@/lib/db/adminStats'
 import { getUsers } from '@/lib/db/users'
 import { addBodyAdmin, listBodyAdmins } from '@/lib/db/bodyAdmins'
-import { countEmailRecipientsForMeeting, getNotificationImpactPreviewData } from '@/lib/db/notifications'
+import { countEmailRecipientsForMeeting, previewNotificationImpact } from '@/lib/db/notifications'
 import { getPeopleWithVoicePrintsForCity } from '@/lib/db/people'
 import { listMachineAccounts } from '@/lib/db/machineAccounts'
 import { sendInviteEmail } from '@/lib/auth/invite'
@@ -30,7 +30,7 @@ describe('a machine account is not a person', () => {
         machineId = (await createUser('paola@machines.opencouncil.invalid', { isMachine: true, isSuperAdmin: true, allowProductUpdates: true })).id
     })
     test('the operator PUT refuses a machine account, though it is a superadmin', async () => {
-        await createCity({ id: 'athens' }); await createMeeting('athens', { id: 'm1' })
+        await createCity({ id: 'athens', supportsNotifications: true }); await createMeeting('athens', { id: 'm1' })
         const res = await putOperator(json('/api/cities/athens/meetings/m1/operator', { userId: machineId }, 'PUT'),
             { params: Promise.resolve({ cityId: 'athens', meetingId: 'm1' }) })
         expect(res.status).toBe(400)
@@ -65,7 +65,7 @@ describe('a machine account is not a person', () => {
     test('the recipients of a meeting and the impact preview hold people only', async () => {
         // A machine account never gets a preference through the app; one
         // written straight to the database must still never reach a send.
-        await createCity({ id: 'athens' }); await createMeeting('athens', { id: 'm1' })
+        await createCity({ id: 'athens', supportsNotifications: true }); await createMeeting('athens', { id: 'm1' })
         await createTopic('roads')
         await createSubject('m1', 'athens', { id: 's1', topicId: 'roads' })
         const person = await createUser('anna@example.com')
@@ -73,7 +73,7 @@ describe('a machine account is not a person', () => {
             await createNotificationPreference({ userId, cityId: 'athens', topicIds: ['roads'] })
         }
         expect(await countEmailRecipientsForMeeting('athens', 'm1', 'afterMeeting')).toBe(1)
-        expect((await getNotificationImpactPreviewData('m1', 'athens')).usersWithPreferences.map(u => u.userId)).toEqual([person.id])
+        expect((await previewNotificationImpact('athens', 'm1', { s1: { topicImportance: 'high', proximityImportance: 'none' } })).totalUsers).toBe(1)
     })
     test('the admin people page counts the people who administer a person', async () => {
         await createCity({ id: 'athens' })

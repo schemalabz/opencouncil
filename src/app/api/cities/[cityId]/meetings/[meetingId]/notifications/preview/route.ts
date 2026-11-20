@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
-import { getNotificationImpactPreviewData } from '@/lib/db/notifications';
-import { calculateNotificationImpact } from '@/lib/notifications/matching';
+import { previewNotificationImpact } from '@/lib/db/notifications';
 import { notificationImpactPreviewRequestSchema } from '@/lib/zod-schemas/notification';
 
 export async function POST(
@@ -19,17 +18,7 @@ export async function POST(
 
         const { cityId, meetingId } = params;
 
-        // Get meeting data and users with preferences from database
-        const { subjects, usersWithPreferences } = await getNotificationImpactPreviewData(meetingId, cityId);
-
-        // Calculate impact using shared matching logic
-        const result = await calculateNotificationImpact(
-            subjects,
-            usersWithPreferences,
-            subjectImportances
-        );
-
-        return NextResponse.json(result);
+        return NextResponse.json(await previewNotificationImpact(cityId, meetingId, subjectImportances));
     } catch (error) {
         return handleApiError(error, 'Failed to preview the notifications');
     }

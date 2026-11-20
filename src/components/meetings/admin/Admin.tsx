@@ -69,7 +69,10 @@ export default function AdminActions({
     }, [meeting.youtubeUrl]);
 
     // What each task would do with email if it succeeded now: the rule the task callback acts on.
-    const notificationFacts = { released: isReleased, dateTime: meeting.dateTime, scheduleStatus: meeting.scheduleStatus, notificationBehavior };
+    const notificationFacts = {
+        released: isReleased, dateTime: meeting.dateTime, scheduleStatus: meeting.scheduleStatus, notificationBehavior,
+        bodyTier: meeting.administrativeBody?.tier, supportsNotifications: city.supportsNotifications,
+    };
     const now = new Date();
     const agendaNotifications = notificationOutcome(notificationFacts, 'processAgenda', now, now);
     const summaryNotifications = notificationOutcome(notificationFacts, 'summarize', now, now);

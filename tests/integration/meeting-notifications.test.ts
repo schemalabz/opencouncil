@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { getReleaseOutlook, notifySubscribersOfTask, notifySubscribersOnRelease } from '@/lib/notifications/meetingNotifications'
+import { getReleaseOutlook, getTaskNotificationOutcome, notifySubscribersOfTask, notifySubscribersOnRelease } from '@/lib/notifications/meetingNotifications'
 import type { NewsPhase } from '@/lib/notifications/freshness'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createNotificationPreference, createSubject, createTopic, createUser } from '../helpers/factories'
@@ -11,9 +11,15 @@ const daysFromNow = (days: number) => new Date(Date.now() + days * DAY)
 type Behavior = 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_APPROVAL' | 'NOTIFICATIONS_DISABLED'
 
 /** A reader who follows the topic of the meeting's one subject, so every notification has one recipient. */
-async function setUp(options: { released: boolean; meetingDays: number; behavior?: Behavior; scheduleStatus?: 'scheduled' | 'cancelled' }) {
-    await createCity({ id: CITY })
-    const body = await createAdministrativeBody(CITY, { notificationBehavior: options.behavior ?? 'NOTIFICATIONS_AUTO' })
+async function setUp(options: {
+    released: boolean; meetingDays: number; behavior?: Behavior; scheduleStatus?: 'scheduled' | 'cancelled';
+    supportsNotifications?: boolean; youthCouncil?: boolean
+}) {
+    await createCity({ id: CITY, supportsNotifications: options.supportsNotifications ?? true })
+    const body = await createAdministrativeBody(CITY, {
+        notificationBehavior: options.behavior ?? 'NOTIFICATIONS_AUTO',
+        ...(options.youthCouncil && { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' as const }),
+    })
     await createMeeting(CITY, {
         id: 'm', administrativeBodyId: body.id, released: options.released,
         dateTime: daysFromNow(options.meetingDays), scheduleStatus: options.scheduleStatus ?? 'scheduled',
@@ -136,10 +142,31 @@ describe('the notifications that the app creates by itself', () => {
             await setUp({ released: false, meetingDays: 3, behavior: 'NOTIFICATIONS_DISABLED' })
             await task('processAgenda', 'succeeded')
 
-            expect(await getReleaseOutlook(CITY, 'm')).toMatchObject({ email: { outcome: { kind: 'none', reason: 'disabled' }, recipients: 0 } })
+            expect(await getReleaseOutlook(CITY, 'm')).toMatchObject({
+                notis: { phase: null, reason: 'disabled' },
+                email: { outcome: { kind: 'none', reason: 'disabled' }, recipients: 0 },
+            })
             await setReleased(true)
             await notifySubscribersOnRelease(CITY, 'm')
             expect(await prisma.notification.count()).toBe(0)
+        })
+
+        test('a council meeting of a city without notifications promises no Notis message: the view leaves its event out (#829)', async () => {
+            await setUp({ released: false, meetingDays: 3, supportsNotifications: false })
+            await task('processAgenda', 'succeeded')
+
+            expect(await getReleaseOutlook(CITY, 'm')).toMatchObject({
+                notis: { phase: null, reason: 'cityUnsupported' },
+                email: { phase: 'processAgenda', outcome: { kind: 'none', reason: 'cityUnsupported' }, recipients: 0 },
+            })
+            expect(await getTaskNotificationOutcome(CITY, 'm', 'processAgenda')).toEqual({ kind: 'none', reason: 'cityUnsupported' })
+        })
+
+        test('a youth council meeting of a city without notifications is still news for Notis (#829)', async () => {
+            await setUp({ released: false, meetingDays: 3, supportsNotifications: false, youthCouncil: true })
+            await task('processAgenda', 'succeeded')
+
+            expect(await getReleaseOutlook(CITY, 'm')).toMatchObject({ notis: { phase: 'processAgenda' }, email: { outcome: { kind: 'sends' } } })
         })
 
         test('a meeting hidden again before the release callback runs gets nothing', async () => {

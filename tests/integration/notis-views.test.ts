@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import prisma from '@/lib/db/prisma'
+import { bodyOffersUpdates, bodySendsUpdates, meetingAudienceWhere, preferenceCoversBody } from '@/lib/utils/bodyTier'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { splitSqlStatements } from '../helpers/sql'
 import {
@@ -33,6 +34,10 @@ const TITLE_MIGRATION_PATH = path.join(
 const DISABLED_BODIES_MIGRATION_PATH = path.join(
     __dirname,
     '../../prisma/migrations/20261113120100_notis_meeting_events_skip_disabled_bodies/migration.sql',
+)
+const FOLLOWED_BODIES_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20261120120000_notification_preference_bodies/migration.sql',
 )
 
 /** The consumer's half of the contract: the Prisma models Notis reads the
@@ -92,6 +97,15 @@ async function applyNotisMigration() {
     // The disabled-bodies migration (#829) keeps that SELECT list and adds a WHERE condition.
     for (const statement of splitSqlStatements(fs.readFileSync(DISABLED_BODIES_MIGRATION_PATH, 'utf8'))) {
         await prisma.$executeRawUnsafe(statement)
+    }
+    // The followed-bodies migration (#829) replaces both views: `bodies` on
+    // notis_fanout_targets, `adminBodyId` and `followersOnly` on
+    // notis_meeting_events. Its join table `db push` already created, so only
+    // the views are replayed.
+    for (const statement of splitSqlStatements(fs.readFileSync(FOLLOWED_BODIES_MIGRATION_PATH, 'utf8'))) {
+        if (/CREATE OR REPLACE VIEW/.test(statement)) {
+            await prisma.$executeRawUnsafe(statement)
+        }
     }
 }
 
@@ -161,11 +175,13 @@ describe('notis views migration', () => {
             'meetingKind',
             'sessionNumber',
             'urgent',
+            'adminBodyId',
+            'followersOnly',
         ])
     })
 
     test('notis_fanout_targets aggregates topics and locations per preference', async () => {
-        const city = await createCity({ id: 'nv_city' })
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
         const topic = await createTopic('nv_topic', { name: 'Πολεοδομία', name_en: 'Urban planning' })
         const location = await createLocation({ id: 'nv_loc', lng: 23.71, lat: 37.97 })
         const user = await createUser('fanout@example.com', { phone: '+306900000001' })
@@ -201,7 +217,7 @@ describe('notis views migration', () => {
     })
 
     test('notis_fanout_targets gives a preference with no topics or locations empty arrays', async () => {
-        const city = await createCity({ id: 'nv_city' })
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
         const user = await createUser('bare@example.com', { phone: '+306900000002' })
         await createNotificationPreference({ userId: user.id, cityId: city.id })
 
@@ -216,8 +232,156 @@ describe('notis views migration', () => {
         expect(rows[0].locations).toEqual([])
     })
 
+    test('notis_fanout_targets names the bodies a preference follows (#829)', async () => {
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
+        const youth = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' })
+        const follower = await createUser('follower@example.com', { phone: '+306900000003' })
+        const resident = await createUser('resident@example.com', { phone: '+306900000004' })
+        await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id] })
+        await createNotificationPreference({ userId: resident.id, cityId: city.id })
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ userId: string; bodies: unknown }>>(
+            'SELECT "userId", bodies FROM notis_fanout_targets',
+        )
+        const rowOf = new Map(rows.map((r) => [r.userId, r]))
+        expect(rowOf.get(follower.id)).toMatchObject({ bodies: [{ id: youth.id, name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council' }] })
+        expect(rowOf.get(resident.id)).toMatchObject({ bodies: [] })
+    })
+
+    test('notis_meeting_events leaves out the events of a primary body, or no body, in a city without notifications (#829)', async () => {
+        const city = await createCity({ id: 'nv_quiet', supportsNotifications: false })
+        const council = await createAdministrativeBody(city.id)
+        const youth = await createAdministrativeBody(city.id, {
+            name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_AUTO',
+        })
+        for (const [id, administrativeBodyId] of [['nv_q_council', council.id], ['nv_q_youth', youth.id], ['nv_q_nobody', undefined]] as const) {
+            await createMeeting(city.id, { id, administrativeBodyId, released: true })
+            await createTaskStatus(id, city.id, { type: 'summarize', status: 'succeeded' })
+        }
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ meetingId: string }>>('SELECT "meetingId" FROM notis_meeting_events')
+        expect(rows.map((r) => r.meetingId)).toEqual(['nv_q_youth'])
+    })
+
+    test('notis_meeting_events marks the events of a secondary body as its followers\' alone (#829)', async () => {
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
+        const council = await createAdministrativeBody(city.id)
+        const youth = await createAdministrativeBody(city.id, {
+            name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_AUTO',
+        })
+        const councilMeeting = await createMeeting(city.id, { id: 'nv_council', administrativeBodyId: council.id, released: true })
+        const youthMeeting = await createMeeting(city.id, { id: 'nv_youth', administrativeBodyId: youth.id, released: true })
+        const noBody = await createMeeting(city.id, { id: 'nv_nobody', released: true })
+        const councilTask = await createTaskStatus(councilMeeting.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const youthTask = await createTaskStatus(youthMeeting.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const noBodyTask = await createTaskStatus(noBody.id, city.id, { type: 'summarize', status: 'succeeded' })
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ taskId: string; adminBodyId: string | null; followersOnly: boolean }>>(
+            'SELECT "taskId", "adminBodyId", "followersOnly" FROM notis_meeting_events',
+        )
+        const byTask = new Map(rows.map((r) => [r.taskId, r]))
+        expect(byTask.get(councilTask.id)).toMatchObject({ adminBodyId: council.id, followersOnly: false })
+        expect(byTask.get(youthTask.id)).toMatchObject({ adminBodyId: youth.id, followersOnly: true })
+        expect(byTask.get(noBodyTask.id)).toMatchObject({ adminBodyId: null, followersOnly: false })
+    })
+
+    test('the app, the one-row rule and the Notis views pick the same audience for the same rows (#829)', async () => {
+        // A reader of the city, a reader who also follows the youth council
+        // and the moved committee, and a reader who follows the youth council
+        // and picked nothing else: each with a row in both cities.
+        const resident = await createUser('resident@example.com', { phone: '+306900000011' })
+        const follower = await createUser('follower@example.com', { phone: '+306900000012' })
+        const youthOnly = await createUser('youth-only@example.com', { phone: '+306900000013' })
+
+        async function cityWithMeetings(cityId: string, supportsNotifications: boolean) {
+            const city = await createCity({ id: cityId, supportsNotifications })
+            const council = await createAdministrativeBody(city.id)
+            const youth = await createAdministrativeBody(city.id, {
+                name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_AUTO',
+            })
+            // A committee that a superadmin moved to the secondary tier: the
+            // tier, not the type, decides the audience (isSecondaryBody).
+            const moved = await createAdministrativeBody(city.id, {
+                name: 'Επιτροπή', name_en: 'Committee', type: 'committee', tier: 'secondary', notificationBehavior: 'NOTIFICATIONS_AUTO',
+            })
+            // A youth council with its notifications off, the default of a
+            // secondary body: the follower of it gets nothing anywhere.
+            const silent = await createAdministrativeBody(city.id, {
+                name: 'Δημοτικό Συμβούλιο Νέων 2', name_en: 'Youth Council 2', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_DISABLED',
+            })
+            const bodies = { council, youth, nobody: null, moved, silent }
+            for (const [key, body] of Object.entries(bodies)) {
+                await createMeeting(city.id, { id: `${cityId}_${key}`, administrativeBodyId: body?.id, released: true })
+                await createTaskStatus(`${cityId}_${key}`, city.id, { type: 'summarize', status: 'succeeded' })
+            }
+            await createNotificationPreference({ userId: resident.id, cityId: city.id })
+            await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id, moved.id, silent.id] })
+            await createNotificationPreference({ userId: youthOnly.id, cityId: city.id, bodyIds: [youth.id] })
+            return { city, bodies }
+        }
+        const cities = [await cityWithMeetings('nv_on', true), await cityWithMeetings('nv_off', false)]
+
+        const targets = await prisma.$queryRawUnsafe<Array<{ userId: string; cityId: string; bodies: Array<{ id: string }> }>>(
+            'SELECT "userId", "cityId", bodies FROM notis_fanout_targets',
+        )
+        const events = await prisma.$queryRawUnsafe<Array<{ cityId: string; meetingId: string; adminBodyId: string | null; followersOnly: boolean }>>(
+            'SELECT "cityId", "meetingId", "adminBodyId", "followersOnly" FROM notis_meeting_events',
+        )
+        // The poller's step (processMeetingEvents), on the view rows alone.
+        const notisAudience = (cityId: string, meetingId: string) => {
+            const event = events.find((e) => e.cityId === cityId && e.meetingId === meetingId)
+            if (!event) return []
+            const ofCity = targets.filter((t) => t.cityId === cityId)
+            const woken = event.followersOnly ? ofCity.filter((t) => t.bodies.some((b) => b.id === event.adminBodyId)) : ofCity
+            return woken.map((t) => t.userId).sort()
+        }
+        type Body = { id: string; tier: 'primary' | 'secondary' } | null
+        // The Prisma where of the send and of every preview.
+        const appAudience = async (cityId: string, body: Body) =>
+            (await prisma.notificationPreference.findMany({ where: meetingAudienceWhere(cityId, body), select: { userId: true } }))
+                .map((p) => p.userId).sort()
+        // The one-row rule, as the meeting page applies it to the reader's own row.
+        const rowAudience = async (cityId: string, body: Body, city: { supportsNotifications: boolean }) =>
+            (await prisma.notificationPreference.findMany({ where: { cityId }, include: { bodies: { select: { id: true } } } }))
+                .filter((p) => preferenceCoversBody(p, body, city)).map((p) => p.userId).sort()
+
+        const audiences: Record<string, string[]> = {}
+        for (const { city, bodies } of cities) {
+            for (const [key, body] of Object.entries(bodies)) {
+                const meetingId = `${city.id}_${key}`
+                // The meeting-level form, which notificationOutcome and
+                // releaseNews read: the view has the event exactly when it is true.
+                const sends = body ? bodySendsUpdates(body.notificationBehavior) : true
+                const offers = bodyOffersUpdates(city, body && { tier: body.tier, sendsUpdates: sends })
+                const hasEvent = events.some((e) => e.cityId === city.id && e.meetingId === meetingId)
+                expect({ meetingId, hasEvent }).toEqual({ meetingId, hasEvent: offers })
+
+                const app = await appAudience(city.id, body)
+                expect({ meetingId, audience: await rowAudience(city.id, body, city) }).toEqual({ meetingId, audience: app })
+                // The audience forms do not read the behaviour (see bodyTier.ts):
+                // a body whose updates are off has no event, so Notis wakes nobody.
+                expect({ meetingId, audience: notisAudience(city.id, meetingId) }).toEqual({ meetingId, audience: sends ? app : [] })
+                audiences[meetingId] = app
+            }
+        }
+        // The fixture tells the rules apart: the audiences differ by body and by city.
+        const ids = (...users: Array<{ id: string }>) => users.map((u) => u.id).sort()
+        expect(audiences).toEqual({
+            nv_on_council: ids(resident, follower, youthOnly),
+            nv_on_youth: ids(follower, youthOnly),
+            nv_on_nobody: ids(resident, follower, youthOnly),
+            nv_on_moved: ids(follower),
+            nv_on_silent: ids(follower),
+            nv_off_council: [],
+            nv_off_youth: ids(follower, youthOnly),
+            nv_off_nobody: [],
+            nv_off_moved: ids(follower),
+            nv_off_silent: ids(follower),
+        })
+    })
+
     test('notis_meeting_events lists only succeeded processAgenda/summarize tasks', async () => {
-        const city = await createCity({ id: 'nv_city' })
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
         const body = await createAdministrativeBody(city.id)
         const meeting = await createMeeting(city.id, {
             id: 'nv_meeting',
@@ -275,7 +439,7 @@ describe('notis views migration', () => {
     })
 
     test('notis_meeting_events carries the stored name, the kind, the urgency and the number of a meeting', async () => {
-        const city = await createCity({ id: 'nv_city' })
+        const city = await createCity({ id: 'nv_city', supportsNotifications: true })
         const body = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' })
         const derived = await createMeeting(city.id, {
             id: 'nv_derived',

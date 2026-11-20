@@ -36,12 +36,17 @@ describe('notificationOutcome', () => {
         dateTime: daysFromNow(3),
         scheduleStatus: 'scheduled' as const,
         notificationBehavior: 'NOTIFICATIONS_AUTO' as const,
+        bodyTier: 'primary' as const,
+        supportsNotifications: true,
         ...over,
     });
 
     it.each([
         ['no body', meeting({ notificationBehavior: null }), 'processAgenda', { kind: 'none', reason: 'noBody' }],
         ['a disabled body', meeting({ notificationBehavior: 'NOTIFICATIONS_DISABLED' }), 'processAgenda', { kind: 'none', reason: 'disabled' }],
+        ['a disabled body in a city without notifications', meeting({ notificationBehavior: 'NOTIFICATIONS_DISABLED', supportsNotifications: false }), 'processAgenda', { kind: 'none', reason: 'disabled' }],
+        ['a primary body in a city without notifications', meeting({ supportsNotifications: false }), 'processAgenda', { kind: 'none', reason: 'cityUnsupported' }],
+        ['a secondary body in a city without notifications', meeting({ bodyTier: 'secondary', supportsNotifications: false }), 'processAgenda', { kind: 'sends' }],
         ['a draft', meeting({ released: false }), 'processAgenda', { kind: 'none', reason: 'unreleased' }],
         ['a cancelled meeting, agenda', meeting({ scheduleStatus: 'cancelled' }), 'processAgenda', { kind: 'none', reason: 'not-taking-place' }],
         ['a cancelled meeting, summary', meeting({ scheduleStatus: 'cancelled', dateTime: daysFromNow(-2) }), 'summarize', { kind: 'sends' }],

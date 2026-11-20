@@ -28,7 +28,7 @@ import { BirdLike, realBird } from "./bird";
 import { hasNotisDb, notisDb } from "./db";
 import { buildDeps } from "./deps";
 import { isHeldForMarketing } from "./enrollment";
-import { toCityPreferences } from "./fanout";
+import { toCityPreferences, followedBodyIds } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
 import { deliverPendingMessage } from "./queue";
@@ -655,15 +655,29 @@ async function processMeetingEvents(
       notifyByPhone: true,
     },
   });
+  // The audience rule of a meeting (#829), the poller's step of it. An event
+  // with followersOnly (a secondary body) wakes the readers who follow that
+  // body. Every other event wakes every reader of the city: the
+  // notis_meeting_events view already left out such an event in a city
+  // without notifications. preferenceCoversBody and meetingAudienceWhere
+  // (src/lib/utils/bodyTier.ts in the main app) are the same rule.
   const usersByCity = new Map<string, Set<string>>();
+  const usersByBody = new Map<string, Set<string>>();
   for (const t of cityTargets) {
     const set = usersByCity.get(t.cityId) ?? new Set<string>();
     set.add(t.userId);
     usersByCity.set(t.cityId, set);
+    for (const bodyId of followedBodyIds(t.bodies)) {
+      const followers = usersByBody.get(bodyId) ?? new Set<string>();
+      followers.add(t.userId);
+      usersByBody.set(bodyId, followers);
+    }
   }
 
   for (const row of upcoming) {
-    const wanted = usersByCity.get(row.cityId);
+    const wanted = row.followersOnly
+      ? (row.adminBodyId ? usersByBody.get(row.adminBodyId) : undefined)
+      : usersByCity.get(row.cityId);
     const audience = subs.filter((sub) => wanted?.has(sub.userId));
     const phase = row.type === "processAgenda" ? "agenda" : "summary";
 

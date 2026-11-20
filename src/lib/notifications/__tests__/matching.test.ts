@@ -51,6 +51,20 @@ describe('matchUsersToSubjects, normal-importance topics', () => {
         expect([...(matches.get('u1') ?? [])]).toEqual([{ subjectId: 's1', reason: 'topic' }]);
     });
 
+    it('matches every subject of a followed body, whatever the reader\'s topics (#829)', async () => {
+        const noTopic = { id: 's2', topicId: null, locationId: null };
+        const matches = await matchUsersToSubjects(
+            [subject, noTopic, { id: 's3', topicId: 'transport', locationId: null }],
+            [{ userId: 'u1', locations: [], interests: [{ id: 'culture' }] }],
+            { ...normal, s2: normal.s1, s3: { topicImportance: 'doNotNotify', proximityImportance: 'none' } },
+            { followedBody: true },
+        );
+        expect([...(matches.get('u1') ?? [])]).toEqual([
+            { subjectId: 's1', reason: 'generalInterest' },
+            { subjectId: 's2', reason: 'generalInterest' },
+        ]);
+    });
+
     it('still skips a subject the editors marked do-not-notify', async () => {
         const matches = await matchUsersToSubjects(
             [subject],

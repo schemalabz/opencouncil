@@ -1,5 +1,6 @@
 import { Realm } from "@prisma/client";
 import type { BodyScope } from "@/lib/utils/bodyTier";
+import type { DirectoryBodyType } from "@/lib/realm";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
@@ -15,7 +16,7 @@ import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { countPeopleOfCity, getPeopleOfCityForContent, listPeopleOfCity } from "@/lib/db/people";
 import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
-import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
+import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings, getBodyDirectory } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
@@ -337,6 +338,20 @@ export async function getAdministrativeBodiesWithPublicMeetingsCached(cityId: st
     () => getAdministrativeBodiesWithPublicMeetings(cityId),
     ['city', cityId, 'administrativeBodies', 'withPublicMeetings'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * The directory of a body type in a realm (#829). Under the realm's city-list
+ * tags: the release of a secondary meeting busts them, and that is what puts
+ * a body on the directory. The counts and the last meeting of a body change
+ * without a tag of their own here, so a TTL bounds the drift.
+ */
+export async function getBodyDirectoryCached(realm: Realm, type: DirectoryBodyType) {
+  return createCache(
+    () => getBodyDirectory(realm, type),
+    ['bodies', 'directory', realm, type],
+    { tags: ['cities:all', `realm:${realm}:cities:all`], revalidate: 900 }
   )();
 }
 

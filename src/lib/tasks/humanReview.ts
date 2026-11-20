@@ -88,11 +88,12 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
                 released: true,
                 dateTime: true,
                 scheduleStatus: true,
-                city: { select: { timezone: true } },
+                city: { select: { timezone: true, supportsNotifications: true } },
                 administrativeBody: {
                     select: {
                         id: true,
                         name: true,
+                        tier: true,
                         notificationBehavior: true,
                     }
                 }
@@ -124,6 +125,8 @@ export async function getReviewCompletionState(cityId: string, meetingId: string
             dateTime: meeting.dateTime,
             scheduleStatus: meeting.scheduleStatus,
             notificationBehavior: meeting.administrativeBody?.notificationBehavior,
+            bodyTier: meeting.administrativeBody?.tier,
+            supportsNotifications: meeting.city.supportsNotifications,
         }, 'summarize', new Date(), new Date()),
     };
 }

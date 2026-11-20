@@ -287,10 +287,11 @@ describe('getReviewCompletionState', () => {
     released,
     dateTime: new Date(Date.now() - daysAgo * DAY),
     scheduleStatus: 'scheduled',
-    city: { timezone: 'Europe/Athens' },
+    city: { timezone: 'Europe/Athens', supportsNotifications: true },
     administrativeBody: {
       id: 'body-1',
       name: 'City Council',
+      tier: 'primary',
       notificationBehavior: 'NOTIFICATIONS_AUTO',
     },
   });
@@ -383,7 +384,7 @@ describe('getReviewCompletionState', () => {
   });
 
   it('reports a meeting without an administrative body as having no recipients', async () => {
-    mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', city: { timezone: 'America/Toronto' }, administrativeBody: null });
+    mockMeetingFindUnique.mockResolvedValue({ released: true, dateTime: new Date(), scheduleStatus: 'scheduled', city: { timezone: 'America/Toronto', supportsNotifications: true }, administrativeBody: null });
     mockGetDocumentSendSetting.mockResolvedValue(null);
 
     await expect(getReviewCompletionState(CITY_ID, MEETING_ID)).resolves.toEqual({

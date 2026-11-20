@@ -15,7 +15,8 @@
     "stale": "la séance date de plus de 15 jours.",
     "future-summary": "la séance a une date future. Vérifiez la date de la séance.",
     "old-task": "le dernier traitement date de plus de 7 jours.",
-    "noTasks": "l'ordre du jour et le résumé ne sont pas encore traités. Quand ils sont traités, les abonnés sont notifiés, si la séance est encore d'actualité."
+    "noTasks": "l'ordre du jour et le résumé ne sont pas encore traités. Quand ils sont traités, les abonnés sont notifiés, si la séance est encore d'actualité.",
+    "cityUnsupported": "la commune ne prend pas encore en charge les notifications pour son conseil, ses commissions et ses communautés."
   },
   "manual": "Pour notifier les abonnés quand même, utilisez la section Notifications de la page d'administration de la séance."
 }
