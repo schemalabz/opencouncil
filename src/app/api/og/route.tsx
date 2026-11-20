@@ -18,7 +18,7 @@ import { sortSubjectsByImportance } from '@/lib/utils';
 import { isCustomer } from '@/lib/cityStatus';
 import { PETITION_BLUE, PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { CHAT_SURFACE, NOTIS_CHAT } from '@/lib/notis/chat';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
 import { getRealm } from '@/lib/realm.server';

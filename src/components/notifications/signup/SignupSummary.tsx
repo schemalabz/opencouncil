@@ -2,7 +2,7 @@
 
 import { MapPin } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { CitySeal } from '@/components/signup/CityCard';
 import { Eyebrow } from '@/components/signup/SignupChrome';
 import { TopicPill } from '@/components/TopicPill';

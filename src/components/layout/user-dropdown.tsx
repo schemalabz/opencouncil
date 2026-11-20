@@ -26,6 +26,7 @@ import { headerControlClass } from "./headerControl"
 import ScriptSwitcher from "./ScriptSwitcher"
 import { TrackedLink } from "@/components/analytics/TrackedLink"
 import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref"
+import { authorityKey } from "@/lib/utils/authority"
 import type { City } from "@prisma/client"
 import { useInstallApp } from "@/hooks/useInstallApp"
 import InstallAppMenuItem from "@/components/pwa/InstallAppMenuItem"
@@ -196,10 +197,7 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
                         <span className="min-w-0">
                             <span className="block text-[13px] font-medium leading-snug">
                                 {city
-                                    ? t(city.authorityType === 'region'
-                                        ? 'canEditAuthority.region'
-                                        : 'canEditAuthority.municipality',
-                                        { qualifier: getMunicipalityQualifier(city, locale) })
+                                    ? t(authorityKey('canEditAuthority', city), { qualifier: getMunicipalityQualifier(city, locale) })
                                     : t('canEditPage')}
                             </span>
                             <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{t("canEditHint")}</span>

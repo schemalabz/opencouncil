@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Loader2, LocateFixed, MapPin, Plus, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { useLocationSearch } from '@/components/onboarding/selectors/useLocationSearch';
 import { ErrorLine } from '@/components/ui/error-line';
 import { surfaceCardClass } from '@/components/ui/surface-card';

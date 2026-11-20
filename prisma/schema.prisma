@@ -13,6 +13,10 @@ datasource db {
   extensions = [postgis]
 }
 
+/// A local authority, not a town: a municipality (δήμος) or a region
+/// (περιφέρεια), as `authorityType` says. The two share every table, so a
+/// region is a row here and its key in the other tables is `cityId` too. The
+/// rules that differ between the two kinds are in src/lib/utils/authority.ts.
 model City {
   id        String   @id @default(cuid())
   name      String   // Αθήνα
