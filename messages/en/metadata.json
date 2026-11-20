@@ -2,52 +2,206 @@
   "city": {
     "notFoundTitle": "Municipality not found | OpenCouncil",
     "notFoundDescription": "The municipality you are looking for is not available.",
-    "description": "{cityName} council meetings: video, transcripts, agenda items and decisions, explained simply.",
-    "ogAlt": "OpenCouncil — {cityName} council meetings",
-    "author": "Municipality of {cityName}",
-    "keywords": [
-      "city council",
-      "council meetings",
-      "local government"
-    ]
+    "description": {
+      "municipality": "{cityName} council meetings: video, transcripts, agenda items and decisions, explained simply.",
+      "region": "{cityName} regional council meetings: video, transcripts, agenda items and decisions, explained simply."
+    },
+    "ogAlt": {
+      "municipality": "OpenCouncil — {cityName} council meetings",
+      "region": "OpenCouncil — {cityName} regional council meetings"
+    },
+    "author": {
+      "municipality": "Municipality of {cityName}",
+      "region": "Region of {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "city council",
+        "council meetings",
+        "local government"
+      ],
+      "region": [
+        "regional council",
+        "council meetings",
+        "local government"
+      ]
+    }
   },
   "meetings": {
     "title": "Council meetings | {cityName} | OpenCouncil",
     "shortTitle": "Council meetings | {cityName}",
     "notFoundTitle": "Council meetings not found | OpenCouncil",
     "notFoundDescription": "The list of council meetings is not available.",
-    "description": "All {meetingsCount} recorded council meetings of {cityName}: video, transcripts, agenda items and decisions, in date order.",
-    "ogAlt": "Council meetings of {cityName}",
-    "author": "Municipality of {cityName}",
-    "keywords": [
-      "council meetings",
-      "agenda",
-      "minutes",
-      "city council",
-      "local government"
-    ]
+    "description": {
+      "municipality": "All {meetingsCount} recorded council meetings of {cityName}: video, transcripts, agenda items and decisions, in date order.",
+      "region": "All {meetingsCount} recorded meetings of the Region of {cityName}: video, transcripts, agenda items and decisions, in date order."
+    },
+    "ogAlt": {
+      "municipality": "Council meetings of {cityName}",
+      "region": "Meetings of the Region of {cityName}"
+    },
+    "author": {
+      "municipality": "Municipality of {cityName}",
+      "region": "Region of {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "council meetings",
+        "agenda",
+        "minutes",
+        "city council",
+        "local government"
+      ],
+      "region": [
+        "council meetings",
+        "agenda",
+        "minutes",
+        "regional council",
+        "local government"
+      ]
+    }
   },
   "people": {
-    "title": "Councillors | {cityName} | OpenCouncil",
-    "shortTitle": "Councillors | {cityName}",
+    "title": {
+      "municipality": "Councillors | {cityName} | OpenCouncil",
+      "region": "Regional councillors | {cityName} | OpenCouncil"
+    },
+    "shortTitle": {
+      "municipality": "Councillors | {cityName}",
+      "region": "Regional councillors | {cityName}"
+    },
     "notFoundTitle": "Councillors not found | OpenCouncil",
     "notFoundDescription": "The list of councillors is not available.",
-    "description": "All councillors and deputy mayors of {cityName}. {peopleCount} councillors from {partiesCount} parties and groups, their profiles and their activity in the council.",
-    "ogAlt": "Councillors of {cityName}",
-    "author": "Municipality of {cityName}",
-    "keywords": [
-      "councillors",
-      "city council",
-      "local government",
-      "deputy mayors",
-      "council groups",
-      "list of councillors",
-      "political groups"
-    ]
+    "description": {
+      "municipality": "All councillors and deputy mayors of {cityName}. {peopleCount} councillors from {partiesCount} parties and groups, their profiles and their activity in the council.",
+      "region": "All regional councillors and deputy regional governors of {cityName}. {peopleCount} councillors from {partiesCount} parties and groups, their profiles and their activity in the regional council."
+    },
+    "ogAlt": {
+      "municipality": "Councillors of {cityName}",
+      "region": "Regional councillors of {cityName}"
+    },
+    "author": {
+      "municipality": "Municipality of {cityName}",
+      "region": "Region of {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "councillors",
+        "city council",
+        "local government",
+        "deputy mayors",
+        "council groups",
+        "list of councillors",
+        "political groups"
+      ],
+      "region": [
+        "regional councillors",
+        "regional council",
+        "local government",
+        "deputy regional governors",
+        "council groups",
+        "list of councillors",
+        "political groups"
+      ]
+    }
   },
   "parties": {
     "title": "Groups | {cityName} | OpenCouncil",
-    "description": "The council groups of {cityName}, their members and their activity in the council."
+    "description": {
+      "municipality": "The council groups of {cityName}, their members and their activity in the council.",
+      "region": "The council groups of {cityName}, their members and their activity in the regional council."
+    }
+  },
+  "consultations": {
+    "title": "Public consultations | {cityName} | OpenCouncil",
+    "shortTitle": "Public consultations | {cityName}",
+    "notFoundTitle": "Consultations not found | OpenCouncil",
+    "notFoundDescription": "The city you asked for was not found or has no consultations.",
+    "descriptionActive": {
+      "municipality": "See and take part in {activeCount, plural, one {# active consultation} other {# active consultations}} out of {totalCount} in {cityName}. Give your opinion on the new regulations and policies that affect your city.",
+      "region": "See and take part in {activeCount, plural, one {# active consultation} other {# active consultations}} out of {totalCount} in the Region of {cityName}. Give your opinion on the new regulations and policies that affect your region."
+    },
+    "descriptionPast": {
+      "municipality": "See {totalCount, plural, one {# past consultation} other {# past consultations}} in {cityName}. No consultation is active at this time.",
+      "region": "See {totalCount, plural, one {# past consultation} other {# past consultations}} in the Region of {cityName}. No consultation is active at this time."
+    },
+    "descriptionNone": {
+      "municipality": "There are no consultations in {cityName} at this time. Check again soon for new ways to take part.",
+      "region": "There are no consultations in the Region of {cityName} at this time. Check again soon for new ways to take part."
+    },
+    "ogAlt": "Public consultations | {cityName}",
+    "author": {
+      "municipality": "Municipality of {cityName}",
+      "region": "Region of {cityName}"
+    },
+    "keywords": [
+      "consultations",
+      "public consultations",
+      "participatory planning",
+      "local government",
+      "regulations"
+    ],
+    "keywordActive": "active consultations",
+    "keywordPast": "past consultations"
+  },
+  "party": {
+    "notFoundTitle": "Group not found | OpenCouncil",
+    "notFoundDescription": "The group you are looking for is not available.",
+    "description": {
+      "municipality": "The group {partyName} in the council of {cityName}. See its members, its statements and its activity in the meetings.",
+      "region": "The group {partyName} in the regional council of {cityName}. See its members, its statements and its activity in the meetings."
+    },
+    "ogAlt": {
+      "municipality": "{partyName} — Municipality of {cityName}",
+      "region": "{partyName} — Region of {cityName}"
+    },
+    "author": {
+      "municipality": "Municipality of {cityName}",
+      "region": "Region of {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "council group",
+        "city council",
+        "local government"
+      ],
+      "region": [
+        "council group",
+        "regional council",
+        "local government"
+      ]
+    }
+  },
+  "person": {
+    "notFoundTitle": "Person not found | OpenCouncil",
+    "notFoundDescription": "The person you are looking for was not found or is not available.",
+    "description": {
+      "municipality": "Profile of {personName} {roleDescription} | {cityName} | Participation statistics, statements and activity in the council.",
+      "region": "Profile of {personName} {roleDescription} | {cityName} | Participation statistics, statements and activity in the regional council."
+    },
+    "keywords": {
+      "municipality": [
+        "councillor",
+        "city council",
+        "local government"
+      ],
+      "region": [
+        "regional councillor",
+        "regional council",
+        "local government"
+      ]
+    },
+    "keywordParty": "political party",
+    "keywordsActivity": [
+      "participation statistics",
+      "statements"
+    ]
+  },
+  "meeting": {
+    "description": {
+      "municipality": "OpenCouncil uses artificial intelligence to follow council meetings and make them simple and clear",
+      "region": "OpenCouncil uses artificial intelligence to follow regional council meetings and make them simple and clear"
+    }
   },
   "landing": {
     "title": "OpenCouncil — what your council is discussing",

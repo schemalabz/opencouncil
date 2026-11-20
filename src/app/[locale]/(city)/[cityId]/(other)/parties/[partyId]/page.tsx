@@ -8,7 +8,9 @@ import { getPublicAdministrativeBodiesForCity } from "@/lib/db/administrativeBod
 import { getBodySeatTotals } from "@/lib/db/bodySeats";
 import { Metadata } from "next";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
-import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
+import { getLocalizedName, getLocalizedShortName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
+import { getTranslations } from "next-intl/server";
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
 
@@ -21,21 +23,23 @@ export async function generateMetadata(
     }
 ): Promise<Metadata> {
     const params = await props.params;
-    const [party, city] = await Promise.all([
+    const [party, city, t] = await Promise.all([
         getPartyCached(params.partyId),
         getCityCached(params.cityId),
+        getTranslations({ locale: params.locale, namespace: 'metadata.party' }),
     ]);
 
     if (!party || !city || party.cityId !== city.id) {
         return {
-            title: "Παράταξη δεν βρέθηκε | OpenCouncil",
-            description: "Η παράταξη που αναζητάτε δεν είναι διαθέσιμη.",
+            title: t('notFoundTitle'),
+            description: t('notFoundDescription'),
         };
     }
 
     const partyName = getLocalizedName(party, params.locale);
     const cityName = getLocalizedName(city, params.locale);
-    const description = `Η παράταξη ${partyName} στο Δημοτικό Συμβούλιο του Δήμου ${cityName}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
+    const names = { partyName, cityName, qualifier: getMunicipalityQualifier(city, params.locale) };
+    const description = t(authorityKey('description', city), names);
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, partyId: params.partyId });
 
     return withCanonicalUrl(`/${params.cityId}/parties/${params.partyId}`, {
@@ -44,13 +48,11 @@ export async function generateMetadata(
         keywords: [
             partyName,
             getLocalizedShortName(party, params.locale),
-            "παράταξη",
-            "δημοτικό συμβούλιο",
-            "τοπική αυτοδιοίκηση",
+            ...(t.raw(authorityKey('keywords', city)) as string[]),
             cityName,
             "OpenCouncil",
         ],
-        authors: [{ name: `Δήμος ${cityName}` }],
+        authors: [{ name: t(authorityKey('author', city), names) }],
         openGraph: {
             title: `${partyName} | ${cityName}`,
             description,
@@ -61,7 +63,7 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `${partyName} — Δήμος ${cityName}`,
+                    alt: t(authorityKey('ogAlt', city), names),
                 },
             ],
             locale: getOgLocale(params.locale),
