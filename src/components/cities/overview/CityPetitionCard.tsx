@@ -5,7 +5,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { isPetitionable } from '@/lib/cityStatus';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
-import { authorityKey } from './authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { RailDisclosure } from './RailDisclosure';
 
 interface CityPetitionCardProps {

@@ -6,7 +6,7 @@ import { Link } from '@/i18n/routing';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { AccountFields } from '@/components/signup/AccountFields';
 import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';

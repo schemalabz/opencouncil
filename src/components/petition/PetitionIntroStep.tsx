@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { MemberNote } from '@/components/signup/MemberNote';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';

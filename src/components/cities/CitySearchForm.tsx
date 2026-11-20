@@ -6,6 +6,7 @@ import { routing, urlPrefixForLocale, LOCALE_OVERRIDE_HEADER } from '@/i18n/rout
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
+import { authorityKey } from '@/lib/utils/authority';
 import type { CityWithCounts } from '@/lib/db/cities';
 
 interface CitySearchFormProps {
@@ -39,7 +40,7 @@ export async function CitySearchForm({ city, subjectCount, locale }: CitySearchF
         ? ''
         : `/${urlPrefixForLocale(locale)}`;
 
-    const placeholder = t(city.authorityType === 'region' ? 'searchSubjects.region' : 'searchSubjects.municipality', {
+    const placeholder = t(authorityKey('searchSubjects', city), {
         count: subjectCount,
         qualifier: getMunicipalityQualifier(city, locale),
     });
