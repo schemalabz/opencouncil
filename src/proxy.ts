@@ -9,14 +9,14 @@ import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
 import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
 import { applySessionMirror } from './lib/auth/sessionMirror';
+import { dottedPathVerdict } from './lib/dottedPaths';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
 // Obvious bot-scanner paths. 404 them here, before any rendering, so they
 // can't create cache entries or trigger data fetches (#358). Only
-// extensionless probes are listed: dotted paths (.php/.env) never reach the
-// proxy — the matcher below excludes them — and 404 via locale validation
-// without touching per-city caches.
+// extensionless probes are listed: dottedPathVerdict answers for a path with
+// a dot.
 const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
 
 // Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
@@ -26,6 +26,13 @@ const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
 
 
 export default async function proxy(req: NextRequest) {
+    // A path with a dot is a file or a path that the app does not have. A
+    // file gets none of the page handling below, as before the matcher sent
+    // these paths here.
+    const dotted = dottedPathVerdict(req.nextUrl.pathname);
+    if (dotted === 'serve') return NextResponse.next();
+    if (dotted === 'reject') return new NextResponse(null, { status: 404 });
+
     return applySessionMirror(req, await proxyInner(req));
 }
 
@@ -265,7 +272,8 @@ export const config = {
     // `ingest` is the PostHog reverse proxy (rewrites in next.config.mjs):
     // its extensionless endpoints (/ingest/e/, /ingest/flags/) must bypass
     // basic auth and i18n routing, or events get swallowed by locale 404s.
-    matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
+    // A path with a dot does reach the proxy: see dottedPathVerdict.
+    matcher: ['/((?!api|ingest|_next|_vercel).*)'],
 };
 
 /*
