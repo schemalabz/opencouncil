@@ -85,6 +85,21 @@ describe('administrative body and elected order routes', () => {
         expect(await editCityDirect(cityId, { authorityType: 'region', name_en: 'Thessaly' })).toMatchObject({ name_en: 'Thessaly' })
     })
 
+    it('refuses to make a region of a city that has a meeting with no body (#993)', async () => {
+        const council = await createAdministrativeBody(cityId, { type: 'council' })
+        const meeting = await createMeeting(cityId, { id: 'no-body', administrativeBodyId: null })
+        await expect(editCityDirect(cityId, { authorityType: 'region' }))
+            .rejects.toThrow(new ConflictError(`A meeting of a region must name its administrative body, and 1 of the meetings of "${cityId}" name none. Give each of them a body first. Nothing was saved.`))
+        expect(await prisma.city.findUniqueOrThrow({ where: { id: cityId } })).toMatchObject({ authorityType: 'municipality' })
+
+        await prisma.councilMeeting.update({ where: { cityId_id: { cityId, id: meeting.id } }, data: { administrativeBodyId: council.id } })
+        expect(await editCityDirect(cityId, { authorityType: 'region' })).toMatchObject({ authorityType: 'region' })
+
+        // A region that keeps its kind saves, with a meeting that is older than the rule.
+        await prisma.councilMeeting.update({ where: { cityId_id: { cityId, id: meeting.id } }, data: { administrativeBodyId: null } })
+        expect(await editCityDirect(cityId, { authorityType: 'region', name_en: 'Thessaly' })).toMatchObject({ name_en: 'Thessaly' })
+    })
+
     it('updates a body and rejects an invalid one', async () => {
         const body = await createAdministrativeBody(cityId)
         const params = { params: Promise.resolve({ cityId, bodyId: body.id }) }

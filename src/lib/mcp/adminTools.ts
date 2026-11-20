@@ -75,7 +75,8 @@ function registerMeetingAdminTools(server: McpServer) {
             description:
                 'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
                 + 'date, video URL, agenda URL, administrative body, kind, urgency, session number, status, format or place. A field that '
-                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. The name '
+                + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. A meeting of a '
+                + 'region must name its body, so null for administrativeBodyId is refused there. The name '
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
                 + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
                 + 'to a body that they do not administer. It cannot link a meeting to a postponed '

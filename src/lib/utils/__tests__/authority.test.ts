@@ -1,6 +1,7 @@
 import { AdministrativeBodyType, AuthorityType } from '@prisma/client';
 import {
-    authorityAllowsBodyType, authorityHasDocument, authorityKey, isRegion, isRegionBodyType,
+    authorityAllowsBodyType, authorityHasDocument, authorityKey, authorityRequiresMeetingBody, isRegion,
+    isRegionBodyType,
     proposedOfficialName, proposedOfficialNameEn, REGION_BODY_TYPES,
 } from '../authority';
 
@@ -50,6 +51,15 @@ describe('the documents of a local authority (#993)', () => {
     it('gives a region its transcript and no minutes', () => {
         expect(authorityHasDocument({ authorityType: 'region' }, 'transcript')).toBe(true);
         expect(authorityHasDocument({ authorityType: 'region' }, 'minutes')).toBe(false);
+    });
+});
+
+describe('the body of a meeting of a local authority (#993)', () => {
+    it.each([
+        ['a municipality', false, { authorityType: AuthorityType.municipality }],
+        ['a region', true, { authorityType: AuthorityType.region }],
+    ])('%s: each meeting must name its body %s', (_name, required, city) => {
+        expect(authorityRequiresMeetingBody(city)).toBe(required);
     });
 });
 
