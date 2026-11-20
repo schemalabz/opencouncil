@@ -5,7 +5,8 @@ import CityParties from "@/components/cities/CityParties";
 import { getPartiesForCityCached, getCityCached } from "@/lib/cache";
 import { listPeopleOfCityCached } from "@/lib/cache";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
-import { getLocalizedName } from "@/lib/formatters/name";
+import { getLocalizedName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
 import { getTranslations } from "next-intl/server";
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
@@ -20,7 +21,7 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
     const t = await getTranslations({ locale: params.locale, namespace: "metadata.parties" });
     return withCanonicalUrl(`/${params.cityId}/parties`, {
         title: t("title", { cityName }),
-        description: t("description", { cityName }),
+        description: t(authorityKey('description', city), { cityName, qualifier: getMunicipalityQualifier(city, params.locale) }),
     });
 }
 

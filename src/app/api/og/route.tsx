@@ -276,7 +276,7 @@ const PersonOGImage = async (cityId: string, personId: string, locale: string, t
 
     const party = getPartyFromRoles(person.roles);
     // The label the site's badges give the role, so the mayor reads as the mayor here too.
-    const roleName = getRoleLabelAt(person.roles, await getRoleTitles(city, locale), new Date()) ?? t('person.council');
+    const roleName = getRoleLabelAt(person.roles, await getRoleTitles(city, locale), new Date()) ?? t(authorityKey('person.council', city));
     // Released meetings only: this image is public and cached, whoever asked for it.
     const [portrait, seal, subjects] = await Promise.all([
         getPortraitData(person.image),
@@ -396,7 +396,7 @@ const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
             </OgHeader>
             <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 28, padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
                 <OgStack gap={12}>
-                    <OgTitle size={52}>{t('people.title')}</OgTitle>
+                    <OgTitle size={52}>{t(authorityKey('people.title', city))}</OgTitle>
                     <OgFacts items={[t('city.people', { count: people.length }), t('city.parties', { count: parties.length })]} />
                 </OgStack>
                 <OgRow gap={14}>

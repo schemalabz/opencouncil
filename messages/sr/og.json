@@ -19,7 +19,10 @@
     "comments": "{count, plural, one {# коментар} few {# коментара} other {# коментара}}"
   },
   "person": {
-    "council": "Скупштина града",
+    "council": {
+      "municipality": "Скупштина града",
+      "region": "Скупштина града"
+    },
     "recent": "Недавна излагања"
   },
   "party": {
@@ -27,7 +30,10 @@
     "leader": "Шеф групе: {name}"
   },
   "people": {
-    "title": "Одборници"
+    "title": {
+      "municipality": "Одборници",
+      "region": "Одборници"
+    }
   },
   "subject": {
     "speakers": "{count, plural, one {# говорник} few {# говорника} other {# говорника}}",

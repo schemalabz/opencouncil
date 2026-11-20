@@ -14,7 +14,8 @@ import {
     getPublicAdministrativeBodiesForCityCached,
 } from "@/lib/cache";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
-import { getLocalizedName } from "@/lib/formatters/name";
+import { getLocalizedName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
@@ -46,14 +47,15 @@ export async function generateMetadata(
 
     const cityName = getLocalizedName(city, locale);
     const title = t('title', { cityName });
-    const description = t('description', { cityName, meetingsCount: city._count.councilMeetings });
+    const names = { cityName, qualifier: getMunicipalityQualifier(city, locale) };
+    const description = t(authorityKey('description', city), { ...names, meetingsCount: city._count.councilMeetings });
     const ogImageUrl = buildOgImageUrl(locale, { cityId });
 
     return withCanonicalUrl(`/${cityId}/meetings`, {
         title,
         description,
-        keywords: [cityName, ...(t.raw('keywords') as string[]), "OpenCouncil"],
-        authors: [{ name: t('author', { cityName }) }],
+        keywords: [cityName, ...(t.raw(authorityKey('keywords', city)) as string[]), "OpenCouncil"],
+        authors: [{ name: t(authorityKey('author', city), names) }],
         openGraph: {
             title,
             description,
@@ -64,7 +66,7 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: t('ogAlt', { cityName }),
+                    alt: t(authorityKey('ogAlt', city), names),
                 },
             ],
             locale: getOgLocale(locale),
