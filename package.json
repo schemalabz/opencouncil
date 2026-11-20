@@ -101,7 +101,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "csv-stringify": "^6.9.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
     "docx": "^9.15.3",
     "dompurify": "^3.4.17",
