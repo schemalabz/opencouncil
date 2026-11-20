@@ -12,8 +12,8 @@ jest.mock('@/lib/db/tasks', () => ({ getMeetingTaskStatus: jest.fn() }));
 jest.mock('@/lib/cache', () => ({ createCache: (fn: () => Promise<unknown>) => fn }));
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: jest.fn().mockResolvedValue(false) }));
+jest.mock('@/lib/db/cityRealm', () => ({ isCityOfRealm: jest.fn(async (cityId: string) => cityId === 'athens') }));
 jest.mock('@/lib/cache/queries', () => ({
-    getAllCityIdsCached: jest.fn().mockResolvedValue(['athens']),
     getPeopleOfCityForContentCached: jest.fn().mockResolvedValue([]),
     getPartiesForCityCached: jest.fn().mockResolvedValue([]),
     getSubjectsForMeetingCached: jest.fn().mockResolvedValue([]),

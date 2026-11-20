@@ -35,7 +35,7 @@ export {
   getRoleLabelAt
 } from './utils/roles';
 
-export const IS_DEV = process.env.NODE_ENV === 'development';
+export { IS_DEV } from './deployment';
 
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
 

@@ -3,7 +3,7 @@ import type { BodyScope } from "@/lib/utils/bodyTier";
 import type { DirectoryBodyType } from "@/lib/realm";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -45,20 +45,6 @@ const TIME_FILTERED_TTL = 900;
  * would share one entry.
  */
 type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased' | 'unreleased' | 'meetingIds'>;
-
-/**
- * Cached list of all city ids (single shared cache key, tag `cities:all`).
- * Use to validate route cityId params BEFORE calling any per-city cached
- * function: per-city caches key by cityId, so a junk slug (bot probe) would
- * otherwise write a `city:<junk>:*` entry to the shared cache (#358).
- */
-export async function getAllCityIdsCached(realm: Realm) {
-  return createCache(
-    () => getAllCityIds(realm),
-    ['cities', 'ids', realm],
-    { tags: ['cities:all', `realm:${realm}:cities:all`] }
-  )();
-}
 
 /**
  * Whether a city is public through a secondary body (#829). Keyed per city

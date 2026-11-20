@@ -7,12 +7,12 @@
  * admin of the meeting's body is an editor of it, not of the city.
  */
 const mockIsUserAuthorizedToEdit = jest.fn();
-const mockGetAllCityIds = jest.fn();
+const mockIsCityOfRealm = jest.fn();
 
 jest.mock('@/lib/auth', () => ({ isUserAuthorizedToEdit: (...args: unknown[]) => mockIsUserAuthorizedToEdit(...args) }));
 jest.mock('@/lib/realm.server', () => ({ getRealm: async () => 'gr' }));
+jest.mock('@/lib/db/cityRealm', () => ({ isCityOfRealm: (...args: unknown[]) => mockIsCityOfRealm(...args) }));
 jest.mock('@/lib/cache/queries', () => ({
-    getAllCityIdsCached: (...args: unknown[]) => mockGetAllCityIds(...args),
     getPeopleOfCityForContentCached: jest.fn(), getPartiesForCityCached: jest.fn(), getSubjectsForMeetingCached: jest.fn(), getSubjectStatisticsCached: jest.fn(),
 }));
 jest.mock('@/lib/cache', () => ({ createCache: () => ({ get: jest.fn(), set: jest.fn() }) }));
@@ -31,7 +31,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     // The city check is the first step of the fetch; failing it ends the fetch
     // right after the key is built.
-    mockGetAllCityIds.mockResolvedValue([]);
+    mockIsCityOfRealm.mockResolvedValue(false);
 });
 
 describe('getMeetingDataCore', () => {
@@ -44,12 +44,12 @@ describe('getMeetingDataCore', () => {
     it('gives an editor and a reader of one meeting separate fetches', async () => {
         mockIsUserAuthorizedToEdit.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
         await Promise.allSettled([getMeetingDataCore('chania', 'nov14'), getMeetingDataCore('chania', 'nov14')]);
-        expect(mockGetAllCityIds).toHaveBeenCalledTimes(2);
+        expect(mockIsCityOfRealm).toHaveBeenCalledTimes(2);
     });
 
     it('coalesces two readers of one meeting', async () => {
         mockIsUserAuthorizedToEdit.mockResolvedValue(false);
         await Promise.allSettled([getMeetingDataCore('chania', 'nov14'), getMeetingDataCore('chania', 'nov14')]);
-        expect(mockGetAllCityIds).toHaveBeenCalledTimes(1);
+        expect(mockIsCityOfRealm).toHaveBeenCalledTimes(1);
     });
 });

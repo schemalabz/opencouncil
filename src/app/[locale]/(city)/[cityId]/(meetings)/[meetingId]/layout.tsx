@@ -13,7 +13,8 @@ import { SegmentOnly } from '@/components/meetings/SegmentOnly';
 import PresentationViewButton from '@/components/meetings/PresentationViewButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
-import { getAdjacentMeetingsCached, getAllCityIdsCached } from '@/lib/cache';
+import { getAdjacentMeetingsCached } from '@/lib/cache';
+import { isCityOfRealm } from '@/lib/db/cityRealm';
 import { getNotificationPreferenceForCity } from '@/lib/db/notifications';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
@@ -156,7 +157,7 @@ export default async function CouncilMeetingPage(
         // before the [cityId] layout 404s, and an unknown slug must not write
         // a per-city cache entry.
         Promise.all([realmPromise, editablePromise]).then(async ([currentRealm, canEdit]) =>
-            (await getAllCityIdsCached(currentRealm)).includes(cityId)
+            (await isCityOfRealm(cityId, currentRealm))
                 ? getAdjacentMeetingsCached(cityId, meetingId, canEdit)
                 : { previous: null, next: null }
         ),

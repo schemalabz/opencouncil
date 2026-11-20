@@ -1,5 +1,5 @@
 import { revalidateTag, unstable_cache } from 'next/cache';
-import { IS_DEV } from '@/lib/utils';
+import { IS_DEV } from '@/lib/deployment';
 
 /**
  * Revalidate all cached meeting data (subjects, statistics, derived status,

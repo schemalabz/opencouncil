@@ -428,19 +428,6 @@ export async function getAllCitiesMinimal(realm?: Realm): Promise<CityMinimalWit
 }
 
 /**
- * All city ids regardless of status. Used to validate route cityId params
- * against the known set before any per-city cached query runs, so junk slugs
- * (bot probes) never create per-city cache entries.
- */
-export async function getAllCityIds(realm?: Realm): Promise<string[]> {
-    const cities = await prisma.city.findMany({
-        where: realm ? { realm } : undefined,
-        select: { id: true }
-    });
-    return cities.map(c => c.id);
-}
-
-/**
  * The subset of `cityIds` that belongs to `realm`, in no particular order. The
  * one way to cap a caller-supplied city filter to a realm: an id from another
  * realm (or an id that does not exist) drops out, so the filter narrows the

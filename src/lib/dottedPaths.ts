@@ -6,8 +6,8 @@ import { VIDEO_LINK_ROUTE, YOUTUBE_HOSTS } from '@/lib/utils/videoLinkRewrites.m
  * No page has a dot in its path. A request for a path with a dot is a file, a
  * metadata route, a pasted video link, or a path that does not exist. The
  * proxy answers 404 for the last kind. Without that answer the path matches
- * `[locale]` with its first segment as the locale, and Next renders the page
- * below it, with its queries, before the locale layout's 404 arrives.
+ * `[locale]` with its first segment as the locale, and the pages below it run
+ * their queries before the locale layout answers 404 (see cityIdCandidate).
  *
  * The lists are written by hand so that the proxy does not read the disk. The
  * test fails when a file in `public/` is not covered.
