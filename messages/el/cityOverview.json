@@ -28,14 +28,26 @@
   },
   "scopeAll": "Όλα",
   "noMeetingsForScope": "Καμία συνεδρίαση από αυτό το όργανο ακόμη.",
-  "councilEyebrow": "Το δημοτικό συμβούλιο",
+  "councilEyebrow": {
+    "municipality": "Το δημοτικό συμβούλιο",
+    "region": "Το περιφερειακό συμβούλιο"
+  },
   "councilTitle": "Παρατάξεις και πρόσωπα",
   "allParties": "Όλες οι παρατάξεις",
   "allPeople": "Όλα τα πρόσωπα",
   "peopleEyebrow": "{count, plural, =1 {1 μέλος} other {# μέλη}}",
-  "seatsInCouncil": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
-  "inCommittees": "{count} στη δημοτική επιτροπή",
-  "governingParty": "Δημοτική Αρχή",
+  "seatsInCouncil": {
+    "municipality": "{count, plural, =1 {έδρα στο δημοτικό συμβούλιο} other {έδρες στο δημοτικό συμβούλιο}}",
+    "region": "{count, plural, =1 {έδρα στο περιφερειακό συμβούλιο} other {έδρες στο περιφερειακό συμβούλιο}}"
+  },
+  "inCommittees": {
+    "municipality": "{count} στη δημοτική επιτροπή",
+    "region": "{count} σε επιτροπές"
+  },
+  "governingParty": {
+    "municipality": "Δημοτική Αρχή",
+    "region": "Περιφερειακή Αρχή"
+  },
   "notisName": "Νότης",
   "notisIntro": {
     "municipality": "ο ψηφιακός ενημερωμένος γείτονας που παρακολουθεί τι γίνεται στον δήμο",
@@ -58,7 +70,10 @@
   "channelEmail": "Email",
   "channelPhone": "WhatsApp και SMS",
   "changePreferences": "Αλλαγή προτιμήσεων",
-  "allMyCities": "Όλοι οι δήμοι μου",
+  "allMyCities": {
+    "municipality": "Όλοι οι δήμοι μου",
+    "region": "Όλες οι ενημερώσεις μου"
+  },
   "notisMsg1": "Η πλατεία στη γειτονιά σου αλλάζει: ψηλά δέντρα, νερό, χώμα αντί για τσιμέντο. Η μελέτη πέρασε ομόφωνα χθες.",
   "notisMsg2": "Θα έχει παιδική χαρά;",
   "notisMsg3": "Όχι επίσημα: οι προδιαγραφές θέλουν πλαστικό δάπεδο και δεν επιτρέπουν δέντρα. Μπαίνουν όργανα από φυσικά υλικά, και ζητήθηκε κανονική παιδική χαρά αλλού.",

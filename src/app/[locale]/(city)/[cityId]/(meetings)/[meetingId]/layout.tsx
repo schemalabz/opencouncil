@@ -230,7 +230,7 @@ export default async function CouncilMeetingPage(
                                     }}
                                     showSidebarTrigger={true}
                                     inset={true}
-                                    currentEntity={{ cityId: data.city.id }}
+                                    currentEntity={{ cityId: data.city.id, authorityType: data.city.authorityType }}
                                     noContainer={true}
                                     showExplain={hasExplainPage(realm)}
                                     className="relative z-10 bg-white dark:bg-gray-950"

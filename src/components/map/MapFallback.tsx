@@ -1,6 +1,8 @@
 "use client"
 
 import { useTranslations } from 'next-intl'
+import type { AuthorityType } from '@prisma/client'
+import { authorityKey } from '@/lib/utils/authority'
 import { cn } from '@/lib/utils'
 import { publicEnv } from '@/lib/publicEnv'
 import { AlertTriangle } from 'lucide-react'
@@ -28,9 +30,10 @@ interface MapFallbackProps {
     className?: string
     center?: [number, number]
     features?: StaticMapFeature[]
+    authorityType?: AuthorityType
 }
 
-export default function MapFallback({ className, center, features }: MapFallbackProps) {
+export default function MapFallback({ className, center, features, authorityType = 'municipality' }: MapFallbackProps) {
     const t = useTranslations('Common')
     const mapCenter = center ?? DEFAULT_CENTER
 
@@ -40,7 +43,7 @@ export default function MapFallback({ className, center, features }: MapFallback
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src={getStaticMapUrl(mapCenter, 800, 600, features)}
-                alt={t('municipalityMap')}
+                alt={t(authorityKey('municipalityMap', { authorityType }))}
                 className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
             />

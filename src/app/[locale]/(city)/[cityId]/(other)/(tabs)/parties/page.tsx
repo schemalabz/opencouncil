@@ -35,13 +35,14 @@ export default async function PartiesPage(
         cityId
     } = params;
 
-    const [people, partiesWithPersons, canEdit] = await Promise.all([
+    const [city, people, partiesWithPersons, canEdit] = await Promise.all([
+        getCityCached(cityId),
         listPeopleOfCityCached(cityId),
         getPartiesForCityCached(cityId),
         isUserAuthorizedToEdit({ cityId }),
     ]);
 
-    if (!partiesWithPersons) {
+    if (!city || !partiesWithPersons) {
         notFound();
     }
 
@@ -52,6 +53,7 @@ export default async function PartiesPage(
             partiesWithPersons={partiesWithPersons}
             peopleWithoutParties={peopleWithoutParties}
             cityId={cityId}
+            authorityType={city.authorityType}
             canEdit={canEdit}
         />
     );

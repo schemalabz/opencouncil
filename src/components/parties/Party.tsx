@@ -36,6 +36,7 @@ import { ContributionsHead } from '@/components/ContributionsHead';
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { partyComposition, type BodySeatTotals } from '@/lib/party/composition';
 import { meetingLabel } from '@/lib/meetingName';
+import { authorityKey } from '@/lib/utils/authority';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -573,7 +574,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                         name={party.name}
                         badges={(composition.hasMayor || partyLeader) && (
                             <>
-                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} />}
+                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} authorityType={city.authorityType} />}
                                 {partyLeader && (
                                     <span className="inline-flex items-center gap-1.5 text-sm">
                                         <span className="text-muted-foreground">{t('leaderLabel')}</span>
@@ -592,12 +593,12 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                                 <span>
                                     <span className="font-bold tabular-nums" style={{ color: party.colorHex }}>{composition.council}</span>
                                     {' '}
-                                    {tOverview('seatsInCouncil', { count: composition.council })}
+                                    {tOverview(authorityKey('seatsInCouncil', city), { count: composition.council })}
                                 </span>
                                 {composition.committee > 0 && (
                                     <>
                                         <FactDot />
-                                        <span>{tOverview('inCommittees', { count: composition.committee })}</span>
+                                        <span>{tOverview(authorityKey('inCommittees', city), { count: composition.committee })}</span>
                                     </>
                                 )}
                                 {composition.community > 0 && (

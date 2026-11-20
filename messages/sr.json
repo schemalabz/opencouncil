@@ -33,20 +33,32 @@
         "adminOnly": "Само за администраторе",
         "collapse": "Скупи",
         "filter": "Филтер: {label}",
-        "municipalityMap": "Мапа општине",
+        "municipalityMap": {
+            "municipality": "Мапа општине",
+            "region": "Мапа општине"
+        },
         "webglNotSupported": "Интерактивна мапа није доступна",
         "webglFallbackMessage": "Ваш прегледач не подржава WebGL, који је неопходан за интерактивну мапу. Уместо ње приказана вам је статична мапа.",
         "transcript": "Транскрипт",
         "meetingNavigation": "Навигација кроз седницу",
-        "searchAddressInMunicipality": "Претражите адресу у {cityName}",
-        "searchAddressPlaceholder": "Претражите адресу у {cityName}…",
+        "searchAddressInMunicipality": {
+            "municipality": "Претражите адресу у {cityName}",
+            "region": "Претражите адресу у {cityName}"
+        },
+        "searchAddressPlaceholder": {
+            "municipality": "Претражите адресу у {cityName}…",
+            "region": "Претражите адресу у {cityName}…"
+        },
         "selectedLocationsCount": "Изабране локације ({count})",
         "remove": "Уклони",
         "removeShort": "Уклони",
         "noLocationsSelected": "Још увек нисте изабрали ниједну локацију.",
         "noLocationsHint": "Користите претрагу да додате локације које вас занимају.",
         "locationLabel": "Локација {index}",
-        "locationSearchNoResults": "Нема резултата за \"{query}\" у {cityName}",
+        "locationSearchNoResults": {
+            "municipality": "Нема резултата за \"{query}\" у {cityName}",
+            "region": "Нема резултата за \"{query}\" у {cityName}"
+        },
         "locationSearchUnavailable": "Услуга претраге локација тренутно није доступна. Молимо покушајте поново касније.",
         "locationSearchLimitExceeded": "Прекорачено је ограничење броја претрага. Молимо покушајте поново касније.",
         "locationSearchApiError": "Грешка при претрази локација ({status}). Молимо покушајте поново.",
@@ -89,7 +101,10 @@
         "mcpShort": "MCP",
         "login": "Пријавите се",
         "notificationsBreadcrumb": "Обавештења",
-        "petitionBreadcrumb": "Подржите своју општину",
+        "petitionBreadcrumb": {
+            "municipality": "Подржите своју општину",
+            "region": "Подржите своју општину"
+        },
         "explain": "Водич кроз локалну самоуправу",
         "explainShort": "Водич",
         "canEditHint": "Све што промените одмах се објављује.",
@@ -277,7 +292,10 @@
         "noItems": "Нема градова на OpenCouncil-у.",
         "allAdministrativeBodies": "Сва тела",
         "filterByAdminBody": "Филтрирај по управном телу",
-        "citySections": "Секције града",
+        "citySections": {
+            "municipality": "Секције града",
+            "region": "Секције града"
+        },
         "openConsultations": "{count, plural, one {# отворена јавна расправа} few {# отворене јавне расправе} other {# отворених јавних расправа}}",
         "widget": "Виџет",
         "supportBadgeOfficialAthens": "Уз подршку града и компаније ДАЕМ",
