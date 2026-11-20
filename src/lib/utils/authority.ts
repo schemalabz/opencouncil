@@ -71,6 +71,19 @@ export function authorityRequiresMeetingBody(city: { authorityType: AuthorityTyp
 }
 
 /**
+ * Whether a subject of an authority of this kind keeps a location only when
+ * the location is inside the boundary of the authority.
+ *
+ * A region holds many towns, and the same street name exists in several of
+ * them and in the towns of other regions. The geocoder of the task backend can
+ * then put the pin in the wrong town. A municipality keeps each location as the
+ * backend sends it, as before.
+ */
+export function authorityBoundsSubjectLocations(city: { authorityType: AuthorityType }): boolean {
+    return isRegion(city);
+}
+
+/**
  * Whether the platform builds this document for an authority of this kind.
  *
  * The minutes hold municipal law: the mayor attends the council and has no

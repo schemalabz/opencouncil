@@ -14,6 +14,36 @@ export async function getCityWithCountsDirect(cityId: string, db: Prisma.Transac
     return db.city.findUnique({ where: { id: cityId }, include: { _count: CITY_COUNT_SELECT } });
 }
 
+/** How far outside the boundary a geometry may be and still count as inside the city. A boundary
+ *  follows the coast, and a geocoder puts a port, a beach or a breakwater a little past it. */
+const BOUNDARY_TOLERANCE_METERS = 1000;
+
+/**
+ * Of the given GeoJSON geometries, the indexes of those that are outside the city: farther
+ * from its boundary than BOUNDARY_TOLERANCE_METERS. One query for all of them, in no order.
+ *
+ * A city with no boundary gives no answer, so it returns no index. Throws on a query failure:
+ * "nothing is outside" is a claim that the caller acts on.
+ *
+ * In this `server-only` module and not in `cities.ts`: that module is "use server", so each
+ * export of it is a Server Action, and this query has no authorization check.
+ */
+export async function getGeometriesOutsideCity(cityId: string, geoJsons: string[]): Promise<number[]> {
+    if (geoJsons.length === 0) return [];
+    const rows = await prisma.$queryRaw<Array<{ index: number }>>`
+        SELECT (g.ordinal - 1)::int AS index
+        FROM unnest(${geoJsons}::text[]) WITH ORDINALITY AS g(geojson, ordinal)
+        JOIN "City" c ON c.id = ${cityId}
+        WHERE c.geometry IS NOT NULL
+          AND NOT ST_DWithin(
+              c.geometry::geography,
+              ST_SetSRID(ST_GeomFromGeoJSON(g.geojson), 4326)::geography,
+              ${BOUNDARY_TOLERANCE_METERS}
+          )
+    `;
+    return rows.map(row => row.index);
+}
+
 /** Read metadata from the stored outline, never the simplified drawing geometry. */
 export async function getCityBoundarySummary(cityId: string, db: Prisma.TransactionClient = prisma): Promise<CityBoundarySummary | null> {
     const rows = await db.$queryRaw<CityBoundarySummary[]>`
