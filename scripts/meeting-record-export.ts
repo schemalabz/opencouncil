@@ -54,7 +54,7 @@ async function main() {
         select: {
             id: true, cityId: true, name: true, dateTime: true, agendaUrl: true, administrativeBodyId: true,
             administrativeBody: { select: { name: true, type: true } },
-            city: { select: { timezone: true } },
+            city: { select: { timezone: true, authorityType: true } },
         },
         orderBy: [{ cityId: 'asc' }, { dateTime: 'asc' }],
     });
@@ -92,6 +92,8 @@ async function main() {
             time: formatClockTime(m.dateTime, m.city.timezone),
             agendaUrl: m.agendaUrl as string,
             administrativeBody: m.administrativeBody,
+            // The task backend words its reading for a region from this field.
+            authorityType: m.city.authorityType,
         })),
     };
     fs.mkdirSync(path.dirname(argv.out), { recursive: true });

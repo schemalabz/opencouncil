@@ -98,6 +98,7 @@ export async function getRequestOnTranscriptRequestBody(
         }),
         topicLabels: topics.map(t => ({ name: t.name, description: t.description })),
         cityName: city.name,
+        authorityType: city.authorityType,
         cityLanguage: city.language,
         // Scopes geocoding of subject locations to the right country.
         country: getRealmCountry(city.realm),

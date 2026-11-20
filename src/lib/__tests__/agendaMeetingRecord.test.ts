@@ -1,4 +1,4 @@
-import { checkAgendaIdentity, describeAgendaRead, holdsAnotherMeeting, reconcileAgendaMeetingRecord, type RecordedMeeting, type SiblingCandidate } from '../agendaMeetingRecord';
+import { checkAgendaIdentity, describeAgendaRead, foldMunicipality, holdsAnotherMeeting, reconcileAgendaMeetingRecord, type RecordedMeeting, type SiblingCandidate } from '../agendaMeetingRecord';
 import type { AgendaMeetingRecord } from '../apiTypes';
 
 const recorded = (overrides: Partial<RecordedMeeting> = {}): RecordedMeeting => ({
@@ -113,6 +113,26 @@ describe('reconcileAgendaMeetingRecord', () => {
     });
 });
 
+describe('foldMunicipality', () => {
+    it.each(['Περιφέρεια Θεσσαλίας', 'ΠΕΡΙΦΕΡΕΙΑ ΘΕΣΣΑΛΙΑΣ', 'Περιφέρειας Θεσσαλίας', 'ΠΕΡΙΦΕΡΕΙΑΣ  ΘΕΣΣΑΛΙΑΣ'])('drops the word for the region from «%s» (#993)', text => {
+        expect(foldMunicipality(text)).toBe('θεσσαλιασ');
+    });
+
+    it.each(['Δήμος Χαλανδρίου', 'ΔΗΜΟΥ ΧΑΛΑΝΔΡΙΟΥ'])('drops the word for the municipality from «%s»', text => {
+        expect(foldMunicipality(text)).toBe('χαλανδριου');
+    });
+
+    // A regional unit and a regional council are not the region: their names stay whole.
+    it.each([
+        ['Περιφερειακή Ενότητα Λάρισας', 'περιφερειακη ενοτητα λαρισασ'],
+        ['Περιφερειακό Συμβούλιο Θεσσαλίας', 'περιφερειακο συμβουλιο θεσσαλιασ'],
+        ['Περιφέρειες Αττικής', 'περιφερειεσ αττικησ'],
+        ['ΠΕΡΙΦΕΡΕΙΑ', 'περιφερεια'],
+    ])('keeps «%s» whole', (text, folded) => {
+        expect(foldMunicipality(text)).toBe(folded);
+    });
+});
+
 describe('checkAgendaIdentity', () => {
     const ours = { municipality: 'Δήμος Χαλανδρίου', date: '2026-09-30', time: '20:00' };
     const cities = ['Δήμος Ζωγράφου', 'Δήμος Πάρου', 'Δήμος Αθηναίων'];
@@ -127,6 +147,18 @@ describe('checkAgendaIdentity', () => {
         expect(checkAgendaIdentity(ours, [inAgenda({ municipality: 'Δήμου Χαλανδρίου' })], cities).differences).toEqual([]);
         const argos = { ...ours, municipality: 'Δήμος Άργους-Μυκηνών' };
         expect(checkAgendaIdentity(argos, [inAgenda({ municipality: 'ΔΗΜΟΣ ΑΡΓΟΥΣ — ΜΥΚΗΝΩΝ' })], cities).differences).toEqual([]);
+    });
+
+    it('accepts the invitation of this region in either case of «Περιφέρεια» (#993)', () => {
+        const thessalia = { ...ours, municipality: 'Περιφέρεια Θεσσαλίας' };
+        expect(checkAgendaIdentity(thessalia, [inAgenda({ municipality: 'ΠΕΡΙΦΕΡΕΙΑ ΘΕΣΣΑΛΙΑΣ' })], cities)).toEqual({ refusal: null, differences: [] });
+        expect(checkAgendaIdentity(thessalia, [inAgenda({ municipality: 'Περιφέρειας Θεσσαλίας' })], cities)).toEqual({ refusal: null, differences: [] });
+    });
+
+    it('refuses the agenda of another region of the platform', () => {
+        const thessalia = { ...ours, municipality: 'Περιφέρεια Θεσσαλίας' };
+        expect(checkAgendaIdentity(thessalia, [inAgenda({ municipality: 'ΠΕΡΙΦΕΡΕΙΑΣ ΑΤΤΙΚΗΣ' })], [...cities, 'Περιφέρεια Αττικής']).refusal)
+            .toBe('the agenda is from ΠΕΡΙΦΕΡΕΙΑΣ ΑΤΤΙΚΗΣ, not Περιφέρεια Θεσσαλίας');
     });
 
     it('refuses only an agenda that names another city of the platform', () => {
