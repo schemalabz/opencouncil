@@ -8,6 +8,50 @@ export async function generateMetadata(): Promise<Metadata> {
     });
 }
 
+/*
+ * How to change this policy. Read this before you edit a section. CLAUDE.md, CONTRIBUTING.md and
+ * the release skill point here; this comment is the one statement of the process.
+ *
+ * A change starts new processing of personal data when it does one of these things:
+ * - It sends data to an external service that the policy does not name.
+ * - It sends a new kind of personal data to a service that the policy names, for example IP
+ *   addresses, email addresses, log lines, or free text that a reader wrote.
+ * - It uses personal data for a new purpose.
+ *
+ * Such a change needs a `## Privacy` section in its pull request description. Name the service,
+ * the data, the purpose, how long the service keeps the data, and, for a service outside the
+ * EU/EEA, the country and the transfer mechanism. Then draft the policy change as below.
+ *
+ * The policy describes the processing in production. A change that starts new processing
+ * reaches production with the next release, so the policy change must merge before that
+ * release. The release skill checks this (.claude/skills/release/SKILL.md, "Privacy check").
+ *
+ * New processing usually touches more than section 4. Check each of these:
+ * - Section 2: the data that we collect, under the group of people that it concerns.
+ * - Section 3: the purpose and its lawful basis (Article 6 GDPR). Reuse a listed purpose when it fits.
+ * - Section 4: one entry per service, in the group that fits it. The entry says what data the
+ *   service receives and why, and where it keeps the data. A processor entry ends with
+ *   "Η <name> λειτουργεί ως εκτελούσα την επεξεργασία και δεσμεύεται από συμβατικές ρήτρες
+ *   προστασίας δεδομένων." New data for a service that has an entry goes into that entry.
+ * - Section 4, transfers: a service that processes data outside the EU/EEA needs the country and
+ *   the transfer mechanism (see the ElevenLabs entry). The last paragraph says that we make no
+ *   other transfers outside the EU/EEA. Keep that sentence true.
+ * - Section 7: how long we keep the new data. For a service, state the retention that we set
+ *   there, not the longest retention that the service allows.
+ * - Section 8: only when the change sets a cookie or stores data on the device.
+ * - `lastUpdated` at the bottom: the date of the change.
+ *
+ * Write only facts that you verified: the region of the endpoint that the code calls, the
+ * retention setting, the data that the code sends. Do not copy claims from a vendor's marketing
+ * pages. When you cannot verify a fact, ask the DPO in the pull request.
+ *
+ * The DPO approves the text. The DPO also updates two records outside this repository: the table
+ * of third-party providers and the record of processing activities (Article 30 GDPR).
+ *
+ * Precedents: cd4dfed30 (a processor replaced, with a transfer outside the EU/EEA), 8ba7faf52
+ * (Google sign-in: sections 2, 3, 4, 7 and 8), a46da1394 (a new purpose in the pull request of
+ * the feature).
+ */
 const sections = [
     {
         "title": "1. Υπεύθυνος Επεξεργασίας & Εισαγωγή",

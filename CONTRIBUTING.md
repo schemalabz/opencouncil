@@ -159,5 +159,5 @@ Once your code and documentation changes are complete, you are ready to submit a
     -   If your Pull Request is based on a PRD, name your branch after the PRD file (e.g., `add-review-flag-to-utterances`) for a clear link between the plan and implementation.
 2.  **PR Title:** Write a clear and concise title that summarizes the change.
 3.  **Link to the Issue:** In the PR description, include the phrase `Closes #[issue_number]` to automatically link your PR to the GitHub Issue that it resolves.
-4.  **PR Description:** A good description is vital for reviewers. Write a comprehensive one — your AI assistant can help.
+4.  **PR Description:** A good description is vital for reviewers. Write a comprehensive one — your AI assistant can help. If your change starts new processing of personal data, add a `## Privacy` section: the comment at the top of `src/app/[locale]/(other)/privacy/page.tsx` says when and what to write.
 5.  **Draft PRs:** If your work is still in progress but you'd like to get early feedback, please open a "Draft" Pull Request.
