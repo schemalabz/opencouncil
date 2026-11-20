@@ -3,11 +3,12 @@
 import { signIn } from "@/auth"
 import { safeRedirectPath } from "@/lib/safeRedirect"
 import { signInFailurePath } from "@/lib/auth/signInResult"
+import { logSafePath } from "@/lib/utils/logSafePath"
 
 export async function signInWithEmail(formData: FormData): Promise<void> {
     const email = formData.get("email")
     const redirectTo = safeRedirectPath(formData.get("callbackUrl"))
-    console.log(`Sign-in requested (redirectTo: ${redirectTo})`)
+    console.log(`Sign-in requested (redirectTo: ${logSafePath(redirectTo)})`)
     // redirect: false — with the default, Auth.js finishes by throwing Next's
     // NEXT_REDIRECT through the caller's await, and the sign-in form reported
     // every successful request as an error. The caller shows its own

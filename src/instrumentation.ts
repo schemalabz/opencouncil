@@ -1,5 +1,6 @@
 import type { Instrumentation } from 'next';
 import { isClientDisconnectError } from './lib/clientDisconnectGuard';
+import { logSafePath } from '@/lib/utils/logSafePath';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') {
@@ -22,11 +23,11 @@ export const onRequestError: Instrumentation.onRequestError = async (
   // isClientDisconnectError for why Next reports it as one.
   if (isClientDisconnectError(error)) return;
 
+  // The query string stays out of the log and the alert: see logSafePath.
+  const path = logSafePath(request.path);
+
   // Log first so we get visibility even if Discord fails.
-  console.error(
-    `[onRequestError] ${context.routeType} ${context.routePath} (${request.method} ${request.path}):`,
-    error
-  );
+  console.error(`[onRequestError] ${context.routeType} ${context.routePath} (${request.method} ${path}):`, error);
 
   // Skip Discord in dev so local errors don't spam the team channel.
   if (process.env.NODE_ENV === 'development') return;
@@ -44,7 +45,7 @@ export const onRequestError: Instrumentation.onRequestError = async (
     error: err.stack ?? err.message ?? String(error),
     host: Array.isArray(host) ? host[0] : host,
     context: {
-      url: `${request.method} ${request.path}`,
+      url: `${request.method} ${path}`,
       route: context.routePath,
       digest: err.digest,
       renderSource: context.renderSource,

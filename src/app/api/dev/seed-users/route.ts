@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
     try {
         const user = await getCurrentUser()
-        console.log("Archetype Seed API - User check:", user ? { id: user.id, email: user.email, isSuperAdmin: user.isSuperAdmin } : "No user")
+        console.log("Archetype Seed API - User check:", user ? { id: user.id, isSuperAdmin: user.isSuperAdmin } : "No user")
         
         if (!user) {
             console.log("Archetype Seed API - No user found")

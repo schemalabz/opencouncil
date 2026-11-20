@@ -299,6 +299,6 @@ async function sendReviewedTranscript(
         return 'failed';
     }
 
-    console.log(`[humanReview] Transcript sent to ${result.recipientEmails?.join(', ')} for ${cityId}/${meetingId}`);
+    console.log(`[humanReview] Transcript sent to ${result.recipientEmails?.length ?? 0} recipients for ${cityId}/${meetingId}`);
     return 'sent';
 }

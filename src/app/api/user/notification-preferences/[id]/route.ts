@@ -41,7 +41,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
         return handleApiError(error, 'Failed to delete notification preference');
     }
 
-    console.log(`User ${currentUser.email} deleted notification preference ${params.id}`);
+    console.log(`User ${currentUser.id} deleted notification preference ${params.id}`);
 
     return NextResponse.json({ success: true });
 }

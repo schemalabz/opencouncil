@@ -329,8 +329,7 @@ export async function aiChat<T>(
         try {
             responseJson = extractAndParseJSON<T>(responseContent, mergedConfig.logPrompts || false);
         } catch (e) {
-            console.error(`Error parsing JSON from response. Content (first 200 chars):`, responseContent.slice(0, 200));
-            console.error(`Full content length: ${responseContent.length}`);
+            console.error(`Error parsing JSON from response (content length: ${responseContent.length})`);
             if (mergedConfig.logPrompts) {
                 console.error(`Full content:`, responseContent);
             }

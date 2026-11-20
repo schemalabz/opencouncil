@@ -121,7 +121,7 @@ export async function sendHighlightCompleteEmail({
             html
         });
 
-        console.log(`Highlight completion email sent to ${user.email} (status: ${status})`);
+        console.log(`Highlight completion email sent to user ${userId} (status: ${status})`);
     } catch (error) {
         // Log error but don't throw - email is nice-to-have, not critical
         console.error('Error sending highlight completion email:', error);

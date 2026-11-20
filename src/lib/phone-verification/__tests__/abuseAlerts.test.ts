@@ -27,7 +27,9 @@ describe('reportUnusualCodeRequest', () => {
         await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 4 });
         expect(mockAlert).toHaveBeenCalledTimes(1);
         expect(mockAlert.mock.calls[0][0].description).toContain('3rd code');
-        expect(mockClaimWindow).toHaveBeenCalledWith('phone-verification:flood:+306900000001', 3600);
+        // One window per number, keyed by a hash so the number stays out of the cache's logs.
+        expect(mockClaimWindow).toHaveBeenCalledWith(expect.stringMatching(/^phone-verification:flood:[0-9a-f]{16}$/), 3600);
+        expect(mockClaimWindow.mock.calls[0][0]).not.toContain('6900000001');
 
         await reportUnusualCodeRequest({ userId: 'u2', phone: '+306900000001', phoneSendCount: 5 });
         expect(mockAlert).toHaveBeenCalledTimes(2);

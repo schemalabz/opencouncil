@@ -118,7 +118,11 @@ function searchFailureContext(request: SearchRequest): SearchFailureContext {
 function failSearch(error: unknown, source: string, context: SearchFailureContext): never {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    logEssential(`${source} Session Failed`, { error: errorMessage, ...context });
+    // The query and the location stay out of the log: the reader wrote the one
+    // and chose the other. The alert keeps both, so that the team can repeat
+    // the failed search.
+    const { query, location, ...loggedContext } = context;
+    logEssential(`${source} Session Failed`, { error: errorMessage, ...loggedContext, queryLength: query?.length, hasLocation: location !== undefined });
 
     // Notify team via Discord (fire-and-forget)
     sendErrorAdminAlert({ source, error: errorMessage, context }).catch(() => {});
@@ -231,13 +235,14 @@ export async function searchSubjectsInRealm(
         // nothing can match. Returning early matters: an empty list means "no
         // city filter" to buildFilters, which would search every realm.
         if (cityIds.length === 0) {
-            logEssential('Search Session Skipped — no city in realm', { query: request.query, realm });
+            logEssential('Search Session Skipped — no city in realm', { realm });
             return { hits: [], total: 0, dropped: 0, derivedFilters: {} };
         }
 
-        // Log search session start with query and filters
+        // The log names the filters, not the query text or the location: both
+        // come from the reader.
         logEssential('Search Session Started', {
-            query: request.query,
+            queryLength: request.query?.length ?? 0,
             realm,
             filters: {
                 cityIds,
@@ -248,7 +253,7 @@ export async function searchSubjectsInRealm(
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
                 fallbackDateRange: request.fallbackDateRange,
-                location: request.location
+                hasLocation: request.location !== undefined
             }
         });
 
@@ -263,7 +268,7 @@ export async function searchSubjectsInRealm(
         if (queryText && derivingFilters) {
             try {
                 extractedFilters = await extractFilters(queryText, realm);
-                logEssential('[Search] Extracted filters:', extractedFilters);
+                logEssential('[Search] Extracted filters:', { ...extractedFilters, locationName: extractedFilters.locationName === null ? null : '[named]' });
             } catch (error) {
                 console.error('[Search] AI filter extraction failed, continuing without AI filters:', error);
             }
@@ -340,7 +345,6 @@ export async function searchSubjectsInRealm(
 
         // Log search session completion with results summary
         logEssential('Search Session Completed', {
-            query: request.query,
             results: {
                 totalHits,
                 resultCount: response.hits.hits.length,

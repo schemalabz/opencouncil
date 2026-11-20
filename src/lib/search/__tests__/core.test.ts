@@ -42,6 +42,7 @@ jest.mock('../related', () => ({
     buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })),
 }));
 
+import { format } from 'node:util';
 import { Client } from '@elastic/elasticsearch';
 import { resetIndexProfileCache } from '../profile';
 import prisma from '@/lib/db/prisma';
@@ -482,6 +483,26 @@ describe('searchSubjectsInRealm — failure alert', () => {
             administrativeBodyTypes: 'committee, community',
             location: '38,23.7 within 2000m',
         });
+    });
+
+    // The log stores must not hold what a reader typed or where they searched.
+    // The alert above keeps both, so that the team can repeat the search.
+    it('keeps the query and the location out of the console, from the start to the failure', async () => {
+        const lines: string[] = [];
+        const spies = (['log', 'info', 'warn', 'error'] as const).map((method) =>
+            jest.spyOn(console, method).mockImplementation((...args: unknown[]) => { lines.push(format(...args)); }));
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({
+            query: 'καναρίνι στην πλατεία',
+            location: { point: { lat: 38.123456, lng: 23.765432 }, radiusMeters: 500 },
+        }, 'greece')).rejects.toThrow('Failed to execute search');
+        spies.forEach((spy) => spy.mockRestore());
+
+        const output = lines.join('\n');
+        expect(output).toContain('Session Failed');
+        expect(output).not.toContain('καναρίνι');
+        expect(output).not.toContain('38.123456');
     });
 });
 

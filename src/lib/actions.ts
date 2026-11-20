@@ -1,6 +1,5 @@
 "use server"
 
-import axios from 'axios';
 import { env } from '@/env.mjs';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { Result, createSuccess, createError } from '@/lib/result';
@@ -16,6 +15,20 @@ const SEARCH_RADIUS = 40000;
 // These two statuses mean the integration itself is down, not that the query
 // found nothing. REQUEST_DENIED covers an expired, revoked or restricted key.
 const ALERTING_STATUSES = new Set(['REQUEST_DENIED', 'OVER_QUERY_LIMIT']);
+
+/**
+ * A GET to the Places API with a 5-second limit. It uses fetch, not axios: an
+ * AxiosError prints its request config, with the API key and the text that a
+ * reader typed, and a failed fetch names neither.
+ */
+async function getPlacesJson(endpoint: 'autocomplete' | 'details', params: Record<string, string | number>) {
+    const query = new URLSearchParams(Object.entries(params).map(([name, value]) => [name, String(value)]));
+    const response = await fetch(`https://maps.googleapis.com/maps/api/place/${endpoint}/json?${query}`, {
+        signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error(`Google Places ${endpoint} answered HTTP ${response.status}`);
+    return response.json();
+}
 
 async function alertOnPlacesOutage(
     operation: 'suggestions' | 'details',
@@ -76,33 +89,28 @@ export async function getPlaceSuggestions(data: {
         } else if (cityName) {
             // Fall back to adding city name to the input if no coordinates
             searchInput = `${input}, ${cityName}`;
-            console.log('Using text-based search:', searchInput);
         }
 
-        console.log('Search input:', searchInput);
-        const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', {
-            params: {
-                input: searchInput,
-                components: `country:${country}`,
-                language,
-                key: env.GOOGLE_API_KEY,
-                ...locationParams
-            },
-            timeout: 5000 // Set timeout to 5 seconds
+        const data = await getPlacesJson('autocomplete', {
+            input: searchInput,
+            components: `country:${country}`,
+            language,
+            key: env.GOOGLE_API_KEY,
+            ...locationParams
         });
-        console.log('Response status:', response.data.status);
+        console.log('Response status:', data.status);
 
         // Pass the Google status through rather than collapsing it into an
         // error string. The caller needs it: it picks the user-facing message
         // (LocationSelector reads REQUEST_DENIED and OVER_QUERY_LIMIT), and it
         // decides whether this is an outage. A failed Result now means that
         // this action failed, not that Google refused the request.
-        if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
-            console.error('Google Places API returned non-OK status:', response.data.status);
-            await alertOnPlacesOutage('suggestions', response.data.status, response.data.error_message);
+        if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+            console.error('Google Places API returned non-OK status:', data.status);
+            await alertOnPlacesOutage('suggestions', data.status, data.error_message);
         }
 
-        return createSuccess(response.data);
+        return createSuccess(data);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Error fetching place suggestions:', error);
@@ -127,23 +135,20 @@ export async function getPlaceDetails(data: { placeId: string; language?: string
             return createError('API configuration error');
         }
 
-        const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-            params: {
-                place_id: placeId,
-                fields: 'geometry,formatted_address,name,address_components',
-                language,
-                key: env.GOOGLE_API_KEY
-            },
-            timeout: 5000 // Set timeout to 5 seconds
+        const data = await getPlacesJson('details', {
+            place_id: placeId,
+            fields: 'geometry,formatted_address,name,address_components',
+            language,
+            key: env.GOOGLE_API_KEY
         });
 
         // Pass the status through, for the same reason as getPlaceSuggestions.
-        if (response.data.status !== 'OK') {
-            console.error('Google Places Details API returned non-OK status:', response.data.status);
-            await alertOnPlacesOutage('details', response.data.status, response.data.error_message);
+        if (data.status !== 'OK') {
+            console.error('Google Places Details API returned non-OK status:', data.status);
+            await alertOnPlacesOutage('details', data.status, data.error_message);
         }
 
-        return createSuccess(response.data);
+        return createSuccess(data);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Error fetching place details:', error);

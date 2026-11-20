@@ -27,6 +27,8 @@ export function revalidateMeeting(cityId: string, meetingId: string): void {
 /**
  * Creates a cached version of a function with logging.
  * Logs CACHE MISS (all environments) and CACHE HIT (dev only) with timing.
+ * The log names the cache by its key, or by `logKey` when the key holds data
+ * that must stay out of the log, such as a reader's position.
  *
  * IMPORTANT: Always use as `createCache(...)()` (create and immediately invoke).
  * Do NOT store the returned function and reuse it across requests — the `wasMiss`
@@ -36,9 +38,10 @@ export function revalidateMeeting(cityId: string, meetingId: string): void {
 export function createCache<T>(
   fn: () => Promise<T>,
   keyParts: string[],
-  options?: { tags?: string[]; revalidate?: number | false; }
+  options?: { tags?: string[]; revalidate?: number | false; logKey?: string; }
 ): () => Promise<T> {
-  const key = keyParts.join(':');
+  const { logKey, ...cacheOptions } = options ?? {};
+  const key = logKey ?? keyParts.join(':');
   let wasMiss = false;
 
   const cached = unstable_cache(
@@ -56,7 +59,7 @@ export function createCache<T>(
       }
     },
     keyParts,
-    options
+    cacheOptions
   );
 
   return async () => {

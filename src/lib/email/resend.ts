@@ -124,14 +124,9 @@ export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
         </div>`;
         html = devBanner + html;
 
-        // Log for debugging
-        console.log(`📧 Dev mode: Redirecting email from "${originalTo}" to "${devEmailOverride}"`);
-        if (originalCc) {
-            console.log(`   Original CC: ${list(originalCc)}`);
-        }
-        if (originalReplyTo) {
-            console.log(`   Original Reply-To: ${list(originalReplyTo)}`);
-        }
+        // The banner above names the original recipients; the log does not, because
+        // a preview can hold real readers' addresses.
+        console.log('📧 Dev mode: redirecting an email to the dev inbox');
     }
 
     try {
@@ -148,7 +143,8 @@ export async function sendEmail(params: EmailParams): Promise<SendEmailResult> {
         });
 
         if (result.error) {
-            console.error('Failed to send email:', result);
+            // The name is a fixed code; the message can quote an address.
+            console.error(`Failed to send email (${result.error.statusCode ?? 'no status'}): ${result.error.name}`);
             // The SDK reports a 5xx answer, and a request that got no answer at
             // all, as these two. Every other error is a 4xx refusal.
             const unknown = result.error.name === 'application_error' || result.error.name === 'internal_server_error';
@@ -206,7 +202,7 @@ export async function sendEmailBatch(
     }));
 
     if (useOverride) {
-        console.log(`📧 Dev mode: redirecting batch of ${items.length} to "${devEmailOverride}"`);
+        console.log(`📧 Dev mode: redirecting a batch of ${items.length} to the dev inbox`);
     }
 
     // Hit the batch endpoint directly: the pinned SDK (4.0.0) doesn't expose
@@ -227,8 +223,8 @@ export async function sendEmailBatch(
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            console.error(`Resend batch send failed (${response.status}):`, errText);
+            // The body can quote addresses, so the log names the status only.
+            console.error(`Resend batch send failed (${response.status})`);
             return {
                 success: false,
                 failedTos: items.map((i) => i.to),
@@ -247,7 +243,7 @@ export async function sendEmailBatch(
             .map((e) => (typeof e.index === 'number' ? items[e.index]?.to : undefined))
             .filter((to): to is string => to !== undefined);
         if (failedTos.length > 0) {
-            console.error(`Resend batch reported per-item errors:`, errors);
+            console.error(`Resend batch reported errors for items ${errors.map((e) => e.index).join(', ')}`);
         }
         return { success: failedTos.length === 0, failedTos };
     } catch (error) {

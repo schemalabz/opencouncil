@@ -23,10 +23,9 @@ export async function sendMagicLink(email: string, returnTo?: string): Promise<b
         });
         const failurePath = signInFailurePath(url);
         if (failurePath) {
-            console.error(`Magic link not sent to ${email} (redirected to ${failurePath})`);
+            console.error(`Magic link not sent (redirected to ${failurePath})`);
             return false;
         }
-        console.log(`Magic link sent to ${email}`);
         return true;
     } catch (error) {
         console.error('Error sending magic link:', error);

@@ -188,7 +188,7 @@ export async function reverseGeocodePlace(input: PointInput): Promise<ReverseGeo
         const location = await createCache(
             () => geocodeCell(lat, lng, language, geometry),
             ["signup", "reverseGeocode", parsed.cityId, language, `${lat},${lng}`],
-            { tags: [`city:${parsed.cityId}:geometry`], revalidate: GEOCODE_CACHE_SECONDS },
+            { tags: [`city:${parsed.cityId}:geometry`], revalidate: GEOCODE_CACHE_SECONDS, logKey: `signup:reverseGeocode:${parsed.cityId}` },
         )();
         return location ? { ok: true, location } : { ok: false, reason: "not_found" };
     } catch (error) {

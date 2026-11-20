@@ -217,7 +217,7 @@ export async function sendDocument(
             missingSubjects: missingSubjectIds.length,
         });
 
-        console.log(`${tag} Sent to ${recipientEmails.join(', ')} for ${cityId}/${meetingId} (${trigger})`);
+        console.log(`${tag} Sent to ${recipientEmails.length} recipients for ${cityId}/${meetingId} (${trigger})`);
         return { success: true, readiness, recipientEmails };
     } catch (error) {
         const message = errorMessage(error);
