@@ -18,7 +18,7 @@ import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson, type PublicAdministrativeBody } from '@/lib/db/types';
 import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
-import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
+import { getAdministrativeBodyTypesForPeople, getBodyTypeLabel, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { cn, filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
@@ -77,8 +77,8 @@ function PartyMembersTab({
     );
 
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(currentMembers, tCommon),
-        [currentMembers, tCommon]
+        getAdministrativeBodyTypesForPeople(currentMembers, city, tCommon),
+        [currentMembers, city, tCommon]
     );
 
     // Filter people based on selected admin body types
@@ -390,8 +390,8 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
 
     // Get admin body type options from party members
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(persons, tCommon),
-        [persons, tCommon]
+        getAdministrativeBodyTypesForPeople(persons, city, tCommon),
+        [persons, city, tCommon]
     );
 
     // Create roles with person objects for compatibility with existing code.
@@ -419,10 +419,10 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
     // against the card's largest row instead, one bar was always full, whatever
     // the party held.
     const compositionRows = useMemo(() => [
-        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council, total: seatTotals.council },
-        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee, total: seatTotals.committee },
-        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community, total: seatTotals.community },
-    ].filter(row => row.count > 0), [composition, seatTotals, tCommon]);
+        { key: 'council', label: getBodyTypeLabel('council', city, tCommon), count: composition.council, total: seatTotals.council },
+        { key: 'committee', label: getBodyTypeLabel('committee', city, tCommon), count: composition.committee, total: seatTotals.committee },
+        { key: 'community', label: getBodyTypeLabel('community', city, tCommon), count: composition.community, total: seatTotals.community },
+    ].filter(row => row.count > 0), [composition, seatTotals, city, tCommon]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {

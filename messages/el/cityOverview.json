@@ -22,7 +22,10 @@
   "timelineTitle": "Πρόσφατες και επόμενες συνεδριάσεις",
   "timelineNoAgendaYet": "Η ημερήσια διάταξη δεν έχει δημοσιευτεί ακόμα",
   "allMeetings": "Όλες οι συνεδριάσεις",
-  "scopeCouncil": "ΔΣ",
+  "scopeCouncil": {
+    "municipality": "ΔΣ",
+    "region": "ΠΣ"
+  },
   "scopeAll": "Όλα",
   "noMeetingsForScope": "Καμία συνεδρίαση από αυτό το όργανο ακόμη.",
   "councilEyebrow": "Το δημοτικό συμβούλιο",
@@ -64,7 +67,10 @@
   "notisAdvance": "Επόμενο μήνυμα",
   "notisReplay": "Ξαναδές",
   "notisExampleLabel": "παράδειγμα",
-  "scopeCommittee": "ΔΕ",
+  "scopeCommittee": {
+    "municipality": "ΔΕ",
+    "region": "Επιτροπή"
+  },
   "scopeCommunity": "ΔΚ",
   "scopeYouthCouncil": "ΔΣΝ",
   "period3m": "3 μήνες",
@@ -75,8 +81,14 @@
   "inCommunities": "{count} σε κοινότητες",
   "notisTeaser": "Είναι εύκολο να μένεις ενημερωμένος.",
   "subscribedSummary": "Είστε γραμμένοι στις ενημερώσεις",
-  "scopeCouncilFull": "Δημοτικό Συμβούλιο",
-  "scopeCommitteeFull": "Δημοτική Επιτροπή",
+  "scopeCouncilFull": {
+    "municipality": "Δημοτικό Συμβούλιο",
+    "region": "Περιφερειακό Συμβούλιο"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "Δημοτική Επιτροπή",
+    "region": "Περιφερειακή Επιτροπή"
+  },
   "scopeCommunityFull": "Δημοτικές Κοινότητες",
   "scopeYouthCouncilFull": "Δημοτικό Συμβούλιο Νέων",
   "scopeAllFull": "Όλα τα όργανα",

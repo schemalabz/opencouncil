@@ -60,6 +60,8 @@
     "adminBodyType_committee": "Commission municipale",
     "adminBodyType_community": "Communautés",
     "adminBodyType_youthCouncil": "Conseil municipal des jeunes",
+    "regionBodyType_council": "Conseil municipal",
+    "regionBodyType_committee": "Commission municipale",
     "showYouthCouncils": "Conseils des jeunes",
     "allPeople": "Tous",
     "allBodies": "Tous",
@@ -376,7 +378,10 @@
     },
     "urgent": "Extraordinaire",
     "urgentDescription": "La convocation réunit la séance en urgence. Une séance de tout type peut être extraordinaire.",
-    "councilOnly": "conseil uniquement",
+    "councilOnly": {
+      "municipality": "conseil uniquement",
+      "region": "conseil uniquement"
+    },
     "scheduleStatus": "Statut",
     "scheduleStatusOptions": {
         "scheduled": "Prévue",
@@ -987,7 +992,10 @@
     "nameEnDescription": "Saisissez le nom de l'organe administratif en anglais.",
     "type": "Type",
     "selectType": "Sélectionnez un type",
-    "typeDescription": "Sélectionnez le type d'organe administratif. Un organe du type « Conseil municipal des jeunes » traite ses séances sans relecture et les publie de lui-même.",
+    "typeDescription": {
+      "municipality": "Sélectionnez le type d'organe administratif. Un organe du type « Conseil municipal des jeunes » traite ses séances sans relecture et les publie de lui-même.",
+      "region": "Sélectionnez le type d'organe administratif."
+    },
     "tier": "Visibilité",
     "tierDescription": "Le contenu d’un organe secondaire, par exemple un conseil des jeunes, ne s’affiche que si le lecteur le demande. Changer le type d’un organe existant ne change pas sa visibilité.",
     "tierOptions": {

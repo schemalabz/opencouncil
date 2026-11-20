@@ -26,7 +26,7 @@ import { meetingsTabHrefForBody } from '@/lib/meetingsTab';
 import { bodyOffersFollow, isSecondaryBody } from '@/lib/utils/bodyTier';
 import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { isRoleActive } from '@/lib/utils/roles';
-import { mayStartNewTerm } from '@/lib/utils/administrativeBodies';
+import { getBodyTypeLabel, mayStartNewTerm } from '@/lib/utils/administrativeBodies';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
@@ -74,7 +74,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
     const locale = useLocale();
 
     const name = getLocalizedName(body, locale);
-    const typeLabel = tCommon(`adminBodyType_${body.type}`);
+    const typeLabel = getBodyTypeLabel(body.type, city, tCommon);
 
     const members = useMemo(
         () => people.filter(person => person.roles.some(role => role.administrativeBodyId === body.id && isRoleActive(role))),
@@ -190,7 +190,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                 ItemComponent={MeetingCardV2}
                                 itemProps={{ cityTimezone: city.timezone, now }}
                                 FormComponent={AddMeetingForm}
-                                formProps={{ cityId: city.id, realm: city.realm, timezone: city.timezone, allowedBodyIds: [body.id] }}
+                                formProps={{ cityId: city.id, realm: city.realm, authorityType: city.authorityType, timezone: city.timezone, allowedBodyIds: [body.id] }}
                                 t={tMeetings}
                                 showCount
                                 smColumns={1}
@@ -200,7 +200,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                             {capped && (
                                 <p className="mt-4 text-sm text-muted-foreground">
                                     {t('latestOnly', { count: cappedAt })}{' '}
-                                    <Link href={meetingsTabHrefForBody(city.id, body, tCommon)} className="underline hover:text-foreground">
+                                    <Link href={meetingsTabHrefForBody(city, body, tCommon)} className="underline hover:text-foreground">
                                         {t('allMeetings')}
                                     </Link>
                                 </p>

@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
 import AdministrativeBodiesList from '@/components/cities/AdministrativeBodiesList';
+import type { AuthorityType } from '@prisma/client';
 import type { AdministrativeBodyWithSendSettings } from '@/lib/db/types';
 import enMain from '../../../../messages/en.json';
 import enAdmin from '../../../../messages/en/admin.json';
@@ -32,10 +33,10 @@ const BODY: AdministrativeBodyWithSendSettings = {
     notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, diavgeiaUnitIds: [], documentSendSettings: [], decisionConventions: null,
 };
 
-function renderList(bodies: AdministrativeBodyWithSendSettings[] = []) {
+function renderList(bodies: AdministrativeBodyWithSendSettings[] = [], authorityType: AuthorityType = 'municipality') {
     return render(
         <NextIntlClientProvider locale="en" messages={messages} onError={() => undefined}>
-            <AdministrativeBodiesList cityId="athens" bodies={bodies} onUpdate={jest.fn()} />
+            <AdministrativeBodiesList cityId="athens" authorityType={authorityType} bodies={bodies} onUpdate={jest.fn()} />
         </NextIntlClientProvider>,
     );
 }
@@ -130,5 +131,35 @@ describe('the body form for a city admin (#829)', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Update' }));
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         expect(sentBody()).not.toHaveProperty('tier');
+    });
+});
+
+describe('the body form of a region (#993)', () => {
+    async function typeOptions() {
+        fireEvent.keyDown((await screen.findAllByRole('combobox'))[0], { key: 'Enter' });
+        return (await screen.findAllByRole('option')).map(option => option.textContent);
+    }
+
+    it('offers the council and the committee only, with the names of a region', async () => {
+        renderList([], 'region');
+        await openNew();
+        expect(await typeOptions()).toEqual(['Regional Council', 'Regional Committee']);
+    });
+
+    it('names the type of a body in the list after the region', () => {
+        renderList([BODY], 'region');
+        expect(screen.getByText(/^Regional Council ·/)).toBeInTheDocument();
+    });
+
+    it('keeps the type of an existing body on offer, also when a region does not have it', async () => {
+        renderList([{ ...BODY, type: 'community' }], 'region');
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
+        expect(await typeOptions()).toEqual(['Regional Council', 'Regional Committee', 'Municipal Community']);
+    });
+
+    it('offers every type to a municipality', async () => {
+        renderList();
+        await openNew();
+        expect(await typeOptions()).toEqual(['City Council', 'Municipal Committee', 'Municipal Community', 'Municipal Youth Council']);
     });
 });

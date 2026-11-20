@@ -31,6 +31,7 @@ import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
 import { hasExplainPage } from '@/lib/explain/availability';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { getBodyTypeLabel } from '@/lib/utils/administrativeBodies';
 
 export async function generateImageMetadata(
     props: {
@@ -185,7 +186,7 @@ export default async function CouncilMeetingPage(
     // filters against stored values.
     const adminBodyPath = adminBody ? {
         name: getLocalizedName(adminBody, locale),
-        link: `/${cityId}/meetings?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
+        link: `/${cityId}/meetings?filters=${encodeURIComponent(getBodyTypeLabel(adminBody.type, data.city, tCommon))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
 
     const hasPlayback = Boolean(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl);

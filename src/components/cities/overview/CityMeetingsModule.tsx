@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { captureEvent } from '@/lib/analytics/capture';
+import type { AuthorityType } from '@prisma/client';
 import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -9,6 +10,7 @@ import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
 import type { PresentationKey } from '@/lib/meetingPresentation';
 import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
+import { authorityKey } from '@/lib/utils/authority';
 import { AdminBodyLabel } from './AdminBodyLabel';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { meetingDisplayName } from '@/lib/meetingName';
@@ -41,6 +43,8 @@ interface CityMeetingsModuleProps {
     /** The council alone — what most readers mean by "the council met". */
     council: MeetingBookends;
     cityId: string;
+    /** Names the council on the scope switch: «ΔΣ» or «ΠΣ». */
+    authorityType: AuthorityType;
     timezone: string;
     locale: string;
 }
@@ -59,7 +63,7 @@ interface CityMeetingsModuleProps {
  * most councils publish the record after the fact, so for many cities it would
  * be a permanent placeholder.
  */
-export function CityMeetingsModule({ all, council, cityId, timezone, locale }: CityMeetingsModuleProps) {
+export function CityMeetingsModule({ all, council, cityId, authorityType, timezone, locale }: CityMeetingsModuleProps) {
     const t = useTranslations('cityOverview');
     const [councilOnly, setCouncilOnly] = useState(false);
 
@@ -100,7 +104,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                 {differs && (
                     <span className="flex shrink-0 items-center rounded-full bg-background p-0.5 text-[10px] font-semibold">
                         {[
-                            { on: true, label: t('scopeCouncil') },
+                            { on: true, label: t(authorityKey('scopeCouncil', { authorityType })) },
                             { on: false, label: t('scopeAll') },
                         ].map(option => (
                             <button

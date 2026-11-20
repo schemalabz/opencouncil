@@ -60,6 +60,8 @@
         "adminBodyType_committee": "Municipal Committee",
         "adminBodyType_community": "Communities",
         "adminBodyType_youthCouncil": "Youth Council",
+        "regionBodyType_council": "Regional Council",
+        "regionBodyType_committee": "Regional Committee",
         "showYouthCouncils": "Youth councils",
         "allPeople": "All",
         "allBodies": "All",
@@ -357,7 +359,10 @@
         },
         "urgent": "Urgent",
         "urgentDescription": "The invitation convenes the meeting urgently. A meeting of any kind can be urgent.",
-        "councilOnly": "council only",
+        "councilOnly": {
+            "municipality": "council only",
+            "region": "council only"
+        },
         "scheduleStatus": "Status",
         "scheduleStatusOptions": {
             "scheduled": "Scheduled",
@@ -993,7 +998,10 @@
         "nameEnDescription": "Enter the name of the administrative body in English.",
         "type": "Type",
         "selectType": "Select type",
-        "typeDescription": "Select the type of administrative body. A body of the type “Municipal Youth Council” processes its meetings without a review and releases them on its own.",
+        "typeDescription": {
+            "municipality": "Select the type of administrative body. A body of the type “Municipal Youth Council” processes its meetings without a review and releases them on its own.",
+            "region": "Select the type of administrative body."
+        },
         "tier": "Visibility",
         "tierDescription": "The content of a secondary body, for example a youth council, shows only when a reader asks for it. A change to the type of an existing body does not change its visibility.",
         "tierOptions": {
