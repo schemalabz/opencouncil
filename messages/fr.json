@@ -166,7 +166,10 @@
     "logoPreview": "Aperçu du logo",
     "details": "Détails",
     "boundary": "Limites",
-    "boundaryDescription": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM).",
+    "boundaryDescription": {
+      "municipality": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM).",
+      "region": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM)."
+    },
     "boundaryPlaceholder": "Collez ici le GeoJSON des limites…",
     "boundaryShowingStored": "Affichage des limites actuellement enregistrées.",
     "boundaryPreviewingPasted": "Aperçu des limites collées — elles seront enregistrées à l'envoi du formulaire.",
@@ -177,16 +180,31 @@
     "toggle": "Basculer",
     "cityNameEnPlaceholder": "Nom de la ville (anglais)",
     "cityNameEnDescription": "Saisissez le nom de la ville en anglais.",
-    "cityMunicipalityPlaceholder": "Nom de la commune",
-    "cityMunicipalityDescription": "Saisissez le nom de la commune.",
-    "cityMunicipalityEnPlaceholder": "Nom de la commune (anglais)",
-    "cityMunicipalityEnDescription": "Saisissez le nom de la commune en anglais.",
+    "cityMunicipalityPlaceholder": {
+      "municipality": "Nom de la commune",
+      "region": "Nom de la commune"
+    },
+    "cityMunicipalityDescription": {
+      "municipality": "Saisissez le nom de la commune.",
+      "region": "Saisissez le nom de la commune."
+    },
+    "cityMunicipalityEnPlaceholder": {
+      "municipality": "Nom de la commune (anglais)",
+      "region": "Nom de la commune (anglais)"
+    },
+    "cityMunicipalityEnDescription": {
+      "municipality": "Saisissez le nom de la commune en anglais.",
+      "region": "Saisissez le nom de la commune en anglais."
+    },
     "authorityType": "Type d'autorité",
     "selectAuthorityType": "Sélectionnez le type d'autorité",
     "authorityTypeDescription": "Sélectionnez le type d'autorité correspondant",
     "realm": "Groupe (realm)",
     "selectRealm": "Sélectionnez le groupe",
-    "realmDescription": "Le groupe/locataire auquel appartient cette commune.",
+    "realmDescription": {
+      "municipality": "Le groupe/locataire auquel appartient cette commune.",
+      "region": "Le groupe/locataire auquel appartient cette commune."
+    },
     "language": "Langue",
     "selectLanguage": "Sélectionnez la langue",
     "languageDescription": "La langue dans laquelle le conseil siège. Elle fixe la langue de la transcription et des résumés ; elle ne change pas la langue de l'interface.",
@@ -236,11 +254,17 @@
       "activeLabel": "Actif (visible par tous les utilisateurs)",
       "inactiveDescription": "Les messages inactifs ne sont visibles que par les administrateurs système à des fins de prévisualisation."
     },
-    "sectionIdentity": "Informations sur la commune",
+    "sectionIdentity": {
+      "municipality": "Informations sur la commune",
+      "region": "Informations sur la commune"
+    },
     "sectionIdentityHint": "Nom, type de collectivité et logo",
     "sectionSettings": "Paramètres",
     "sectionSettingsHint": "Adresse, fuseau horaire, notifications, consultations, Diavgeia",
-    "administrativeBodiesHint": "Conseil, commissions et communes déléguées",
+    "administrativeBodiesHint": {
+      "municipality": "Conseil, commissions et communes déléguées",
+      "region": "Conseil, commissions et communes déléguées"
+    },
     "adminSettingsHint": "Statut, autorisations, pays et langue"
   },
   "City": {

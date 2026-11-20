@@ -152,7 +152,10 @@
         "logoPreview": "Logo Preview",
         "details": "Details",
         "boundary": "Boundary",
-        "boundaryDescription": "The geographic boundary of the municipality, used for the map and location features. Paste GeoJSON to replace it — a Polygon/MultiPolygon geometry, a Feature, or a whole FeatureCollection (e.g. from geojson.io or an OSM export).",
+        "boundaryDescription": {
+            "municipality": "The geographic boundary of the municipality, used for the map and location features. Paste GeoJSON to replace it — a Polygon/MultiPolygon geometry, a Feature, or a whole FeatureCollection (e.g. from geojson.io or an OSM export).",
+            "region": "The geographic boundary of the region, used for the map and location features. Paste GeoJSON to replace it — a Polygon/MultiPolygon geometry, a Feature, or a whole FeatureCollection (e.g. from geojson.io or an OSM export)."
+        },
         "boundaryPlaceholder": "Paste boundary GeoJSON here…",
         "boundaryShowingStored": "Showing the currently stored boundary.",
         "boundaryPreviewingPasted": "Previewing the pasted boundary — it will be saved when you submit the form.",
@@ -163,16 +166,31 @@
         "toggle": "Toggle",
         "cityNameEnPlaceholder": "City Name (English)",
         "cityNameEnDescription": "Enter the name of the city in English.",
-        "cityMunicipalityPlaceholder": "Municipality Name",
-        "cityMunicipalityDescription": "Enter the name of the municipality.",
-        "cityMunicipalityEnPlaceholder": "Municipality Name (English)",
-        "cityMunicipalityEnDescription": "Enter the name of the municipality in English.",
+        "cityMunicipalityPlaceholder": {
+            "municipality": "Municipality Name",
+            "region": "Region Name"
+        },
+        "cityMunicipalityDescription": {
+            "municipality": "Enter the name of the municipality.",
+            "region": "Enter the name of the region."
+        },
+        "cityMunicipalityEnPlaceholder": {
+            "municipality": "Municipality Name (English)",
+            "region": "Region Name (English)"
+        },
+        "cityMunicipalityEnDescription": {
+            "municipality": "Enter the name of the municipality in English.",
+            "region": "Enter the name of the region in English."
+        },
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
         "authorityTypeDescription": "Select the type of authority.",
         "realm": "Realm",
         "selectRealm": "Select the realm",
-        "realmDescription": "The tenant group this city belongs to.",
+        "realmDescription": {
+            "municipality": "The tenant group this city belongs to.",
+            "region": "The tenant group this region belongs to."
+        },
         "language": "Language",
         "selectLanguage": "Select the language",
         "languageDescription": "The language the council speaks in its meetings. It sets the language of the transcription and the summaries; it does not change the UI language.",
@@ -222,11 +240,17 @@
             "activeLabel": "Active (visible to all users)",
             "inactiveDescription": "Inactive messages are only visible to superadmins for preview purposes."
         },
-        "sectionIdentity": "City details",
+        "sectionIdentity": {
+            "municipality": "City details",
+            "region": "Region details"
+        },
         "sectionIdentityHint": "Name, authority type and logo",
         "sectionSettings": "Settings",
         "sectionSettingsHint": "Address, time zone, notifications, consultations, Diavgeia",
-        "administrativeBodiesHint": "Council, committees and communities",
+        "administrativeBodiesHint": {
+            "municipality": "Council, committees and communities",
+            "region": "Council and committees"
+        },
         "adminSettingsHint": "Status, permissions, realm and language"
     },
     "City": {
