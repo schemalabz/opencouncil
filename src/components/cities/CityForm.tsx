@@ -272,7 +272,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{t('authorityType')}</FormLabel>
-                                <Select onValueChange={changeAuthorityType} defaultValue={field.value}>
+                                <Select onValueChange={changeAuthorityType} defaultValue={field.value} disabled={!isSuperAdmin}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder={t('selectAuthorityType')} />
