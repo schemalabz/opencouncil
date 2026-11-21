@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 const mockAlert = jest.fn(async (_: { title: string; description: string }) => {});
 jest.mock('@/lib/discord-core', () => ({ sendAdminAlert: (data: { title: string; description: string }) => mockAlert(data) }));
 const windows = new Set<string>();
@@ -6,13 +7,17 @@ const mockClaimWindow = jest.fn(async (key: string, _ttl: number) => {
     windows.add(key);
     return true;
 });
+const mockEnv = { NEXTAUTH_SECRET: 'test-secret' };
+jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 jest.mock('@/lib/cache/alertWindow', () => ({ claimAlertWindow: (key: string, ttl: number) => mockClaimWindow(key, ttl) }));
 
 import { reportUnusualCodeRequest } from '../abuseAlerts';
 
 beforeEach(() => {
     mockAlert.mockClear();
+    mockClaimWindow.mockClear();
     windows.clear();
+    mockEnv.NEXTAUTH_SECRET = 'test-secret';
 });
 
 describe('reportUnusualCodeRequest', () => {
@@ -27,9 +32,11 @@ describe('reportUnusualCodeRequest', () => {
         await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 4 });
         expect(mockAlert).toHaveBeenCalledTimes(1);
         expect(mockAlert.mock.calls[0][0].description).toContain('3rd code');
-        // One window per number, keyed by a hash so the number stays out of the cache's logs.
+        // One window per number, keyed by a keyed hash so the number stays out of the cache's logs.
         expect(mockClaimWindow).toHaveBeenCalledWith(expect.stringMatching(/^phone-verification:flood:[0-9a-f]{16}$/), 3600);
         expect(mockClaimWindow.mock.calls[0][0]).not.toContain('6900000001');
+        // Not a plain SHA-256, which anyone can recompute for every number.
+        expect(mockClaimWindow.mock.calls[0][0]).not.toContain(createHash('sha256').update('+306900000001').digest('hex').slice(0, 16));
 
         await reportUnusualCodeRequest({ userId: 'u2', phone: '+306900000001', phoneSendCount: 5 });
         expect(mockAlert).toHaveBeenCalledTimes(2);
@@ -42,5 +49,19 @@ describe('reportUnusualCodeRequest', () => {
         const alert = JSON.stringify(mockAlert.mock.calls[0][0]);
         expect(alert).toContain('(US)');
         expect(alert).not.toContain('2025550143');
+    });
+
+    it('gives each number its own window', async () => {
+        await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 3 });
+        await reportUnusualCodeRequest({ userId: 'u2', phone: '+306900000002', phoneSendCount: 3 });
+        expect(mockAlert).toHaveBeenCalledTimes(2);
+    });
+
+    it('keys the window with the server secret, so nobody can recompute the key without it', async () => {
+        await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 3 });
+        mockEnv.NEXTAUTH_SECRET = 'another-secret';
+        await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 3 });
+        const [first, second] = mockClaimWindow.mock.calls.map(([key]) => key);
+        expect(second).not.toBe(first);
     });
 });
