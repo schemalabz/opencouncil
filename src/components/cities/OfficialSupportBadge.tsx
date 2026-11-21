@@ -4,11 +4,9 @@ import { BadgeCheck, BadgeX } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import type { CityStatus, Realm } from '@prisma/client';
+import type { AuthorityType, CityStatus, Realm } from '@prisma/client';
 import { isCustomer } from '@/lib/cityStatus';
 import { hasExplainPage } from '@/lib/explain/availability';
-
-type AuthorityType = 'municipality' | 'region';
 
 interface OfficialSupportBadgeProps {
     status: CityStatus;

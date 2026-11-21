@@ -10,7 +10,7 @@ const member = (personId: string, name: string, party: string | null, isPartyHea
     ({ personId, name, party, partyLabel: party && isPartyHead ? `${party}, Επικεφαλής` : party });
 
 const base = (over: Partial<MinutesData>): MinutesData => ({
-    city: { name: 'Άργος', name_municipality: 'Δήμος Άργους-Μυκηνών', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' },
+    city: { name: 'Άργος', name_municipality: 'Δήμος Άργους-Μυκηνών', timezone: 'Europe/Athens', logoImage: null, realm: 'greece', authorityType: 'municipality' },
     meeting: { id: 'jul21_2026', cityId: 'argos', name: 'Τακτική Συνεδρίαση', dateTime: '2026-07-21T11:00:00.000Z' },
     administrativeBody: null,
     councilComposition: null,

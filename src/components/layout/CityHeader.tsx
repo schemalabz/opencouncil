@@ -17,5 +17,5 @@ export async function CityHeader({ cityId, locale }: { cityId: string; locale: s
     if (!city) notFound();
 
     const path: PathElement[] = [{ name: getLocalizedName(city, locale), link: `/${cityId}`, city }];
-    return <Header path={path} currentEntity={{ cityId: city.id }} showExplain={hasExplainPage(realm)} />;
+    return <Header path={path} currentEntity={{ cityId: city.id, authorityType: city.authorityType }} showExplain={hasExplainPage(realm)} />;
 }

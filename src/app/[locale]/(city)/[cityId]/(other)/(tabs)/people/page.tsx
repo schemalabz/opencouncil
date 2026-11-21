@@ -5,7 +5,8 @@ import CityPeople from "@/components/cities/CityPeople";
 import { countPeopleOfCityCached, getPartiesForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached, listPeopleOfCityCached } from "@/lib/cache";
 import { Metadata } from "next";
 import { withCanonicalUrl } from '@/lib/utils/hreflang';
-import { getLocalizedName } from "@/lib/formatters/name";
+import { getLocalizedName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
@@ -31,18 +32,19 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
     // Generate rich description
     const cityName = getLocalizedName(city, params.locale);
-    const description = t('description', { cityName, peopleCount, partiesCount });
+    const names = { cityName, qualifier: getMunicipalityQualifier(city, params.locale) };
+    const description = t(authorityKey('description', city), { ...names, peopleCount, partiesCount });
 
     // Generate OG image URL
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, pageType: 'people' });
 
     return withCanonicalUrl(`/${params.cityId}/people`, {
-        title: t('title', { cityName }),
+        title: t(authorityKey('title', city), names),
         description,
-        keywords: [...(t.raw('keywords') as string[]), cityName, 'OpenCouncil'],
-        authors: [{ name: t('author', { cityName }) }],
+        keywords: [...(t.raw(authorityKey('keywords', city)) as string[]), cityName, 'OpenCouncil'],
+        authors: [{ name: t(authorityKey('author', city), names) }],
         openGraph: {
-            title: t('shortTitle', { cityName }),
+            title: t(authorityKey('shortTitle', city), names),
             description,
             type: 'website',
             siteName: 'OpenCouncil',
@@ -51,14 +53,14 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: t('ogAlt', { cityName }),
+                    alt: t(authorityKey('ogAlt', city), names),
                 }
             ],
             locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',
-            title: t('shortTitle', { cityName }),
+            title: t(authorityKey('shortTitle', city), names),
             description,
             images: [ogImageUrl],
         },
@@ -121,7 +123,7 @@ export default async function PeoplePage(
             partiesWithPersons={partiesWithPersons}
             administrativeBodies={administrativeBodies}
             cityId={cityId}
-            cityLanguage={city.language}
+            roleCity={{ language: city.language, authorityType: city.authorityType }}
             canEdit={canEdit}
             superAdminRoster={superAdminRoster}
             editableBodyIds={roleLimit ? [...roleLimit] : undefined}

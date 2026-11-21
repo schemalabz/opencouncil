@@ -14,7 +14,7 @@ import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 import { formatDate, formatTimestamp } from "@/lib/formatters/time";
 import { PersonWithRelations } from "@/lib/db/people";
 import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
-import { getRoleKind, getRoleTitle } from "@/lib/utils/roles";
+import { getRoleKind, getRoleTitle, type RoleTitleCity } from "@/lib/utils/roles";
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import useSWR from "swr";
 import { TopicIcon } from '@/components/TopicIcon';
@@ -36,7 +36,7 @@ const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : nu
 interface ContributionCardProps {
     contribution: SpeakerContribution & { id: string };
     subjectId: string;
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
     highlighted?: boolean;
     meeting: { id: string; cityId: string; released: boolean };
     speaker: PersonWithRelations | null;
@@ -81,7 +81,7 @@ interface ContributionCardProps {
 export const ContributionCard = memo(function ContributionCard({
     contribution,
     subjectId,
-    cityLanguage,
+    roleCity,
     highlighted = false,
     meeting,
     speaker,
@@ -94,7 +94,7 @@ export const ContributionCard = memo(function ContributionCard({
     speakerUnverified = false,
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
-    const roleTitles = useRoleTitles(cityLanguage);
+    const roleTitles = useRoleTitles(roleCity);
     const locale = useLocale();
     const sharing = useTranslations('sharing');
     const articleRef = useRef<HTMLElement>(null);

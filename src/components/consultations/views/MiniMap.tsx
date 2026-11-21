@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
+import type { AuthorityType } from "@prisma/client";
 import Map, { type MapFeature } from "@/components/map/map";
 import type { Location } from "@/lib/types/onboarding";
 import type { AddressLookupResult, NearbyItem } from "../addressLookup";
 
 /** The phone's small map on "your street": the address, the street sides at it, and the zone. */
-export default function MiniMap({ address, items, zone }: { address: Location; items: NearbyItem[]; zone: AddressLookupResult['zone'] }) {
+export default function MiniMap({ address, items, zone, authorityType }: { address: Location; items: NearbyItem[]; zone: AddressLookupResult['zone']; authorityType: AuthorityType }) {
     const features = useMemo<MapFeature[]>(() => {
         const list: MapFeature[] = [];
         if (zone) {
@@ -30,6 +31,7 @@ export default function MiniMap({ address, items, zone }: { address: Location; i
     return (
         <div className="h-56 w-full bg-stone-200" aria-label={`Χάρτης γύρω από ${address.text}`} role="img">
             <Map
+                authorityType={authorityType}
                 center={address.coordinates}
                 zoom={17}
                 pitch={0}

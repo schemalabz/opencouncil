@@ -22,17 +22,32 @@
   "timelineTitle": "Недавне и предстојеће седнице",
   "timelineNoAgendaYet": "Дневни ред још није објављен",
   "allMeetings": "Све седнице",
-  "scopeCouncil": "Скупштина",
+  "scopeCouncil": {
+    "municipality": "Скупштина",
+    "region": "Скупштина"
+  },
   "scopeAll": "Све",
   "noMeetingsForScope": "Још нема седница овог тела.",
-  "councilEyebrow": "Скупштина",
+  "councilEyebrow": {
+    "municipality": "Скупштина",
+    "region": "Скупштина"
+  },
   "councilTitle": "Одборничке групе и људи",
   "allParties": "Све групе",
   "allPeople": "Сви људи",
   "peopleEyebrow": "{count, plural, =1 {1 члан} other {# чланова}}",
-  "seatsInCouncil": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
-  "inCommittees": "{count} у одбору",
-  "governingParty": "Владајућа група",
+  "seatsInCouncil": {
+    "municipality": "{count, plural, =1 {место у скупштини} other {места у скупштини}}",
+    "region": "{count, plural, =1 {место у скупштини} other {места у скупштини}}"
+  },
+  "inCommittees": {
+    "municipality": "{count} у одбору",
+    "region": "{count} у одбору"
+  },
+  "governingParty": {
+    "municipality": "Владајућа група",
+    "region": "Владајућа група"
+  },
   "notisName": "Нотис",
   "notisIntro": {
     "municipality": "дигитални упућени комшија који прати шта се дешава у граду",
@@ -48,7 +63,10 @@
   "channelEmail": "Мејл",
   "channelPhone": "Вотсап и СМС",
   "changePreferences": "Промени подешавања",
-  "allMyCities": "Сви моји градови",
+  "allMyCities": {
+    "municipality": "Сви моји градови",
+    "region": "Сви моји градови"
+  },
   "notisMsg1": "Трг у твом крају се мења: високо дрвеће, вода, земља уместо бетона. Пројекат је синоћ усвојен једногласно.",
   "notisMsg2": "Хоће ли бити игралишта?",
   "notisMsg3": "Не званично — прописи траже пластичну подлогу и не дозвољавају дрвеће. Биће справе од природних материјала, а право игралиште је затражено на другом месту.",
@@ -64,7 +82,10 @@
   "notisAdvance": "Следећа порука",
   "notisReplay": "Погледај поново",
   "notisExampleLabel": "пример",
-  "scopeCommittee": "Одбор",
+  "scopeCommittee": {
+    "municipality": "Одбор",
+    "region": "Одбор"
+  },
   "scopeCommunity": "МЗ",
   "scopeYouthCouncil": "СМ",
   "period3m": "3 месеца",
@@ -75,8 +96,14 @@
   "inCommunities": "{count} у заједницама",
   "notisTeaser": "Лако је бити у току.",
   "subscribedSummary": "Пријављени сте на обавештења",
-  "scopeCouncilFull": "Градска скупштина",
-  "scopeCommitteeFull": "Градски одбор",
+  "scopeCouncilFull": {
+    "municipality": "Градска скупштина",
+    "region": "Градска скупштина"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "Градски одбор",
+    "region": "Градски одбор"
+  },
   "scopeCommunityFull": "Месне заједнице",
   "scopeYouthCouncilFull": "Савет младих",
   "scopeAllFull": "Сва тела",
@@ -89,7 +116,10 @@
     "municipality": "Општина {qualifier} још није на OpenCouncil-у",
     "region": "Регион {qualifier} још није на OpenCouncil-у"
   },
-  "petitionCount": "{count}+ грађана је већ затражило",
+  "petitionCount": {
+    "municipality": "{count}+ грађана је већ затражило",
+    "region": "{count}+ грађана је већ затражило"
+  },
   "petitionBody": {
     "municipality": "Помозите нам да доведемо OpenCouncil у општину. Када разговарамо са општином, моћи ћемо да објаснимо да је довољно грађана то већ затражило.",
     "region": "Помозите нам да доведемо OpenCouncil у регион. Када разговарамо са регионом, моћи ћемо да објаснимо да је довољно грађана то већ затражило."

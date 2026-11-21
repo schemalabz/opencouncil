@@ -20,11 +20,11 @@ import { Button } from "@/components/ui/button";
 import { BadgePicker } from "@/components/ui/badge-picker";
 import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import { getBodyOptions, personSitsOnBody } from "@/lib/utils/administrativeBodies";
-import { isRoleActive } from "@/lib/utils/roles";
+import { isRoleActive, type RoleTitleCity } from "@/lib/utils/roles";
 import { bulkActionScope, headerCheckState, toggleAll } from "@/lib/utils/bulkSelection";
 
 interface PeopleProps {
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
     people: PersonWithVoicePrints[];
     /** The voiceprint consent in force, by person id; a person with none has no entry. */
     consents: Record<string, VoicePrintConsentStatus>;
@@ -33,7 +33,7 @@ interface PeopleProps {
     qrEligibleIds: string[];
 }
 
-export default function People({ cityLanguage, people, consents, currentCityName, qrEligibleIds }: PeopleProps) {
+export default function People({ roleCity, people, consents, currentCityName, qrEligibleIds }: PeopleProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [bodyId, setBodyId] = useState<string | null>(null);
     // Kept across searches: an admin may search, tick, search again and tick
@@ -216,7 +216,7 @@ export default function People({ cityLanguage, people, consents, currentCityName
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <PersonBadge cityLanguage={cityLanguage} person={person} size='sm' />
+                                            <PersonBadge roleCity={roleCity} person={person} size='sm' />
                                         </TableCell>
                                         <TableCell className='w-16 text-center'>
                                             {person._count.administrators > 0 && (

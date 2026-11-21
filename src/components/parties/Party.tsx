@@ -18,12 +18,12 @@ import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson, type PublicAdministrativeBody } from '@/lib/db/types';
 import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
-import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
+import { getAdministrativeBodyTypesForPeople, getBodyTypeLabel, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { cn, filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
-import { getRoleTitle, isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
+import { getRoleTitle, isActivePartyMember, isPartyRole, type RoleTitleCity } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { sortInactivePartyMembers, sortPartyMembers, sortPeople } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
@@ -36,6 +36,7 @@ import { ContributionsHead } from '@/components/ContributionsHead';
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { partyComposition, type BodySeatTotals } from '@/lib/party/composition';
 import { meetingLabel } from '@/lib/meetingName';
+import { authorityKey } from '@/lib/utils/authority';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -65,7 +66,7 @@ function PartyMembersTab({
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
-    const roleTitles = useRoleTitles(city.language);
+    const roleTitles = useRoleTitles(city);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
     // The picker sits in the current-members header and offers the bodies those
@@ -77,8 +78,8 @@ function PartyMembersTab({
     );
 
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(currentMembers, tCommon),
-        [currentMembers, tCommon]
+        getAdministrativeBodyTypesForPeople(currentMembers, city, tCommon),
+        [currentMembers, city, tCommon]
     );
 
     // Filter people based on selected admin body types
@@ -140,7 +141,7 @@ function PartyMembersTab({
                             <PersonCard
                                 key={person.id}
                                 item={person}
-                                cityLanguage={city.language}
+                                roleCity={city}
                                 editable={canEdit}
                                 analyticsSurface="party_members"
                             />
@@ -210,7 +211,7 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
-    cityLanguage,
+    roleCity,
     typeOptions,
     selectedType,
     onSelectType,
@@ -224,7 +225,7 @@ function SegmentsTab({
     allLabel,
     timezone
 }: {
-    cityLanguage: string,
+    roleCity: RoleTitleCity,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
@@ -292,7 +293,7 @@ function SegmentsTab({
                                 transition={{ delay: 0.1 * index }}
                             >
                                 <ContributionCard
-                                    cityLanguage={cityLanguage}
+                                    roleCity={roleCity}
                                     contribution={contribution}
                                     subjectId={contribution.subject.id}
                                     meeting={{
@@ -390,8 +391,8 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
 
     // Get admin body type options from party members
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(persons, tCommon),
-        [persons, tCommon]
+        getAdministrativeBodyTypesForPeople(persons, city, tCommon),
+        [persons, city, tCommon]
     );
 
     // Create roles with person objects for compatibility with existing code.
@@ -419,10 +420,10 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
     // against the card's largest row instead, one bar was always full, whatever
     // the party held.
     const compositionRows = useMemo(() => [
-        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council, total: seatTotals.council },
-        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee, total: seatTotals.committee },
-        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community, total: seatTotals.community },
-    ].filter(row => row.count > 0), [composition, seatTotals, tCommon]);
+        { key: 'council', label: getBodyTypeLabel('council', city, tCommon), count: composition.council, total: seatTotals.council },
+        { key: 'committee', label: getBodyTypeLabel('committee', city, tCommon), count: composition.committee, total: seatTotals.committee },
+        { key: 'community', label: getBodyTypeLabel('community', city, tCommon), count: composition.community, total: seatTotals.community },
+    ].filter(row => row.count > 0), [composition, seatTotals, city, tCommon]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -573,7 +574,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                         name={party.name}
                         badges={(composition.hasMayor || partyLeader) && (
                             <>
-                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} />}
+                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} authorityType={city.authorityType} />}
                                 {partyLeader && (
                                     <span className="inline-flex items-center gap-1.5 text-sm">
                                         <span className="text-muted-foreground">{t('leaderLabel')}</span>
@@ -592,12 +593,12 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                                 <span>
                                     <span className="font-bold tabular-nums" style={{ color: party.colorHex }}>{composition.council}</span>
                                     {' '}
-                                    {tOverview('seatsInCouncil', { count: composition.council })}
+                                    {tOverview(authorityKey('seatsInCouncil', city), { count: composition.council })}
                                 </span>
                                 {composition.committee > 0 && (
                                     <>
                                         <FactDot />
-                                        <span>{tOverview('inCommittees', { count: composition.committee })}</span>
+                                        <span>{tOverview(authorityKey('inCommittees', city), { count: composition.committee })}</span>
                                     </>
                                 )}
                                 {composition.community > 0 && (
@@ -669,7 +670,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
 
                             <TabsContent value="contributions" className="mt-6">
                                 <SegmentsTab
-                                    cityLanguage={city.language}
+                                    roleCity={city}
                                     typeOptions={typeOptions}
                                     selectedType={selectedAdminBodyType}
                                     onSelectType={handleAdminBodyTypeSelect}

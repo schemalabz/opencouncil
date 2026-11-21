@@ -82,7 +82,6 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
                 : removeLogoImage
                     ? { logoImage: null }
                     : {}),
-            ...(data.authorityType !== undefined && { authorityType: data.authorityType }),
             ...(data.supportsNotifications !== undefined && { supportsNotifications: data.supportsNotifications }),
             ...(data.consultationsEnabled !== undefined && { consultationsEnabled: data.consultationsEnabled }),
             ...(data.highlightCreationPermission !== undefined && { highlightCreationPermission: data.highlightCreationPermission }),
@@ -92,7 +91,12 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         // Only include admin-only fields if user is superadmin. Realm (tenant)
         // and language are tenant-level like status, so a city-scoped admin must
         // not be able to move a city to another realm — or make it a customer.
+        // The kind of the authority is the same: it sets the titles, the body
+        // types and the task wording of the whole city.
         if (isSuperAdmin) {
+            if (data.authorityType !== undefined) {
+                updateData.authorityType = data.authorityType
+            }
             if (data.status !== undefined) {
                 updateData.status = data.status
             }

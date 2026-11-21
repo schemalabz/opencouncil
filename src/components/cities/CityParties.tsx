@@ -8,12 +8,13 @@ import { PartyWithPersons } from '@/lib/db/parties';
 import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
 import { Fragment, useCallback, useMemo } from 'react';
-import { Person } from '@prisma/client';
+import { AuthorityType, Person } from '@prisma/client';
 import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityPartiesProps = {
     partiesWithPersons: PartyWithPersons[],
     cityId: string,
+    authorityType: AuthorityType,
     canEdit: boolean,
     peopleWithoutParties?: Person[]
 };
@@ -21,6 +22,7 @@ type CityPartiesProps = {
 export default function CityParties({
     partiesWithPersons,
     cityId,
+    authorityType,
     canEdit,
     peopleWithoutParties
 }: CityPartiesProps) {
@@ -52,7 +54,7 @@ export default function CityParties({
                 state={state}
                 editable={canEdit}
                 ItemComponent={PartyCard}
-                itemProps={{ columns }}
+                itemProps={{ columns, authorityType }}
                 FormComponent={PartyForm}
                 formProps={{ cityId }}
                 t={t}

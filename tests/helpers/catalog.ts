@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { catalogText } from '@/i18n/catalogText';
 import { transliterateCatalog } from '@/lib/serbian/catalog';
+import type { AuthorityType } from '@prisma/client';
 import type { RoleTitles } from '@/lib/utils/roles';
 
 const MESSAGES = path.join(__dirname, '../../messages');
@@ -31,7 +32,7 @@ export async function getTranslationsFromCatalog({ locale, namespace }: { locale
     return catalogText({ messages: messagesFor(locale), namespace, locale });
 }
 
-/** The role titles from the real `Person` catalog of a locale. */
-export function roleTitlesFor(locale: string): RoleTitles {
-    return { t: catalogText({ messages: messagesFor(locale), namespace: 'Person', locale }), locale };
+/** The role titles from the real `Person` catalog of a locale: of a municipality, unless the test names a region. */
+export function roleTitlesFor(locale: string, authorityType: AuthorityType = 'municipality'): RoleTitles {
+    return { t: catalogText({ messages: messagesFor(locale), namespace: 'Person', locale }), locale, authorityType };
 }

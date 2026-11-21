@@ -5,7 +5,8 @@ const messagesDir = path.join(__dirname, '../../../messages');
 
 function collectStrings(value: unknown, prefix: string, out: Array<[string, string]>): Array<[string, string]> {
     if (typeof value === 'string') out.push([prefix, value]);
-    else if (value && typeof value === 'object' && !Array.isArray(value)) {
+    else if (value && typeof value === 'object') {
+        // An array (the keywords of a page) gives its members the keys `<key>.0`, `<key>.1`.
         for (const [k, v] of Object.entries(value)) collectStrings(v, prefix ? `${prefix}.${k}` : k, out);
     }
     return out;

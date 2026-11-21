@@ -2,52 +2,174 @@
   "city": {
     "notFoundTitle": "Commune introuvable | OpenCouncil",
     "notFoundDescription": "La commune que vous recherchez n'est pas disponible.",
-    "description": "Séances du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, expliqués simplement.",
-    "ogAlt": "OpenCouncil — Séances du conseil municipal de {cityName}",
-    "author": "Commune de {cityName}",
-    "keywords": [
-      "conseil municipal",
-      "séances",
-      "collectivités locales"
-    ]
+    "description": {
+      "municipality": "Séances du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, expliqués simplement.",
+      "region": "Séances du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, expliqués simplement."
+    },
+    "ogAlt": {
+      "municipality": "OpenCouncil — Séances du conseil municipal de {cityName}",
+      "region": "OpenCouncil — Séances du conseil municipal de {cityName}"
+    },
+    "author": {
+      "municipality": "Commune de {cityName}",
+      "region": "Commune de {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "conseil municipal",
+        "séances",
+        "collectivités locales"
+      ],
+      "region": [
+        "conseil municipal",
+        "séances",
+        "collectivités locales"
+      ]
+    }
   },
   "meetings": {
     "title": "Séances | {cityName} | OpenCouncil",
     "shortTitle": "Séances | {cityName}",
     "notFoundTitle": "Séances introuvables | OpenCouncil",
     "notFoundDescription": "La liste des séances n'est pas disponible.",
-    "description": "Les {meetingsCount} séances enregistrées du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, par ordre chronologique.",
-    "ogAlt": "Séances du conseil municipal de {cityName}",
-    "author": "Commune de {cityName}",
-    "keywords": [
-      "séances",
-      "ordre du jour",
-      "procès-verbaux",
-      "conseil municipal",
-      "collectivités locales"
-    ]
+    "description": {
+      "municipality": "Les {meetingsCount} séances enregistrées du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, par ordre chronologique.",
+      "region": "Les {meetingsCount} séances enregistrées du conseil municipal de {cityName} : vidéos, transcriptions, points à l'ordre du jour et décisions, par ordre chronologique."
+    },
+    "ogAlt": {
+      "municipality": "Séances du conseil municipal de {cityName}",
+      "region": "Séances du conseil municipal de {cityName}"
+    },
+    "author": {
+      "municipality": "Commune de {cityName}",
+      "region": "Commune de {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "séances",
+        "ordre du jour",
+        "procès-verbaux",
+        "conseil municipal",
+        "collectivités locales"
+      ],
+      "region": [
+        "séances",
+        "ordre du jour",
+        "procès-verbaux",
+        "conseil municipal",
+        "collectivités locales"
+      ]
+    }
   },
   "people": {
-    "title": "Conseillers municipaux | {cityName} | OpenCouncil",
-    "shortTitle": "Conseillers municipaux | {cityName}",
+    "title": {
+      "municipality": "Conseillers municipaux | {cityName} | OpenCouncil",
+      "region": "Conseillers municipaux | {cityName} | OpenCouncil"
+    },
+    "shortTitle": {
+      "municipality": "Conseillers municipaux | {cityName}",
+      "region": "Conseillers municipaux | {cityName}"
+    },
     "notFoundTitle": "Conseillers municipaux introuvables | OpenCouncil",
     "notFoundDescription": "La liste des conseillers municipaux n'est pas disponible.",
-    "description": "Liste de tous les conseillers municipaux et adjoints au maire de {cityName}. {peopleCount} conseillers issus de {partiesCount} groupes, leurs profils et leur activité au conseil municipal.",
-    "ogAlt": "Conseillers municipaux de {cityName}",
-    "author": "Commune de {cityName}",
-    "keywords": [
-      "conseillers municipaux",
-      "conseil municipal",
-      "collectivités locales",
-      "adjoints au maire",
-      "groupes politiques",
-      "liste des conseillers",
-      "formations politiques"
-    ]
+    "description": {
+      "municipality": "Liste de tous les conseillers municipaux et adjoints au maire de {cityName}. {peopleCount} conseillers issus de {partiesCount} groupes, leurs profils et leur activité au conseil municipal.",
+      "region": "Liste de tous les conseillers municipaux et adjoints au maire de {cityName}. {peopleCount} conseillers issus de {partiesCount} groupes, leurs profils et leur activité au conseil municipal."
+    },
+    "ogAlt": {
+      "municipality": "Conseillers municipaux de {cityName}",
+      "region": "Conseillers municipaux de {cityName}"
+    },
+    "author": {
+      "municipality": "Commune de {cityName}",
+      "region": "Commune de {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "conseillers municipaux",
+        "conseil municipal",
+        "collectivités locales",
+        "adjoints au maire",
+        "groupes politiques",
+        "liste des conseillers",
+        "formations politiques"
+      ],
+      "region": [
+        "conseillers municipaux",
+        "conseil municipal",
+        "collectivités locales",
+        "adjoints au maire",
+        "groupes politiques",
+        "liste des conseillers",
+        "formations politiques"
+      ]
+    }
   },
   "parties": {
     "title": "Groupes | {cityName} | OpenCouncil",
-    "description": "Les groupes politiques de {cityName}, leurs membres et leur activité au conseil municipal."
+    "description": {
+      "municipality": "Les groupes politiques de {cityName}, leurs membres et leur activité au conseil municipal.",
+      "region": "Les groupes politiques de {cityName}, leurs membres et leur activité au conseil municipal."
+    }
+  },
+  "party": {
+    "notFoundTitle": "Groupe introuvable | OpenCouncil",
+    "notFoundDescription": "Le groupe que vous recherchez n'est pas disponible.",
+    "description": {
+      "municipality": "Le groupe {partyName} au conseil municipal de {cityName}. Consultez ses membres, ses interventions et son activité lors des séances.",
+      "region": "Le groupe {partyName} au conseil municipal de {cityName}. Consultez ses membres, ses interventions et son activité lors des séances."
+    },
+    "ogAlt": {
+      "municipality": "{partyName} — Commune de {cityName}",
+      "region": "{partyName} — Commune de {cityName}"
+    },
+    "author": {
+      "municipality": "Commune de {cityName}",
+      "region": "Commune de {cityName}"
+    },
+    "keywords": {
+      "municipality": [
+        "groupe politique",
+        "conseil municipal",
+        "collectivités locales"
+      ],
+      "region": [
+        "groupe politique",
+        "conseil municipal",
+        "collectivités locales"
+      ]
+    }
+  },
+  "person": {
+    "notFoundTitle": "Personne introuvable | OpenCouncil",
+    "notFoundDescription": "La personne que vous recherchez est introuvable ou n'est pas disponible.",
+    "description": {
+      "municipality": "Profil de {personName} {roleDescription} | {cityName} | Statistiques de participation, interventions et activité au conseil municipal.",
+      "region": "Profil de {personName} {roleDescription} | {cityName} | Statistiques de participation, interventions et activité au conseil municipal."
+    },
+    "keywords": {
+      "municipality": [
+        "conseiller municipal",
+        "conseil municipal",
+        "collectivités locales"
+      ],
+      "region": [
+        "conseiller municipal",
+        "conseil municipal",
+        "collectivités locales"
+      ]
+    },
+    "keywordParty": "parti politique",
+    "keywordsActivity": [
+      "statistiques de participation",
+      "interventions"
+    ]
+  },
+  "meeting": {
+    "description": {
+      "municipality": "OpenCouncil utilise l'intelligence artificielle pour suivre les conseils municipaux et les rendre simples et clairs",
+      "region": "OpenCouncil utilise l'intelligence artificielle pour suivre les conseils municipaux et les rendre simples et clairs"
+    }
   },
   "landing": {
     "title": "OpenCouncil — ce dont parle le conseil municipal",

@@ -7,6 +7,7 @@ import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
 import { importBodyConventions, type BodyConventionsRecord } from "@/lib/db/bodyConventionsImport"
 import { ensureTestUsers } from "@/lib/db/testUsers"
 import { ensureSerbianFixture } from "@/lib/db/serbianFixture"
+import { ensureRegionFixture } from "@/lib/db/regionFixture"
 import { defaultTierOf } from "@/lib/utils/bodyTier"
 // Imported, not read from disk: the preview runs a bundle of this file with no fixtures/ beside it.
 import bodyConventions from "../fixtures/body-conventions.json"
@@ -236,8 +237,9 @@ async function main() {
     if (existingCities.length === seedData.cities.length &&
       existingMeetings.length === seedData.meetings.length) {
       console.log('Database already contains all seed data. Skipping seeding...')
-      // The Serbian fixture is not part of the dump — keep it in sync anyway.
+      // The review fixtures are not part of the dump — keep them in sync anyway.
       await ensureSerbianFixture(prisma, console.log)
+      await ensureRegionFixture(prisma, console.log)
       return
     }
 
@@ -270,8 +272,9 @@ async function main() {
     // Seed consultations
     await seedConsultations()
 
-    // Serbian review fixture (not in the production dump)
+    // Review fixtures (not in the production dump): the Serbian city, then the region
     await ensureSerbianFixture(prisma, console.log)
+    await ensureRegionFixture(prisma, console.log)
 
     await createTestUsers()
 

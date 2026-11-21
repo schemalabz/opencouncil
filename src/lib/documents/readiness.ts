@@ -1,13 +1,14 @@
 // When a document of a meeting is ready to go out (#874). Pure: the cron, the
 // poll callback, the review completion and the decisions page all ask this, and
 // the unit tests cover every branch. Keep it free of server-only imports.
-import type { BodyTier, DocumentKind, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import type { AuthorityType, BodyTier, DocumentKind, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { fromZonedTime } from 'date-fns-tz';
 import type { ReadinessFacts } from '@/lib/db/types/documentSend';
 import { isPolledOnItsOwn } from '@/lib/db/decisionEligibility';
 import { localCalendarDate } from '@/lib/formatters/time';
 import { takesPlace } from '@/lib/meetingLifecycleRules';
 import { takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
+import { authorityHasDocument } from '@/lib/utils/authority';
 import { MINUTES_THRESHOLD_DAYS, settingAppliesTo, type DocumentSendRule } from './settings';
 
 /** The columns of a meeting that the rules read. */
@@ -19,8 +20,8 @@ export interface ReadinessMeeting {
     continuationOf: { kind: MeetingKind | null } | null;
     /** A secondary body's meeting takes no decisions either (takesNoDecisions). */
     administrativeBody: { tier: BodyTier } | null;
-    /** The threshold counts calendar days where the meeting took place. */
-    city: { timezone: string };
+    /** The threshold counts calendar days where the meeting took place. A region gets no minutes (authorityHasDocument). */
+    city: { timezone: string; authorityType: AuthorityType };
 }
 
 export interface ReadinessInput {
@@ -194,6 +195,8 @@ export function evaluateReadiness(document: DocumentKind, input: ReadinessInput,
     const { setting, meeting, reviewed } = input;
     const automatic = isAutomaticDocument(document);
     if (!setting || !setting.enabled) return { state: 'none', reason: 'disabled' };
+    // A setting that is on does not send a document that the authority does not get.
+    if (!authorityHasDocument(meeting.city, document)) return { state: 'none', reason: 'disabled' };
     if (automatic && !byHand && !settingAppliesTo(setting, meeting.dateTime)) return { state: 'none', reason: 'beforeSwitch' };
     if (!takesPlace(meeting)) return { state: 'none', reason: 'notHeld' };
     if (automatic && meeting.continuationOfId !== null) return { state: 'none', reason: 'laterPart' };

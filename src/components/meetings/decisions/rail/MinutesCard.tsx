@@ -17,7 +17,9 @@ import { cn } from '@/lib/utils';
  * will carry, not that the meeting is wrong. It therefore counts the minutes
  * snapshot, which is what the preview and the DOCX render — never the
  * decisions payload, which answers a different request. */
-export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, onRederive, isRederiving, showRederive, send }: {
+export function MinutesCard({ available, onPreview, onExport, previewDisabled, readiness, onRederive, isRederiving, showRederive, send }: {
+    /** False for an authority that gets no minutes (authorityHasDocument): the card then says so, and offers no document. */
+    available: boolean;
     onPreview: () => void;
     onExport: () => void;
     previewDisabled: boolean;
@@ -40,6 +42,27 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
 
     const hasSubjects = readiness !== null && readiness.subjects > 0;
     const undecided = (readiness?.undecided ?? 0) > 0;
+
+    const rederive = showRederive && (
+        <div>
+            <CtaButton variant="text" arrow={false} disabled={isRederiving} onClick={onRederive}>
+                {isRederiving
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <RefreshCw className="h-4 w-4" />}
+                {tPage('rederive')}
+            </CtaButton>
+            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{tPage('rederiveHint')}</p>
+        </div>
+    );
+
+    if (!available) {
+        return (
+            <RailCard title={tPage('rail.minutesTitle')}>
+                <p className="text-xs leading-snug text-muted-foreground">{tPage('rail.regionMinutes')}</p>
+                {rederive && <div className="mt-3">{rederive}</div>}
+            </RailCard>
+        );
+    }
 
     return (
         <RailCard title={tPage('rail.minutesTitle')}>
@@ -77,17 +100,7 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
                     <Download className="h-4 w-4" />
                     {tPage('exportDocx')}
                 </CtaButton>
-                {showRederive && (
-                    <div>
-                        <CtaButton variant="text" arrow={false} disabled={isRederiving} onClick={onRederive}>
-                            {isRederiving
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <RefreshCw className="h-4 w-4" />}
-                            {tPage('rederive')}
-                        </CtaButton>
-                        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{tPage('rederiveHint')}</p>
-                    </div>
-                )}
+                {rederive}
             </div>
 
             <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground">{tPage('rail.minutesProvenance')}</p>

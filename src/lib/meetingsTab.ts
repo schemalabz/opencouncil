@@ -1,4 +1,4 @@
-import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBody, AdministrativeBodyType, type AuthorityType } from '@prisma/client';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { getAdministrativeBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
 import { isSecondaryBody, TIER_PARAM, type BodyScope } from '@/lib/utils/bodyTier';
@@ -11,6 +11,7 @@ import { withBodySelection, type FilterOption } from '@/lib/utils/filterURL';
  */
 export function meetingsTabFilters(
     bodies: PublicAdministrativeBody[],
+    city: { authorityType: AuthorityType },
     t: (key: string) => string,
     { widened = false }: {
         /**
@@ -23,7 +24,7 @@ export function meetingsTabFilters(
         widened?: boolean;
     } = {},
 ) {
-    const filterOptions: FilterOption<AdministrativeBodyType>[] = getAdministrativeBodyTypes(bodies, t);
+    const filterOptions: FilterOption<AdministrativeBodyType>[] = getAdministrativeBodyTypes(bodies, city, t);
     const defaultFilterValues: AdministrativeBodyType[] | undefined = widened
         ? []
         : filterOptions.some(o => o.value === 'council') ? ['council'] : undefined;
@@ -63,9 +64,13 @@ export function meetingBodyFilter(
  * locale and the body's name, through the same options the tab offers. A
  * secondary body also widens the tab's tier, so that its chip is on show.
  */
-export function meetingsTabHrefForBody(cityId: string, body: PublicAdministrativeBody, t: (key: string) => string): string {
-    const { filterOptions, bodyOptionsFor } = meetingsTabFilters([body], t);
+export function meetingsTabHrefForBody(
+    city: { id: string; authorityType: AuthorityType },
+    body: PublicAdministrativeBody,
+    t: (key: string) => string,
+): string {
+    const { filterOptions, bodyOptionsFor } = meetingsTabFilters([body], city, t);
     const params = withBodySelection(new URLSearchParams({ filters: filterOptions[0].label }), body.id, bodyOptionsFor(body.type));
     if (isSecondaryBody(body)) params.set(TIER_PARAM, 'all');
-    return `/${cityId}/meetings?${params.toString()}`;
+    return `/${city.id}/meetings?${params.toString()}`;
 }

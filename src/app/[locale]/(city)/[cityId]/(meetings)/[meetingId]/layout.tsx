@@ -31,6 +31,8 @@ import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
 import { hasExplainPage } from '@/lib/explain/availability';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { getBodyTypeLabel } from '@/lib/utils/administrativeBodies';
+import { authorityKey } from '@/lib/utils/authority';
 
 export async function generateImageMetadata(
     props: {
@@ -89,8 +91,8 @@ export async function generateMetadata(
     // Create an optimized title between 30-60 characters
     const optimizedTitle = `${getLocalizedName(data.city, locale)} - ${meetingLabel(data.meeting, locale, data.city.timezone)} | OpenCouncil`;
 
-    // Use the hero text for description, which is already optimized for Greek audience
-    const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
+    const tMetadata = await getTranslations({ locale, namespace: 'metadata.meeting' });
+    const description = tMetadata(authorityKey('description', data.city));
 
     const imageUrl = buildOgImageUrl(locale, { meetingId, cityId });
 
@@ -185,7 +187,7 @@ export default async function CouncilMeetingPage(
     // filters against stored values.
     const adminBodyPath = adminBody ? {
         name: getLocalizedName(adminBody, locale),
-        link: `/${cityId}/meetings?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
+        link: `/${cityId}/meetings?filters=${encodeURIComponent(getBodyTypeLabel(adminBody.type, data.city, tCommon))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
 
     const hasPlayback = Boolean(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl);
@@ -228,7 +230,7 @@ export default async function CouncilMeetingPage(
                                     }}
                                     showSidebarTrigger={true}
                                     inset={true}
-                                    currentEntity={{ cityId: data.city.id }}
+                                    currentEntity={{ cityId: data.city.id, authorityType: data.city.authorityType }}
                                     noContainer={true}
                                     showExplain={hasExplainPage(realm)}
                                     className="relative z-10 bg-white dark:bg-gray-950"

@@ -1,3 +1,4 @@
+import type { AuthorityType } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
 import { HotTopicsList } from './HotTopicsList';
@@ -12,6 +13,7 @@ interface HotTopicsCardProps {
     scope: HotScope;
     period: HotPeriod;
     availableScopes: HotScope[];
+    authorityType: AuthorityType;
     /** The period held no meetings, so the ranking shows the most recent ones. */
     beyondPeriod: boolean;
 }
@@ -23,7 +25,7 @@ interface HotTopicsCardProps {
  * out, and everything below is measured against its debate time. Splitting them
  * would hide that they are one ranking.
  */
-export function HotTopicsCard({ cards, cityId, timezone, locale, scope, period, availableScopes, beyondPeriod }: HotTopicsCardProps) {
+export function HotTopicsCard({ cards, cityId, timezone, locale, scope, period, availableScopes, authorityType, beyondPeriod }: HotTopicsCardProps) {
     const t = useTranslations('cityOverview');
 
     return (
@@ -46,7 +48,7 @@ export function HotTopicsCard({ cards, cityId, timezone, locale, scope, period, 
                     <h2 className="!text-left !text-xl tracking-tight md:mt-2.5 md:!text-2xl">{t('hotTopicsTitle')}</h2>
                     <p className="mt-2 hidden max-w-[60ch] text-sm text-muted-foreground md:block">{t('hotTopicsExplainer')}</p>
                 </div>
-                <HotTopicsFilters scope={scope} period={period} availableScopes={availableScopes} />
+                <HotTopicsFilters scope={scope} period={period} availableScopes={availableScopes} authorityType={authorityType} />
             </div>
 
             {beyondPeriod && (

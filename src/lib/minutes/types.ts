@@ -1,4 +1,4 @@
-import type { NonAgendaReason, Realm } from '@prisma/client';
+import type { AuthorityType, NonAgendaReason, Realm } from '@prisma/client';
 import type { PhraseOutcome } from '@/lib/derivation/deriveVotes';
 export interface MinutesMember {
     personId: string;
@@ -295,6 +295,8 @@ export interface MinutesData {
         logoImage: string | null;
         /** Owns the domain the printed link points at. */
         realm: Realm;
+        /** A region gets the tables of the decisions page and no document (authorityHasDocument). */
+        authorityType: AuthorityType;
     };
     meeting: {
         id: string;

@@ -1,5 +1,6 @@
 "use client";
 import { CalendarRange, Check, ChevronDown, Landmark } from 'lucide-react';
+import type { AuthorityType } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/routing';
@@ -9,7 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { HOT_PERIODS, HOT_SCOPES, type HotPeriod, type HotScope } from '@/lib/utils/hotTopicFilters';
+import { HOT_PERIODS, HOT_SCOPES, hotScopeLabelKey, type HotPeriod, type HotScope } from '@/lib/utils/hotTopicFilters';
 import { cn } from '@/lib/utils';
 
 interface HotTopicsFiltersProps {
@@ -17,6 +18,8 @@ interface HotTopicsFiltersProps {
     period: HotPeriod;
     /** Body types the city actually has, so the picker offers no empty scope. */
     availableScopes: HotScope[];
+    /** Names the council and the committee: of a municipality or of a region. */
+    authorityType: AuthorityType;
 }
 
 /**
@@ -30,7 +33,7 @@ interface HotTopicsFiltersProps {
  * per scope and period, so a shareable link is also the only way to reach a
  * variant without shipping every one of them to the browser.
  */
-export function HotTopicsFilters({ scope, period, availableScopes }: HotTopicsFiltersProps) {
+export function HotTopicsFilters({ scope, period, availableScopes, authorityType }: HotTopicsFiltersProps) {
     const t = useTranslations('cityOverview');
     const router = useRouter();
     const pathname = usePathname();
@@ -51,13 +54,13 @@ export function HotTopicsFilters({ scope, period, availableScopes }: HotTopicsFi
         <div className="flex shrink-0 flex-wrap items-center gap-1">
             <Picker
                 icon={<Landmark className="h-3.5 w-3.5" aria-hidden />}
-                label={t(HOT_SCOPES[scope].label)}
+                label={t(hotScopeLabelKey(scope, 'label', { authorityType }))}
                 options={availableScopes.map(value => ({
                     value,
                     // Abbreviated on the closed picker, named in the open menu:
                     // the trigger sits beside a heading and has room for two
                     // letters, the menu has room to say what they stand for.
-                    label: t(HOT_SCOPES[value].fullLabel),
+                    label: t(hotScopeLabelKey(value, 'fullLabel', { authorityType })),
                     selected: value === scope,
                     onSelect: () => choose('scope', value, HOT_SCOPES[value].isDefault),
                 }))}

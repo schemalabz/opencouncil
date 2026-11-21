@@ -3,6 +3,8 @@ import { PersonWithRelations } from '../../db/people';
 import {
     getAdministrativeBodyTypesForMeetings,
     getAdministrativeBodyTypesForPeople,
+    getBodyTypeLabel,
+    getRegionBodyTypeLabel,
     getBodiesOfTypeFromMeetings,
     getBodiesOfTypeFromPeople,
     filterPersonByAdminBodyTypes,
@@ -69,6 +71,8 @@ function makePerson(roles: { administrativeBody: AdministrativeBody | null; city
 }
 
 const mockT = (key: string) => key;
+const municipality = { authorityType: 'municipality' as const };
+const region = { authorityType: 'region' as const };
 
 const councilBody = makeAdminBody({ id: 'council-1', name: 'Δημοτικό Συμβούλιο', type: 'council' });
 const committeeBody = makeAdminBody({ id: 'committee-1', name: 'Επιτροπή Α', type: 'committee' });
@@ -84,7 +88,7 @@ describe('getAdministrativeBodyTypesForMeetings', () => {
             makeMeeting(councilBody),
             makeMeeting(committeeBody),
         ];
-        const result = getAdministrativeBodyTypesForMeetings(meetings, mockT);
+        const result = getAdministrativeBodyTypesForMeetings(meetings, municipality, mockT);
         expect(result.map(r => r.value)).toEqual(['council', 'committee', 'community']);
     });
 
@@ -93,19 +97,19 @@ describe('getAdministrativeBodyTypesForMeetings', () => {
             makeMeeting(councilBody),
             makeMeeting(councilBody),
         ];
-        const result = getAdministrativeBodyTypesForMeetings(meetings, mockT);
+        const result = getAdministrativeBodyTypesForMeetings(meetings, municipality, mockT);
         expect(result).toHaveLength(1);
     });
 
     it('skips meetings with no admin body', () => {
         const meetings = [makeMeeting(null), makeMeeting(councilBody)];
-        const result = getAdministrativeBodyTypesForMeetings(meetings, mockT);
+        const result = getAdministrativeBodyTypesForMeetings(meetings, municipality, mockT);
         expect(result).toHaveLength(1);
         expect(result[0].value).toBe('council');
     });
 
     it('returns empty for no meetings', () => {
-        expect(getAdministrativeBodyTypesForMeetings([], mockT)).toEqual([]);
+        expect(getAdministrativeBodyTypesForMeetings([], municipality, mockT)).toEqual([]);
     });
 });
 
@@ -114,7 +118,7 @@ describe('getAdministrativeBodyTypesForPeople', () => {
         const people = [
             makePerson([{ administrativeBody: councilBody }, { administrativeBody: communityBodyA }]),
         ];
-        const result = getAdministrativeBodyTypesForPeople(people, mockT);
+        const result = getAdministrativeBodyTypesForPeople(people, municipality, mockT);
         expect(result.map(r => r.value)).toEqual(['council', 'community']);
     });
 
@@ -123,8 +127,35 @@ describe('getAdministrativeBodyTypesForPeople', () => {
             makePerson([{ administrativeBody: councilBody }]),
             makePerson([{ administrativeBody: councilBody }]),
         ];
-        const result = getAdministrativeBodyTypesForPeople(people, mockT);
+        const result = getAdministrativeBodyTypesForPeople(people, municipality, mockT);
         expect(result).toHaveLength(1);
+    });
+});
+
+// --- the label of a body type (#993) ---
+
+describe('getBodyTypeLabel', () => {
+    it.each(ADMIN_BODY_TYPE_ORDER)('gives the %s of a municipality the municipal label', type => {
+        expect(getBodyTypeLabel(type, municipality, mockT)).toBe(`adminBodyType_${type}`);
+        expect(getRegionBodyTypeLabel(type, municipality, mockT)).toBeNull();
+    });
+
+    it.each(['council', 'committee'] as const)('names the %s of a region after the region', type => {
+        expect(getBodyTypeLabel(type, region, mockT)).toBe(`regionBodyType_${type}`);
+    });
+
+    // A region has no body of these types. A row that has one keeps a label.
+    it.each(['community', 'youthCouncil'] as const)('falls back to the municipal label for the %s of a region', type => {
+        expect(getRegionBodyTypeLabel(type, region, mockT)).toBeNull();
+        expect(getBodyTypeLabel(type, region, mockT)).toBe(`adminBodyType_${type}`);
+    });
+
+    it('labels the type options of a region', () => {
+        const people = [makePerson([{ administrativeBody: councilBody }, { administrativeBody: committeeBody }])];
+        expect(getAdministrativeBodyTypesForPeople(people, region, mockT)).toEqual([
+            { value: 'council', label: 'regionBodyType_council' },
+            { value: 'committee', label: 'regionBodyType_committee' },
+        ]);
     });
 });
 

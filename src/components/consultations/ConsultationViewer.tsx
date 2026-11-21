@@ -373,7 +373,7 @@ export default function ConsultationViewer({
                         overview={regulationData.overview}
                         href={href}
                         commentCounts={commentCounts}
-                        miniMap={isDesktop === false ? <MiniMap address={address} items={lookup.street} zone={lookup.zone} /> : undefined}
+                        miniMap={isDesktop === false ? <MiniMap address={address} items={lookup.street} zone={lookup.zone} authorityType={cityData?.authorityType ?? 'municipality'} /> : undefined}
                         regulationData={regulationData}
                         onReferenceClick={openReference}
                     />

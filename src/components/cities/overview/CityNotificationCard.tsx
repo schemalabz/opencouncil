@@ -7,7 +7,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
-import { authorityKey } from './authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { NotisInviteCard } from '@/components/signup/NotisInviteCard';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
@@ -123,7 +123,7 @@ function SubscribedCard({
                 </Link>
                 <FactDot className="text-border" />
                 <Link href="/profile" className="text-xs text-muted-foreground hover:text-foreground">
-                    {t('allMyCities')}
+                    {t(authorityKey('allMyCities', city))}
                 </Link>
             </div>
         </RailDisclosure>

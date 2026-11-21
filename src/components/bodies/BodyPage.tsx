@@ -2,7 +2,7 @@
 import { useCallback, useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, ExternalLink, Landmark } from 'lucide-react';
-import type { Party, Realm } from '@prisma/client';
+import type { AuthorityType, CityLanguage, Party, Realm } from '@prisma/client';
 import type { BodyContacts, PublicAdministrativeBody } from '@/lib/db/types';
 import { Link } from '@/i18n/routing';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -26,7 +26,8 @@ import { meetingsTabHrefForBody } from '@/lib/meetingsTab';
 import { bodyOffersFollow, isSecondaryBody } from '@/lib/utils/bodyTier';
 import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { isRoleActive } from '@/lib/utils/roles';
-import { mayStartNewTerm } from '@/lib/utils/administrativeBodies';
+import { getBodyTypeLabel, mayStartNewTerm } from '@/lib/utils/administrativeBodies';
+import { authorityKey } from '@/lib/utils/authority';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
@@ -37,7 +38,7 @@ export const underlineTabClass =
 
 export interface BodyPageProps {
     /** The realm decides the fields of the meeting form: a Greek city records a kind, an urgency and a session number. */
-    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; supportsNotifications: boolean };
+    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; language: CityLanguage; authorityType: AuthorityType; supportsNotifications: boolean };
     body: BodyPageRow;
     meetings: CouncilMeetingWithSubjectPreview[];
     /** Everyone who holds, or held, a role on the body. */
@@ -74,7 +75,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
     const locale = useLocale();
 
     const name = getLocalizedName(body, locale);
-    const typeLabel = tCommon(`adminBodyType_${body.type}`);
+    const typeLabel = getBodyTypeLabel(body.type, city, tCommon);
 
     const members = useMemo(
         () => people.filter(person => person.roles.some(role => role.administrativeBodyId === body.id && isRoleActive(role))),
@@ -190,7 +191,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                 ItemComponent={MeetingCardV2}
                                 itemProps={{ cityTimezone: city.timezone, now }}
                                 FormComponent={AddMeetingForm}
-                                formProps={{ cityId: city.id, realm: city.realm, timezone: city.timezone, allowedBodyIds: [body.id] }}
+                                formProps={{ cityId: city.id, realm: city.realm, authorityType: city.authorityType, timezone: city.timezone, allowedBodyIds: [body.id] }}
                                 t={tMeetings}
                                 showCount
                                 smColumns={1}
@@ -200,7 +201,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                             {capped && (
                                 <p className="mt-4 text-sm text-muted-foreground">
                                     {t('latestOnly', { count: cappedAt })}{' '}
-                                    <Link href={meetingsTabHrefForBody(city.id, body, tCommon)} className="underline hover:text-foreground">
+                                    <Link href={meetingsTabHrefForBody(city, body, tCommon)} className="underline hover:text-foreground">
                                         {t('allMeetings')}
                                     </Link>
                                 </p>
@@ -210,6 +211,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                             <BodyMembersTab
                                 canEditImage={!isYouthCouncil(body)}
                                 cityId={city.id}
+                                roleCity={city}
                                 bodyId={body.id}
                                 people={people}
                                 members={members}
@@ -221,8 +223,8 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         {canEdit && (
                             <TabsContent value="admin" className="mt-6 space-y-8">
-                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
-                                <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
+                                {contacts && <BodyContactsForm cityId={city.id} authorityType={city.authorityType} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
+                                <BodyAdminsCard cityId={city.id} authorityType={city.authorityType} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
                                 <BodyEmbedCard cityId={city.id} bodyId={body.id} />
                             </TabsContent>
@@ -232,7 +234,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                     <aside className="space-y-4">
                         <RailCard title={t('aboutTitle')}>
                             <p className="text-sm text-muted-foreground">
-                                {isSecondaryBody(body) ? t('aboutSecondary', { type: typeLabel }) : t('aboutPrimary', { type: typeLabel })}
+                                {isSecondaryBody(body) ? t(authorityKey('aboutSecondary', city), { type: typeLabel }) : t(authorityKey('aboutPrimary', city), { type: typeLabel })}
                             </p>
                         </RailCard>
                     </aside>

@@ -9,6 +9,7 @@ import { savePetition } from '@/lib/actions/notifications';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
+import { authorityKey } from '@/lib/utils/authority';
 import { PetitionComplete, PetitionCompleteAside } from './PetitionComplete';
 import { PetitionFormStep } from './PetitionFormStep';
 import { PetitionIntroStep } from './PetitionIntroStep';
@@ -169,7 +170,7 @@ export function PetitionSignup({
             )}
 
             {state.step === 1 && (
-                <SignupFooter actionLabel={existing ? t('ctaUpdate') : t('ctaStart')} onAction={() => goTo(2)} />
+                <SignupFooter actionLabel={existing ? t('ctaUpdate') : t(authorityKey('ctaStart', city))} onAction={() => goTo(2)} />
             )}
             {state.step === 2 && (
                 <SignupFooter

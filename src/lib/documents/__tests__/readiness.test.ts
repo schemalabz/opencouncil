@@ -35,7 +35,7 @@ function input(overrides: Omit<Partial<ReadinessInput>, 'meeting'> & { meeting?:
             kind: 'ordinary',
             continuationOf: null,
             administrativeBody: null,
-            city: { timezone: 'Europe/Athens' },
+            city: { timezone: 'Europe/Athens', authorityType: 'municipality' },
             ...overrides.meeting,
         },
     };
@@ -48,6 +48,13 @@ describe('evaluateReadiness', () => {
         it.each(['transcript', 'minutes'] as const)('%s: never goes out when the body has no setting, or a disabled one', (document) => {
             expect(evaluateReadiness(document, input({ setting: null }))).toEqual({ state: 'none', reason: 'disabled' });
             expect(evaluateReadiness(document, input({ setting: { ...setting, enabled: false } }))).toEqual({ state: 'none', reason: 'disabled' });
+        });
+
+        it('never sends the minutes of a region, and sends its transcript (#993)', () => {
+            const region = { meeting: { city: { timezone: 'Europe/Athens', authorityType: 'region' as const } } };
+            expect(evaluateReadiness('minutes', input(region))).toEqual({ state: 'none', reason: 'disabled' });
+            expect(evaluateManualReadiness('minutes', input(region))).toEqual({ state: 'none', reason: 'disabled' });
+            expect(evaluateReadiness('transcript', input(region))).toEqual({ state: 'complete' });
         });
 
         it('never goes out for a meeting held before the switch-on', () => {
@@ -266,7 +273,7 @@ describe('isSendable and missingSubjectIdsOf', () => {
 });
 
 describe('readinessInputFor', () => {
-    const pollableCity = { timezone: 'Europe/Athens', status: 'supported' as const, diavgeiaUid: '6104' };
+    const pollableCity = { timezone: 'Europe/Athens', status: 'supported' as const, diavgeiaUid: '6104', authorityType: 'municipality' as const };
 
     it('reads the setting of the kind, the review, the subjects and the agenda from the facts', () => {
         const minutesSetting = settingOf('minutes', { recipientEmails: ['m@example.org'] });
