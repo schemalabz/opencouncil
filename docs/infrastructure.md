@@ -107,6 +107,29 @@ PR previews can be linked to an opencouncil-tasks preview for end-to-end testing
 
 When the preview is created, the `opencouncil-preview-create` script detects this and configures the preview's `TASK_API_URL` to point to the linked tasks preview instead of the shared staging tasks server. This allows testing changes across both repos in isolation.
 
+## Logs
+
+- **PostHog Logs** (production and staging): `npm run production:start` loads `telemetry.cjs` before Next. It sends two kinds of record to the project that `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` names, the same project as the browser's events. The variable must be set at run time, not only at build time:
+  - one record for each console call, with its level;
+  - one record for each request: the method, the path, the status, the duration, the user agent, and the client address from App Platform's `do-connecting-ip` header.
+
+  The console lines of a request share its trace id. A request that the client aborts, or that fails before it has a status, is a `warn` record with `aborted: true`. A record body is cut at 16,000 bytes. Both PostHog projects keep logs for 90 days, which is the retention that the privacy policy states for server logs. This is a custom retention in the Logs settings of each project. The default is 14 days.
+- **stdout**: the same console lines, and two short `[request]` lines for each request, without the client address. The first line comes when the request starts, the second when it ends. The two lines share an id, for example `[request] 6cb87aba start GET /el`. A request that stalls the server has only the first line. App Platform keeps the last output of a crashed instance (`doctl apps logs <app> opencouncil --type run_restarted`).
+- **Better Stack**: production stdout, through the App Platform log destination of the `opencouncil` service.
+- **Paths**: request records and lines remove the query string and redact credentials in the path (`/mcp/mcp_…`, `/api/join/…`). `src/lib/utils/logSafePath.cjs` holds the one list for `telemetry.cjs` and for the app.
+- **Personal data**: nothing masks log output. The code keeps personal data out of log lines where they start:
+  - `createPrismaClient` rewrites Prisma errors without the arguments of the call.
+  - `executeElasticsearchWithRetry` removes the query from Elasticsearch errors.
+  - A lint rule (`consolePersonalDataSelectors` in `eslint.config.mjs`) checks console calls.
+  - `tests/integration/log-personal-data.test.ts` runs the app's paths with canary values.
+
+  Two PostHog settings find a line that still leaks:
+  - Project settings → Logs → **Scrub PII in Logs at ingestion** is on. PostHog replaces email addresses, bearer tokens, and the values of attributes such as `email` or `token` with `{{REDACTED}}`. It does not find phone numbers, names or addresses.
+  - A log alert, **Personal data in logs**, fires on one matching record in 60 minutes. Its filter is Message matches regex `\{\{REDACTED\}\}|\+[1-9][0-9]{9,14}|(^|[^0-9])69[0-9]{8}([^0-9]|$)`, which is the scrubbing marker, an international phone number, or a Greek mobile number.
+
+  When the alert fires, fix the log line in the code. The same line is also in Better Stack, which does not scrub.
+- Not covered: PR previews (`node server.js`) and Docker (`npx next start`) do not load `telemetry.cjs`.
+
 ## Application Architecture
 
 Two repositories, connected via callbacks:

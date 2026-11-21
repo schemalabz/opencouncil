@@ -1,6 +1,6 @@
 import type { Instrumentation } from 'next';
 import { isClientDisconnectError } from './lib/clientDisconnectGuard';
-import { logSafePath } from '@/lib/utils/logSafePath';
+import { logSafePath } from '@/lib/utils/logSafePath.cjs';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') {

@@ -35,6 +35,13 @@ This allows testing the migration against a local database first before applying
 
 **New models and personal data**: the seed pipeline ships content tables to developers and previews, and never ships private tables. When you add a Prisma model, add it to `packages/seed-pipeline/config/tables.json` as `content` (public record) or `private` (personal data). `packages/seed-pipeline/src/tables.test.ts` fails until you do. If you are not sure, choose `private` and say so in the pull request. When you add a column with personal data to a content table, add a masking rule for it in the same file. When a code path writes rows of a private person into a content table (as reader addresses go into `Location`), add a `delete-when` rule for those rows. No test catches these cases. See `packages/seed-pipeline/README.md`.
 
+**New processing of personal data**: the privacy policy (`src/app/[locale]/(other)/privacy/page.tsx`) names every service that receives personal data, and the data that it receives. A change needs a `## Privacy` section in the pull request description when it does one of these things:
+- It sends data to an external service that the policy does not name.
+- It sends a new kind of personal data to a service that the policy names, for example IP addresses, email addresses, log lines, or free text that a reader wrote.
+- It uses personal data for a new purpose.
+
+In that section, name the service, the data, the purpose, and how long the service keeps the data. Draft the policy change by the comment at the top of the policy file. The DPO decides the final text. The release stops until the policy covers the change.
+
 ### Direct Database Access
 
 When you need to query the database directly (e.g. to find test data, verify state, or debug):
