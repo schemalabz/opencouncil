@@ -160,6 +160,19 @@ npm run --silent seed -- status --db postgresql://opencouncil@localhost:5432/ope
 
 In development mode, a floating panel appears for instant user switching without email authentication.
 
+## Review fixtures
+
+The seed artifact holds the public content of production. Production has no Serbian city and no region, so the artifact cannot carry them. `npm run seed -- fixtures`, `setup` and `reset` add two fixtures, and `prisma/seed.ts` adds them to a preview. Each fixture uses fixed ids and upserts, so a second run changes nothing.
+
+| Fixture | City id | Status | Source |
+|---|---|---|---|
+| The Serbian review city (Belgrade) | `beograd` | `demo` | `src/lib/db/serbianFixture.ts` |
+| The review region (Thessaly) | `seed-thessalia` | `pending` | `src/lib/db/regionFixture.ts` |
+
+The review region is a `City` row with `authorityType = region`. It has a regional council, two committees, a head with no stored role name, a deputy with a stored role name, a councillor with no party, two released meetings, and two subjects with a location. Its outline is a rough `MultiPolygon`, not the official boundary. The party and the people are fictional.
+
+The region is `pending`. It is not in the sitemap, on the landing map, or in the list of supported cities. Open it by its link: `/seed-thessalia`. Two lists hold a city of any status, so they hold the region too: the city picker of the petition and of the notifications, and `GET /api/cities/all`. `GET /api/cities/at` returns the smallest outline at a point, so it returns the region only where no municipality covers the point. The test accounts get rights in the supported cities only, so use the Super Admin account to edit the region.
+
 ## Refreshing staging
 
 `scripts/seed/refresh-staging.sh` replaces staging's content with production's, from the newest SnapShooter dump. It keeps staging's accounts, rights, MCP tokens, and other private rows, as `reset` does. A refresh deletes the meetings and other content that people made on staging, and it leaves out the private rows that point at that content. The weekly run is manual for now.
@@ -184,7 +197,7 @@ The script:
 
 A kept run directory holds production's content. Delete it after the next run succeeds. The script warns about each run directory that an earlier run left.
 
-While the reset runs, staging does not answer, and its private tables are empty for a few seconds: a person who signs in then gets a new account, and the kept one, with its rights, is left out. Run it when nobody uses staging. The run adds the test accounts and the Serbian review city, and a right to that city is left out, because the fixtures add the city after the kept rows come back. For the same reason, every run reports 5 `_NotificationLocation` rows as left out: they link the test accounts to the fixture locations, and the fixtures add them again.
+While the reset runs, staging does not answer, and its private tables are empty for a few seconds: a person who signs in then gets a new account, and the kept one, with its rights, is left out. Run it when nobody uses staging. The run adds the test accounts, the Serbian review city and the review region. A right to one of these two fixture cities is left out, because the fixtures add the city after the kept rows come back. For the same reason, every run reports 5 `_NotificationLocation` rows as left out: they link the test accounts to the fixture locations, and the fixtures add them again.
 
 The reset waits at most one minute for each lock on a table. Then it stops and changes nothing. Its error lists the sessions that hold locks on its tables. A stalled app backend can hold a lock for hours: when the app does not answer, terminate that session (`SELECT pg_terminate_backend(<pid>)`). Then run the command that the script printed.
 

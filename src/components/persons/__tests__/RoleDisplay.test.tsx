@@ -26,7 +26,7 @@ describe('RoleDisplay source language', () => {
     ])('renders an English page for %s content as %s', (cityLanguage, expected) => {
         render(
             <NextIntlClientProvider locale="en" messages={{ Person: messages.Person }}>
-                <RoleDisplay roles={[{ ...councilHead, name: cityLanguage === 'el' ? 'Δήμαρχος' : councilHead.name }]} cityLanguage={cityLanguage} fullText />
+                <RoleDisplay roles={[{ ...councilHead, name: cityLanguage === 'el' ? 'Δήμαρχος' : councilHead.name }]} roleCity={{ language: cityLanguage, authorityType: 'municipality' }} fullText />
             </NextIntlClientProvider>,
         );
 

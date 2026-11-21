@@ -42,7 +42,7 @@ export async function generateMeetingDocxBuffer(
         meeting,
         transcript,
         people,
-    }, await getRoleTitles(city.language));
+    }, await getRoleTitles(city));
 
     const blob = await doc.save();
     const arrayBuffer = await blob.arrayBuffer();

@@ -60,6 +60,8 @@
         "adminBodyType_committee": "Δημοτική Επιτροπή",
         "adminBodyType_community": "Κοινότητες",
         "adminBodyType_youthCouncil": "Δημοτικό Συμβούλιο Νέων",
+        "regionBodyType_council": "Περιφερειακό Συμβούλιο",
+        "regionBodyType_committee": "Περιφερειακή Επιτροπή",
         "showYouthCouncils": "Συμβούλια Νέων",
         "allPeople": "Όλα",
         "allBodies": "Όλες",
@@ -164,7 +166,10 @@
         "logoPreview": "Προεπισκόπηση Λογότυπου",
         "details": "Λεπτομέρειες",
         "boundary": "Όρια",
-        "boundaryDescription": "Τα γεωγραφικά όρια του δήμου, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM).",
+        "boundaryDescription": {
+            "municipality": "Τα γεωγραφικά όρια του δήμου, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM).",
+            "region": "Τα γεωγραφικά όρια της περιφέρειας, για τον χάρτη και τις λειτουργίες τοποθεσίας. Επικολλήστε GeoJSON για αντικατάσταση — γεωμετρία Polygon/MultiPolygon, Feature ή ολόκληρο FeatureCollection (π.χ. από το geojson.io ή εξαγωγή OSM)."
+        },
         "boundaryPlaceholder": "Επικολλήστε εδώ το GeoJSON των ορίων…",
         "boundaryShowingStored": "Εμφανίζονται τα αποθηκευμένα όρια.",
         "boundaryPreviewingPasted": "Προεπισκόπηση των επικολλημένων ορίων — θα αποθηκευτούν με την υποβολή της φόρμας.",
@@ -175,16 +180,31 @@
         "toggle": "Εναλλαγή",
         "cityNameEnPlaceholder": "Όνομα Πόλης (Αγγλικά)",
         "cityNameEnDescription": "Εισάγετε το όνομα της πόλης στα Αγγλικά.",
-        "cityMunicipalityPlaceholder": "Όνομα Δήμου",
-        "cityMunicipalityDescription": "Εισάγετε το όνομα του δήμου.",
-        "cityMunicipalityEnPlaceholder": "Όνομα Δήμου (Αγγλικά)",
-        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+        "cityMunicipalityPlaceholder": {
+            "municipality": "Όνομα Δήμου",
+            "region": "Όνομα Περιφέρειας"
+        },
+        "cityMunicipalityDescription": {
+            "municipality": "Εισάγετε το όνομα του δήμου.",
+            "region": "Εισάγετε το όνομα της περιφέρειας."
+        },
+        "cityMunicipalityEnPlaceholder": {
+            "municipality": "Όνομα Δήμου (Αγγλικά)",
+            "region": "Όνομα Περιφέρειας (Αγγλικά)"
+        },
+        "cityMunicipalityEnDescription": {
+            "municipality": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+            "region": "Εισάγετε το όνομα της περιφέρειας στα Αγγλικά."
+        },
         "authorityType": "Τύπος Αρχής",
         "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
         "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί",
         "realm": "Ομάδα (Realm)",
         "selectRealm": "Επιλέξτε ομάδα",
-        "realmDescription": "Η ομάδα/χώρα στην οποία ανήκει αυτός ο δήμος.",
+        "realmDescription": {
+            "municipality": "Η ομάδα/χώρα στην οποία ανήκει αυτός ο δήμος.",
+            "region": "Η ομάδα/χώρα στην οποία ανήκει αυτή η περιφέρεια."
+        },
         "language": "Γλώσσα",
         "selectLanguage": "Επιλέξτε γλώσσα",
         "languageDescription": "Η γλώσσα στην οποία συνεδριάζει το συμβούλιο. Ορίζει τη γλώσσα της απομαγνητοφώνησης και των περιλήψεων· δεν αλλάζει τη γλώσσα της διεπαφής.",
@@ -234,11 +254,17 @@
             "activeLabel": "Ενεργό (ορατό σε όλους τους χρήστες)",
             "inactiveDescription": "Τα ανενεργά μηνύματα είναι ορατά μόνο στους διαχειριστές συστήματος για προεπισκόπηση."
         },
-        "sectionIdentity": "Στοιχεία δήμου",
+        "sectionIdentity": {
+            "municipality": "Στοιχεία δήμου",
+            "region": "Στοιχεία περιφέρειας"
+        },
         "sectionIdentityHint": "Ονομασία, τύπος αρχής και λογότυπο",
         "sectionSettings": "Ρυθμίσεις",
         "sectionSettingsHint": "Διεύθυνση, ζώνη ώρας, ενημερώσεις, διαβουλεύσεις, Διαύγεια",
-        "administrativeBodiesHint": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+        "administrativeBodiesHint": {
+            "municipality": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+            "region": "Περιφερειακό συμβούλιο και επιτροπές"
+        },
         "adminSettingsHint": "Κατάσταση, δικαιώματα, χώρα και γλώσσα"
     },
     "City": {
@@ -376,7 +402,10 @@
         },
         "urgent": "Έκτακτη",
         "urgentDescription": "Η πρόσκληση συγκαλεί τη συνεδρίαση εκτάκτως. Κάθε είδος συνεδρίασης μπορεί να είναι έκτακτο.",
-        "councilOnly": "μόνο δημοτικό συμβούλιο",
+        "councilOnly": {
+            "municipality": "μόνο δημοτικό συμβούλιο",
+            "region": "μόνο περιφερειακό συμβούλιο"
+        },
         "scheduleStatus": "Κατάσταση",
         "scheduleStatusOptions": {
             "scheduled": "Προγραμματισμένη",
@@ -551,6 +580,7 @@
         "partyLeader": "Επικεφαλής",
         "formerMembers": "Παλαιότερα μέλη",
         "mayor": "Δήμαρχος",
+        "regionalGovernor": "Περιφερειάρχης",
         "president": "Πρόεδρος",
         "member": "Μέλος",
         "partyLeaderShort": "Επικ.",
@@ -579,6 +609,7 @@
         "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
         "breadcrumbHome": "Αρχική",
         "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
+        "independentRegionalCouncilMember": "Ανεξάρτητος Περιφερειακός Σύμβουλος",
         "biography": "Βιογραφικό",
         "moreRoles": "+{count} ακόμη",
         "present": "σήμερα",
@@ -610,11 +641,6 @@
         "breadcrumbHome": "Αρχική",
         "tabPeople": "Πρόσωπα",
         "tabSegments": "Τοποθετήσεις",
-        "breakdownMayor": "Δήμαρχος",
-        "breakdownCouncil": "{count} στο Δημοτικό Συμβούλιο",
-        "breakdownCommittees": "{count} σε επιτροπές",
-        "breakdownCommunities": "{count} σε κοινότητες",
-        "breakdownOthers": "{count} άλλοι",
         "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:",
         "compositionCard": "Σύνθεση",
         "membersTotal": "{count, plural, one {# μέλος συνολικά} other {# μέλη συνολικά}}"
@@ -689,7 +715,10 @@
         "type": "Τύπος",
         "selectType": "Επιλέξτε τύπο",
         "types": {
-            "city": "Δήμος",
+            "city": {
+                "municipality": "Δήμος",
+                "region": "Περιφέρεια"
+            },
             "party": "Παράταξη",
             "administrativeBody": "Διοικητικό Όργανο"
         },
@@ -708,7 +737,10 @@
         "update": "Ενημέρωση",
         "create": "Δημιουργία",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον ρόλο;",
-        "cityRole": "Δημοτικός Σύμβουλος",
+        "cityRole": {
+            "municipality": "Δημοτικός Σύμβουλος",
+            "region": "Περιφερειακός Σύμβουλος"
+        },
         "head": "Επικεφαλής",
         "from": "από",
         "until": "έως",
@@ -984,7 +1016,10 @@
         "nameEnDescription": "Εισάγετε το όνομα του διοικητικού οργάνου στα Αγγλικά.",
         "type": "Τύπος",
         "selectType": "Επιλέξτε τύπο",
-        "typeDescription": "Επιλέξτε τον τύπο του διοικητικού οργάνου. Ένα όργανο του τύπου «Δημοτικό Συμβούλιο Νέων» επεξεργάζεται τις συνεδριάσεις του χωρίς έλεγχο και τις δημοσιεύει αυτόματα.",
+        "typeDescription": {
+            "municipality": "Επιλέξτε τον τύπο του διοικητικού οργάνου. Ένα όργανο του τύπου «Δημοτικό Συμβούλιο Νέων» επεξεργάζεται τις συνεδριάσεις του χωρίς έλεγχο και τις δημοσιεύει αυτόματα.",
+            "region": "Επιλέξτε τον τύπο του διοικητικού οργάνου."
+        },
         "tier": "Εμφάνιση",
         "tierDescription": "Το περιεχόμενο ενός δευτερεύοντος οργάνου, π.χ. ενός Συμβουλίου Νέων, εμφανίζεται μόνο όταν ο αναγνώστης το ζητήσει. Η αλλαγή του τύπου ενός υπάρχοντος οργάνου δεν αλλάζει την εμφάνισή του.",
         "tierOptions": {
@@ -1054,7 +1089,10 @@
     },
     "ElectedOrderSheet": {
         "title": "Σειρά Εκλογής",
-        "description": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο δημοτικό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά.",
+        "description": {
+            "municipality": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο δημοτικό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά.",
+            "region": "Σύρετε και αποθέστε τα μέλη για να ορίσετε τη σειρά εκλογής στο περιφερειακό συμβούλιο. Η σειρά χρησιμοποιείται στα επίσημα πρακτικά."
+        },
         "currentOrder": "Τρέχουσα σειρά: {order}",
         "save": "Αποθήκευση Σειράς",
         "saving": "Αποθήκευση...",

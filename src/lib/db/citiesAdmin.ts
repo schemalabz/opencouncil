@@ -1,10 +1,11 @@
 import "server-only";
-import type { City, CityStatus, Prisma, Realm } from "@prisma/client";
+import type { AuthorityType, City, CityStatus, Prisma, Realm } from "@prisma/client";
 import prisma from "./prisma";
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import type { CityWithCounts } from './cities';
 import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
+import { authorityAllowsBodyType, bodyTypeRefusal } from '@/lib/utils/authority';
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 export { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 
@@ -49,8 +50,28 @@ type CityEdit = Partial<Omit<City, 'id' | 'createdAt' | 'updatedAt'>>;
 export async function editCityDirect(id: string, cityData: CityEdit): Promise<City> {
     return prisma.$transaction(async db => {
         await assertDemoChangeAllowed(id, cityData, db);
+        if (cityData.authorityType !== undefined) await assertAuthorityTypeAllowed(id, cityData.authorityType, db);
         return db.city.update({ where: { id }, data: cityData });
     });
+}
+
+/**
+ * The body rule for a change of the kind of an authority (#993). The writes of
+ * a body check the type against the kind of its city. This is the same check
+ * from the other side: a municipality with a community does not become a
+ * region and keep a body that a region may not have.
+ *
+ * The check runs only when the kind changes. The city form sends the kind with
+ * each save, and a body keeps the type that it has. So a save of a region that
+ * keeps its kind does not fail on a body that is older than the rule.
+ */
+async function assertAuthorityTypeAllowed(cityId: string, authorityType: AuthorityType, db: Prisma.TransactionClient): Promise<void> {
+    const city = await db.city.findUnique({ where: { id: cityId }, select: { authorityType: true } });
+    if (!city || city.authorityType === authorityType) return;
+
+    const bodies = await db.administrativeBody.findMany({ where: { cityId }, select: { type: true }, distinct: ['type'] });
+    const refused = bodies.find(body => !authorityAllowsBodyType({ authorityType }, body.type));
+    if (refused) throw new ConflictError(`${bodyTypeRefusal({ authorityType }, refused.type)}. Remove the body or change its type first. Nothing was saved.`);
 }
 
 /**

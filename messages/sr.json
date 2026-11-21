@@ -60,6 +60,8 @@
         "adminBodyType_committee": "Одбор",
         "adminBodyType_community": "Заједнице",
         "adminBodyType_youthCouncil": "Савет младих",
+        "regionBodyType_council": "Скупштина",
+        "regionBodyType_committee": "Одбор",
         "showYouthCouncils": "Савети младих",
         "allPeople": "Сви",
         "allBodies": "Сва",
@@ -150,7 +152,10 @@
         "logoPreview": "Преглед логотипа",
         "details": "Детаљи",
         "boundary": "Границе",
-        "boundaryDescription": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза).",
+        "boundaryDescription": {
+            "municipality": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза).",
+            "region": "Географске границе општине/града, које се користе за мапу и функције локације. Налепите GeoJSON да их замените — геометрију Polygon/MultiPolygon, Feature или цео FeatureCollection (нпр. са geojson.io или из OSM извоза)."
+        },
         "boundaryPlaceholder": "Налепите овде GeoJSON граница…",
         "boundaryShowingStored": "Приказане су тренутно сачуване границе.",
         "boundaryPreviewingPasted": "Преглед налепљених граница — биће сачуване када пошаљете формулар.",
@@ -161,16 +166,31 @@
         "toggle": "Прикажи/сакриј",
         "cityNameEnPlaceholder": "Назив града (енглески)",
         "cityNameEnDescription": "Унесите назив града на енглеском.",
-        "cityMunicipalityPlaceholder": "Назив општине",
-        "cityMunicipalityDescription": "Унесите назив општине.",
-        "cityMunicipalityEnPlaceholder": "Назив општине (енглески)",
-        "cityMunicipalityEnDescription": "Унесите назив општине на енглеском.",
+        "cityMunicipalityPlaceholder": {
+            "municipality": "Назив општине",
+            "region": "Назив општине"
+        },
+        "cityMunicipalityDescription": {
+            "municipality": "Унесите назив општине.",
+            "region": "Унесите назив општине."
+        },
+        "cityMunicipalityEnPlaceholder": {
+            "municipality": "Назив општине (енглески)",
+            "region": "Назив општине (енглески)"
+        },
+        "cityMunicipalityEnDescription": {
+            "municipality": "Унесите назив општине на енглеском.",
+            "region": "Унесите назив општине на енглеском."
+        },
         "authorityType": "Тип органа власти",
         "selectAuthorityType": "Изаберите тип органа власти",
         "authorityTypeDescription": "Изаберите тип органа власти.",
         "realm": "Домен",
         "selectRealm": "Изаберите домен",
-        "realmDescription": "Тенантска група којој овај град припада.",
+        "realmDescription": {
+            "municipality": "Тенантска група којој овај град припада.",
+            "region": "Тенантска група којој овај град припада."
+        },
         "language": "Језик",
         "selectLanguage": "Изаберите језик",
         "languageDescription": "Језик на којем веће одржава седнице. Одређује језик транскрипције и резимеа; не мења језик интерфејса.",
@@ -220,11 +240,17 @@
             "activeLabel": "Активна (видљива свим корисницима)",
             "inactiveDescription": "Неактивне поруке видљиве су само суперадминистраторима ради прегледа."
         },
-        "sectionIdentity": "Подаци о граду",
+        "sectionIdentity": {
+            "municipality": "Подаци о граду",
+            "region": "Подаци о граду"
+        },
         "sectionIdentityHint": "Назив, тип власти и логотип",
         "sectionSettings": "Подешавања",
         "sectionSettingsHint": "Адреса, временска зона, обавештења, јавне расправе, Диавгеиа",
-        "administrativeBodiesHint": "Скупштина, одбори и месне заједнице",
+        "administrativeBodiesHint": {
+            "municipality": "Скупштина, одбори и месне заједнице",
+            "region": "Скупштина, одбори и месне заједнице"
+        },
         "adminSettingsHint": "Статус, дозволе, држава и језик"
     },
     "City": {
@@ -357,7 +383,10 @@
         },
         "urgent": "Хитна",
         "urgentDescription": "Позив сазива седницу по хитном поступку. Седница сваке врсте може бити хитна.",
-        "councilOnly": "само скупштина",
+        "councilOnly": {
+            "municipality": "само скупштина",
+            "region": "само скупштина"
+        },
         "scheduleStatus": "Статус",
         "scheduleStatusOptions": {
             "scheduled": "Заказана",
@@ -595,7 +624,10 @@
         "type": "Тип",
         "selectType": "Изаберите тип",
         "types": {
-            "city": "Град",
+            "city": {
+                "municipality": "Град",
+                "region": "Град"
+            },
             "party": "Одборничка група",
             "administrativeBody": "Управно тело"
         },
@@ -614,7 +646,10 @@
         "update": "Ажурирај",
         "create": "Креирај",
         "confirmDelete": "Да ли сте сигурни да желите да обришете ову функцију?",
-        "cityRole": "Одборник скупштине",
+        "cityRole": {
+            "municipality": "Одборник скупштине",
+            "region": "Одборник скупштине"
+        },
         "head": "Руководилац",
         "from": "од",
         "until": "до",
@@ -901,6 +936,7 @@
         "partyLeader": "Шеф одборничке групе",
         "formerMembers": "Бивши чланови",
         "mayor": "Градоначелник",
+        "regionalGovernor": "Градоначелник",
         "president": "Председник",
         "member": "Члан",
         "partyLeaderShort": "Шеф групе",
@@ -929,6 +965,7 @@
         "tryDifferentFilter": "Покушајте да промените филтере",
         "breadcrumbHome": "Почетна",
         "independentCouncilMember": "Независни одборник",
+        "independentRegionalCouncilMember": "Независни одборник",
         "biography": "Биографија",
         "moreRoles": "+{count} још",
         "present": "данас",
@@ -960,11 +997,6 @@
         "breadcrumbHome": "Почетна",
         "tabPeople": "Особе",
         "tabSegments": "Изјаве",
-        "breakdownMayor": "Градоначелник",
-        "breakdownCouncil": "{count} у скупштини",
-        "breakdownCommittees": "{count} у одборима",
-        "breakdownCommunities": "{count} у месним заједницама",
-        "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}",
         "peopleWithoutParties": "Особе изван одборничких група:",
         "compositionCard": "Састав",
         "membersTotal": "{count, plural, one {# члан укупно} few {# члана укупно} other {# чланова укупно}}"
@@ -990,7 +1022,10 @@
         "nameEnDescription": "Унесите назив административног тела на енглеском.",
         "type": "Тип",
         "selectType": "Изаберите тип",
-        "typeDescription": "Изаберите тип административног тела. Тело типа „Градски савет младих” обрађује своје седнице без прегледа и само их објављује.",
+        "typeDescription": {
+            "municipality": "Изаберите тип административног тела. Тело типа „Градски савет младих” обрађује своје седнице без прегледа и само их објављује.",
+            "region": "Изаберите тип административног тела."
+        },
         "tier": "Видљивост",
         "tierDescription": "Садржај секундарног тела, на пример савета младих, приказује се само када га читалац затражи. Промена типа постојећег тела не мења његову видљивост.",
         "tierOptions": {
@@ -1060,7 +1095,10 @@
     },
     "ElectedOrderSheet": {
         "title": "Изборни редослед",
-        "description": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице.",
+        "description": {
+            "municipality": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице.",
+            "region": "Превуците и отпустите чланове да бисте одредили редослед избора у скупштину. Овај редослед се користи у званичном записнику седнице."
+        },
         "currentOrder": "Тренутни редослед: {order}",
         "save": "Сачувај редослед",
         "saving": "Чување...",

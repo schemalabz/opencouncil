@@ -60,6 +60,8 @@
     "adminBodyType_committee": "Commission municipale",
     "adminBodyType_community": "Communautés",
     "adminBodyType_youthCouncil": "Conseil municipal des jeunes",
+    "regionBodyType_council": "Conseil municipal",
+    "regionBodyType_committee": "Commission municipale",
     "showYouthCouncils": "Conseils des jeunes",
     "allPeople": "Tous",
     "allBodies": "Tous",
@@ -164,7 +166,10 @@
     "logoPreview": "Aperçu du logo",
     "details": "Détails",
     "boundary": "Limites",
-    "boundaryDescription": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM).",
+    "boundaryDescription": {
+      "municipality": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM).",
+      "region": "Les limites géographiques de la commune, utilisées pour la carte et les fonctionnalités de localisation. Collez du GeoJSON pour les remplacer — une géométrie Polygon/MultiPolygon, une Feature ou une FeatureCollection complète (p. ex. depuis geojson.io ou un export OSM)."
+    },
     "boundaryPlaceholder": "Collez ici le GeoJSON des limites…",
     "boundaryShowingStored": "Affichage des limites actuellement enregistrées.",
     "boundaryPreviewingPasted": "Aperçu des limites collées — elles seront enregistrées à l'envoi du formulaire.",
@@ -175,16 +180,31 @@
     "toggle": "Basculer",
     "cityNameEnPlaceholder": "Nom de la ville (anglais)",
     "cityNameEnDescription": "Saisissez le nom de la ville en anglais.",
-    "cityMunicipalityPlaceholder": "Nom de la commune",
-    "cityMunicipalityDescription": "Saisissez le nom de la commune.",
-    "cityMunicipalityEnPlaceholder": "Nom de la commune (anglais)",
-    "cityMunicipalityEnDescription": "Saisissez le nom de la commune en anglais.",
+    "cityMunicipalityPlaceholder": {
+      "municipality": "Nom de la commune",
+      "region": "Nom de la commune"
+    },
+    "cityMunicipalityDescription": {
+      "municipality": "Saisissez le nom de la commune.",
+      "region": "Saisissez le nom de la commune."
+    },
+    "cityMunicipalityEnPlaceholder": {
+      "municipality": "Nom de la commune (anglais)",
+      "region": "Nom de la commune (anglais)"
+    },
+    "cityMunicipalityEnDescription": {
+      "municipality": "Saisissez le nom de la commune en anglais.",
+      "region": "Saisissez le nom de la commune en anglais."
+    },
     "authorityType": "Type d'autorité",
     "selectAuthorityType": "Sélectionnez le type d'autorité",
     "authorityTypeDescription": "Sélectionnez le type d'autorité correspondant",
     "realm": "Groupe (realm)",
     "selectRealm": "Sélectionnez le groupe",
-    "realmDescription": "Le groupe/locataire auquel appartient cette commune.",
+    "realmDescription": {
+      "municipality": "Le groupe/locataire auquel appartient cette commune.",
+      "region": "Le groupe/locataire auquel appartient cette commune."
+    },
     "language": "Langue",
     "selectLanguage": "Sélectionnez la langue",
     "languageDescription": "La langue dans laquelle le conseil siège. Elle fixe la langue de la transcription et des résumés ; elle ne change pas la langue de l'interface.",
@@ -234,11 +254,17 @@
       "activeLabel": "Actif (visible par tous les utilisateurs)",
       "inactiveDescription": "Les messages inactifs ne sont visibles que par les administrateurs système à des fins de prévisualisation."
     },
-    "sectionIdentity": "Informations sur la commune",
+    "sectionIdentity": {
+      "municipality": "Informations sur la commune",
+      "region": "Informations sur la commune"
+    },
     "sectionIdentityHint": "Nom, type de collectivité et logo",
     "sectionSettings": "Paramètres",
     "sectionSettingsHint": "Adresse, fuseau horaire, notifications, consultations, Diavgeia",
-    "administrativeBodiesHint": "Conseil, commissions et communes déléguées",
+    "administrativeBodiesHint": {
+      "municipality": "Conseil, commissions et communes déléguées",
+      "region": "Conseil, commissions et communes déléguées"
+    },
     "adminSettingsHint": "Statut, autorisations, pays et langue"
   },
   "City": {
@@ -376,7 +402,10 @@
     },
     "urgent": "Extraordinaire",
     "urgentDescription": "La convocation réunit la séance en urgence. Une séance de tout type peut être extraordinaire.",
-    "councilOnly": "conseil uniquement",
+    "councilOnly": {
+      "municipality": "conseil uniquement",
+      "region": "conseil uniquement"
+    },
     "scheduleStatus": "Statut",
     "scheduleStatusOptions": {
         "scheduled": "Prévue",
@@ -551,6 +580,7 @@
     "partyLeader": "Chef de groupe",
     "formerMembers": "Anciens membres",
     "mayor": "Maire",
+    "regionalGovernor": "Maire",
     "president": "Président(e)",
     "member": "Membre",
     "partyLeaderShort": "Chef",
@@ -579,6 +609,7 @@
     "tryDifferentFilter": "Essayez de modifier les filtres",
     "breadcrumbHome": "Accueil",
     "independentCouncilMember": "Conseiller municipal indépendant",
+    "independentRegionalCouncilMember": "Conseiller municipal indépendant",
     "biography": "Biographie",
     "moreRoles": "+{count} autres",
     "present": "aujourd’hui",
@@ -610,11 +641,6 @@
     "breadcrumbHome": "Accueil",
     "tabPeople": "Personnes",
     "tabSegments": "Interventions",
-    "breakdownMayor": "Maire",
-    "breakdownCouncil": "{count} au conseil municipal",
-    "breakdownCommittees": "{count} en commissions",
-    "breakdownCommunities": "{count} en communautés",
-    "breakdownOthers": "{count} autres",
     "peopleWithoutParties": "Personnes sans groupe :",
     "compositionCard": "Composition",
     "membersTotal": "{count, plural, one {# membre au total} other {# membres au total}}"
@@ -689,7 +715,10 @@
     "type": "Type",
     "selectType": "Sélectionnez un type",
     "types": {
-      "city": "Ville",
+      "city": {
+        "municipality": "Ville",
+        "region": "Ville"
+      },
       "party": "Groupe",
       "administrativeBody": "Organe administratif"
     },
@@ -708,7 +737,10 @@
     "update": "Mettre à jour",
     "create": "Créer",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce rôle ?",
-    "cityRole": "Conseiller municipal",
+    "cityRole": {
+      "municipality": "Conseiller municipal",
+      "region": "Conseiller municipal"
+    },
     "head": "Responsable",
     "from": "de",
     "until": "à",
@@ -984,7 +1016,10 @@
     "nameEnDescription": "Saisissez le nom de l'organe administratif en anglais.",
     "type": "Type",
     "selectType": "Sélectionnez un type",
-    "typeDescription": "Sélectionnez le type d'organe administratif. Un organe du type « Conseil municipal des jeunes » traite ses séances sans relecture et les publie de lui-même.",
+    "typeDescription": {
+      "municipality": "Sélectionnez le type d'organe administratif. Un organe du type « Conseil municipal des jeunes » traite ses séances sans relecture et les publie de lui-même.",
+      "region": "Sélectionnez le type d'organe administratif."
+    },
     "tier": "Visibilité",
     "tierDescription": "Le contenu d’un organe secondaire, par exemple un conseil des jeunes, ne s’affiche que si le lecteur le demande. Changer le type d’un organe existant ne change pas sa visibilité.",
     "tierOptions": {
@@ -1054,7 +1089,10 @@
   },
   "ElectedOrderSheet": {
     "title": "Ordre d'élection",
-    "description": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
+    "description": {
+      "municipality": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
+      "region": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels."
+    },
     "currentOrder": "Ordre actuel : {order}",
     "save": "Enregistrer l'ordre",
     "saving": "Enregistrement...",

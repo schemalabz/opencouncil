@@ -149,7 +149,7 @@ export default async function MeetingsPage(
     const administrativeBodies = everyBody.filter(onShow);
 
     const pageSize = DEFAULT_MEETING_PAGE_SIZE;
-    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, tCommon, { widened: showSecondary }));
+    const view = parseCollectionParams(toURLSearchParams(searchParams), meetingsTabFilters(administrativeBodies, city, tCommon, { widened: showSecondary }));
     // A type chip names the bodies of the tiers on show: an unticked tab must
     // not reach a secondary body through the chip of its type.
     const bodyFilter = meetingBodyFilter(view, allBodies.filter(onShow));
@@ -172,6 +172,7 @@ export default async function MeetingsPage(
             pageSize={pageSize}
             cityId={cityId}
             realm={city.realm}
+            authorityType={city.authorityType}
             timezone={city.timezone}
             canEdit={canEdit}
             editableBodyIds={unreleased.all ? undefined : unreleased.bodyIds}

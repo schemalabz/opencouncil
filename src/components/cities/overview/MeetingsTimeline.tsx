@@ -1,3 +1,4 @@
+import type { AuthorityType } from '@prisma/client';
 import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -12,6 +13,7 @@ import { presentationKey, publicMeetingPresentation, type PresentationKey } from
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
 import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import { localizeText } from '@/lib/serbian';
+import { authorityKey } from '@/lib/utils/authority';
 import { cn, sortSubjectsByImportance } from '@/lib/utils';
 import { AgendaStateChip } from '@/components/subject/AgendaStateChip';
 import { surfaceCardClass } from '@/components/ui/surface-card';
@@ -28,6 +30,8 @@ interface MeetingsTimelineProps {
     upcoming: CouncilMeetingWithSubjectPreview[];
     /** The latest held meetings, newest first. */
     recent: CouncilMeetingWithSubjectPreview[];
+    /** Names the two columns when a meeting has no body to name them. */
+    authorityType: AuthorityType;
     timezone: string;
     locale: string;
 }
@@ -58,7 +62,7 @@ interface Entry {
  * the packing in lib/utils/meetingsTimeline stays exact; if a card gains a
  * variable-height element, the desktop layout's positions go wrong with it.
  */
-export function MeetingsTimeline({ upcoming, recent, timezone, locale }: MeetingsTimelineProps) {
+export function MeetingsTimeline({ upcoming, recent, authorityType, timezone, locale }: MeetingsTimelineProps) {
     // One strictly-descending chronology: the furthest-out meeting first, down
     // through the nearest, then the past. The spine reads top-to-bottom as
     // future-to-past, so "now" is where the dashes end. Meetings the timeline
@@ -90,7 +94,7 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
 
     return (
         <div>
-            {twoSided && <TwoSided entries={entries} timezone={timezone} locale={locale} />}
+            {twoSided && <TwoSided entries={entries} authorityType={authorityType} timezone={timezone} locale={locale} />}
             <div className={twoSided ? 'xl:hidden' : 'max-w-2xl'}>
                 <Rail entries={entries} timezone={timezone} locale={locale} />
             </div>
@@ -102,7 +106,7 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
 /* Desktop: the two-sided spine                                        */
 /* ------------------------------------------------------------------ */
 
-function TwoSided({ entries, timezone, locale }: { entries: Entry[]; timezone: string; locale: string }) {
+function TwoSided({ entries, authorityType, timezone, locale }: { entries: Entry[]; authorityType: AuthorityType; timezone: string; locale: string }) {
     const t = useTranslations('cityOverview');
     const { placements, height } = packTimeline(entries);
 
@@ -116,11 +120,11 @@ function TwoSided({ entries, timezone, locale }: { entries: Entry[]; timezone: s
         <div className="hidden xl:block">
             <div className="mb-4 flex items-baseline">
                 <div className="w-[calc(50%-3.25rem)] pr-1 text-right">
-                    <ColumnLabel entries={entries} side="left" fallback={t('scopeCommitteeFull')} locale={locale} />
+                    <ColumnLabel entries={entries} side="left" fallback={t(authorityKey('scopeCommitteeFull', { authorityType }))} locale={locale} />
                 </div>
                 <div className="w-[6.5rem]" />
                 <div className="flex-1 pl-1">
-                    <ColumnLabel entries={entries} side="right" fallback={t('scopeCouncilFull')} locale={locale} />
+                    <ColumnLabel entries={entries} side="right" fallback={t(authorityKey('scopeCouncilFull', { authorityType }))} locale={locale} />
                 </div>
             </div>
 

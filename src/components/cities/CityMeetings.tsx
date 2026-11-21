@@ -1,7 +1,7 @@
 "use client";
 import { useTranslations } from 'next-intl';
 import { useMemo, type ComponentProps } from 'react';
-import { AdministrativeBodyType, Realm } from '@prisma/client';
+import { AdministrativeBodyType, AuthorityType, Realm } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
@@ -22,6 +22,8 @@ type CityMeetingsProps = {
     cityId: string,
     /** The form offers the kind, the urgency and the session number in a Greek city only. */
     realm: Realm,
+    /** The kind of authority names the body types of the filter: «Δημοτικό» or «Περιφερειακό» Συμβούλιο. */
+    authorityType: AuthorityType,
     timezone: string,
     canEdit: boolean,
     /** The bodies a body admin may create meetings for; absent for a city admin. */
@@ -45,6 +47,7 @@ export default function CityMeetings({
     pageSize,
     cityId,
     realm,
+    authorityType,
     timezone,
     canEdit,
     editableBodyIds,
@@ -57,8 +60,8 @@ export default function CityMeetings({
 
     const widened = secondaryTier?.shown ?? false;
     const { filterOptions, defaultFilterValues, bodyOptionsFor } = useMemo(
-        () => meetingsTabFilters(administrativeBodies, tCommon, { widened }),
-        [administrativeBodies, tCommon, widened]
+        () => meetingsTabFilters(administrativeBodies, { authorityType }, tCommon, { widened }),
+        [administrativeBodies, authorityType, tCommon, widened]
     );
 
     const state = useServerCollection<CouncilMeetingWithSubjectPreview, AdministrativeBodyType>({
@@ -84,7 +87,7 @@ export default function CityMeetings({
             ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone, now }}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId, realm, timezone, allowedBodyIds: editableBodyIds }}
+            formProps={{ cityId, realm, authorityType, timezone, allowedBodyIds: editableBodyIds }}
             t={t}
             announceCount
             renderFilter={({ selectedValues, onChange }) => {

@@ -22,7 +22,10 @@
   "timelineTitle": "Séances récentes et à venir",
   "timelineNoAgendaYet": "L'ordre du jour n'a pas encore été publié",
   "allMeetings": "Toutes les séances",
-  "scopeCouncil": "Conseil",
+  "scopeCouncil": {
+    "municipality": "Conseil",
+    "region": "Conseil"
+  },
   "scopeAll": "Tout",
   "noMeetingsForScope": "Aucune séance de cet organe pour l'instant.",
   "councilEyebrow": "Le conseil municipal",
@@ -64,7 +67,10 @@
   "notisAdvance": "Message suivant",
   "notisReplay": "Revoir",
   "notisExampleLabel": "exemple",
-  "scopeCommittee": "Commission",
+  "scopeCommittee": {
+    "municipality": "Commission",
+    "region": "Commission"
+  },
   "scopeCommunity": "Communes",
   "scopeYouthCouncil": "Jeunes",
   "period3m": "3 mois",
@@ -75,8 +81,14 @@
   "inCommunities": "{count} en communautés",
   "notisTeaser": "Rester informé, c'est simple.",
   "subscribedSummary": "Vous êtes abonné aux notifications",
-  "scopeCouncilFull": "Conseil municipal",
-  "scopeCommitteeFull": "Commission municipale",
+  "scopeCouncilFull": {
+    "municipality": "Conseil municipal",
+    "region": "Conseil municipal"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "Commission municipale",
+    "region": "Commission municipale"
+  },
   "scopeCommunityFull": "Communes déléguées",
   "scopeYouthCouncilFull": "Conseil des jeunes",
   "scopeAllFull": "Tous les organes",

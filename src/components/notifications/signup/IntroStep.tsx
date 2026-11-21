@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { MemberNote } from '@/components/signup/MemberNote';
 import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { StepHeading } from '@/components/signup/SignupChrome';

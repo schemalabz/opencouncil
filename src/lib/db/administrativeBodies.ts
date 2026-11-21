@@ -2,7 +2,7 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody, Prisma, Realm } from '@prisma/client';
+import { AdministrativeBody, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { createCache } from "../cache/index";
 import { cityListTags } from "./cityListing";
@@ -23,6 +23,7 @@ import {
 import { replaceDocumentSendSettings } from "./documentSends";
 import type { DocumentSendSettingInput } from "@/lib/zod-schemas/administrativeBody";
 import { bodySendsUpdates, isSecondaryBody, tierNeedsSuperadmin } from "@/lib/utils/bodyTier";
+import { authorityAllowsBodyType, bodyTypeRefusal } from "@/lib/utils/authority";
 import {
     administrativeBodyWithSendSettingsInclude,
     bodyContactsSelect,
@@ -182,12 +183,25 @@ export async function getMeetingBodySettings(cityId: string, meetingId: string):
     return meeting?.administrativeBody ? withParsedConventions(meeting.administrativeBody) : null;
 }
 
+/**
+ * A region has a council and committees only (#993): a write does not give it
+ * a body of another type. authorityAllowsBodyType holds the rule.
+ */
+async function withBodyTypeAllowed(cityId: string, type: AdministrativeBodyType): Promise<void> {
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { authorityType: true } });
+    if (!city) throw new NotFoundError('City not found');
+    if (!authorityAllowsBodyType(city, type)) {
+        throw new BadRequestError(bodyTypeRefusal(city, type));
+    }
+}
+
 export async function createAdministrativeBody(
     bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null },
     documentSendSettings?: DocumentSendSettingInput[],
 ): Promise<AdministrativeBodyWithSettings> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     if (tierNeedsSuperadmin(bodyData, null)) await withUserAuthorizedToEdit({});
+    await withBodyTypeAllowed(bodyData.cityId, bodyData.type);
     try {
         const { cityId, name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;
         // One transaction: a body is never left without the settings its request carried
@@ -220,6 +234,8 @@ export async function editAdministrativeBody(
     // A field that the write leaves out keeps its stored value.
     const next = { type: bodyData.type ?? existingBody.type, tier: bodyData.tier ?? existingBody.tier };
     if (tierNeedsSuperadmin(next, existingBody)) await withUserAuthorizedToEdit({});
+    // A body keeps the type it has: only a change of type meets the rule.
+    if (next.type !== existingBody.type) await withBodyTypeAllowed(existingBody.cityId, next.type);
     try {
         // Only the fields an editor may change. A caller's cityId or conventions never reach the row.
         const { name, name_en, type, tier, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, diavgeiaUnitIds, place } = bodyData;

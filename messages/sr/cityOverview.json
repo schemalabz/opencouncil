@@ -22,7 +22,10 @@
   "timelineTitle": "Недавне и предстојеће седнице",
   "timelineNoAgendaYet": "Дневни ред још није објављен",
   "allMeetings": "Све седнице",
-  "scopeCouncil": "Скупштина",
+  "scopeCouncil": {
+    "municipality": "Скупштина",
+    "region": "Скупштина"
+  },
   "scopeAll": "Све",
   "noMeetingsForScope": "Још нема седница овог тела.",
   "councilEyebrow": "Скупштина",
@@ -64,7 +67,10 @@
   "notisAdvance": "Следећа порука",
   "notisReplay": "Погледај поново",
   "notisExampleLabel": "пример",
-  "scopeCommittee": "Одбор",
+  "scopeCommittee": {
+    "municipality": "Одбор",
+    "region": "Одбор"
+  },
   "scopeCommunity": "МЗ",
   "scopeYouthCouncil": "СМ",
   "period3m": "3 месеца",
@@ -75,8 +81,14 @@
   "inCommunities": "{count} у заједницама",
   "notisTeaser": "Лако је бити у току.",
   "subscribedSummary": "Пријављени сте на обавештења",
-  "scopeCouncilFull": "Градска скупштина",
-  "scopeCommitteeFull": "Градски одбор",
+  "scopeCouncilFull": {
+    "municipality": "Градска скупштина",
+    "region": "Градска скупштина"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "Градски одбор",
+    "region": "Градски одбор"
+  },
   "scopeCommunityFull": "Месне заједнице",
   "scopeYouthCouncilFull": "Савет младих",
   "scopeAllFull": "Сва тела",

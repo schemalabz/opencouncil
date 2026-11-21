@@ -177,6 +177,7 @@ export default async function CityOverviewPage(
                 scope={scope}
                 period={period}
                 availableScopes={availableScopes}
+                authorityType={city.authorityType}
                 beyondPeriod={beyondPeriod}
             />
 
@@ -205,6 +206,7 @@ export default async function CityOverviewPage(
                             <MeetingsTimeline
                                 upcoming={upcomingMeetings}
                                 recent={recentMeetings}
+                                authorityType={city.authorityType}
                                 timezone={city.timezone}
                                 locale={locale}
                             />

@@ -47,6 +47,7 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
                 select: {
                     name: true,
                     language: true,
+                    authorityType: true,
                     realm: true,
                     timezone: true
                 }
@@ -69,7 +70,7 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
     // Realm-scoped taxonomy: a French commune gets French topics, not the Greek set.
     const topicLabels = await getTopics(councilMeeting.city.realm);
 
-    const roleTitles = await getRoleTitles(councilMeeting.city.language);
+    const roleTitles = await getRoleTitles(councilMeeting.city);
 
     const roster = buildAgendaRoster(people, councilMeeting.dateTime, councilMeeting.administrativeBodyId, roleTitles);
     console.log(`ProcessAgenda people array:`, roster);

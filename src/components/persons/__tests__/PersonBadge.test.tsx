@@ -57,16 +57,21 @@ const speakerTag: SpeakerTag = {
     updatedAt: new Date(),
 };
 
+const roleCity = { language: 'el', authorityType: 'municipality' } as const;
+/** The props a test may change. Each badge here is a full badge of one city. */
+type BadgeProps = Partial<Omit<React.ComponentProps<typeof PersonBadge>, 'short' | 'roleCity'>>;
+
 const people: PersonWithRelations[] = [
     makePerson({ id: 'p1', name: 'Παπαδόπουλος' }),
     makePerson({ id: 'p2', name: 'Σαλαμανή' }),
 ];
 
-const renderBadge = (props: Partial<React.ComponentProps<typeof PersonBadge>> = {}, sibling?: React.ReactNode) =>
+const renderBadge = (props: BadgeProps = {}, sibling?: React.ReactNode) =>
     render(
         <NextIntlClientProvider locale="en" messages={{ transcript }}>
             {sibling}
             <PersonBadge
+                roleCity={roleCity}
                 editable
                 speakerTag={speakerTag}
                 availablePeople={people}
@@ -345,9 +350,9 @@ describe('PersonBadge speaker suggestions', () => {
     it('selects nothing when differing suggestions arrive while the picker is open', () => {
         // The identifications load after editing mode turns on, so a picker can be open before they are there.
         const onAssign = jest.fn();
-        const badge = (extra: Partial<React.ComponentProps<typeof PersonBadge>>) => (
+        const badge = (extra: BadgeProps) => (
             <NextIntlClientProvider locale="en" messages={{ transcript }}>
-                <PersonBadge editable speakerTag={speakerTag} availablePeople={people} onAssign={onAssign} suggestionsHeading="Suggested" {...extra} />
+                <PersonBadge roleCity={roleCity} editable speakerTag={speakerTag} availablePeople={people} onAssign={onAssign} suggestionsHeading="Suggested" {...extra} />
             </NextIntlClientProvider>
         );
         const { rerender } = render(badge({}));
@@ -427,7 +432,7 @@ describe('PersonBadge picker focus', () => {
 describe('PersonBadge unverified label', () => {
     const renderBadge = (unverified: boolean, variant: 'default' | 'inline') => render(
         <NextIntlClientProvider locale="en" messages={{ transcript }}>
-            <PersonBadge person={people[0]} speakerTag={speakerTag} variant={variant} unverified={unverified} />
+            <PersonBadge roleCity={roleCity} person={people[0]} speakerTag={speakerTag} variant={variant} unverified={unverified} />
         </NextIntlClientProvider>,
     );
 

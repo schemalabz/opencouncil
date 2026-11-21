@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 function renderForm(meeting?: CouncilMeeting, realm: Realm = 'greece', timezone = 'Europe/Athens') {
-    return render(<Sheet open><AddMeetingForm cityId="chania" realm={realm} timezone={timezone} meeting={meeting} /></Sheet>);
+    return render(<Sheet open><AddMeetingForm cityId="chania" realm={realm} authorityType="municipality" timezone={timezone} meeting={meeting} /></Sheet>);
 }
 
 async function submittedBody(): Promise<Record<string, unknown>> {

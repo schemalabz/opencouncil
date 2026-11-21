@@ -2,7 +2,7 @@
 
 import { BookOpen, Landmark } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { DoneCheck } from '@/components/notifications/signup/CompleteScreen';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
 import { StepHeading } from '@/components/signup/SignupChrome';

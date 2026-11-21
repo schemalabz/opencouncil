@@ -25,6 +25,12 @@
  * `@translationNamespace <ns...>` JSDoc tag, which the scan reads as a binding
  * of `t`. The tag states a contract against the catalog; nothing here checks
  * that the callers honour it.
+ *
+ * `t(authorityKey('key', city))` picks the variant of a message for the kind of
+ * local authority (src/lib/utils/authority.ts). The leaf is a value of the
+ * Prisma enum `AuthorityType`, so the scan reads the call as one reference for
+ * each value: a message with the municipality text and no region text fails
+ * here.
  */
 import fs from 'fs';
 import path from 'path';
@@ -166,15 +172,34 @@ function splitTopLevel(source: string): string[] {
     return parts.map((part) => part.trim());
 }
 
-type Reference = { location: string; key: string };
+/** `raw` is a `t.raw` call: the one call that may read a group of messages and not one message. */
+type Reference = { location: string; key: string; raw?: boolean };
 
-function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped: number } {
+// `authorityKey('key', city)` with a literal key, wherever it is written.
+const AUTHORITY_KEY_CALL = /\bauthorityKey\s*\(\s*(['"])((?:[^'"\\]|\\.)*)\1/g;
+const AUTHORITY_KEY_SOURCE = path.join('src', 'lib', 'utils', 'authority.ts');
+
+function collectReferences(): {
+    refs: Reference[];
+    groups: Reference[];
+    skipped: number;
+    authorityCalls: { written: string[]; read: string[] };
+} {
     const refs: Reference[] = [];
     const groups: Reference[] = [];
     let skipped = 0;
+    const authorityTypes = prismaEnumMembers('AuthorityType');
+    // Every authorityKey call in the source, and the ones the scan attributed
+    // to a translator. The two lists must be equal: a key kept in a variable
+    // and passed to `t` later is a reference the scan cannot see.
+    const authorityCalls = { written: [] as string[], read: [] as string[] };
 
     for (const file of sourceFiles(path.join(ROOT, 'src'))) {
         const text = fs.readFileSync(file, 'utf8');
+        const lineOf = (index: number) => `${path.relative(ROOT, file)}:${text.slice(0, index).split('\n').length}`;
+        if (path.relative(ROOT, file) !== AUTHORITY_KEY_SOURCE) {
+            for (const call of text.matchAll(AUTHORITY_KEY_CALL)) authorityCalls.written.push(lineOf(call.index!));
+        }
         if (!text.includes('Translations') && !text.includes('@translationNamespace')) continue;
 
         const bindings = [...text.matchAll(BINDING)].map((m) => {
@@ -204,7 +229,7 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
             // t('key'), t.raw('key'), t.rich('key'), t.markup('key') — but not t.has('key'),
             // which is the deliberate "might not exist" escape hatch.
             const calls = new RegExp(
-                `\\b${name}(?:\\.(?:raw|rich|markup))?\\s*\\(\\s*(['"\`])((?:[^'"\`\\\\]|\\\\.)*)\\1`,
+                `\\b${name}(?:\\.(raw|rich|markup))?\\s*\\(\\s*(['"\`])((?:[^'"\`\\\\]|\\\\.)*)\\2`,
                 'g',
             );
             for (const call of text.matchAll(calls)) {
@@ -217,10 +242,9 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                     own.filter((b) => b.at < call.index!).pop() ?? (own.length === 1 ? own[0] : null);
                 // A namespace assembled at runtime leaves nothing to resolve against.
                 if (!binding?.namespaces.length) { skipped++; continue; }
-                const key = call[2];
+                const key = call[3];
                 if (key === '') { skipped++; continue; }
-                const line = text.slice(0, call.index!).split('\n').length;
-                const location = `${path.relative(ROOT, file)}:${line}`;
+                const location = lineOf(call.index!);
                 const interpolated = key.indexOf('${');
                 if (interpolated !== -1) {
                     // `t(`audioFailure.${reason}`)` — the leaf is only known at
@@ -238,11 +262,31 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                     else skipped++;
                     continue;
                 }
-                for (const ns of binding.namespaces) refs.push({ location, key: `${ns}.${key}` });
+                for (const ns of binding.namespaces) refs.push({ location, key: `${ns}.${key}`, raw: call[1] === 'raw' });
+            }
+
+            // t(authorityKey('key', city)): one reference for each kind of authority.
+            const authorityKeyCalls = new RegExp(
+                `\\b${name}(?:\\.(?:raw|rich|markup))?\\s*\\(\\s*(?=${AUTHORITY_KEY_CALL.source})`,
+                'g',
+            );
+            for (const call of text.matchAll(authorityKeyCalls)) {
+                const inner = new RegExp(AUTHORITY_KEY_CALL.source, 'y');
+                inner.lastIndex = call.index! + call[0].length;
+                const key = inner.exec(text)![2];
+                const binding =
+                    own.filter((b) => b.at < call.index!).pop() ?? (own.length === 1 ? own[0] : null);
+                if (!binding?.namespaces.length) { skipped++; continue; }
+                const location = lineOf(call.index! + call[0].length);
+                const raw = /\.raw\s*\(\s*$/.test(call[0]);
+                authorityCalls.read.push(location);
+                for (const ns of binding.namespaces) {
+                    for (const authorityType of authorityTypes) refs.push({ location, key: `${ns}.${key}.${authorityType}`, raw });
+                }
             }
         }
     }
-    return { refs, groups, skipped };
+    return { refs, groups, skipped, authorityCalls };
 }
 
 type MemberSource = { file?: string; type?: string; prismaEnum?: string; constArray?: string };
@@ -279,6 +323,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
     },
     { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'Common.regionBodyType_', members: { file: 'src/lib/utils/authority.ts', constArray: 'REGION_BODY_TYPES' } },
     { group: 'editing.speakerHints.status.', members: { file: 'src/lib/speakerIdentifications.ts', type: 'SpeakerIdentificationsStatus' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AddMeetingForm.kindOptions.', members: { prismaEnum: 'MeetingKind' } },
@@ -413,7 +458,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
 ];
 
 describe('message keys referenced by the code', () => {
-    const { refs, groups, skipped } = collectReferences();
+    const { refs, groups, skipped, authorityCalls } = collectReferences();
     const catalog = loadCatalog(REFERENCE_LOCALE);
 
     it('finds the call sites at all (guards the scan against silently matching nothing)', () => {
@@ -432,6 +477,24 @@ describe('message keys referenced by the code', () => {
             .filter((r) => !hasKey(catalog, r.key))
             .map((r) => `${r.key} (${r.location})`);
         expect([...new Set(missing)].sort()).toEqual([]);
+    });
+
+    it('every key a t() call renders is one message, not a group of messages', () => {
+        // A message that becomes a pair ({ municipality, region }) keeps its key.
+        // A `t('key')` that still asks for the old leaf then finds an object:
+        // next-intl logs an error and renders the dotted path. Only `t.raw`
+        // may read a group.
+        const groupsRead = refs
+            .filter((r) => !r.raw && typeof resolve(catalog, r.key) === 'object')
+            .map((r) => `${r.key} (${r.location})`);
+        expect([...new Set(groupsRead)].sort()).toEqual([]);
+    });
+
+    it('reads every authorityKey call as a reference', () => {
+        // A call the scan does not attribute is a pair of leaves nothing checks.
+        // Write the call inside the translator call: t(authorityKey('key', city)).
+        expect(authorityCalls.written.length).toBeGreaterThan(20);
+        expect(authorityCalls.read.sort()).toEqual(authorityCalls.written.sort());
     });
 
     it('every computed key has a prefix some real key starts with', () => {

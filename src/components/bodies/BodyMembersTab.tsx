@@ -16,10 +16,12 @@ import { useValidationMessage } from '@/hooks/useLocalizedValidation';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { sortBodyMembers } from '@/lib/sorting/people';
 import { apiErrorMessage } from '@/lib/utils/validationIssues';
-import { lastMembershipEndOf } from '@/lib/utils/roles';
+import { lastMembershipEndOf, type RoleTitleCity } from '@/lib/utils/roles';
 
 interface BodyMembersTabProps {
     cityId: string;
+    /** What the role titles of the members read from the city. */
+    roleCity: RoleTitleCity;
     bodyId: string;
     /** Everyone who holds, or held, a role on the body. */
     people: PersonWithRelations[];
@@ -43,7 +45,7 @@ type EndTarget = { kind: 'newTerm' } | { kind: 'member'; person: PersonWithRelat
  * which offers this body alone, imports a pasted list, ends a membership, or
  * starts a new term (#829).
  */
-export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, canStartNewTerm, formBodies, parties, canEditImage }: BodyMembersTabProps) {
+export function BodyMembersTab({ cityId, roleCity, bodyId, people, members, canEdit, canStartNewTerm, formBodies, parties, canEditImage }: BodyMembersTabProps) {
     const t = useTranslations('body');
     const router = useRouter();
     const { toast } = useToast();
@@ -104,7 +106,7 @@ export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, canSt
                         <div className="flex flex-wrap items-center gap-2">
                             <FormSheet
                                 FormComponent={PersonForm}
-                                formProps={{ cityId, parties, administrativeBodies: formBodies, canEditImage, roleTypes: ['administrativeBody' as const], defaultRoleStart }}
+                                formProps={{ cityId, authorityType: roleCity.authorityType, parties, administrativeBodies: formBodies, canEditImage, roleTypes: ['administrativeBody' as const], defaultRoleStart }}
                                 title={t('addMember')}
                                 type="add"
                                 triggerVariant="outline"
@@ -126,7 +128,7 @@ export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, canSt
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {ordered.map(person => (
                             <div key={person.id} className="flex flex-col gap-1">
-                                <PersonCard item={person} editable={canEdit} analyticsSurface="body_members" />
+                                <PersonCard item={person} roleCity={roleCity} editable={canEdit} analyticsSurface="body_members" />
                                 {canEdit && (
                                     <Button
                                         type="button"
@@ -153,7 +155,7 @@ export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, canSt
                     </div>
                     <div className="grid grid-cols-1 gap-4 opacity-80 sm:grid-cols-2 lg:grid-cols-3">
                         {former.map(person => (
-                            <PersonCard key={person.id} item={person} editable={canEdit} analyticsSurface="body_former_members" />
+                            <PersonCard key={person.id} item={person} roleCity={roleCity} editable={canEdit} analyticsSurface="body_former_members" />
                         ))}
                     </div>
                 </section>

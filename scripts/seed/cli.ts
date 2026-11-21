@@ -25,6 +25,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { ensureTestUsers, listTestUsers, type TestUserState } from '@/lib/db/testUsers';
 import { ensureSerbianFixture } from '@/lib/db/serbianFixture';
+import { ensureRegionFixture } from '@/lib/db/regionFixture';
 import { ArtifactUnavailableError, DEFAULT_ARTIFACT_URL, defaultCacheDir, fetchArtifact } from '@opencouncil/seed-pipeline/fetch';
 import { restoreArchive } from '@opencouncil/seed-pipeline/restore';
 import { setupDatabase } from '@opencouncil/seed-pipeline/setup';
@@ -57,9 +58,10 @@ function fetchFrom(from: string, full: boolean): Promise<string> {
     return fetchArtifact({ from, kind: full ? 'full' : 'subset', cacheDir: CACHE_DIR, log });
 }
 
-/** The fixtures that the artifact cannot carry: the Serbian review city, then the test accounts. */
+/** The fixtures that the artifact cannot carry: the Serbian review city, the review region, then the test accounts. */
 async function ensureFixtures(db: PrismaClient): Promise<TestUserState[]> {
     await ensureSerbianFixture(db, log);
+    await ensureRegionFixture(db, log);
     return ensureTestUsers(db);
 }
 
@@ -140,7 +142,7 @@ yargs(hideBin(process.argv))
             await restoreArchive({ tarPath, databaseUrl, schemaPath: SCHEMA_PATH, trustedHosts: argv.trustHost, log, replace: true, keep });
             report(await withPrisma(databaseUrl, ensureFixtures), argv.json);
         })
-    .command('fixtures', 'Add the Serbian review city and the test accounts, or put back what a refresh removed', (y) => y.option('db', dbOption).option('json', jsonOption),
+    .command('fixtures', 'Add the Serbian review city, the review region and the test accounts, or put back what a refresh removed', (y) => y.option('db', dbOption).option('json', jsonOption),
         async (argv) => report(await withPrisma(localDatabase(argv.db, argv.trustHost), ensureFixtures), argv.json))
     .command('status', 'List the test accounts and what each administers', (y) => y.option('db', dbOption).option('json', jsonOption),
         async (argv) => report(await withPrisma(localDatabase(argv.db, argv.trustHost), listTestUsers), argv.json))
