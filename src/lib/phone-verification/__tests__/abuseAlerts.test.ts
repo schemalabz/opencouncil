@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 const mockAlert = jest.fn(async (_: { title: string; description: string }) => {});
 jest.mock('@/lib/discord-core', () => ({ sendAdminAlert: (data: { title: string; description: string }) => mockAlert(data) }));
 const windows = new Set<string>();
@@ -6,6 +7,7 @@ const mockClaimWindow = jest.fn(async (key: string, _ttl: number) => {
     windows.add(key);
     return true;
 });
+jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_SECRET: 'test-secret' } }));
 jest.mock('@/lib/cache/alertWindow', () => ({ claimAlertWindow: (key: string, ttl: number) => mockClaimWindow(key, ttl) }));
 
 import { reportUnusualCodeRequest } from '../abuseAlerts';
@@ -27,9 +29,11 @@ describe('reportUnusualCodeRequest', () => {
         await reportUnusualCodeRequest({ userId: 'u1', phone: '+306900000001', phoneSendCount: 4 });
         expect(mockAlert).toHaveBeenCalledTimes(1);
         expect(mockAlert.mock.calls[0][0].description).toContain('3rd code');
-        // One window per number, keyed by a hash so the number stays out of the cache's logs.
+        // One window per number, keyed by a keyed hash so the number stays out of the cache's logs.
         expect(mockClaimWindow).toHaveBeenCalledWith(expect.stringMatching(/^phone-verification:flood:[0-9a-f]{16}$/), 3600);
         expect(mockClaimWindow.mock.calls[0][0]).not.toContain('6900000001');
+        // Not a plain SHA-256, which anyone can recompute for every number.
+        expect(mockClaimWindow.mock.calls[0][0]).not.toContain(createHash('sha256').update('+306900000001').digest('hex').slice(0, 16));
 
         await reportUnusualCodeRequest({ userId: 'u2', phone: '+306900000001', phoneSendCount: 5 });
         expect(mockAlert).toHaveBeenCalledTimes(2);
