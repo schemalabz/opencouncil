@@ -15,8 +15,9 @@ import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
 export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const [{ locale }, t] = await Promise.all([props.params, getTranslations("petition")]);
-    const title = t("metaTitle");
-    const description = t("metaDescription");
+    // The picker lists municipalities, so it keeps their words.
+    const title = t("metaTitle.municipality");
+    const description = t("metaDescription.municipality");
     return withCanonicalUrl("/petition", {
         title,
         description,
@@ -66,7 +67,7 @@ export default async function PetitionPickerPage(props: { searchParams: Promise<
             />
 
             <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">
-                {t.rich("pricingNote", {
+                {t.rich("pricingNote.municipality", {
                     link: (chunks) => (
                         <Link href="/about" className="underline">
                             {chunks}
