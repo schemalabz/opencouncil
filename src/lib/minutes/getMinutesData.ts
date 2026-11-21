@@ -139,7 +139,7 @@ export async function getMinutesData(
     // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
     const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
 
-    const roleTitles = await getRoleTitles(city.language);
+    const roleTitles = await getRoleTitles(city);
     const speakerLabels = (person: (typeof people)[number] | null | undefined) =>
         getSpeakerLabels(person?.roles ?? [], roleTitles, meetingDate);
 
@@ -436,6 +436,7 @@ export async function getMinutesData(
             timezone: city.timezone,
             logoImage: city.logoImage,
             realm: city.realm,
+            authorityType: city.authorityType,
         },
         meeting: {
             id: meeting.id,

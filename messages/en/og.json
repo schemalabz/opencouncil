@@ -19,7 +19,10 @@
     "comments": "{count, plural, one {# comment} other {# comments}}"
   },
   "person": {
-    "council": "City council",
+    "council": {
+      "municipality": "City council",
+      "region": "Regional council"
+    },
     "recent": "Recent statements"
   },
   "party": {
@@ -27,7 +30,10 @@
     "leader": "Leader: {name}"
   },
   "people": {
-    "title": "Council members"
+    "title": {
+      "municipality": "Council members",
+      "region": "Regional councillors"
+    }
   },
   "subject": {
     "speakers": "{count, plural, one {# speaker} other {# speakers}}",

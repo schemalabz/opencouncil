@@ -13,6 +13,8 @@ import { mayChangePersonImage } from "@/lib/db/personImage";
 import { Metadata } from "next";
 import { withCanonicalUrl } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
+import { getTranslations } from "next-intl/server";
 import { getOgLocale } from '@/i18n/config';
 import { buildOgImageUrl } from '@/lib/og/locale';
 
@@ -20,15 +22,16 @@ export async function generateMetadata(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
 ): Promise<Metadata> {
     const params = await props.params;
-    const [person, city] = await Promise.all([
+    const [person, city, t] = await Promise.all([
         getPerson(params.personId),
-        getCity(params.cityId)
+        getCity(params.cityId),
+        getTranslations({ locale: params.locale, namespace: 'metadata.person' }),
     ]);
 
     if (!person || !city) {
         return {
-            title: "Το πρόσωπο δεν βρέθηκε | OpenCouncil",
-            description: "Το πρόσωπο που ζητάτε δεν βρέθηκε ή δεν είναι διαθέσιμος.",
+            title: t('notFoundTitle'),
+            description: t('notFoundDescription'),
         };
     }
 
@@ -46,7 +49,7 @@ export async function generateMetadata(
     const roleDescription = partyName ? ` (${partyName})` : '';
 
     // Generate rich description
-    const description = `Προφίλ του προσώπου ${personName} ${roleDescription} | ${cityName} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
+    const description = t(authorityKey('description', city), { personName, roleDescription, cityName });
 
     // Generate OG image URL
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, personId: params.personId });
@@ -55,15 +58,12 @@ export async function generateMetadata(
         title: `${personName} | ${cityName} | OpenCouncil`,
         description,
         keywords: [
-            'δημοτικός σύμβουλος',
-            'δημοτικό συμβούλιο',
-            'τοπική αυτοδιοίκηση',
+            ...(t.raw(authorityKey('keywords', city)) as string[]),
             personName,
             cityName,
             'OpenCouncil',
-            ...(partyName ? [partyName, 'πολιτικό κόμμα'] : []),
-            'στατιστικά συμμετοχής',
-            'τοποθετήσεις'
+            ...(partyName ? [partyName, t('keywordParty')] : []),
+            ...(t.raw('keywordsActivity') as string[]),
         ],
         authors: [{ name: personName }],
         openGraph: {

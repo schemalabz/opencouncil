@@ -28,10 +28,10 @@ function role(overrides: Record<string, unknown>) {
     };
 }
 
-function highlightWith(language: string, roles: Record<string, unknown>[]) {
+function highlightWith(language: string, roles: Record<string, unknown>[], authorityType = 'municipality') {
     return {
         id: 'h1', meetingId: 'm1', cityId: 'c1',
-        meeting: { videoUrl: 'https://v/x.mp4', dateTime: MEETING_DATE, city: { language } },
+        meeting: { videoUrl: 'https://v/x.mp4', dateTime: MEETING_DATE, city: { language, authorityType } },
         highlightedUtterances: [{
             utterance: {
                 id: 'u1', startTimestamp: 1, endTimestamp: 2, text: 'x',
@@ -41,8 +41,8 @@ function highlightWith(language: string, roles: Record<string, unknown>[]) {
     };
 }
 
-async function roleLabel(language: string, roles: Record<string, unknown>[]) {
-    mockFindUnique.mockResolvedValue(highlightWith(language, roles));
+async function roleLabel(language: string, roles: Record<string, unknown>[], authorityType?: string) {
+    mockFindUnique.mockResolvedValue(highlightWith(language, roles, authorityType));
     await requestGenerateHighlightCore('h1');
     const body = mockStartTask.mock.calls.at(-1)![1];
     return body.parts[0].utterances[0].speaker.roleLabel;
@@ -59,6 +59,11 @@ describe('requestGenerateHighlightCore speaker overlay', () => {
 
     it('labels the independent councillor in the city language', async () => {
         expect(await roleLabel('fr', [councilSeat])).toBe('Conseiller municipal indépendant');
+    });
+
+    it('labels the independent councillor and the head of a region after the region (#993)', async () => {
+        expect(await roleLabel('el', [councilSeat], 'region')).toBe('Ανεξάρτητος Περιφερειακός Σύμβουλος');
+        expect(await roleLabel('el', [role({ id: 'h', cityId: 'c1', isHead: true })], 'region')).toBe('Περιφερειάρχης');
     });
 
     it('gives a party member no role label', async () => {

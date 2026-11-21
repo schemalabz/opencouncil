@@ -6,6 +6,7 @@ import { cn, sortRolesByPriority, getPrimaryRole, getRoleText } from '@/lib/util
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';
+import type { RoleTitleCity } from '@/lib/utils/roles';
 const BADGE_MAX_CHARS_SMALL = 40;
 const BADGE_MAX_CHARS_LG = 70;
 
@@ -14,7 +15,7 @@ const truncateWithEllipsis = (text: string, max: number) =>
 
 interface RoleDisplayProps {
     roles: RoleWithRelations[];
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
     size?: 'sm' | 'md' | 'lg';
     layout?: 'inline' | 'stacked' | 'compact';
     maxDisplay?: number;
@@ -52,7 +53,7 @@ const getRoleVariant = (role: RoleWithRelations) => {
 
 export function RoleDisplay({
     roles,
-    cityLanguage,
+    roleCity,
     size = 'md',
     layout = 'inline',
     maxDisplay,
@@ -62,7 +63,7 @@ export function RoleDisplay({
     className
 }: RoleDisplayProps) {
     const t = useTranslations('Person');
-    const roleTitles = useRoleTitles(cityLanguage);
+    const roleTitles = useRoleTitles(roleCity);
 
     if (!roles.length) return null;
 

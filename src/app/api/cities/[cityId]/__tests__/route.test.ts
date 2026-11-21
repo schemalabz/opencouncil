@@ -96,6 +96,16 @@ describe('PUT /api/cities/[cityId]', () => {
         expect(upsertCityMessage).not.toHaveBeenCalled();
     });
 
+    it('writes the kind of the authority for a superadmin only (#993)', async () => {
+        await put({ name: 'Θεσσαλία', authorityType: 'region' });
+        expect(editCity).toHaveBeenLastCalledWith('athens', { name: 'Θεσσαλία', authorityType: 'region' });
+
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        const response = await put({ name: 'Θεσσαλία', authorityType: 'region' });
+        expect(response.status).toBe(200);
+        expect(editCity).toHaveBeenLastCalledWith('athens', { name: 'Θεσσαλία' });
+    });
+
     it.each(['https://example.org/a', 'http://δήμος.ελ/x', '/athens/meetings'])('stores the call-to-action link %s', async (link) => {
         const response = await put({ ...MESSAGE, messageCallToActionUrl: link });
         expect(response.status).toBe(200);

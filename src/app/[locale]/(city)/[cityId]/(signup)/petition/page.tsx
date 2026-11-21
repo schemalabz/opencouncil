@@ -10,14 +10,17 @@ import { getCity } from "@/lib/db/cities";
 import { getUserPetition } from "@/lib/db/signup";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
 import { firstSearchParam } from "@/lib/utils/searchParams";
+import { authorityKey } from "@/lib/utils/authority";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
 export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
     const { cityId, locale } = await props.params;
-    const t = await getTranslations("petition");
-    const title = t("metaTitle");
-    const description = t("metaDescription");
+    const [t, city] = await Promise.all([getTranslations("petition"), getCity(cityId)]);
+    // A city that does not exist gets the 404 of the page.
+    const authority = city ?? { authorityType: "municipality" as const };
+    const title = t(authorityKey("metaTitle", authority));
+    const description = t(authorityKey("metaDescription", authority));
     return withCanonicalUrl(`/${cityId}/petition`, {
         title,
         description,

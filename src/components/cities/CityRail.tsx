@@ -82,6 +82,7 @@ export function CityRail({
                     all={allMeetings}
                     council={councilMeetings}
                     cityId={city.id}
+                    authorityType={city.authorityType}
                     timezone={city.timezone}
                     locale={locale}
                 />

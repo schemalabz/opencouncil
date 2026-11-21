@@ -43,6 +43,7 @@ export function DecisionsRail({
     auditMode,
     onAuditModeChange,
     conventions,
+    minutesAvailable,
     onPreviewMinutes,
     onExportDocx,
     onExportDecisionsTable,
@@ -74,6 +75,8 @@ export function DecisionsRail({
      * Null when the meeting names no administrative body: there is then no body
      * to describe and no form to send anyone to. */
     conventions: ConventionsPanel | null;
+    /** False for an authority that gets no minutes (authorityHasDocument). */
+    minutesAvailable: boolean;
     onPreviewMinutes: () => void;
     onExportDocx: () => void;
     /** Downloads the Πίνακας αποφάσεων the municipality posts, as a DOCX. */
@@ -114,6 +117,7 @@ export function DecisionsRail({
     return (
         <div className="flex min-w-0 flex-col gap-3.5">
             <MinutesCard
+                available={minutesAvailable}
                 onPreview={onPreviewMinutes}
                 onExport={onExportDocx}
                 previewDisabled={previewDisabled}

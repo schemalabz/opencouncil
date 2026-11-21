@@ -2,7 +2,7 @@
 
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { MemberNote } from '@/components/signup/MemberNote';
 import { StepHeading } from '@/components/signup/SignupChrome';

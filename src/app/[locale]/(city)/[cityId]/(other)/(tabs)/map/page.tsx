@@ -43,6 +43,7 @@ export default async function CityMapPage(props: { params: Promise<{ cityId: str
     return (
         <CityMapTab
             cityId={cityId}
+            authorityType={city.authorityType}
             subjects={subjects}
             generalRows={generalRows}
             geometry={city.geometry ?? null}

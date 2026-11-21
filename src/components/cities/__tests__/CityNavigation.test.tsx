@@ -11,7 +11,7 @@ jest.mock('@/i18n/routing', () => ({
 function renderNavigation(props: Partial<React.ComponentProps<typeof CityNavigation>>) {
     return render(
         <NextIntlClientProvider locale="el" messages={el}>
-            <CityNavigation cityId="papagos-cholargos" city={{ consultationsEnabled: true }} {...props} />
+            <CityNavigation cityId="papagos-cholargos" city={{ consultationsEnabled: true, authorityType: 'municipality' }} {...props} />
         </NextIntlClientProvider>
     );
 }
@@ -46,8 +46,17 @@ describe('CityNavigation', () => {
         expect(nav).toContainElement(screen.getByText('2 ανοιχτές διαβουλεύσεις'));
     });
 
+    it('names the sections of a region on the nav of a region', () => {
+        renderNavigation({});
+        expect(screen.getByRole('navigation')).toHaveAccessibleName(el.City.citySections.municipality);
+
+        renderNavigation({ city: { consultationsEnabled: true, authorityType: 'region' } });
+        expect(screen.getAllByRole('navigation')[1]).toHaveAccessibleName(el.City.citySections.region);
+        expect(el.City.citySections.region).not.toBe(el.City.citySections.municipality);
+    });
+
     it('has no consultations tab for a city without consultations', () => {
-        renderNavigation({ city: { consultationsEnabled: false }, openConsultations: 3 });
+        renderNavigation({ city: { consultationsEnabled: false, authorityType: 'municipality' }, openConsultations: 3 });
         expect(screen.queryByRole('link', { name: /Διαβουλεύσεις/ })).toBeNull();
     });
 });

@@ -567,6 +567,15 @@ describe('simplifyRoleName', () => {
       .toBe('Αναπληρωτής Δήμαρχος - Αντιδήμαρχος');
   });
 
+  it('simplifies the title of the deputy of a regional governor (#993)', () => {
+    expect(simplifyRoleName('Αντιπεριφερειάρχης Τουρισμού και Πολιτισμού')).toBe('Αντιπεριφερειάρχης');
+  });
+
+  it('cuts after the title that comes first in the text', () => {
+    expect(simplifyRoleName('Αντιπεριφερειάρχης Λάρισας, πρώην Αντιδήμαρχος Τεχνικών Έργων')).toBe('Αντιπεριφερειάρχης');
+    expect(simplifyRoleName('Αντιδήμαρχος Έργων, πρώην Αντιπεριφερειάρχης Υγείας')).toBe('Αντιδήμαρχος');
+  });
+
   it('returns exact match when name is just Αντιδήμαρχος', () => {
     expect(simplifyRoleName('Αντιδήμαρχος')).toBe('Αντιδήμαρχος');
   });
@@ -582,6 +591,9 @@ describe('simplifyRoleName', () => {
 // The real catalogs: a renamed or missing key fails these tests.
 const roleT = roleTitlesFor('el');
 const roleTEn = roleTitlesFor('en');
+// A region (#993): the city head is the regional governor.
+const regionT = roleTitlesFor('el', 'region');
+const regionTEn = roleTitlesFor('en', 'region');
 const roleTSr = roleTitlesFor('sr');
 
 function makeAdminBody(name: string) {
@@ -898,6 +910,18 @@ describe('getSpeakerLabels', () => {
   it('titles a mayor whose city role has no name', () => {
     expect(getSpeakerLabels([makeRole({ cityId: 'city-1', isHead: true })], roleT, meetingDate).role).toBe('Δήμαρχος');
   });
+
+  it('names the head and the independent member of a region after the region (#993)', () => {
+    expect(getSpeakerLabels([makeRole({ cityId: 'region-1', isHead: true })], regionT, meetingDate).role).toBe('Περιφερειάρχης');
+    const councillor = [makeRole({ administrativeBodyId: 'council-1', administrativeBody: { type: 'council', tier: 'primary' } })];
+    expect(getSpeakerLabels(councillor, regionT, meetingDate).role).toBe('Ανεξάρτητος Περιφερειακός Σύμβουλος');
+    expect(getSpeakerLabels(councillor, regionTEn, meetingDate).role).toBe('Independent Regional Council Member');
+  });
+
+  it('shortens the title of a deputy regional governor', () => {
+    const roles = [makeRole({ cityId: 'region-1', name: 'Αντιπεριφερειάρχης Τουρισμού' })];
+    expect(getSpeakerLabels(roles, regionT, meetingDate).role).toBe('Αντιπεριφερειάρχης');
+  });
 });
 
 describe('getRoleKind', () => {
@@ -935,6 +959,16 @@ describe('getRoleTitle', () => {
   it('returns the stored name of a role that is not a head, and null when it has none', () => {
     expect(getRoleTitle({ cityId: 'c', isHead: false, name: 'Αντιδήμαρχος Πολιτισμού' }, roleT)).toBe('Αντιδήμαρχος Πολιτισμού');
     expect(getRoleTitle({ administrativeBodyId: 'b', isHead: false, name: null }, roleT)).toBeNull();
+  });
+
+  it('gives the head of a region the title of a regional governor (#993)', () => {
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, regionT)).toBe('Περιφερειάρχης');
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: null }, regionTEn)).toBe('Regional Governor');
+    // The English page of Greek content translates the head title, as for a mayor.
+    expect(getRoleTitle({ cityId: 'c', isHead: true, name: 'Περιφερειάρχης' }, { ...regionTEn, contentLanguage: 'el' })).toBe('Regional Governor');
+    // A body and a party of a region keep the titles they have in a municipality.
+    expect(getRoleTitle({ administrativeBodyId: 'b', isHead: true, name: null }, regionT)).toBe('Πρόεδρος');
+    expect(getRoleTitle({ partyId: 'p', isHead: true, name: null }, regionT)).toBe('Επικεφαλής');
   });
 
   it('prefers the translated head title on an English page', () => {

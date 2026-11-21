@@ -474,4 +474,114 @@ describe('saveSubjectsForMeeting - integration', () => {
             expect(updated.contributions.map(c => c.text)).toEqual([`Τοποθέτηση για ${row.name}`])
         }
     })
+
+    describe('the location of a subject of a region (#993)', () => {
+        // A square: longitude 22 to 23, latitude 39 to 40.
+        const SQUARE = {
+            type: 'Polygon',
+            coordinates: [[[22, 39], [23, 39], [23, 40], [22, 40], [22, 39]]],
+        }
+        const point = (text: string, lng: number, lat: number): Subject['location'] =>
+            ({ type: 'point', text, coordinates: [[lng, lat]] })
+        const INSIDE = point('Κεντρική πλατεία', 22.42, 39.64)
+        // The two points are on each side of the 1 km tolerance, so the test fixes its value.
+        // About 900 m east of the east side: inside the tolerance for a coast.
+        const NEAR = point('Λιμάνι', 23.0105, 39.5)
+        // About 1100 m east of the east side.
+        const PAST = point('Νησίδα', 23.0128, 39.5)
+        const FAR = point('Κεντρική πλατεία', 23.73, 37.98)
+
+        async function createAuthority(id: string, authorityType: 'municipality' | 'region', boundary: object | null = SQUARE) {
+            await createCity({ id, authorityType })
+            if (boundary) {
+                await prisma.$executeRaw`
+                    UPDATE "City" SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(boundary)}), 4326) WHERE id = ${id}`
+            }
+            const body = await createAdministrativeBody(id)
+            const meeting = await createMeeting(id, { id: `${id}-m1`, administrativeBodyId: body.id })
+            return meeting.id
+        }
+
+        async function locationTextsByName(authorityId: string, meeting: string) {
+            const rows = await prisma.subject.findMany({
+                where: { cityId: authorityId, councilMeetingId: meeting },
+                select: { name: true, location: { select: { text: true } } },
+            })
+            return Object.fromEntries(rows.map(row => [row.name, row.location?.text ?? null]))
+        }
+
+        // The subject with no location is first: the place of a subject among
+        // the located subjects is then not its place in the list.
+        const incoming = () => [
+            makeSubject({ name: 'None', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Inside', agendaItemIndex: 2, location: INSIDE }),
+            makeSubject({ name: 'Near', agendaItemIndex: 3, location: NEAR }),
+            makeSubject({ name: 'Past', agendaItemIndex: 4, location: PAST }),
+            makeSubject({ name: 'Far', agendaItemIndex: 5, location: FAR }),
+        ]
+
+        test('keeps a location in the region and drops a location outside it', async () => {
+            const meeting = await createAuthority('r1', 'region')
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+            await saveSubjectsForMeeting(incoming(), 'r1', meeting)
+
+            expect(await locationTextsByName('r1', meeting)).toEqual({
+                Inside: 'Κεντρική πλατεία', Near: 'Λιμάνι', Past: null, Far: null, None: null,
+            })
+            // The subject stays: only its pin goes.
+            expect(await prisma.subject.count({ where: { cityId: 'r1' } })).toBe(5)
+            expect(await prisma.location.count()).toBe(2)
+            expect(warn.mock.calls.map(call => String(call[0])).filter(line => line.includes('outside the boundary')))
+                .toHaveLength(2)
+            warn.mockRestore()
+        })
+
+        test('clears the stored location when a later run moves it out of the region', async () => {
+            const meeting = await createAuthority('r1', 'region')
+            await saveSubjectsForMeeting([makeSubject({ name: 'Road', agendaItemIndex: 1, location: INSIDE })], 'r1', meeting)
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+            await saveSubjectsForMeeting([makeSubject({ name: 'Road', agendaItemIndex: 1, location: FAR })], 'r1', meeting)
+
+            expect(await locationTextsByName('r1', meeting)).toEqual({ Road: null })
+            warn.mockRestore()
+        })
+
+        test('keeps each location of a municipality, as before', async () => {
+            const meeting = await createAuthority('m1', 'municipality')
+
+            await saveSubjectsForMeeting(incoming(), 'm1', meeting)
+
+            expect(await locationTextsByName('m1', meeting)).toEqual({
+                Inside: 'Κεντρική πλατεία', Near: 'Λιμάνι', Past: 'Νησίδα', Far: 'Κεντρική πλατεία', None: null,
+            })
+        })
+
+        test('keeps a location on each part of a boundary of many parts', async () => {
+            // The square and an island 85 km east of it.
+            const island = [[[24, 39.4], [24.1, 39.4], [24.1, 39.5], [24, 39.5], [24, 39.4]]]
+            const meeting = await createAuthority('r3', 'region', { type: 'MultiPolygon', coordinates: [SQUARE.coordinates, island] })
+            const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+            await saveSubjectsForMeeting([
+                makeSubject({ name: 'Mainland', agendaItemIndex: 1, location: INSIDE }),
+                makeSubject({ name: 'Island', agendaItemIndex: 2, location: point('Χώρα', 24.05, 39.45) }),
+                makeSubject({ name: 'Sea', agendaItemIndex: 3, location: point('Ανοιχτή θάλασσα', 23.5, 39.45) }),
+            ], 'r3', meeting)
+
+            expect(await locationTextsByName('r3', meeting)).toEqual({ Mainland: 'Κεντρική πλατεία', Island: 'Χώρα', Sea: null })
+            warn.mockRestore()
+        })
+
+        test('keeps each location of a region that has no boundary', async () => {
+            const meeting = await createAuthority('r2', 'region', null)
+
+            await saveSubjectsForMeeting(incoming(), 'r2', meeting)
+
+            expect(await locationTextsByName('r2', meeting)).toEqual({
+                Inside: 'Κεντρική πλατεία', Near: 'Λιμάνι', Past: 'Νησίδα', Far: 'Κεντρική πλατεία', None: null,
+            })
+        })
+    })
 })

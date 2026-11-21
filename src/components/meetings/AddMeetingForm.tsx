@@ -27,9 +27,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, parse } from "date-fns"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
-import { CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
+import { AdministrativeBodyType, AuthorityType, CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Realm } from '@prisma/client'
 import { AGENDA_TEXT_MAX_LENGTH, COUNCIL_ONLY_KINDS, SCHEDULE_STATUS_REASON_MAX_LENGTH, recordsGreekCodeFacts, takesPlace } from '@/lib/meetingLifecycleRules'
 import { meetingLabel } from '@/lib/meetingName'
+import { authorityKey, authorityRequiresMeetingBody } from '@/lib/utils/authority'
+import { getRegionBodyTypeLabel } from '@/lib/utils/administrativeBodies'
 import { localCalendarDate, localClockTime } from '@/lib/formatters/time'
 import { zonedInstant } from '@/lib/dates/dayBounds'
 import { Textarea } from '../ui/textarea'
@@ -68,6 +70,8 @@ interface AddMeetingFormProps {
     cityId: string;
     /** The realm of the city: only a Greek city has a kind, an urgency and a session number. */
     realm: Realm;
+    /** The kind of authority names the council: «δημοτικό» or «περιφερειακό» συμβούλιο. */
+    authorityType: AuthorityType;
     /**
      * The city's IANA time zone. The form shows and takes the date and the time
      * of the meeting in this zone, whatever the zone of the admin's browser.
@@ -82,17 +86,21 @@ interface AddMeetingFormProps {
     allowedBodyIds?: string[];
 }
 
-export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuccess, allowedBodyIds }: AddMeetingFormProps) {
+export default function AddMeetingForm({ cityId, realm, authorityType, timezone, meeting, onSuccess, allowedBodyIds }: AddMeetingFormProps) {
     const router = useRouter()
     const { toast } = useToast()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-    const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string, place: string | null }>>([])
+    const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: AdministrativeBodyType, place: string | null }>>([])
     const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
+    const tCommon = useTranslations('Common')
     const locale = useLocale()
     const greekCodeFacts = recordsGreekCodeFacts(realm)
+    // A region has no meeting without a body: the select offers no "none", and
+    // shows its placeholder until the admin picks a body.
+    const requiresBody = authorityRequiresMeetingBody({ authorityType })
     const validationMessage = useValidationMessage()
 
     const form = useForm({
@@ -158,7 +166,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
         // Fetch administrative bodies for the city
         fetch(`/api/cities/${cityId}/administrative-bodies`)
             .then(res => res.json())
-            .then((data: Array<{ id: string, name: string, type: string, place: string | null }>) =>
+            .then((data: Array<{ id: string, name: string, type: AdministrativeBodyType, place: string | null }>) =>
                 setAdministrativeBodies(allowedBodyIds ? data.filter(body => allowedBodyIds.includes(body.id)) : data))
             .catch(err => console.error('Failed to fetch administrative bodies:', err));
     }, [cityId, allowedBodyIds])
@@ -177,6 +185,10 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
     }, [currentLink, form])
 
     async function onSubmit(values: z.output<typeof meetingFormSchema>) {
+        if (requiresBody && !uploadBodyId(values.administrativeBodyId)) {
+            form.setError('administrativeBodyId', { message: t('selectAdministrativeBody') })
+            return
+        }
         setIsSubmitting(true)
         setFormError(null)
 
@@ -267,21 +279,21 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                         render={({ field: { value, onChange, ...field } }) => (
                             <FormItem>
                                 <FormLabel>{t('administrativeBody')}</FormLabel>
-                                <Select onValueChange={onChange} value={value?.toString() || "none"}>
+                                <Select onValueChange={onChange} value={requiresBody ? (uploadBodyId(value) ?? "") : (value?.toString() || "none")}>
                                     <FormControl>
                                         <SelectTrigger {...field}>
                                             <SelectValue placeholder={t('selectAdministrativeBody')} />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {!allowedBodyIds && (
+                                        {!allowedBodyIds && !requiresBody && (
                                             <SelectItem value="none">
                                                 {t('noAdministrativeBody')}
                                             </SelectItem>
                                         )}
                                         {administrativeBodies.map((body) => (
                                             <SelectItem key={body.id} value={body.id}>
-                                                {body.name} ({t(`administrativeBodyType.${body.type}`)})
+                                                {body.name} ({getRegionBodyTypeLabel(body.type, { authorityType }, tCommon) ?? t(`administrativeBodyType.${body.type}`)})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -311,7 +323,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                                                 <SelectItem value={FROM_INVITATION}>{t('fromInvitation')}</SelectItem>
                                                 {KINDS.map(kind => (
                                                     <SelectItem key={kind} value={kind} disabled={COUNCIL_ONLY_KINDS.has(kind) && !isCouncil}>
-                                                        {t(`kindOptions.${kind}`)}{COUNCIL_ONLY_KINDS.has(kind) ? ` (${t('councilOnly')})` : ''}
+                                                        {t(`kindOptions.${kind}`)}{COUNCIL_ONLY_KINDS.has(kind) ? ` (${t(authorityKey('councilOnly', { authorityType }))})` : ''}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -369,7 +381,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                                 <FormItem>
                                     <FormLabel>{t('scheduleStatusReason')}</FormLabel>
                                     <FormControl>
-                                        <Textarea {...field} value={field.value ?? ''} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
+                                        <Textarea {...field} value={field.value ?? ''} placeholder={t(authorityKey('scheduleStatusReasonPlaceholder', { authorityType }))} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -587,7 +599,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                                     <FormControl>
                                         <Input {...field} inputMode="numeric" className="max-w-[8rem]" />
                                     </FormControl>
-                                    <FormDescription>{t('sessionNumberDescription')}</FormDescription>
+                                    <FormDescription>{t(authorityKey('sessionNumberDescription', { authorityType }))}</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}

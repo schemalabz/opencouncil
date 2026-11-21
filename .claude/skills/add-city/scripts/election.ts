@@ -1,6 +1,8 @@
 /**
  * Print the 2023 municipal election result of one Greek municipality.
  * Source: the public repo schemalabz/greek-municipal-elections (raw GitHub).
+ * Municipal elections only: the data holds no regional election. For a region
+ * (Περιφέρεια), see "A Greek region" in SKILL.md.
  *
  *   npx tsx .claude/skills/add-city/scripts/election.ts <name fragment>     # e.g. "Ξηρομέρου", "Κοζάν" (accents and case ignored)
  *   npx tsx .claude/skills/add-city/scripts/election.ts --id <election id>  # e.g. 9129
@@ -54,6 +56,7 @@ async function main(argv: string[]) {
         if (hits.length !== 1) {
             for (const m of hits) console.error(m.id, m.name, `seats=${m.seats}`);
             console.error(`${hits.length} municipalities match '${args.join(' ')}'; use --id`);
+            if (hits.length === 0) console.error('The data holds municipal elections only. For a region, see "A Greek region" in SKILL.md.');
             process.exit(1);
         }
         id = hits[0].id;

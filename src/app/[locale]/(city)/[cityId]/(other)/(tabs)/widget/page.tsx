@@ -76,6 +76,7 @@ export default async function WidgetPage(
             cityId={cityId}
             cityName={city?.name}
             cityTimezone={city?.timezone}
+            cityAuthorityType={city?.authorityType}
             bodyGroups={bodyGroups}
             recentMeetings={recentMeetings}
             lockedBody={lockedBody ? { id: lockedBody.id, name: lockedBody.name, name_en: lockedBody.name_en, type: lockedBody.type } : null}

@@ -457,6 +457,7 @@ export default function ConsultationMap({
     return (
         <div className={cn("relative", className)}>
             <Map
+                authorityType={cityData?.authorityType ?? 'municipality'}
                 center={[23.7275, 37.9755]} // Athens fallback
                 zoom={12}
                 pitch={0}

@@ -52,7 +52,7 @@ describe('getCouncilQrStrips', () => {
     });
 
     it('gives a strip to every unclaimed council member, in the order of the people page, with one shared expiry and texts in the city language', async () => {
-        mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
+        mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', authorityType: 'municipality', timezone: 'Europe/Athens' });
         const seat = (electedOrder: number) => role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody, electedOrder });
         // Deliberately out of order: the sheet must follow the elected order, not the query.
         mockGetPeopleOfCityForContent.mockResolvedValue([
@@ -94,7 +94,7 @@ describe('getCouncilQrStrips', () => {
     });
 
     it('titles a mayor without a stored role name from the Person catalog, in the city language', async () => {
-        mockGetCity.mockResolvedValue({ id: 'rouen', name: 'Rouen', realm: 'france', language: 'fr', timezone: 'Europe/Paris' });
+        mockGetCity.mockResolvedValue({ id: 'rouen', name: 'Rouen', realm: 'france', language: 'fr', authorityType: 'municipality', timezone: 'Europe/Paris' });
         const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
         mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
             o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
@@ -109,7 +109,7 @@ describe('getCouncilQrStrips', () => {
     });
 
     it('uses the English catalog for a city language that has none, not Greek, and keeps a stored role name', async () => {
-        mockGetCity.mockResolvedValue({ id: 'krakow', name: 'Kraków', realm: 'greece', language: 'pl', timezone: 'Europe/Warsaw' });
+        mockGetCity.mockResolvedValue({ id: 'krakow', name: 'Kraków', realm: 'greece', language: 'pl', authorityType: 'municipality', timezone: 'Europe/Warsaw' });
         const { getTranslationsFromCatalog } = jest.requireActual('../../../../tests/helpers/catalog');
         mockGetTranslations.mockImplementation(async (o: { locale: string; namespace: string }) =>
             o.namespace === 'Person' ? getTranslationsFromCatalog(o) : Object.assign((key: string) => key, { raw: (key: string) => key }));
@@ -129,7 +129,7 @@ describe('getCouncilQrStrips', () => {
     });
 
     it('mints new codes on every call', async () => {
-        mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
+        mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', authorityType: 'municipality', timezone: 'Europe/Athens' });
         mockGetPeopleOfCityForContent.mockResolvedValue([
             person('member', 'Αδάμ Μπούτζουκας', [role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody })]),
         ]);
@@ -145,7 +145,7 @@ describe('getCouncilQrStrips', () => {
     });
 });
 
-const chania = { id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' };
+const chania = { id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', authorityType: 'municipality', timezone: 'Europe/Athens' };
 const communityBody = { id: 'body-k3', name: '3η Δημοτική Κοινότητα', type: 'community' };
 const seatIn = (body: typeof councilBody | typeof communityBody, overrides: Record<string, unknown> = {}) =>
     role({ administrativeBodyId: body.id, administrativeBody: body, ...overrides });

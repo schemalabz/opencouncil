@@ -16,7 +16,7 @@ const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof se
 const statisticsMock = getBatchStatisticsForSubjects as jest.MockedFunction<typeof getBatchStatisticsForSubjects>;
 
 const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null, tier: 'primary' as const };
-const CURRENT = { dateTime: '2026-02-15T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens' };
+const CURRENT = { dateTime: '2026-02-15T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens', authorityType: 'municipality' as const };
 
 function subject(id: string, cityId: string, dateTime: string): SearchResultLight {
     return {

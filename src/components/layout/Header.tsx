@@ -6,7 +6,7 @@ import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
 import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
-import { City } from '@prisma/client'
+import { AuthorityType, City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
 import { Search, Plug, Bell, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
@@ -19,6 +19,7 @@ import { TopicIcon } from '@/components/TopicIcon';
 import { headerControlClass } from './headerControl';
 import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { notificationsSignupHref } from '@/lib/utils/notificationsSignupHref';
+import { authorityKey } from '@/lib/utils/authority';
 
 export interface PathElement {
     name: string
@@ -78,7 +79,8 @@ interface HeaderProps {
     /** Previous/next around the element that titles the header; the meeting's neighbours. */
     neighbours?: HeaderNeighbours
     showSidebarTrigger?: boolean
-    currentEntity?: { cityId: string }
+    /** The city the page belongs to. Its kind of authority names the petition crumb. */
+    currentEntity?: { cityId: string; authorityType: AuthorityType }
     /**
      * What this page can do — rendered in the action bar below the header, not
      * beside the search box. See {@link Header}.
@@ -152,7 +154,7 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
             });
         } else if (segment === 'petition') {
             dynamicPath.push({
-                name: t("petitionBreadcrumb"),
+                name: t(authorityKey('petitionBreadcrumb', currentEntity)),
                 link: `/${currentEntity.cityId}/petition`
             });
         }

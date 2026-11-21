@@ -34,6 +34,7 @@ function state(overrides: Partial<MeetingRecordState> = {}): MeetingRecordState 
 function context(overrides: Partial<LifecycleContext> = {}): LifecycleContext {
     return {
         realm: 'greece',
+        authorityType: 'municipality',
         body: { type: 'council' },
         postponedFrom: null,
         postponedFromTaken: false,
@@ -85,6 +86,15 @@ describe('validateMeetingRecord', () => {
         expect(codes(state({ kind: 'accountability' }), context())).toEqual([]);
         // A meeting with no body reads as the council's everywhere.
         expect(codes(state({ kind: 'accountability', administrativeBodyId: null }), context({ body: null }))).toEqual([]);
+    });
+
+    it('refuses a meeting of a region that names no body, and accepts each one that names its body (#993)', () => {
+        const region = context({ authorityType: 'region' });
+        expect(codes(state({ administrativeBodyId: null }), { ...region, body: null })).toEqual(['regionNeedsBody']);
+        expect(codes(state(), region)).toEqual([]);
+        expect(codes(state(), { ...region, body: { type: 'committee' } })).toEqual([]);
+        // A body that is not in the region is its own refusal.
+        expect(codes(state(), { ...region, body: 'missing' })).toEqual(['bodyMissing']);
     });
 
     it('refuses a body that is not in the city, instead of reading it as the council', () => {

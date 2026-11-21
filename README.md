@@ -120,7 +120,7 @@ If you prefer to run without Docker:
    ```bash
    npm run db:deploy:seed
    ```
-   On an empty local database, this loads the latest published seed artifact (real public content of production), applies the migrations, generates the Prisma client, and adds the test accounts. It needs the PostgreSQL 16 client tools (`pg_restore`, `psql`) and `zstd`, and it stops with what to install when they are missing. On a database with data, it applies new migrations and puts back the test accounts and the Serbian review city when they are missing. See the [Database Seeding Guide](./docs/database-seeding.md).
+   On an empty local database, this loads the latest published seed artifact (real public content of production), applies the migrations, generates the Prisma client, and adds the test accounts. It needs the PostgreSQL 16 client tools (`pg_restore`, `psql`) and `zstd`, and it stops with what to install when they are missing. On a database with data, it applies new migrations and puts back the test accounts, the Serbian review city and the review region when they are missing. See the [Database Seeding Guide](./docs/database-seeding.md).
 
 4. Start the development server:
    ```bash

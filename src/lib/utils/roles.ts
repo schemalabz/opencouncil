@@ -1,4 +1,4 @@
-import { AdministrativeBodyType, BodyTier, Party, Role } from "@prisma/client";
+import { AdministrativeBodyType, AuthorityType, BodyTier, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
 import { localizeText } from "@/lib/serbian";
 import { isSecondaryBody } from "./bodyTier";
@@ -412,7 +412,7 @@ export function getSpeakerLabels(roles: SpeakerRole[], titles: RoleTitles, date?
   return {
     party: shortName,
     partyLabel: shortName && isPartyHead ? `${shortName}, ${titles.t('partyLeader')}` : shortName,
-    role: simplifyRoleName(role ? getRoleTitle(role, titles) : null) ?? (isIndependent ? titles.t('independentCouncilMember') : null),
+    role: simplifyRoleName(role ? getRoleTitle(role, titles) : null) ?? (isIndependent ? getIndependentMemberLabel(titles) : null),
   };
 }
 
@@ -524,21 +524,30 @@ export function isMayor(person: { roles: MayorRoleFields[] }): boolean {
   return person.roles.some(role => isRoleActive(role) && isMayorRole(role));
 }
 
+/** The deputy of the head of each kind of authority, as the stored role names write it. */
+const DEPUTY_HEAD_TITLES = ['Αντιδήμαρχος', 'Αντιπεριφερειάρχης'];
+
 /**
- * Simplify vice-mayor role names for document output.
- * Keeps everything up to and including "Αντιδήμαρχος", dropping portfolio details.
+ * Simplify the role names of a deputy head for document output.
+ * Keeps everything up to and including "Αντιδήμαρχος" or "Αντιπεριφερειάρχης",
+ * dropping portfolio details.
  *
  * "Αντιδήμαρχος Τεχνικών Έργων" → "Αντιδήμαρχος"
  * "Αναπληρωτής Δήμαρχος και Αντιδήμαρχος Οικονομικών..." → "Αναπληρωτής Δήμαρχος και Αντιδήμαρχος"
+ * "Αντιπεριφερειάρχης Τουρισμού" → "Αντιπεριφερειάρχης"
  */
 export function simplifyRoleName(name: string | null): string | null {
   if (!name) return null;
-  const keyword = 'Αντιδήμαρχος';
   // NFKC folds the micro sign (µ) that some records carry for μ, and keeps
   // the length, so the index is valid in the original text.
-  const idx = name.normalize('NFKC').indexOf(keyword);
-  if (idx !== -1) return name.slice(0, idx + keyword.length);
-  return name;
+  const folded = name.normalize('NFKC');
+  // The first title in the text, not the first in the list: a name with both
+  // titles is cut after the one that comes first.
+  const found = DEPUTY_HEAD_TITLES
+    .map(keyword => ({ start: folded.indexOf(keyword), length: keyword.length }))
+    .filter(match => match.start !== -1)
+    .sort((a, b) => a.start - b.start);
+  return found.length > 0 ? name.slice(0, found[0].start + found[0].length) : name;
 }
 
 /**
@@ -583,40 +592,80 @@ export function getActiveRoleCondition(date: Date = new Date()) {
  *
  * @translationNamespace Person
  */
-export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member' | 'independentCouncilMember') => string;
+export type RoleTextTranslator = (
+  key: 'mayor' | 'regionalGovernor' | 'president' | 'partyLeader' | 'member'
+    | 'independentCouncilMember' | 'independentRegionalCouncilMember'
+) => string;
 
 /**
- * What every role title needs: a `Person` catalog, and the language the titles
- * are for. Server code gets one with getRoleTitles (src/i18n/roleTitles.ts), in
- * the city's language for documents and task requests; components with
- * useRoleTitles. `locale` is that language even when it has no catalog of its
- * own and `t` is the English one.
+ * The facts about a city that its role titles depend on: the language of the
+ * stored role names, and the kind of authority, which names the head and the
+ * council.
+ */
+export type RoleTitleCity = { language: string; authorityType: AuthorityType };
+
+/**
+ * What every role title needs: a `Person` catalog, the language the titles
+ * are for, and the kind of authority. Server code gets one with getRoleTitles
+ * (src/i18n/roleTitles.ts), in the city's language for documents and task
+ * requests; components with useRoleTitles. `locale` is that language even when
+ * it has no catalog of its own and `t` is the English one.
  */
 export interface RoleTitles {
   t: RoleTextTranslator;
   locale: string;
   /** Language of the stored role names, independently of the reader's locale. */
   contentLanguage?: string;
+  /**
+   * The kind of authority the roles belong to. A role does not always say: a
+   * role on a body or in a party has no cityId, and the label of a member with
+   * no party is not a role at all.
+   */
+  authorityType: AuthorityType;
 }
 
 type TitleFields = RoleKindFields & { isHead: boolean; name: string | null };
 
+/**
+ * The title the head of each kind of authority holds without a stored name.
+ * The keys are literal so that the key scan checks them against the catalog.
+ */
+const CITY_HEAD_TITLE: Record<AuthorityType, (t: RoleTextTranslator) => string> = {
+  municipality: t => t('mayor'),
+  region: t => t('regionalGovernor'),
+};
+
+/** The label of a member of the council who is in no party. */
+const INDEPENDENT_MEMBER_LABEL: Record<AuthorityType, (t: RoleTextTranslator) => string> = {
+  municipality: t => t('independentCouncilMember'),
+  region: t => t('independentRegionalCouncilMember'),
+};
+
+export function getIndependentMemberLabel({ t, authorityType }: RoleTitles): string {
+  return INDEPENDENT_MEMBER_LABEL[authorityType](t);
+}
+
 /** The title each kind of head holds without a stored name. */
-const HEAD_TITLE_KEY = { city: 'mayor', body: 'president', party: 'partyLeader' } as const;
+function getHeadTitle(kind: RoleKind, { t, authorityType }: RoleTitles): string {
+  if (kind === 'city') return CITY_HEAD_TITLE[authorityType](t);
+  return kind === 'body' ? t('president') : t('partyLeader');
+}
 
 /**
- * The title of one role. A head's title follows from what it heads — a city
- * head is the mayor, a body head the president, a party head its leader — and
- * a stored name overrides it. `name_en` is not read: it holds machine
+ * The title of one role. A head's title follows from what it heads — the head
+ * of a municipality is the mayor and the head of a region the regional
+ * governor, a body head the president, a party head its leader — and a stored
+ * name overrides it. `name_en` is not read: it holds machine
  * translations of uneven quality.
  *
  * On an English translation of another language, the translated head title
  * wins. Native English councils keep their stored titles. Unknown content
  * languages retain the translation behavior used by existing callers.
  */
-export function getRoleTitle(role: TitleFields, { t, locale, contentLanguage }: RoleTitles): string | null {
+export function getRoleTitle(role: TitleFields, titles: RoleTitles): string | null {
+  const { locale, contentLanguage } = titles;
   const kind = getRoleKind(role);
-  const headTitle = role.isHead && kind ? t(HEAD_TITLE_KEY[kind]) : null;
+  const headTitle = role.isHead && kind ? getHeadTitle(kind, titles) : null;
   const stored = role.name ? localizeText(role.name, locale) : null;
   const storedNameIsForeign = locale === 'en' && contentLanguage !== 'en';
   return storedNameIsForeign ? headTitle ?? stored : stored ?? headTitle;

@@ -1,16 +1,47 @@
 import "server-only";
-import type { City, CityStatus, Prisma, Realm } from "@prisma/client";
+import type { AuthorityType, City, CityStatus, Prisma, Realm } from "@prisma/client";
 import prisma from "./prisma";
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import type { CityWithCounts } from './cities';
 import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
+import { authorityAllowsBodyType, authorityRequiresMeetingBody, bodyTypeRefusal } from '@/lib/utils/authority';
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 export { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 
 /** Shared city-row read; callers own authorization, geometry and presentation. */
 export async function getCityWithCountsDirect(cityId: string, db: Prisma.TransactionClient = prisma): Promise<CityWithCounts | null> {
     return db.city.findUnique({ where: { id: cityId }, include: { _count: CITY_COUNT_SELECT } });
+}
+
+/** How far outside the boundary a geometry may be and still count as inside the city. A boundary
+ *  follows the coast, and a geocoder puts a port, a beach or a breakwater a little past it. */
+const BOUNDARY_TOLERANCE_METERS = 1000;
+
+/**
+ * Of the given GeoJSON geometries, the indexes of those that are outside the city: farther
+ * from its boundary than BOUNDARY_TOLERANCE_METERS. One query for all of them, in no order.
+ *
+ * A city with no boundary gives no answer, so it returns no index. Throws on a query failure:
+ * "nothing is outside" is a claim that the caller acts on.
+ *
+ * In this `server-only` module and not in `cities.ts`: that module is "use server", so each
+ * export of it is a Server Action, and this query has no authorization check.
+ */
+export async function getGeometriesOutsideCity(cityId: string, geoJsons: string[]): Promise<number[]> {
+    if (geoJsons.length === 0) return [];
+    const rows = await prisma.$queryRaw<Array<{ index: number }>>`
+        SELECT (g.ordinal - 1)::int AS index
+        FROM unnest(${geoJsons}::text[]) WITH ORDINALITY AS g(geojson, ordinal)
+        JOIN "City" c ON c.id = ${cityId}
+        WHERE c.geometry IS NOT NULL
+          AND NOT ST_DWithin(
+              c.geometry::geography,
+              ST_SetSRID(ST_GeomFromGeoJSON(g.geojson), 4326)::geography,
+              ${BOUNDARY_TOLERANCE_METERS}
+          )
+    `;
+    return rows.map(row => row.index);
 }
 
 /** Read metadata from the stored outline, never the simplified drawing geometry. */
@@ -49,8 +80,36 @@ type CityEdit = Partial<Omit<City, 'id' | 'createdAt' | 'updatedAt'>>;
 export async function editCityDirect(id: string, cityData: CityEdit): Promise<City> {
     return prisma.$transaction(async db => {
         await assertDemoChangeAllowed(id, cityData, db);
+        if (cityData.authorityType !== undefined) await assertAuthorityTypeAllowed(id, cityData.authorityType, db);
         return db.city.update({ where: { id }, data: cityData });
     });
+}
+
+/**
+ * The rules for a change of the kind of an authority (#993). The writes of a
+ * body check the type against the kind of its city, and the writes of a
+ * meeting check that a meeting of a region names its body. These are the same
+ * checks from the other side: a municipality does not become a region and keep
+ * a community, or a meeting with no body that each later edit then refuses.
+ *
+ * The checks run only when the kind changes. The city form sends the kind with
+ * each save, and a body keeps the type that it has. So a save of a region that
+ * keeps its kind does not fail on a body or a meeting that is older than the
+ * rules.
+ */
+async function assertAuthorityTypeAllowed(cityId: string, authorityType: AuthorityType, db: Prisma.TransactionClient): Promise<void> {
+    const city = await db.city.findUnique({ where: { id: cityId }, select: { authorityType: true } });
+    if (!city || city.authorityType === authorityType) return;
+
+    const bodies = await db.administrativeBody.findMany({ where: { cityId }, select: { type: true }, distinct: ['type'] });
+    const refused = bodies.find(body => !authorityAllowsBodyType({ authorityType }, body.type));
+    if (refused) throw new ConflictError(`${bodyTypeRefusal({ authorityType }, refused.type)}. Remove the body or change its type first. Nothing was saved.`);
+
+    if (!authorityRequiresMeetingBody({ authorityType })) return;
+    const meetings = await db.councilMeeting.count({ where: { cityId, administrativeBodyId: null } });
+    if (meetings > 0) {
+        throw new ConflictError(`A meeting of a ${authorityType} must name its administrative body, and ${meetings} of the meetings of "${cityId}" name none. Give each of them a body first. Nothing was saved.`);
+    }
 }
 
 /**

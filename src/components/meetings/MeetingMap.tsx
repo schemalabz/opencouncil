@@ -130,6 +130,7 @@ export function MeetingMap() {
         <div className="absolute inset-0">
             <Map
                 className="h-full w-full"
+                authorityType={city.authorityType}
                 features={features}
                 center={city.geometry ? undefined : fallbackView.center}
                 zoom={city.geometry ? undefined : fallbackView.zoom}

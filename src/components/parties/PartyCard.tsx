@@ -1,3 +1,4 @@
+import type { AuthorityType } from '@prisma/client';
 import { useLocale, useTranslations } from 'next-intl';
 import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { Link } from '@/i18n/routing';
@@ -8,6 +9,7 @@ import { partyComposition, type PartyBodyColumns } from '@/lib/party/composition
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
+import { authorityKey } from '@/lib/utils/authority';
 
 /** Faces before the stack becomes a crowd. */
 const FACES = 4;
@@ -23,6 +25,8 @@ interface PartyCardProps {
      * reader can compare one card against the next.
      */
     columns?: PartyBodyColumns;
+    /** The kind of authority the party belongs to: it names the council and the governing group. */
+    authorityType: AuthorityType;
 }
 
 /**
@@ -44,7 +48,7 @@ interface PartyCardProps {
  * Deliberately hook-light so it renders in a Server Component (the city
  * overview) and inside List, which is a client component.
  */
-export default function PartyCard({ item: party, columns, analyticsSurface = 'parties_list' }: PartyCardProps) {
+export default function PartyCard({ item: party, columns, authorityType, analyticsSurface = 'parties_list' }: PartyCardProps) {
     const t = useTranslations('cityOverview');
     const locale = useLocale();
     const { members, councilMembers, council, committee, community, hasMayor } = partyComposition(party);
@@ -53,7 +57,7 @@ export default function PartyCard({ item: party, columns, analyticsSurface = 'pa
     const faces = roster.slice(0, FACES);
     const rest = roster.length - faces.length;
     const elsewhere = [
-        columns?.committee ? t('inCommittees', { count: committee }) : null,
+        columns?.committee ? t(authorityKey('inCommittees', { authorityType }), { count: committee }) : null,
         columns?.community ? t('inCommunities', { count: community }) : null,
     ].filter(Boolean);
 
@@ -93,7 +97,7 @@ export default function PartyCard({ item: party, columns, analyticsSurface = 'pa
                     <span className="text-3xl leading-none tracking-tight" style={{ color: party.colorHex }}>
                         {council}
                     </span>
-                    <span className="text-xs text-muted-foreground">{t('seatsInCouncil', { count: council })}</span>
+                    <span className="text-xs text-muted-foreground">{t(authorityKey('seatsInCouncil', { authorityType }), { count: council })}</span>
                 </span>
 
                 {elsewhere.length > 0 && (
@@ -103,7 +107,7 @@ export default function PartyCard({ item: party, columns, analyticsSurface = 'pa
                 {/* The only thing on the card that is not a count — see GoverningPartyChip. */}
                 {hasMayor && (
                     <span className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <GoverningPartyChip colorHex={party.colorHex} />
+                        <GoverningPartyChip colorHex={party.colorHex} authorityType={authorityType} />
                     </span>
                 )}
 

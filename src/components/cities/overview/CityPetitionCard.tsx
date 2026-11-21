@@ -5,7 +5,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { isPetitionable } from '@/lib/cityStatus';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
-import { authorityKey } from './authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { RailDisclosure } from './RailDisclosure';
 
 interface CityPetitionCardProps {
@@ -46,7 +46,7 @@ export function CityPetitionCard({ city, bucket, locale }: CityPetitionCardProps
                     </span>
                     {bucket !== null && (
                         <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                            {t('petitionCount', { count: bucket })}
+                            {t(authorityKey('petitionCount', city), { count: bucket })}
                         </span>
                     )}
                 </span>
