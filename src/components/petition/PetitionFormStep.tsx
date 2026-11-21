@@ -91,7 +91,7 @@ export function PetitionFormStep({
             {signedIn ? (
                 <StepHeading title={t(authorityKey('relationTitle', city))} lead={t('relationHint')} />
             ) : (
-                <StepHeading title={t('formTitle')} lead={t('formLead')} />
+                <StepHeading title={t('formTitle')} lead={t(authorityKey('formLead', city))} />
             )}
 
             <PetitionCityCard
@@ -124,7 +124,7 @@ export function PetitionFormStep({
                     <CheckboxCard
                         checked={state.isCitizen}
                         onCheckedChange={(isCitizen) => onChange({ isCitizen })}
-                        label={t('isCitizen')}
+                        label={t(authorityKey('isCitizen', city))}
                         description={t(authorityKey('isCitizenHint', city))}
                     />
                     <CheckboxCard
@@ -151,7 +151,7 @@ export function PetitionFormStep({
                 <AccountFields
                     name={state.name}
                     email={state.email}
-                    hint={t('accountHint')}
+                    hint={t(authorityKey('accountHint', city))}
                     onChange={onChange}
                     googleAvailable={googleAvailable}
                     onGoogleStart={onGoogleStart}

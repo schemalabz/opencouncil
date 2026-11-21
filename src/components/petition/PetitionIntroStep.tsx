@@ -36,18 +36,18 @@ export function PetitionIntroStep({
 
     return (
         <div>
-            <StepHeading eyebrow={t('eyebrow')} title={t(authorityKey('introTitle', city), { qualifier })} lead={t('lead')} />
+            <StepHeading eyebrow={t('eyebrow')} title={t(authorityKey('introTitle', city), { qualifier })} lead={t(authorityKey('lead', city))} />
 
             <PetitionCityCard city={city} bucket={bucket} pickerQuery={pickerQuery} dirty={dirty} className="mt-5 lg:mt-7" />
 
             {existing ? (
                 <MemberNote title={ts('picker.requested')} body={t('alreadyRequestedBody')} className="mt-3.5 lg:mt-5" />
             ) : (
-                <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">{t('introNote')}</p>
+                <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">{t(authorityKey('introNote', city))}</p>
             )}
             {!existing && (
                 <p className="mt-2 text-xs leading-[1.45] text-muted-foreground lg:text-[13px]">
-                    {t.rich('pricingNote', {
+                    {t.rich(authorityKey('pricingNote', city), {
                         link: (chunks) => (
                             <Link href="/about" className="underline">
                                 {chunks}

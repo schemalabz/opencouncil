@@ -46,7 +46,7 @@ export function CityPetitionCard({ city, bucket, locale }: CityPetitionCardProps
                     </span>
                     {bucket !== null && (
                         <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                            {t('petitionCount', { count: bucket })}
+                            {t(authorityKey('petitionCount', city), { count: bucket })}
                         </span>
                     )}
                 </span>

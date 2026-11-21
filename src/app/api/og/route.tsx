@@ -786,8 +786,8 @@ const PetitionOGImage = async (locale: string, realm: Realm, cityId: string | nu
                         locale,
                         eyebrow: tp('eyebrow'),
                         title: tp(authorityKey('introTitle', city), { qualifier: getMunicipalityQualifier(city, locale) }),
-                        lead: tp('lead'),
-                        note: tp('introNote'),
+                        lead: tp(authorityKey('lead', city)),
+                        note: tp(authorityKey('introNote', city)),
                     })}
                     // The municipality, as the step's own card names it: the place
                     // itself, its full name, and how many have asked for it.
@@ -800,7 +800,7 @@ const PetitionOGImage = async (locale: string, realm: Realm, cityId: string | nu
                             {/* Only when there is something to say. The step's card
                                 falls back to "not in the network yet", which this
                                 image's own headline has already said. */}
-                            {bucket !== null && <OgChip size={18} tone="orange">{tc('petitionCount', { count: bucket })}</OgChip>}
+                            {bucket !== null && <OgChip size={18} tone="orange">{tc(authorityKey('petitionCount', city), { count: bucket })}</OgChip>}
                         </div>
                     }
                 />

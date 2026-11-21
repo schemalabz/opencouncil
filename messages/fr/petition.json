@@ -1,6 +1,12 @@
 {
-  "metaTitle": "Amenez OpenCouncil dans votre commune | OpenCouncil",
-  "metaDescription": "Demandez que votre commune rejoigne OpenCouncil. Votre nom compte quand nous lui parlons.",
+  "metaTitle": {
+    "municipality": "Amenez OpenCouncil dans votre commune | OpenCouncil",
+    "region": "Amenez OpenCouncil dans votre région | OpenCouncil"
+  },
+  "metaDescription": {
+    "municipality": "Demandez que votre commune rejoigne OpenCouncil. Votre nom compte quand nous lui parlons.",
+    "region": "Demandez que votre région rejoigne OpenCouncil. Votre nom compte quand nous lui parlons."
+  },
   "eyebrow": "Demande",
   "pickerTitle": "Amenez OpenCouncil dans votre commune",
   "pickerLead": "Plus les gens le demandent, plus une commune rejoint facilement. Votre nom compte quand nous leur parlons.",
@@ -10,17 +16,32 @@
     "municipality": "{qualifier} n'est pas encore sur OpenCouncil",
     "region": "La région {qualifier} n'est pas encore sur OpenCouncil"
   },
-  "lead": "Demandez-le. Plus les gens le demandent, plus une commune rejoint facilement, et votre nom compte quand nous lui parlons.",
+  "lead": {
+    "municipality": "Demandez-le. Plus les gens le demandent, plus une commune rejoint facilement, et votre nom compte quand nous lui parlons.",
+    "region": "Demandez-le. Plus les gens le demandent, plus une région rejoint facilement, et votre nom compte quand nous lui parlons."
+  },
   "notInNetwork": "Pas encore sur OpenCouncil",
-  "pricingNote": "Nous travaillons commercialement avec les communes que nous servons. Nos tarifs sont publics sur <link>opencouncil.gr/about</link>.",
-  "introNote": "Nous n'utilisons votre nom que lorsque nous parlons à la commune, comme habitant qui le souhaite.",
+  "pricingNote": {
+    "municipality": "Nous travaillons commercialement avec les communes que nous servons. Nos tarifs sont publics sur <link>opencouncil.gr/about</link>.",
+    "region": "Nous travaillons commercialement avec les communes que nous servons. Nos tarifs sont publics sur <link>opencouncil.gr/about</link>."
+  },
+  "introNote": {
+    "municipality": "Nous n'utilisons votre nom que lorsque nous parlons à la commune, comme habitant qui le souhaite.",
+    "region": "Nous n'utilisons votre nom que lorsque nous parlons à la région, comme habitant qui le souhaite."
+  },
   "alreadyRequestedBody": "Vous l'avez déjà demandé — merci. L'étape suivante met à jour vos informations.",
-  "ctaStart": "Je veux OpenCouncil dans ma commune",
+  "ctaStart": {
+    "municipality": "Je veux OpenCouncil dans ma commune",
+    "region": "Je veux OpenCouncil dans ma région"
+  },
   "ctaUpdate": "Mettre à jour mes informations",
   "ctaSubmit": "Envoyer la demande",
   "ctaSubmitting": "Envoi…",
   "formTitle": "Qui demande ?",
-  "formLead": "Votre nom, comme habitant qui veut OpenCouncil dans sa commune.",
+  "formLead": {
+    "municipality": "Votre nom, comme habitant qui veut OpenCouncil dans sa commune.",
+    "region": "Votre nom, comme habitant qui veut OpenCouncil dans sa région."
+  },
   "relationTitle": {
     "municipality": "Quel est votre lien avec la commune ?",
     "region": "Quel est votre lien avec la région ?"
@@ -35,7 +56,10 @@
     "municipality": "J'habite dans la commune.",
     "region": "J'habite dans la région."
   },
-  "isCitizen": "Je suis électeur",
+  "isCitizen": {
+    "municipality": "Je suis électeur",
+    "region": "Je suis électeur"
+  },
   "isCitizenHint": {
     "municipality": "Je vote dans la commune.",
     "region": "Je vote dans la région."
@@ -43,7 +67,10 @@
   "isOther": "Autre",
   "isOtherHint": "Dites-le en quelques mots.",
   "otherPlaceholder": "J'y passe mes étés",
-  "accountHint": "Pour vous écrire quand la commune aura rejoint.",
+  "accountHint": {
+    "municipality": "Pour vous écrire quand la commune aura rejoint.",
+    "region": "Pour vous écrire quand la région aura rejoint."
+  },
   "phoneHint": "facultatif",
   "consent": "Nous ne vous écrirons qu'au sujet de la demande.",
   "doneTitle": "Merci — votre demande est enregistrée",
