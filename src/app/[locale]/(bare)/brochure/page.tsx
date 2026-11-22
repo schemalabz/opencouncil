@@ -6,6 +6,7 @@ import { coveredBodyTypesByCity, toBrochurePartners } from "@/lib/brochure";
 import { getRealm } from "@/lib/realm.server";
 import { getRealmContactPhone } from "@/lib/realm";
 import { env } from "@/env.mjs";
+import { teamInbox } from "@/lib/email/senders";
 import { BrochureGenerator } from "@/components/brochure/brochure-generator";
 
 export const metadata: Metadata = {
@@ -58,7 +59,7 @@ export default async function BrochurePage() {
                     // mobile. The phone is the realm's office line now, so the email
                     // default follows it to the shared inbox rather than leaving a
                     // personal address printed beside a switchboard number.
-                    contactEmail={env.NEXT_PUBLIC_CONTACT_EMAIL ?? "hello@opencouncil.gr"}
+                    contactEmail={teamInbox()}
                     contactPhone={getRealmContactPhone(realm)}
                 />
                 <p className="text-xs text-muted-foreground">

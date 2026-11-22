@@ -1,6 +1,7 @@
 /** @jest-environment node */
 const mockSendEmail = jest.fn();
 jest.mock('../resend', () => ({ sendEmail: (...args: unknown[]) => mockSendEmail(...args) }));
+jest.mock('@/env.mjs', () => ({ env: {} }));
 
 import { sendContactEmail } from '../contact';
 
@@ -21,6 +22,11 @@ describe('sendContactEmail', () => {
         expect(html).not.toContain('<img');
         expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
         expect(html).toContain('Mayor &amp; &quot;friend&quot;');
+    });
+
+    it('sends to the person who filled the form, with the team inbox in copy', async () => {
+        await sendContactEmail({ contactName: 'Maria', contactPosition: 'Mayor', contactEmail: 'maria@example.org', contactMunicipality: 'Athens' });
+        expect(mockSendEmail.mock.calls[0][0]).toMatchObject({ to: 'maria@example.org', cc: 'hello@opencouncil.gr' });
     });
 
     it('refuses an invalid phone number without sending', async () => {

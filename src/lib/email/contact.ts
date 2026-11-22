@@ -2,6 +2,7 @@ import "server-only";
 import { isPhoneEmpty, toE164 } from '@/lib/utils/phone';
 import { escapeHtml } from '@/lib/utils/html';
 import { sendEmail } from './resend';
+import { teamInbox } from './senders';
 
 export interface ContactFormData {
   contactName: string;
@@ -28,7 +29,7 @@ export async function sendContactEmail(data: ContactFormData) {
 
   const subject = 'Ευχαριστούμε για το ενδιαφέρον σας στο OpenCouncil';
   const to = contactEmail;
-  const cc = ['christos@opencouncil.gr', 'andreas@opencouncil.gr', 'eliza@opencouncil.gr'];
+  const cc = teamInbox();
 
   const priceInfo = calculatedPrice !== undefined && calculatedPrice !== null
     ? `\nΕκτιμώμενο ετήσιο κόστος: ${calculatedPrice}€ + ΦΠΑ`

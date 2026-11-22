@@ -7,8 +7,7 @@ import { ProductUpdateEmail } from '@/lib/email/templates/ProductUpdateEmail';
 import { fillProductUpdatePlaceholders } from '@/lib/email/templates/productUpdateDefault';
 import { buildUnsubscribeUrl } from '@/lib/notifications/tokens';
 import { getProductUpdateRecipients } from '@/lib/db/productUpdates';
-
-const REPLY_TO = 'hello@opencouncil.gr';
+import { teamInbox } from '@/lib/email/senders';
 
 const CATEGORY_TAG = { name: 'category', value: 'product-update' } as const;
 
@@ -74,7 +73,7 @@ export async function sendProductUpdateToAll(params: {
             return {
                 from: 'notifications',
                 to: r.email,
-                replyTo: REPLY_TO,
+                replyTo: teamInbox(),
                 subject,
                 html,
                 tags: [
@@ -127,7 +126,7 @@ export async function sendProductUpdateTest(params: {
         const result = await sendEmail({
             from: 'notifications',
             to: testEmail,
-            replyTo: REPLY_TO,
+            replyTo: teamInbox(),
             subject: `[TEST] ${subject}`,
             html,
             tags: [

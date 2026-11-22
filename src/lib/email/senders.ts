@@ -14,3 +14,11 @@ export type EmailSender = 'auth' | 'notifications' | 'operations' | 'noreply';
 export function emailFrom(sender: EmailSender): string {
     return env.EMAIL_FROM_OVERRIDE ?? `OpenCouncil <${sender}@opencouncil.gr>`;
 }
+
+/**
+ * The team's shared inbox: the public contact address. It is a group, so one
+ * address reaches every member of the team.
+ */
+export function teamInbox(): string {
+    return env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'hello@opencouncil.gr';
+}
