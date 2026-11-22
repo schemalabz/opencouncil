@@ -54,6 +54,7 @@ function start(token) {
     const { logSafePath } = require('./src/lib/utils/logSafePath.cjs');
     const { POSTHOG_EU_INGEST } = require('./src/lib/utils/posthogHosts.cjs');
     const { defaultDeploymentEnv } = require('./src/lib/utils/deploymentEnv.cjs');
+    const { connectingAddress } = require('./src/lib/utils/clientAddress.cjs');
 
     // Export failures (a wrong token, a 413, PostHog unreachable) go to stderr, not
     // through the patched console. Only errors: Next's own spans raise a warning per
@@ -120,8 +121,7 @@ function start(token) {
                     span.setAttribute(PATH, path);
                     // App Platform sets `do-connecting-ip` itself. Without it, the socket's
                     // peer, never the first X-Forwarded-For entry, which the client controls.
-                    const value = request.headers?.['do-connecting-ip'];
-                    const client = (Array.isArray(value) ? value[0] : value) ?? request.socket?.remoteAddress;
+                    const client = connectingAddress(name => request.headers?.[name]) ?? request.socket?.remoteAddress;
                     if (client) span.setAttribute('client.address', client);
                     // A request that stalls the server never ends, so only this line names it.
                     process.stdout.write(`[request] ${span.spanContext().spanId} start ${request.method} ${path}\n`);

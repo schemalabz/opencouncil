@@ -3,9 +3,9 @@ const mockSendContactEmail = jest.fn();
 jest.mock('@/lib/email/contact', () => ({
     sendContactEmail: (...args: unknown[]) => mockSendContactEmail(...args),
 }));
-let forwardedFor = '203.0.113.7, 10.0.0.1';
+let requestHeaders: Record<string, string> = { 'do-connecting-ip': '203.0.113.7' };
 jest.mock('next/headers', () => ({
-    headers: async () => new Headers({ 'x-forwarded-for': forwardedFor }),
+    headers: async () => new Headers(requestHeaders),
 }));
 
 import { submitContactForm } from '../contact';
@@ -44,26 +44,46 @@ describe('submitContactForm', () => {
     });
 
     it('stops one address after three emails in an hour', async () => {
-        forwardedFor = '198.51.100.1';
         const address = { ...FORM, contactEmail: 'Repeat@example.org' };
-        // One send happened in the test above for maria@; this address is fresh.
+        // Three senders, so that only the limit per address applies.
         for (let i = 0; i < 3; i++) {
-            forwardedFor = `198.51.100.${i + 1}`;
+            requestHeaders = { 'do-connecting-ip': `198.51.100.${i + 1}` };
             expect((await submitContactForm(address)).success).toBe(true);
         }
-        forwardedFor = '198.51.100.9';
+        requestHeaders = { 'do-connecting-ip': '198.51.100.9' };
         const refused = await submitContactForm({ ...address, contactEmail: 'repeat@example.org' });
         expect(refused).toEqual({ success: false, message: 'Too many requests' });
         expect(mockSendContactEmail).toHaveBeenCalledTimes(3);
     });
 
-    it('stops one sender after five emails in an hour', async () => {
-        forwardedFor = '192.0.2.44, 10.0.0.1';
+    it('stops one sender after five emails in an hour, whatever X-Forwarded-For it sends', async () => {
         for (let i = 0; i < 5; i++) {
+            requestHeaders = { 'do-connecting-ip': '192.0.2.44', 'x-forwarded-for': `10.9.9.${i}` };
             expect((await submitContactForm({ ...FORM, contactEmail: `person${i}@example.org` })).success).toBe(true);
         }
+        requestHeaders = { 'do-connecting-ip': '192.0.2.44', 'x-forwarded-for': '10.9.9.99' };
         const refused = await submitContactForm({ ...FORM, contactEmail: 'person9@example.org' });
         expect(refused).toEqual({ success: false, message: 'Too many requests' });
         expect(mockSendContactEmail).toHaveBeenCalledTimes(5);
+    });
+
+    it('counts one IPv6 /64 block as one sender, whatever address in it a request uses', async () => {
+        for (let i = 0; i < 5; i++) {
+            requestHeaders = { 'do-connecting-ip': `2001:db8:aa:bb::${i + 1}` };
+            expect((await submitContactForm({ ...FORM, contactEmail: `six${i}@example.org` })).success).toBe(true);
+        }
+        requestHeaders = { 'do-connecting-ip': '2001:db8:aa:bb:ffff::99' };
+        expect(await submitContactForm({ ...FORM, contactEmail: 'six9@example.org' })).toEqual({ success: false, message: 'Too many requests' });
+        requestHeaders = { 'do-connecting-ip': '2001:db8:aa:cc::1' };
+        expect((await submitContactForm({ ...FORM, contactEmail: 'other@example.org' })).success).toBe(true);
+    });
+
+    it('counts requests without the edge header as one sender', async () => {
+        for (let i = 0; i < 5; i++) {
+            requestHeaders = { 'x-forwarded-for': `10.8.8.${i}` };
+            expect((await submitContactForm({ ...FORM, contactEmail: `local${i}@example.org` })).success).toBe(true);
+        }
+        requestHeaders = { 'x-forwarded-for': '10.8.8.99' };
+        expect(await submitContactForm({ ...FORM, contactEmail: 'local9@example.org' })).toEqual({ success: false, message: 'Too many requests' });
     });
 });

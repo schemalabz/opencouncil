@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import * as z from "zod";
 import { sendContactEmail, type ContactFormData } from "@/lib/email/contact";
 import { createRateLimiter } from "@/lib/rateLimit";
+import { addressGroup, connectingAddress } from "@/lib/utils/clientAddress.cjs";
 
 /**
  * The contact form of the about page. Anyone may submit it, so this is the
@@ -24,9 +25,12 @@ const HOUR = 60 * 60 * 1000;
 const perSender = createRateLimiter({ limit: 5, windowMs: HOUR });
 const perAddress = createRateLimiter({ limit: 3, windowMs: HOUR });
 
+// One sender is one IPv4 address or one IPv6 /64 block (see addressGroup). Requests
+// without the edge's header, as in local development, share one sender.
 async function senderKey(): Promise<string> {
-    const forwarded = (await headers()).get("x-forwarded-for");
-    return forwarded?.split(",")[0]?.trim() || "unknown";
+    const requestHeaders = await headers();
+    const address = connectingAddress(name => requestHeaders.get(name));
+    return address ? addressGroup(address) : "unknown";
 }
 
 export type SubmitContactFormResult = { success: true } | { success: false; message: string };
