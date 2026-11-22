@@ -3,7 +3,7 @@
 import { signIn } from "@/auth"
 import { safeRedirectPath } from "@/lib/safeRedirect"
 import { signInFailurePath } from "@/lib/auth/signInResult"
-import { logSafePath } from "@/lib/utils/logSafePath"
+import { logSafePath } from '@/lib/utils/logSafePath.cjs'
 
 export async function signInWithEmail(formData: FormData): Promise<void> {
     const email = formData.get("email")

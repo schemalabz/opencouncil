@@ -1,5 +1,6 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import * as z from "zod";
+import { defaultDeploymentEnv } from "./lib/utils/deploymentEnv.cjs";
 
 /**
  * Session-mirror defaults. Both values are a function of where the app runs,
@@ -11,9 +12,7 @@ import * as z from "zod";
  * also reaches staging.opencouncil.gr, which is exactly why the name carries
  * an environment suffix as well.
  */
-const deploymentEnv =
-    process.env.DEPLOYMENT_ENV ??
-    (process.env.NODE_ENV === 'development' ? 'development' : 'production');
+const deploymentEnv = process.env.DEPLOYMENT_ENV ?? defaultDeploymentEnv(process.env.NODE_ENV);
 
 function derivedCookieDomain() {
     // Development and previews do not mirror: dev reads the Auth.js cookie
@@ -149,7 +148,7 @@ export const env = createEnv({
     // (server-only). Previews and staging declare themselves (flake.nix unit /
     // DO app env); everywhere else it defaults from NODE_ENV.
     DEPLOYMENT_ENV: z.enum(['development', 'preview', 'staging', 'production'])
-        .default(process.env.NODE_ENV === 'development' ? 'development' : 'production'),
+        .default(defaultDeploymentEnv(process.env.NODE_ENV)),
 
     // The Notis service (services/notis), which this app calls server-side
     // on a reader's behalf: the profile switch reads and flips their
@@ -200,7 +199,8 @@ export const env = createEnv({
     NEXT_PUBLIC_CONTACT_EMAIL: z.email().optional(),
     NEXT_PUBLIC_CONTACT_ADDRESS: z.string().optional(),
     NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
-    // PostHog analytics; unset (or empty) disables analytics entirely.
+    // PostHog project token; unset (or empty) disables analytics and the
+    // server logs (telemetry.cjs reads it at run time).
     NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: z.string().optional(),
   },
 

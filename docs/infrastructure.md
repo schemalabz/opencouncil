@@ -107,6 +107,40 @@ PR previews can be linked to an opencouncil-tasks preview for end-to-end testing
 
 When the preview is created, the `opencouncil-preview-create` script detects this and configures the preview's `TASK_API_URL` to point to the linked tasks preview instead of the shared staging tasks server. This allows testing changes across both repos in isolation.
 
+## Logs
+
+- **PostHog Logs** (production and staging): `npm run production:start` starts Next with `node --require ./telemetry.cjs`. It sends two kinds of record to the project that `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` names, the same project as the browser's events. The variable must be set at run time, not only at build time:
+  - one record for each console call, with its level;
+  - one record for each request, except a successful `/api/health` check: the method, the path, the route (`http.route`, for example `/[locale]/[cityId]/[meetingId]`), the status, the duration, the user agent, and the client address.
+
+  The route comes from Next's built-in OpenTelemetry tracing. Next turns it on because `telemetry.cjs` registers a tracer globally. Its own spans, about 20 per request, are not exported; `telemetry.cjs` reads only the route that Next writes onto the request span.
+
+  Every record also carries the container (`service.instance.id`) and the build's commit (`service.version`, from `NEXT_PUBLIC_BUILD_COMMIT_SHA`).
+
+  The client address comes from App Platform's `do-connecting-ip` header. A request without it, which did not pass the App Platform edge, gets the address of the socket's peer, never the first `X-Forwarded-For` entry. A request that the client aborts, or that fails before it has a status, is a `warn` record with `aborted: true` and no status. The console lines of a request share its trace id and its span id.
+
+  `telemetry.cjs` keeps each request to PostHog under its 2 MB limit: a batch has at most `MAX_BATCH_RECORDS` records, a record body is cut to `MAX_BODY_BYTES` once JSON-escaped, and an attribute value to `MAX_ATTRIBUTE_CHARS` characters. Both PostHog projects keep logs for 90 days, which is the retention that the privacy policy states for server logs. This is a custom retention in the Logs settings of each project. The default is 14 days.
+- **stdout**: the same console lines, and two short `[request]` lines for each request, without the client address. The first line comes when the request starts, the second when it ends. Both carry the request's span id, for example `[request] cf4f9f1b32e0faad start GET /el`. A request that stalls the server has only the first line. App Platform keeps the last output of a crashed instance (`doctl apps logs <app> opencouncil --type run_restarted`). To find the request in PostHog, filter `span_id` on the full id; PostHog does not match a part of it.
+- **Better Stack**: production stdout, through the App Platform log destination of the `opencouncil` service.
+- **Paths**: request records and lines take the path from the request line, remove the query string, and redact credentials in the path (`/mcp/mcp_…`, `/api/join/…`). `src/lib/utils/logSafePath.cjs` holds the one list for `telemetry.cjs` and for the app.
+- **Personal data**: nothing masks log output. The code keeps personal data out of log lines where they start:
+  - `createPrismaClient` rewrites Prisma errors without the arguments of the call.
+  - `executeElasticsearchWithRetry` removes the query from Elasticsearch errors.
+  - A lint rule (`consolePersonalDataSelectors` in `eslint.config.mjs`) checks console calls, in `.cjs` files too.
+  - `tests/integration/log-personal-data.test.ts` runs the app's paths with canary values.
+
+  Two PostHog settings find a line that still leaks:
+  - Project settings → Logs → **Scrub PII in Logs at ingestion** is on. PostHog replaces email addresses, bearer tokens, and the values of attributes such as `email` or `token` with `{{REDACTED}}`. It does not find phone numbers, names or addresses.
+  - A log alert, **Personal data in logs**, fires on one matching record in 60 minutes. Its filter is Message matches regex `\{\{REDACTED\}\}|\+[1-9][0-9]{9,14}|(^|[^0-9])69[0-9]{8}([^0-9]|$)`, which is the scrubbing marker, an international phone number, or a Greek mobile number. PostHog cannot send it to Discord, so `/dpo-check` reads its history each month.
+
+  When the alert fires, fix the log line in the code. The same line is also in Better Stack, which does not scrub.
+- **What the logs miss**:
+  - PR previews (`node server.js`) and Docker (`npx next start`) do not load `telemetry.cjs`.
+  - A request that Node itself refuses, for example a request line with raw non-ASCII characters, gets a 400 before any code runs. It leaves no record and no line.
+  - A SIGTERM before Next has registered its own handler stops the process without a flush. Every later exit waits up to 2 s for the last records.
+  - An uncaught exception ends the process without `process.exit`, so its last records do not reach PostHog. Its stack is in stdout. `telemetry.cjs` adds no handler of its own, so that it does not change how Next handles the exception.
+  - When PostHog is slow, the exporter keeps at most 2,048 records in memory and drops the rest without a message. stdout still has them.
+
 ## Application Architecture
 
 Two repositories, connected via callbacks:

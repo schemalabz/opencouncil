@@ -1,8 +1,8 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import { claimAlertWindow } from "@/lib/cache/alertWindow";
 import { sendAdminAlert } from "@/lib/discord-core";
+import { mintHmacToken } from "@/lib/hmacToken";
 import { REALMS } from "@/lib/realm";
 import { detectCountryFromPhone } from "@/lib/utils/phone";
 import { SEND_WINDOW_MS } from "./constants";
@@ -13,6 +13,8 @@ import { unusualCodeRequest, type UnusualSignal } from "./rules";
  * mobile number in any country, so an unusual request is reported the
  * moment it goes out, with no threshold to tune: abuse shows early.
  */
+
+const ALERT_WINDOW_DOMAIN = "phone-verification-alert:";
 
 const HOME_COUNTRIES: readonly string[] = Object.values(REALMS).map((realm) => realm.country);
 
@@ -33,9 +35,10 @@ export async function reportUnusualCodeRequest(input: {
     // Each signal alerts once per number per window: the fourth code says
     // nothing new after the third, and the thresholds are "at least".
     const signals: UnusualSignal[] = [];
-    // The key holds a hash of the number, not the number: the cache logs a key
-    // that it fails to write.
-    const phoneKey = createHash("sha256").update(input.phone).digest("hex").slice(0, 16);
+    // The key holds a keyed hash of the number, not the number: the cache logs
+    // a key that it fails to write. A plain hash of a phone number can be
+    // reversed by hashing every number of the country.
+    const phoneKey = mintHmacToken(ALERT_WINDOW_DOMAIN, input.phone).slice(0, 16);
     for (const signal of found) {
         if (await claimAlertWindow(`phone-verification:${signal.kind}:${phoneKey}`, SEND_WINDOW_MS / 1000)) {
             signals.push(signal);
