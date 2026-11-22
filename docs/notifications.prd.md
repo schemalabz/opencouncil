@@ -116,6 +116,7 @@ NotificationDeliveries represent the sending of a notification to a user through
 - **Body content**: Formatted HTML email containing:
   - Titles, topics, and descriptions of all notification subjects
   - Navigation buttons (top and bottom) linking to the notification view page
+- **Order of the subjects**: the email and the notification view page use one rule (`longestDiscussionFirst` in `src/lib/db/notifications.ts`). The subject with the longest discussion comes first. The measure is the seconds of discussion from `getDiscussionSecondsForSubjects`. The cards of the page show this number. Notis, the hot subjects and the landing map order by it. The lists of one meeting (the meeting page, the meeting cards) still order by the number of speaker contributions. Subjects with the same discussion time follow their stored importance (`high`, then `normal`, then unset) and then their agenda position. Before a meeting no subject has discussion time, so importance and agenda position decide. The email keeps the order of the moment that the notification was created. The page sorts when it loads, so the page of an existing notification follows the current discussion times and can differ from its email.
 - **Future enhancement**: LLM-generated titles incorporating keywords from the most important subjects
 
 #### Sending Notification Deliveries

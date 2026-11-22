@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
+import { getDiscussionSecondsForSubjects } from "./subject";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
@@ -18,7 +19,7 @@ import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent } from "@/lib/notifications/content";
 import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
-import { IS_DEV } from "@/lib/utils";
+import { IS_DEV, sortSubjectsByDiscussion, type SortableSubject } from "@/lib/utils";
 import { pageSlice, paginationOf, type Pagination } from "@/lib/zod-schemas/listQuery";
 import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
@@ -26,6 +27,23 @@ import { sendMagicLink } from "@/lib/auth/magicLink";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { ALL_SCOPE, isSecondaryBody, meetingAudienceWhere } from '@/lib/utils/bodyTier';
+
+/**
+ * The order of a notification's subjects in the email and on its page: the
+ * longest discussion first. The seconds are those of getDiscussionSecondsForSubjects,
+ * the measure that the cards of the page show and that Notis orders by. Before
+ * the meeting no subject has discussion time, so the order is importance and then
+ * agenda position.
+ */
+function longestDiscussionFirst<T extends { subject: SortableSubject & { id: string } }>(
+    rows: T[],
+    discussionSeconds: Map<string, number>
+): T[] {
+    return sortSubjectsByDiscussion(
+        rows.map(row => ({ ...row.subject, row })),
+        subject => discussionSeconds.get(subject.id) ?? 0
+    ).map(({ row }) => row);
+}
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -895,6 +913,9 @@ export async function createNotificationsForMeeting(
 
         console.log(`Creating notifications for ${recipients.length} users`);
 
+        // One query for the meeting: every recipient's email uses the same order.
+        const discussionSeconds = await getDiscussionSecondsForSubjects(meeting.subjects.map(subject => subject.id));
+
         // Create notifications and deliveries
         const notificationIds: string[] = [];
         let totalSubjects = 0;
@@ -944,7 +965,7 @@ export async function createNotificationsForMeeting(
                     userId,
                     cityId,
                     type,
-                    subjects: notification.subjects.map(ns => ({
+                    subjects: longestDiscussionFirst(notification.subjects, discussionSeconds).map(ns => ({
                         id: ns.subject.id,
                         name: ns.subject.name,
                         description: ns.subject.description,
@@ -1696,9 +1717,14 @@ export async function getNotificationForView(id: string) {
             }, {} as Record<string, [number, number]>);
         }
 
+        const subjects = longestDiscussionFirst(
+            notification.subjects,
+            await getDiscussionSecondsForSubjects(notification.subjects.map(ns => ns.subjectId))
+        );
+
         // Fetch statistics for each subject
         const { getStatisticsFor } = await import('@/lib/statistics');
-        const subjectStatsPromises = notification.subjects.map(ns =>
+        const subjectStatsPromises = subjects.map(ns =>
             getStatisticsFor({ subjectId: ns.subject.id, scope: ALL_SCOPE }, ['party']).catch(() => null)
         );
         const subjectStats = await Promise.all(subjectStatsPromises);
@@ -1706,7 +1732,7 @@ export async function getNotificationForView(id: string) {
         // Add coordinates and statistics to the response
         return {
             ...notification,
-            subjects: notification.subjects.map((ns, idx) => ({
+            subjects: subjects.map((ns, idx) => ({
                 ...ns,
                 subject: {
                     ...ns.subject,
