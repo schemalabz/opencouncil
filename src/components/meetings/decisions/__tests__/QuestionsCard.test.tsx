@@ -21,6 +21,7 @@ const props: QuestionsCardProps = {
     loadFailed: false,
     onRetryLoad: jest.fn(),
     diavgeiaUid: '50026',
+    authorityType: 'municipality',
     pollScope: [{ entry: '84655', scope: { unit: '84655' }, error: null }],
     lastCheck: '16 Σεπτεμβρίου 2026',
     pollState: { kind: 'ready' as const },

@@ -29,5 +29,8 @@
   "voteAbstain": "abstention",
   "votePresent": "présent",
   "voteDidNotVote": "non votant",
-  "exportHint": "Le tableau que la municipalité publie après la séance : les sujets, le numéro de chaque décision, son résumé et le résultat du vote."
+  "exportHint": {
+    "municipality": "Le tableau que la municipalité publie après la séance : les sujets, le numéro de chaque décision, son résumé et le résultat du vote.",
+    "region": "Le tableau que la municipalité publie après la séance : les sujets, le numéro de chaque décision, son résumé et le résultat du vote."
+  }
 }

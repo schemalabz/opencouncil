@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
+import type { AuthorityType } from '@prisma/client';
 import { NameList } from '@/components/meetings/decisions/shared';
 import { RollCallHeadLines, useRollCallName } from '@/components/meetings/decisions/RollCallLines';
 import type { MinutesRollCall } from '@/lib/minutes/types';
@@ -11,15 +12,15 @@ import type { MinutesRollCall } from '@/lib/minutes/types';
  * the roll call count the same people. The minutes print no mayor line per
  * subject, so this block prints none either.
  */
-export function SubjectPresence({ rollCall }: { rollCall: MinutesRollCall }) {
+export function SubjectPresence({ rollCall, authorityType }: { rollCall: MinutesRollCall; authorityType: AuthorityType }) {
     const tPage = useTranslations('admin.decisionsPage');
-    const nameOf = useRollCallName();
+    const nameOf = useRollCallName(authorityType);
     const { present, absent } = rollCall;
     return (
         <div>
             <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('attendance')}</div>
             <div className="text-xs text-foreground space-y-1">
-                <RollCallHeadLines rollCall={rollCall} perSubject />
+                <RollCallHeadLines rollCall={rollCall} perSubject authorityType={authorityType} />
                 <span>{present.length} {tPage('present')}, {absent.length} {tPage('absent')}</span>
                 <div className="flex flex-col gap-1">
                     {present.length > 0 && (

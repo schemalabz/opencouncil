@@ -11,6 +11,7 @@ import { MinutesCard } from '@/components/meetings/decisions/rail/MinutesCard';
 import { DecisionsTableCard } from '@/components/meetings/decisions/rail/DecisionsTableCard';
 import { minutesReadiness, type Timeline } from '@/components/meetings/decisions/timeline';
 import type { MinutesData } from '@/lib/minutes/types';
+import type { AuthorityType } from '@prisma/client';
 import { IssuesCard } from '@/components/meetings/decisions/rail/IssuesCard';
 import { ConventionsSection, type ConventionsPanel } from '@/components/meetings/decisions/rail/ConventionsSection';
 import type { Issue } from '@/lib/derivation/types';
@@ -63,6 +64,7 @@ export function DecisionsRail({
     isRederiving,
     onExplainDerivation,
     minutesSend,
+    authorityType,
 }: {
     /** Null while the minutes have not loaded (or failed to): the presence,
      * attendance-changes and discussion-order cards render nothing then. */
@@ -77,6 +79,8 @@ export function DecisionsRail({
     conventions: ConventionsPanel | null;
     /** False for an authority that gets no minutes (authorityHasDocument). */
     minutesAvailable: boolean;
+    /** The cards name the authority and its head: a municipality or a region. */
+    authorityType: AuthorityType;
     onPreviewMinutes: () => void;
     onExportDocx: () => void;
     /** Downloads the Πίνακας αποφάσεων the municipality posts, as a DOCX. */
@@ -127,8 +131,8 @@ export function DecisionsRail({
                 showRederive={isSuperAdmin && auditMode}
                 send={minutesSend}
             />
-            <DecisionsTableCard onExport={onExportDecisionsTable} />
-            {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} />}
+            <DecisionsTableCard onExport={onExportDecisionsTable} authorityType={authorityType} />
+            {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} authorityType={authorityType} />}
             {minutes && (
                 <AttendanceChangesCard changes={changes} subjects={minutes.subjects} attendanceChanges={minutes.attendanceChanges} />
             )}

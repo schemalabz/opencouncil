@@ -475,7 +475,10 @@
     "resetExtractionsDescription": "Supprime toutes les données extraites (extraits, présences, votes) pour chaque sujet. Les associations de décisions sont conservées.",
     "scope": {
       "malformed": "avec une unité mal configurée : {error}",
-      "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
+      "noOrg": {
+        "municipality": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
+        "region": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible"
+      },
       "org": "dans l'organisation {org}",
       "orgWide": "sans unité configurée",
       "unit": "dans l'unité {unit}",
@@ -551,13 +554,25 @@
     "presenceHeadline": "{present} présents sur {total}",
     "presenceAbsentInline": "{n} absents :",
     "presencePresentList": "Présents ({n})",
-    "presenceMayor": "Maire :",
+    "presenceMayor": {
+      "municipality": "Maire :",
+      "region": "Maire :"
+    },
     "presencePresident": "Président :",
     "presenceAbsentMark": "{gender, select, female {absente} other {absent}}",
-    "presenceMayorSuffix": "(maire)",
+    "presenceMayorSuffix": {
+      "municipality": "(maire)",
+      "region": "(maire)"
+    },
     "presenceSubstituteMark": "membre suppléant",
-    "presenceChairInAbsence": "en l'absence {gender, select, female {de la présidente} other {du président}}{mayor, select, yes {, maire} other {}}, {name}",
-    "presenceChairMark": "{gender, select, female {présidente} other {président}}{mayor, select, yes {, maire} other {}}",
+    "presenceChairInAbsence": {
+      "municipality": "en l'absence {gender, select, female {de la présidente} other {du président}}{mayor, select, yes {, maire} other {}}, {name}",
+      "region": "en l'absence {gender, select, female {de la présidente} other {du président}}{mayor, select, yes {, maire} other {}}, {name}"
+    },
+    "presenceChairMark": {
+      "municipality": "{gender, select, female {présidente} other {président}}{mayor, select, yes {, maire} other {}}",
+      "region": "{gender, select, female {présidente} other {président}}{mayor, select, yes {, maire} other {}}"
+    },
     "presenceMembersHeadline": "{present} membres présents",
     "presenceMembersAbsentInline": "Membres absents ({n}) :",
     "presenceMembersPresentList": "Membres présents ({n})",

@@ -1412,7 +1412,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                     </div>
                 )}
 
-                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} />}
+                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} authorityType={city.authorityType} />}
 
                 {extracted && extracted.votes.length > 0 && (() => {
                     const voteResult = calculateVoteResult(extracted.votes);
@@ -1573,6 +1573,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                                 loadFailed={loadFailed}
                                 onRetryLoad={() => { void fetchDecisions(); }}
                                 diavgeiaUid={city.diavgeiaUid}
+                                authorityType={city.authorityType}
                                 pollScope={pollScope}
                                 lastCheck={pollingStatus?.lastPollAt
                                     ? formatDate(new Date(pollingStatus.lastPollAt), city.timezone, locale)
@@ -1724,6 +1725,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                         timeline={timeline}
                         isSuperAdmin={isSuperAdmin}
                         minutesAvailable={authorityHasDocument(city, 'minutes')}
+                        authorityType={city.authorityType}
                         onPreviewMinutes={() => setPreviewOpen(true)}
                         onExportDocx={handleExportDocx}
                         onExportDecisionsTable={handleExportDecisionsTable}

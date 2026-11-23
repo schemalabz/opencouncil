@@ -29,5 +29,8 @@
   "voteAbstain": "abstain",
   "votePresent": "present",
   "voteDidNotVote": "did not vote",
-  "exportHint": "The table the municipality posts after the meeting: the subjects, the number of each decision, its summary, and the vote result."
+  "exportHint": {
+    "municipality": "The table the municipality posts after the meeting: the subjects, the number of each decision, its summary, and the vote result.",
+    "region": "The table the region posts after the meeting: the subjects, the number of each decision, its summary, and the vote result."
+  }
 }

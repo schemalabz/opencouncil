@@ -77,6 +77,7 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
             onAuditModeChange={jest.fn()}
             conventions={null}
             minutesAvailable
+            authorityType="municipality"
             onPreviewMinutes={jest.fn()}
             onExportDocx={jest.fn()}
             onExportDecisionsTable={jest.fn()}
@@ -103,6 +104,12 @@ describe('DecisionsRail', () => {
         renderRail({ minutesAvailable: false });
         expect(screen.getByText('rail.regionMinutes')).toBeInTheDocument();
         expect(screen.queryByText('previewMinutes')).not.toBeInTheDocument();
+    });
+
+    it('names the authority that posts the decisions table (#993)', () => {
+        renderRail({ authorityType: 'region' });
+        expect(screen.getByText('exportHint.region')).toBeInTheDocument();
+        expect(screen.queryByText('exportHint.municipality')).not.toBeInTheDocument();
     });
 
     it('renders the presence, attendance-changes, discussion-order and minutes cards for everyone', () => {

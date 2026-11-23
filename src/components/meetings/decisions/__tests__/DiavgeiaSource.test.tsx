@@ -10,7 +10,7 @@ describe('DiavgeiaSourceLink', () => {
     it('names the organization id on the line itself and links it', () => {
         // A named link reading "the municipality's decisions on Diavgeia" hid
         // the one thing a person checking a configuration came to read.
-        render(<DiavgeiaSourceLink diavgeiaUid="50026" pollScope={[]} dated />);
+        render(<DiavgeiaSourceLink diavgeiaUid="50026" authorityType="municipality" pollScope={[]} dated />);
         const link = screen.getByRole('link', { name: 'scope.org{"org":"50026"}' });
         expect(link).toHaveAttribute('href', expect.stringContaining('50026'));
         expect(screen.getByText('scope.orgWide')).toHaveClass('text-amber-700');
@@ -19,6 +19,7 @@ describe('DiavgeiaSourceLink', () => {
     it('names the configured unit beside it, linked to that unit’s listing', () => {
         render(<DiavgeiaSourceLink
             diavgeiaUid="50026"
+            authorityType="municipality"
             pollScope={[{ entry: '84655', scope: { unit: '84655' }, error: null }]}
             dated
         />);
@@ -28,7 +29,7 @@ describe('DiavgeiaSourceLink', () => {
     });
 
     it('names every unit when several are configured, signer and all', () => {
-        render(<DiavgeiaSourceLink diavgeiaUid="50026" pollScope={[
+        render(<DiavgeiaSourceLink diavgeiaUid="50026" authorityType="municipality" pollScope={[
             { entry: '84655', scope: { unit: '84655' }, error: null },
             { entry: '90001:7', scope: { unit: '90001', signer: '7' }, error: null },
         ]} dated />);
@@ -38,7 +39,7 @@ describe('DiavgeiaSourceLink', () => {
     });
 
     it('marks a malformed entry, which nothing else on this line would show', () => {
-        render(<DiavgeiaSourceLink diavgeiaUid="50026" pollScope={[
+        render(<DiavgeiaSourceLink diavgeiaUid="50026" authorityType="municipality" pollScope={[
             { entry: 'bad:1:2', scope: null, error: 'bad entry' },
         ]} dated />);
         const bad = screen.getByText('scope.malformed{"error":"bad:1:2"}');
@@ -49,13 +50,19 @@ describe('DiavgeiaSourceLink', () => {
     });
 
     it('says so when the city has no Diavgeia organization, and links nothing', () => {
-        render(<DiavgeiaSourceLink diavgeiaUid={null} pollScope={[]} dated />);
-        expect(screen.getByText('scope.noOrg')).toHaveClass('text-amber-700');
+        render(<DiavgeiaSourceLink diavgeiaUid={null} authorityType="municipality" pollScope={[]} dated />);
+        expect(screen.getByText('scope.noOrg.municipality')).toHaveClass('text-amber-700');
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('names the region when a region has no Diavgeia organization (#993)', () => {
+        render(<DiavgeiaSourceLink diavgeiaUid={null} authorityType="region" pollScope={[]} dated />);
+        expect(screen.getByText('scope.noOrg.region')).toBeInTheDocument();
     });
     it('separates the first clause from a dated sentence with a comma', () => {
         const { container } = render(<DiavgeiaSourceLink
             diavgeiaUid="50026"
+            authorityType="municipality"
             pollScope={[{ entry: '84655', scope: { unit: '84655' }, error: null }]}
             dated
         />);
@@ -68,6 +75,7 @@ describe('DiavgeiaSourceLink', () => {
         // the sentence ends in, so it continues it directly.
         const { container } = render(<DiavgeiaSourceLink
             diavgeiaUid="50026"
+            authorityType="municipality"
             pollScope={[{ entry: '84655', scope: { unit: '84655' }, error: null }]}
             dated={false}
         />);

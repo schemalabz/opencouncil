@@ -12,6 +12,7 @@ import { Chip, RecordRow } from '@/components/meetings/decisions/RecordRow';
 import { DiavgeiaFooter, type DiavgeiaFooterState } from '@/components/meetings/decisions/DiavgeiaFooter';
 import type { WorkEstimate } from '@/components/meetings/decisions/candidates';
 import type { ReadDiavgeiaUnitEntry } from '@/lib/utils/diavgeiaUnitScope';
+import type { AuthorityType } from '@prisma/client';
 
 export interface Receipt {
     id: string;
@@ -72,6 +73,7 @@ export interface QuestionsCardProps {
     loadFailed: boolean;
     onRetryLoad: () => void;
     diavgeiaUid: string | null;
+    authorityType: AuthorityType;
     pollScope: ReadDiavgeiaUnitEntry[];
     /** The last poll's date, already formatted, or null when none has run. */
     lastCheck: string | null;
@@ -116,6 +118,7 @@ export function QuestionsCard({
     loadFailed,
     onRetryLoad,
     diavgeiaUid,
+    authorityType,
     pollScope,
     lastCheck,
     pollState,
@@ -326,6 +329,7 @@ export function QuestionsCard({
 
             <DiavgeiaFooter
                 diavgeiaUid={diavgeiaUid}
+                authorityType={authorityType}
                 pollScope={pollScope}
                 lastCheck={lastCheck}
                 pollState={pollState}

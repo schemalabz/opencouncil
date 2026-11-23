@@ -475,7 +475,10 @@
         "resetExtractionsDescription": "Уклоните све издвојене податке (изводе, присуство, гласове) за сваку тему. Везе са одлукама се задржавају.",
         "scope": {
             "malformed": "са погрешно подешеном јединицом: {error}",
-            "noOrg": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће",
+            "noOrg": {
+                "municipality": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће",
+                "region": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће"
+            },
             "org": "у организацији {org}",
             "orgWide": "без подешене јединице",
             "unit": "у јединици {unit}",
@@ -549,13 +552,25 @@
         "presenceHeadline": "{present} присутних од {total}",
         "presenceAbsentInline": "{n} одсутних:",
         "presencePresentList": "Присутни ({n})",
-        "presenceMayor": "Градоначелник:",
+        "presenceMayor": {
+            "municipality": "Градоначелник:",
+            "region": "Градоначелник:"
+        },
         "presencePresident": "Председник:",
         "presenceAbsentMark": "{gender, select, female {одсутна} other {одсутан}}",
-        "presenceMayorSuffix": "(градоначелник)",
+        "presenceMayorSuffix": {
+            "municipality": "(градоначелник)",
+            "region": "(градоначелник)"
+        },
         "presenceSubstituteMark": "заменик члана",
-        "presenceChairInAbsence": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}",
-        "presenceChairMark": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}",
+        "presenceChairInAbsence": {
+            "municipality": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}",
+            "region": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}"
+        },
+        "presenceChairMark": {
+            "municipality": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}",
+            "region": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}"
+        },
         "presenceMembersHeadline": "{present} присутних чланова",
         "presenceMembersAbsentInline": "Одсутни чланови ({n}):",
         "presenceMembersPresentList": "Присутни чланови ({n})",
