@@ -40,6 +40,13 @@
   },
   "notisCta": "Send me updates",
   "notisChannels": "Email, WhatsApp or SMS · Most weeks, nothing",
+  "bodyFollowTeaser": "Want updates on the meetings?",
+  "bodyFollowSubtitle": "Updates on its meetings",
+  "bodyFollowBody": {
+    "municipality": "The municipality is not on OpenCouncil yet, but {count, plural, one {this body sends updates on its meetings} other {these bodies send updates on their meetings}}.",
+    "region": "The region is not on OpenCouncil yet, but {count, plural, one {this body sends updates on its meetings} other {these bodies send updates on their meetings}}."
+  },
+  "bodyFollowFollowing": "You already get updates on {count, plural, one {its meetings} other {their meetings}}.",
   "subscribedTitle": {
     "municipality": "You're subscribed to updates about {qualifier}",
     "region": "You're subscribed to updates about {qualifier}"

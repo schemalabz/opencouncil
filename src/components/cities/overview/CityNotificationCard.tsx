@@ -9,6 +9,8 @@ import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/nam
 import { localizeText } from '@/lib/serbian';
 import { authorityKey } from './authorityKey';
 import { NotisInviteCard } from '@/components/signup/NotisInviteCard';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
+import { CityBodyFollowCard } from './CityBodyFollowCard';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
@@ -26,6 +28,8 @@ interface CityNotificationCardProps {
      * when Notis did not answer, and the card says nothing about it.
      */
     phoneChannel: Promise<boolean | null>;
+    /** The bodies of the city that a reader may follow (bodyOffersFollow). */
+    followableBodies: PublicAdministrativeBody[];
     locale: string;
 }
 
@@ -37,11 +41,20 @@ interface CityNotificationCardProps {
  * A reader who does not gets an exchange they can play through, because the
  * fastest way to explain what Νότης is, is to let him do it.
  *
+ * A municipality that does not support notifications has no list to join.
+ * Its secondary bodies can still send updates to their followers (#829), so
+ * the card offers those bodies when it has any, and is absent when it has none.
+ *
  * A Server Component: everything here is text the server already has, and the
  * card sits above the fold on every city page.
  */
-export function CityNotificationCard({ city, preference, phoneChannel, locale }: CityNotificationCardProps) {
-    if (!city.supportsNotifications) return null;
+export function CityNotificationCard({ city, preference, phoneChannel, followableBodies, locale }: CityNotificationCardProps) {
+    if (!city.supportsNotifications) {
+        if (followableBodies.length === 0) return null;
+        const followed = new Set(preference?.bodies.map(body => body.id));
+        const following = followableBodies.some(body => followed.has(body.id));
+        return <CityBodyFollowCard city={city} bodies={followableBodies} following={following} locale={locale} />;
+    }
     if (preference) return <SubscribedCard city={city} preference={preference} phoneChannel={phoneChannel} locale={locale} />;
     return <NotisInviteCard city={city} surface="city" />;
 }

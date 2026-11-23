@@ -6,7 +6,8 @@ import { CityMeetingsModule, type MeetingBookends } from '@/components/cities/ov
 import { CityNotificationCard } from '@/components/cities/overview/CityNotificationCard';
 import { CityPetitionCard } from '@/components/cities/overview/CityPetitionCard';
 import { SecondaryBodiesCard } from '@/components/cities/overview/SecondaryBodiesCard';
-import type { PublicAdministrativeBody } from '@/lib/db/types';
+import type { PublicAdministrativeBodyWithUpdates } from '@/lib/db/types';
+import { bodyOffersFollow } from '@/lib/utils/bodyTier';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 
 interface CityRailProps {
@@ -22,7 +23,7 @@ interface CityRailProps {
     allMeetings: MeetingBookends;
     councilMeetings: MeetingBookends;
     /** The secondary bodies with a released meeting, and their bookends (#829). */
-    secondaryBodies: PublicAdministrativeBody[];
+    secondaryBodies: PublicAdministrativeBodyWithUpdates[];
     secondaryMeetings: MeetingBookends;
     locale: string;
 }
@@ -94,7 +95,14 @@ export function CityRail({
                 />
             </div>
             <div className="max-lg:order-2">
-                <CityNotificationCard city={city} preference={notificationPreference} phoneChannel={phoneChannel} locale={locale} />
+                <CityNotificationCard
+                    city={city}
+                    preference={notificationPreference}
+                    phoneChannel={phoneChannel}
+                    // Every body here has released a meeting.
+                    followableBodies={secondaryBodies.filter(body => bodyOffersFollow(body, { hasReleasedMeeting: true }))}
+                    locale={locale}
+                />
             </div>
             <div className="max-lg:order-4 lg:contents">
                 <CityPetitionCard city={city} bucket={petitionBucket} locale={locale} />
