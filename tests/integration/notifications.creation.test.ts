@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { countEmailRecipientsForMeeting, createNotificationsForMeeting, previewNotificationImpact } from '@/lib/db/notifications'
+import { countEmailRecipientsForMeeting, createNotificationsForMeeting, getNotificationForView, previewNotificationImpact } from '@/lib/db/notifications'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -8,9 +8,12 @@ import {
     createLocation,
     createMeeting,
     createNotificationPreference,
+    createSpeakerSegment,
+    createSpeakerTag,
     createSubject,
     createTopic,
     createUser,
+    createUtterance,
     metersToLatLngOffset,
     signInAsSuperAdmin,
 } from '../helpers/factories'
@@ -185,6 +188,36 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         const sent = await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', importances)
         expect(preview).toEqual({ totalUsers: sent.notificationsCreated, subjectImpact: { c8_sc: 3, c8_sc2: 3 } })
         expect(sent.notificationsCreated).toBe(3)
+    })
+
+    test('after a meeting, the email and the notification page list the longest discussion first', async () => {
+        const city = await createCity({ id: 'c9', name_municipality: 'c9', name_municipality_en: 'c9', supportsNotifications: true })
+        const body = await createAdministrativeBody(city.id)
+        const meeting = await createMeeting(city.id, { id: 'c9_m', administrativeBodyId: body.id })
+        const segment = await createSpeakerSegment(meeting.id, city.id, { speakerTagId: (await createSpeakerTag()).id })
+        // The expected order is not the order of creation, not the order by
+        // name, and not the order by the number of speakers.
+        for (const [name, seconds, speakers] of [['Brief, many speakers', 60, 3], ['A subject with no speech', 0, 0], ['Long discussion', 600, 1]] as const) {
+            const subject = await createSubject(meeting.id, city.id, { name, topicId: null, locationId: null })
+            await prisma.subject.update({ where: { id: subject.id }, data: { topicImportance: 'high' } })
+            await prisma.speakerContribution.createMany({
+                data: Array.from({ length: speakers }, (_, order) => ({ subjectId: subject.id, speakerName: `Speaker ${order}`, text: 'Position', order })),
+            })
+            if (seconds > 0) {
+                const utterance = await createUtterance(segment.id, { startTimestamp: 0, endTimestamp: seconds })
+                await prisma.utterance.update({ where: { id: utterance.id }, data: { discussionSubjectId: subject.id, discussionStatus: 'SUBJECT_DISCUSSION' } })
+            }
+        }
+        const reader = await createUser('reader@c9.example.com')
+        await createNotificationPreference({ userId: reader.id, cityId: city.id })
+
+        const { notificationIds } = await createNotificationsForMeeting(city.id, meeting.id, 'afterMeeting')
+        const delivery = await prisma.notificationDelivery.findFirstOrThrow({ where: { notificationId: notificationIds[0], medium: 'email' } })
+        const page = await getNotificationForView(notificationIds[0])
+
+        const expected = ['Long discussion', 'Brief, many speakers', 'A subject with no speech']
+        expect(delivery.body?.split('\n')).toEqual(expected)
+        expect(page?.subjects.map(({ subject }) => subject.name)).toEqual(expected)
     })
 
     test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {

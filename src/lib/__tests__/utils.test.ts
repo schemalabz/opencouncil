@@ -10,6 +10,7 @@ import {
   klitiki,
   subjectToMapFeature,
   sortSubjectsByImportance,
+  sortSubjectsByDiscussion,
   sortSubjectsBySpeakerContributionCount,
   sortSubjectsByAgendaIndex,
   compareAgendaPosition,
@@ -394,6 +395,29 @@ describe('sortSubjectsByImportance', () => {
 
     const sorted = sortSubjectsByImportance(subjects as any);
     expect(sorted.map(s => s.name)).toEqual(['Alpha', 'Middle', 'Zebra']);
+  });
+});
+
+describe('sortSubjectsByDiscussion', () => {
+  it('should sort by the measure that the caller gives, not by the contribution count', () => {
+    const seconds: Record<string, number> = { 'Many speakers': 60, 'Long discussion': 600 };
+    const subjects = [
+      { name: 'Many speakers', _count: { contributions: 5 } },
+      { name: 'Long discussion', _count: { contributions: 1 } },
+    ];
+
+    const sorted = sortSubjectsByDiscussion(subjects, (s) => seconds[s.name]);
+    expect(sorted.map(s => s.name)).toEqual(['Long discussion', 'Many speakers']);
+  });
+
+  it('should break ties of the measure by topicImportance', () => {
+    const subjects = [
+      { name: 'Normal', topicImportance: 'normal' },
+      { name: 'High', topicImportance: 'high' },
+    ];
+
+    const sorted = sortSubjectsByDiscussion(subjects, () => 0);
+    expect(sorted.map(s => s.name)).toEqual(['High', 'Normal']);
   });
 });
 

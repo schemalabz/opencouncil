@@ -150,7 +150,7 @@ export function compareAgendaPosition(a: AgendaPositioned, b: AgendaPositioned):
  * Only declares the fields actually used by the sorting logic.
  * Any type matching this structure can be sorted.
  */
-interface SortableSubject {
+export interface SortableSubject {
   name: string;
   // Optional fields used for advanced sorting
   statistics?: Statistics;
@@ -181,14 +181,19 @@ export function getContributionCount(subject: {
 }
 
 // Adapt a subject for the shared ranker in single-meeting contexts: only the
-// contribution count varies (recency / municipality / admin-body all collapse
+// discussion signal varies (recency / municipality / admin-body all collapse
 // to zero variance within one meeting), so this degenerates to a z-scored
 // Importance score per subject, keyed by reference. `location` weight is zeroed
 // so the existing agenda tiebreakers stay authoritative — within a single
 // meeting nothing but discussion contributes, keeping ordering behavior-preserving.
-function importanceScores<T extends SortableSubject>(subjects: T[]): Map<T, number> {
+// The signal is the contribution count unless the caller measures discussion
+// another way (see sortSubjectsByDiscussion).
+function importanceScores<T extends SortableSubject>(
+  subjects: T[],
+  discussionSignal: (subject: T) => number = getContributionCount
+): Map<T, number> {
   const scores = new Map<T, number>();
-  const ranked = rankSubjects(subjects, (s) => ({ discussionSignal: getContributionCount(s) }), { weights: { location: 0 } });
+  const ranked = rankSubjects(subjects, (s) => ({ discussionSignal: discussionSignal(s) }), { weights: { location: 0 } });
   for (const { item, score } of ranked) {
     scores.set(item, score);
   }
@@ -255,16 +260,26 @@ function topicImportanceRank(value?: string | null): number {
     : TOPIC_IMPORTANCE_RANK.doNotNotify;
 }
 
-export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
-  const scores = importanceScores(subjects);
+/**
+ * The most discussed subject first, by the measure of discussion that the
+ * caller gives: a speaker contribution count, or seconds of discussion. The lists
+ * of one meeting use the count (sortSubjectsBySpeakerContributionCount). A
+ * notification uses the seconds, as the landing map, the hot subjects and
+ * Notis do.
+ */
+export function sortSubjectsByDiscussion<T extends SortableSubject>(
+  subjects: T[],
+  discussionSignal: (subject: T) => number
+): T[] {
+  const scores = importanceScores(subjects, discussionSignal);
   return [...subjects].sort((a, b) => {
-    // Primary signal from the shared ranker (z-scored speaker contributions).
+    // Primary signal from the shared ranker (the z-scored discussion signal).
     const aScore = scores.get(a) ?? 0;
     const bScore = scores.get(b) ?? 0;
     if (aScore !== bScore) return bScore - aScore;
 
-    // Tie-breakers when contribution counts are equal — notably before summarization,
-    // when every subject has zero contributions. Fall back to meaningful agenda signals
+    // Tie-breakers when the discussion signal is equal — notably before summarization,
+    // when no subject has any discussion. Fall back to meaningful agenda signals
     // (notification importance, then agenda order) instead of alphabetical name.
     const aRank = topicImportanceRank(a.topicImportance);
     const bRank = topicImportanceRank(b.topicImportance);
@@ -275,6 +290,10 @@ export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject
 
     return a.name.localeCompare(b.name);
   });
+}
+
+export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject>(subjects: T[]): T[] {
+  return sortSubjectsByDiscussion(subjects, getContributionCount);
 }
 
 export function sortSubjectsByAgendaIndex<T extends SortableSubject>(subjects: T[]): T[] {
