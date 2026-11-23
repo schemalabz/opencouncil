@@ -81,6 +81,8 @@ A meeting of a region must name its administrative body (`authorityRequiresMeeti
 
 A city with a meeting that names no body does not become a region: the city write refuses the change of `authorityType` until each meeting has a body.
 
+A person must review the kind that processAgenda writes for a meeting of a region (`authorityMeetingKindNeedsReview`). The task backend reads the kind of a municipal meeting with the rules of the municipal law. Nobody checked the equivalent rules for a regional council yet, so the backend reads the kind of a region meeting by its purpose only. The app still writes the kind, because the name of the meeting comes from it. The agenda alert to the admins then asks for the review. A kind that the record already holds gets no such note.
+
 The kind, the urgency and the session number come from the Greek Code. They are facts of a city of the `greece` realm only (`recordsGreekCodeFacts`). A write that sets one of them for a city of another realm fails with the rule `greekRealmOnly`. The form does not show the three fields there. The status, the links, the format, the closed flag and the place apply in every realm. A meeting of another realm keeps its stored name. A new meeting there reads as the city's word for "meeting" and the date, for example «Séance 27/04/2026». Support for the rules of another realm comes when that realm needs it.
 
 ### The name

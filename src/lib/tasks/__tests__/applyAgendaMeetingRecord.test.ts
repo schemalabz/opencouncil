@@ -40,7 +40,7 @@ const meeting = {
     continuationOfId: null,
     dateTime: new Date('2026-10-08T10:00:00Z'),
     administrativeBody: { name: 'Δημοτική Επιτροπή', name_en: 'Municipal Committee' },
-    city: { name_en: 'Chalandri', timezone: 'Europe/Athens' },
+    city: { name_en: 'Chalandri', timezone: 'Europe/Athens', authorityType: 'municipality' as const },
 };
 
 const read: AgendaMeetingRecord = {
@@ -83,6 +83,27 @@ describe('applyAgendaMeetingRecord', () => {
         expect(problems).toEqual([
             'format: recorded inPerson, invitation says remote («με τηλεδιάσκεψη»)',
         ]);
+    });
+
+    it('asks for a review of the kind that it writes for a meeting of a region (#993)', async () => {
+        mockUpdate.mockResolvedValue({});
+        const regionMeeting = { ...meeting, city: { ...meeting.city, authorityType: 'region' as const } };
+
+        const { written, problems } = await applyAgendaMeetingRecord(regionMeeting, { ...read, format: null }, [], []);
+
+        expect(written).toEqual({ kind: 'accountability', sessionNumber: 4 });
+        expect(problems).toEqual([expect.stringContaining('kind accountability written from the invitation of a region')]);
+    });
+
+    it('asks for no review when the record of a region meeting already holds a kind', async () => {
+        mockFindUnique.mockResolvedValue(stored({ kind: 'accountability' }));
+        mockUpdate.mockResolvedValue({});
+        const regionMeeting = { ...meeting, city: { ...meeting.city, authorityType: 'region' as const } };
+
+        const { written, problems } = await applyAgendaMeetingRecord(regionMeeting, { ...read, format: null }, [], []);
+
+        expect(written).toEqual({ sessionNumber: 4 });
+        expect(problems).toEqual([]);
     });
 
     it('compares a value an admin set while the subjects were saved, instead of overwriting it', async () => {

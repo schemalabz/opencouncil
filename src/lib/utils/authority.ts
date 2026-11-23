@@ -95,6 +95,20 @@ export function authorityHasDocument(city: { authorityType: AuthorityType }, kin
     return kind !== 'minutes' || !isRegion(city);
 }
 
+/**
+ * Whether a person must review the kind that the invitation of a meeting of
+ * an authority of this kind gives.
+ *
+ * The task backend reads the kind with the rules of the municipal law for a
+ * municipality. Nobody checked the equivalent rules for a regional council
+ * yet (opencouncil-tasks#124, task 5), so its rules for a region give each kind
+ * by its purpose only. The kind of a region meeting is still written, because
+ * the name of the meeting comes from it, and the admins get a note to review it.
+ */
+export function authorityMeetingKindNeedsReview(city: { authorityType: AuthorityType }): boolean {
+    return isRegion(city);
+}
+
 /** The word that opens the official name of each kind of authority. */
 const OFFICIAL_NAME: Record<AuthorityType, { own: string; en: string }> = {
     municipality: { own: 'Δήμος', en: 'Municipality of' },
