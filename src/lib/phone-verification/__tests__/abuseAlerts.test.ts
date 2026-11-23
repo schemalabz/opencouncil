@@ -44,11 +44,11 @@ describe('reportUnusualCodeRequest', () => {
     });
 
     it('alerts on a number outside the realm countries, with the number masked', async () => {
-        await reportUnusualCodeRequest({ userId: 'u1', phone: '+12025550143', phoneSendCount: 1 });
+        await reportUnusualCodeRequest({ userId: 'u1', phone: '+819012345678', phoneSendCount: 1 });
         expect(mockAlert).toHaveBeenCalledTimes(1);
         const alert = JSON.stringify(mockAlert.mock.calls[0][0]);
-        expect(alert).toContain('(US)');
-        expect(alert).not.toContain('2025550143');
+        expect(alert).toContain('(JP)');
+        expect(alert).not.toContain('9012345678');
     });
 
     it('gives each number its own window', async () => {
