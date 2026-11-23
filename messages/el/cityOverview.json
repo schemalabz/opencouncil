@@ -40,6 +40,13 @@
   },
   "notisCta": "Θέλω ενημερώσεις",
   "notisChannels": "Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα",
+  "bodyFollowTeaser": "Θέλεις ενημερώσεις για τις συνεδριάσεις;",
+  "bodyFollowSubtitle": "Ενημερώσεις για τις συνεδριάσεις",
+  "bodyFollowBody": {
+    "municipality": "Ο δήμος δεν είναι ακόμα στο OpenCouncil, αλλά {count, plural, one {αυτό το όργανο στέλνει} other {αυτά τα όργανα στέλνουν}} ενημερώσεις για τις συνεδριάσεις {count, plural, one {του} other {τους}}.",
+    "region": "Η περιφέρεια δεν είναι ακόμα στο OpenCouncil, αλλά {count, plural, one {αυτό το όργανο στέλνει} other {αυτά τα όργανα στέλνουν}} ενημερώσεις για τις συνεδριάσεις {count, plural, one {του} other {τους}}."
+  },
+  "bodyFollowFollowing": "Λαμβάνεις ήδη ενημερώσεις για τις συνεδριάσεις {count, plural, one {του} other {τους}}.",
   "subscribedTitle": {
     "municipality": "Είστε γραμμένοι στις ενημερώσεις για τον δήμο {qualifier}",
     "region": "Είστε γραμμένοι στις ενημερώσεις για την περιφέρεια {qualifier}"

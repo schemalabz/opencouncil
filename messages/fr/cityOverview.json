@@ -40,6 +40,13 @@
   },
   "notisCta": "Je veux être informé",
   "notisChannels": "E-mail, WhatsApp ou SMS · La plupart des semaines, rien",
+  "bodyFollowTeaser": "Vous voulez des infos sur les séances ?",
+  "bodyFollowSubtitle": "Infos sur ses séances",
+  "bodyFollowBody": {
+    "municipality": "La commune n'est pas encore sur OpenCouncil, mais {count, plural, one {cet organe envoie des infos sur ses séances} other {ces organes envoient des infos sur leurs séances}}.",
+    "region": "La région n'est pas encore sur OpenCouncil, mais {count, plural, one {cet organe envoie des infos sur ses séances} other {ces organes envoient des infos sur leurs séances}}."
+  },
+  "bodyFollowFollowing": "Vous recevez déjà les infos sur {count, plural, one {ses séances} other {leurs séances}}.",
   "subscribedTitle": {
     "municipality": "Vous êtes abonné aux notifications concernant {qualifier}",
     "region": "Vous êtes abonné aux notifications concernant {qualifier}"
