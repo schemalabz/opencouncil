@@ -118,3 +118,24 @@ describe('proxy on the south_africa realm', () => {
         expect(new URL(res!.headers.get('location')!).pathname).toBe('/cape-town');
     });
 });
+
+/**
+ * The United States serves English only, on its own apex domain.
+ */
+describe('proxy on the united_states realm', () => {
+    const host = 'opencouncil.city';
+    const get = (path: string) => proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+
+    it('rewrites an unprefixed path to /en', async () => {
+        const res = await get('/boston');
+
+        expect(new URL(res!.headers.get('x-middleware-rewrite')!).pathname).toBe('/en/boston');
+    });
+
+    it.each(['/el', '/fr', '/sr', '/lat'])('301s the foreign prefix %s', async (prefix) => {
+        const res = await get(`${prefix}/boston`);
+
+        expect(res!.status).toBe(301);
+        expect(new URL(res!.headers.get('location')!).pathname).toBe('/boston');
+    });
+});
