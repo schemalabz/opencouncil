@@ -292,11 +292,6 @@ export async function pollLivestreamsForRecentMeetings(
         const cityId = meeting.cityId;
         const meetingId = meeting.id;
         const channelUrl = meeting.administrativeBody!.youtubeChannelUrl!;
-        // No operator follows a meeting whose pipeline runs unattended (#829),
-        // so it sends no alert to the operators' channel, as on its creation.
-        // The end of the retries needs no check: such a candidate has no saved
-        // recording, so no attempt on its video is counted.
-        const alertsOperators = !pipelineRunsUnattended(meeting.administrativeBody);
 
         try {
             const videos = await getChannelVideos(channelUrl);
@@ -386,7 +381,7 @@ export async function pollLivestreamsForRecentMeetings(
                 // the webhook transport logs HTTP and network failures without rejecting, so there
                 // is no delivery signal a non-blocking send could have acted on anyway.
                 const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
-                if (alertsOperators && !(await cacheHas(matchedAlertKey))) {
+                if (!(await cacheHas(matchedAlertKey))) {
                     await sendLivestreamMatchedAlert({
                         cityId,
                         cityName: meeting.city.name,
@@ -404,10 +399,11 @@ export async function pollLivestreamsForRecentMeetings(
             } else if (decision.decision === 'multiple_meetings') {
                 multipleMeetings++;
                 const dedupKey = `oc:livestream:multi-alert:${cityId}:${meetingId}`;
+                const alreadyAlerted = await cacheHas(dedupKey);
 
                 if (dryRun) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'dry_run' });
-                } else if (!alertsOperators || await cacheHas(dedupKey)) {
+                } else if (alreadyAlerted) {
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'alerted_multiple_skipped' });
                 } else {
                     const videoUrl = matchedVideo ? watchUrl(matchedVideo.videoId) : undefined;

@@ -120,16 +120,18 @@ The rules of the comparison live in `src/lib/agendaMeetingRecord.ts`, which the 
 
 ### The pipeline of a body with no operator
 
-A youth council runs its own meetings (#829). `pipelineRunsUnattended` in `src/lib/utils/youthCouncil.ts` names the rule. It reads the body type, not the tier: a body of another type keeps the human review step, whatever its tier. Four places read it:
+A youth council brings its own recordings and has no review step (#829). `pipelineRunsUnattended` in `src/lib/utils/youthCouncil.ts` names the rule. It reads the body type, not the tier: a body of another type keeps the operators' steps, whatever its tier. These places read it:
 
 * A recording starts the transcription. The meeting write starts it after the response when the meeting has started. A link saved before the meeting waits for the cron: `transcribeUnattendedMeetings` in `src/lib/tasks/unattendedTranscription.ts` runs on the livestream tick and starts the transcription three hours after the start of the meeting, with retries up to a cap.
-* The livestream matcher takes the meetings of such a body as candidates without the agenda task.
-* The corrected transcript asks for the summary: `handleFixTranscriptResult` triggers `summarize`, where a primary body waits for the human review.
-* The summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleaseDirect`. Nobody reviews the transcript first, so the page shows it unreviewed, whatever `showUnreviewedTranscript` says. The shared excerpts, the contributions and the search apply the same rule through `transcriptIsPublic`. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
+* The livestream matcher takes the meetings of such a body as candidates in any city, without the agenda task.
+* The first summary releases the meeting: `handleSummarizeResult` calls `setMeetingReleaseDirect`. An operator asks for the summary, as for every body. No human review asks for it, because the meeting is not in the review queue.
+* The operators' queues leave such a meeting out. `unattendedMeetingWhere` is the Prisma form of the rule. The review queue and the counts of its widget on `/admin` share one where (`reviewQueueWhere` in `src/lib/db/reviews.ts`), so the widget counts the meetings that the list shows. The upload dashboard leaves such meetings out.
 
-The operator surfaces read the same rule. `unattendedMeetingWhere` is its Prisma form. The review queue and the counts of its widget on `/admin` share one where (`reviewQueueWhere` in `src/lib/db/reviews.ts`), so the widget counts the meetings that the list shows. The upload dashboard leaves such meetings out. These Discord alerts are not sent for such a meeting: the meeting creation, the started and completed alerts of its tasks, the agenda reading, and the livestream alerts of a match and of a stream of several meetings. The failed alert of a task and the alert of a failed auto-trigger of the next task are sent: no operator follows the meeting, so nothing else reports a failure of its pipeline. For the same reason, two steps that run after a response send an alert when they fail (`reportFailure` in `src/lib/reportFailure.ts`): the start of the transcription and the release after the summary. A pasted agenda does the same for any meeting (see below). The livestream matcher never ends the retries of such a meeting: the unattended pass does. The calendar reads the tier, not this rule.
+The rule does not change the Discord alerts: the operators' channel gets every alert of such a meeting, as for every body. The operators learn from the completed alert of `fixTranscript` that the meeting waits for its summary. Two steps that run after a response send an alert when they fail (`reportFailure` in `src/lib/reportFailure.ts`): the start of the transcription and the release after the summary. A pasted agenda does the same for any meeting (see below). The livestream matcher never ends the retries of such a meeting: the unattended pass does.
 
-The notifications follow the tier, not this rule: a new secondary body, such as a youth council at its default tier, starts with its notifications off.
+The rule does not change who reads the transcript. The body's own setting, `showUnreviewedTranscript`, decides whether a reader sees a transcript before a human review, as for every body. No `humanReview` row is written, so no name set in the transcript becomes a voiceprint source.
+
+The calendar and the notifications follow the tier, not this rule: a new secondary body, such as a youth council at its default tier, starts with its notifications off.
 
 ### The agenda as pasted text
 

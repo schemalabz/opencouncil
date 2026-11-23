@@ -1,21 +1,19 @@
 import 'server-only';
 import type { Prisma, Realm } from '@prisma/client';
-import type { AdministrativeBodyType } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { publicMeetingWhere } from '@/lib/cityStatus';
 import { ALL_SCOPE } from '@/lib/utils/bodyTier';
-import { pipelineRunsUnattended, unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 
 /** The columns that `transcriptIsPublic` reads. */
 export const transcriptGateSelect = {
-    administrativeBody: { select: { showUnreviewedTranscript: true, type: true } },
+    administrativeBody: { select: { showUnreviewedTranscript: true } },
     taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, take: 1, select: { id: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 
 export const publicMeetingSelect = {
     id: true, cityId: true, name: true, name_en: true, kind: true, sessionNumber: true, urgent: true, dateTime: true,
     city: { select: { id: true, name: true, name_en: true, timezone: true, realm: true, logoImage: true } },
-    administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true, type: true } },
+    administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
     taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, take: 1, select: { id: true } },
 } satisfies Prisma.CouncilMeetingSelect;
 export type PublicMeeting = Prisma.CouncilMeetingGetPayload<{ select: typeof publicMeetingSelect }>;
@@ -29,21 +27,17 @@ export const publicSubjectSelect = {
 export type PublicSubject = Prisma.SubjectGetPayload<{ select: typeof publicSubjectSelect }>;
 
 type TranscriptGateFields = Pick<PublicMeeting, 'taskStatuses'> & {
-    administrativeBody: { showUnreviewedTranscript: boolean; type: AdministrativeBodyType } | null;
+    administrativeBody: { showUnreviewedTranscript: boolean } | null;
 };
 
 /**
  * May a reader read the transcript of this released meeting? A body that
- * hides unreviewed transcripts shows one only after the human review. A body
- * whose pipeline runs unattended (#829) has no review step, so its transcript
- * is public as it is, whatever the setting says, as on the meeting page.
- * Every path that gives transcript text to a reader asks this, or its
- * database form `TRANSCRIPT_PUBLIC_WHERE`.
+ * hides unreviewed transcripts shows one only after the human review. Every
+ * path that gives transcript text to a reader asks this, or its database
+ * form `TRANSCRIPT_PUBLIC_WHERE`.
  */
 export const transcriptIsPublic = (meeting: TranscriptGateFields) =>
-    meeting.administrativeBody?.showUnreviewedTranscript !== false
-    || pipelineRunsUnattended(meeting.administrativeBody)
-    || meeting.taskStatuses.length > 0;
+    meeting.administrativeBody?.showUnreviewedTranscript !== false || meeting.taskStatuses.length > 0;
 
 /**
  * `transcriptIsPublic` for one meeting, read by its ids. The meeting page reads
@@ -77,8 +71,6 @@ export const TRANSCRIPT_PUBLIC_WHERE = {
     OR: [
         { administrativeBody: null },
         { administrativeBody: { showUnreviewedTranscript: true } },
-        // A body whose pipeline runs unattended has no review step.
-        unattendedMeetingWhere,
         { taskStatuses: { some: { type: 'humanReview', status: 'succeeded' } } },
     ],
 } satisfies Prisma.CouncilMeetingWhereInput;

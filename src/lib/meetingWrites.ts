@@ -34,8 +34,8 @@ import { meetingHasSucceededTask } from '@/lib/db/tasksInternal';
  * over; so does a YouTube link saved while the meeting may still run, which
  * can be the stream itself. An uploaded file is complete and starts now. The
  * request runs after the response and refuses a meeting that has a
- * transcript already. A refusal or a failure alerts the operators: no
- * operator watches the meeting, and nothing else reports it.
+ * transcript already. A refusal or a failure alerts the operators: nobody
+ * asked for this transcription, so nothing else reports it.
  */
 function unattendedTranscriptionStart(meeting: CouncilMeetingWithAdminBody, now: Date = new Date()): (() => Promise<void>) | null {
     if (!meeting.youtubeUrl || !pipelineRunsUnattended(meeting.administrativeBody)) return null;
@@ -146,10 +146,7 @@ export async function createMeetingWithEffects(
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
 
-    // No operator follows a meeting whose pipeline runs unattended (#829), so
-    // the operators' channel gets no alert. The municipal calendar shows the
-    // primary tier only.
-    const unattended = pipelineRunsUnattended(meeting.administrativeBody);
+    // The municipal calendar shows the primary tier only.
     const secondary = isSecondaryBody(meeting.administrativeBody);
 
     // Fetch city data (should exist since meeting was created successfully)
@@ -158,7 +155,7 @@ export async function createMeetingWithEffects(
     if (city === null) {
         console.error(`City ${cityId} not found after meeting creation - this should not happen`);
         // Continue without city data - meeting was already created
-    } else if (!unattended) {
+    } else {
         sendMeetingCreatedAdminAlert({
             cityName: city.name_en,
             meetingName: meetingLabel(meeting, 'en', city.timezone),

@@ -97,20 +97,19 @@ describe('updateMeetingWithEffects on a change of tier', () => {
     });
 });
 
-// The operators' channel follows the operator rule (pipelineRunsUnattended),
-// as the task, agenda and livestream alerts do. The calendar follows the tier.
+// The operators' channel gets the alert of every meeting. The calendar follows the tier.
 describe('createMeetingWithEffects on the operators\' channel and the calendar', () => {
     it.each([
-        ['a council', council, true, true],
-        ['a youth council at its default tier', youth, false, false],
-        ['a youth council set to primary', promoted, false, true],
-        ['a council set to secondary', company, true, false],
-    ])('for %s: alert %s, calendar event %s', async (_name, body, alerted, calendar) => {
+        ['a council', council, true],
+        ['a youth council at its default tier', youth, false],
+        ['a youth council set to primary', promoted, true],
+        ['a council set to secondary', company, false],
+    ])('for %s: alert, calendar event %s', async (_name, body, calendar) => {
         mockCreateMeetingRecord.mockResolvedValue(row(body, false, { kind: 'ordinary' }));
 
         await createMeetingWithEffects('chania', { date: new Date('2026-10-01T16:00:00Z'), administrativeBodyId: body.id });
 
-        expect(mockMeetingCreatedAlert).toHaveBeenCalledTimes(alerted ? 1 : 0);
+        expect(mockMeetingCreatedAlert).toHaveBeenCalledTimes(1);
         expect(mockSyncMeetingToCalendar).toHaveBeenCalledTimes(calendar ? 1 : 0);
     });
 });

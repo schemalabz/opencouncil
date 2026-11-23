@@ -14,21 +14,22 @@ export function isYouthCouncil(body: { type: AdministrativeBodyType } | null | u
 }
 
 /**
- * Whether the pipeline of a body's meetings runs with no operator. A youth
- * council runs its own meetings: a recording starts the transcription, the
- * summary follows the corrected transcript, and the meeting is released when
- * the summary lands. Nobody reviews the transcript first, so the page shows it
- * unreviewed. Every other body keeps the human review step.
+ * Whether the pipeline of a body's meetings runs without the operators'
+ * queues. A youth council brings its own recordings and has no review step:
+ * a recording starts the transcription, and the first summary releases the
+ * meeting. An operator still asks for the summary, as for every body, and
+ * the operators' channel gets every alert of the meeting.
  *
- * The operator surfaces read this rule too: the review queue, the upload
- * dashboard and the alerts to the operators' channel leave such a meeting out.
+ * The review queue and the upload dashboard leave such a meeting out. Whether
+ * a reader sees the transcript before a review is the body's own setting
+ * (`showUnreviewedTranscript`), as for every body.
  */
 export function pipelineRunsUnattended(body: { type: AdministrativeBodyType } | null | undefined): boolean {
     return isYouthCouncil(body);
 }
 
 /**
- * pipelineRunsUnattended as a Prisma where clause. The operator surfaces leave
+ * pipelineRunsUnattended as a Prisma where clause. The operators' queues leave
  * these meetings out with `NOT`, which keeps a meeting with no body.
  */
 export const unattendedMeetingWhere = {
