@@ -3,7 +3,7 @@ import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields, bodyTierSchema, youtubeChannelUrlValue } from './administrativeBody';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue, rolePeriodsOverlap } from './role';
-import { blankToNull, refuseDuplicateKeys, webUrl } from './primitives';
+import { blankToNull, httpsUrl, refuseDuplicateKeys, webUrl } from './primitives';
 
 // The payload of populate_city: the parties, administrative bodies, people
 // and roles of a city that has no data yet. A role names its party or its
@@ -14,9 +14,11 @@ import { blankToNull, refuseDuplicateKeys, webUrl } from './primitives';
 // from it.
 
 const optionalText = z.string().nullable().optional();
-// The app renders these links and images, so only http(s) is accepted. An empty
+// The app renders these links, so only http(s) is accepted. An empty
 // value means no link and is saved as null.
 const optionalLink = blankToNull(webUrl().or(z.literal('')));
+// An image is copied to our storage, and the copy fetches https only.
+const optionalImageLink = blankToNull(httpsUrl({ error: 'Use an https link to the image file' }).or(z.literal('')));
 
 const cityPopulationRoleSchema = z.object({
     type: z.enum(['party', 'city', 'adminBody'])
@@ -36,7 +38,7 @@ export const cityPopulationSchema = z.object({
     cityId: z.string().describe('Reference to existing city ID in the database'),
     parties: z.array(z.object({
         ...basePartyFields,
-        logo: optionalLink.describe('Absolute http(s) URL of the party logo, or null'),
+        logo: optionalImageLink.describe('Direct https link to the party logo file (PNG or JPEG, no redirect, at most 5 MB), or null. It is copied to our storage; a URL that cannot be copied refuses the call'),
     })).describe('Political parties/coalitions in the council'),
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object({
@@ -57,7 +59,7 @@ export const cityPopulationSchema = z.object({
         .describe('Administrative bodies like council, committees, communities, youth councils. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
-        image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),
+        image: optionalImageLink.describe("Direct https link to the person's photo file (PNG, JPEG or WebP, no redirect, at most 5 MB), or null. It is copied to our storage; a URL that cannot be copied refuses the call"),
         profileUrl: optionalLink.describe("Absolute http(s) URL of the person's profile page, or null"),
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),

@@ -245,7 +245,8 @@ function registerCityAdminTools(server: McpServer) {
         'populate_city',
         {
             title: 'Populate city',
-            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            // It fetches the photo and logo URLs that the caller names.
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
             _meta: category('admin'),
             description:
                 'Superadmin only. Save the parties, administrative bodies, people and roles of a city in one '

@@ -28,6 +28,9 @@ export const queryFlag = z.stringbool({
  */
 export const webUrl = (params?: { error?: string }) => z.url({ protocol: /^https?$/, ...params });
 
+/** A link that the server fetches itself (an image it copies): https only, as the fetch refuses anything else. */
+export const httpsUrl = (params?: { error?: string }) => z.url({ protocol: /^https$/, ...params });
+
 /**
  * An optional text field of a request that an empty string or null clears:
  * `''` becomes null, and an absent field stays absent.

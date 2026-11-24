@@ -4,6 +4,7 @@ import { withPostHogConfig } from "@posthog/nextjs-config";
 import { lanIPv4Addresses } from './src/lib/dev/lan-ips.mjs';
 import { videoLinkRewrites } from './src/lib/utils/videoLinkRewrites.mjs';
 import { POSTHOG_EU_ASSETS, POSTHOG_EU_INGEST } from './src/lib/utils/posthogHosts.cjs';
+import { IMAGE_STORAGE_HOSTS } from './src/lib/utils/storageHosts.cjs';
 
 // Log which DB the build will use (host + db name only, no credentials)
 try {
@@ -38,7 +39,7 @@ const nextConfig = {
     // of one deploy. Falls back to Next's default (random per build) otherwise.
     generateBuildId: async () => process.env.SOURCE_COMMIT || process.env.BUILD_ID || null,
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
+        domains: IMAGE_STORAGE_HOSTS,
     },
     transpilePackages: ['@opencouncil/ui', '@opencouncil/subject-images'],
     turbopack: {
