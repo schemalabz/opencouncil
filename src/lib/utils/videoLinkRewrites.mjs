@@ -3,9 +3,9 @@
  * `opencouncil.gr/https://youtu.be/<id>?t=90` → the meeting transcript.
  *
  * Plain `.mjs` so that `next.config.mjs` (loaded by Node, no TypeScript) and
- * the tests share one definition. The rules live in the config and not in
- * `proxy.ts`, because the proxy matcher skips every path with a dot, and every
- * video link has one.
+ * the tests share one definition. Every video link has a dot, and the proxy
+ * hands a path with a dot to Next only when `dottedPathVerdict` knows it:
+ * that function reads YOUTUBE_HOSTS and VIDEO_LINK_ROUTE from this file.
  *
  * A rule matches only when the first path segment is a video host, with or
  * without a scheme. City ids (`^[a-z-]+$`) and the app's own routes contain no

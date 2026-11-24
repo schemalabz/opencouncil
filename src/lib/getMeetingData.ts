@@ -5,12 +5,13 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { meetingNotificationsDisabled, meetingTranscriptIsPublic } from '@/lib/db/sharing/publicContent';
 import { cache } from 'react';
-import { getAllCityIdsCached, getPeopleOfCityForContentCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
+import { getPeopleOfCityForContentCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
 import { getRealm } from '@/lib/realm.server';
+import { isCityOfRealm } from '@/lib/db/cityRealm';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Realm, SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
@@ -115,8 +116,7 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     // validation 404s — without this guard, junk slugs (e.g. /admin/settings
     // resolving to cityId='admin') write `city:<junk>:*` entries to the
     // shared cache (#358). Callers already treat this throw as notFound().
-    const cityIds = await getAllCityIdsCached(realm);
-    if (!cityIds.includes(cityId)) {
+    if (!(await isCityOfRealm(cityId, realm))) {
         throw new Error('Required data not found');
     }
 

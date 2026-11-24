@@ -48,7 +48,16 @@ export function localePathPrefix(locale: string): string {
  */
 export const localePrefixPattern = LOCALES.map(urlPrefixForLocale).join('|');
 
-const LOCALE_PREFIX_SEGMENT = new RegExp(`^/(?:${localePrefixPattern})(?=/|$)`);
+// Any case: next-intl redirects `/EN/athens` to `/en/athens`.
+const LOCALE_PREFIX_SEGMENT = new RegExp(`^/(?:${localePrefixPattern})(?=/|$)`, 'i');
+
+/**
+ * The locale prefix of a path, in lower case (`/EN/athens` gives `/en`), or
+ * an empty string when the path has no locale prefix.
+ */
+export function localePrefixOf(pathname: string): string {
+    return LOCALE_PREFIX_SEGMENT.exec(pathname)?.[0].toLowerCase() ?? '';
+}
 
 /**
  * The path without its locale prefix: `/lat/nis/parties/x` becomes

@@ -1,31 +1,51 @@
 import createIntlMiddleware from 'next-intl/middleware';
-import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
+import { routing, LOCALE_OVERRIDE_HEADER } from '@/i18n/routing';
+import { localePrefixOf } from '@/i18n/config';
 import { NextResponse, NextRequest } from 'next/server';
-import { auth } from './auth'
+import { auth } from '@/auth'
 import { env } from '@/env.mjs';
-import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
-import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, bodyTypeHostRedirectTarget, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
-import { isSerbianScript } from './lib/serbian/transliterate';
-import { mcpRewriteTarget } from './lib/mcp/rewrite';
-import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
-import { applySessionMirror } from './lib/auth/sessionMirror';
+import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from '@/lib/realm';
+import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, bodyTypeHostRedirectTarget, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from '@/lib/seo-redirects';
+import { isSerbianScript } from '@/lib/serbian/transliterate';
+import { mcpRewriteTarget } from '@/lib/mcp/rewrite';
+import { isHeaderlessMultipartPost } from '@/lib/multipartPostGuard';
+import { applySessionMirror } from '@/lib/auth/sessionMirror';
+import { dottedPathVerdict } from '@/lib/dottedPaths';
+import { cityIdCandidate } from '@/lib/pageSegments';
+import { isCityOfRealm } from '@/lib/db/cityRealm';
 
 const i18nMiddleware = createIntlMiddleware(routing);
 
-// Obvious bot-scanner paths. 404 them here, before any rendering, so they
-// can't create cache entries or trigger data fetches (#358). Only
-// extensionless probes are listed: dotted paths (.php/.env) never reach the
-// proxy — the matcher below excludes them — and 404 via locale validation
-// without touching per-city caches.
-const JUNK_PATH = /^\/(wp-admin|wp-login|wp-content|wp-includes|wordpress|xmlrpc|administrator|phpmyadmin|cgi-bin)(\/|$)/i;
+/**
+ * The answer for a path that is not a page. A reader with a wrong address
+ * gets a link to the home page in the locale of the path: `/lat/x` links to
+ * `/lat`, so a reader of the Latin script stays in it. The page is fixed
+ * text, because a scanner sends most of these requests and the styled
+ * not-found page costs a render of the locale layout for each one.
+ */
+function notFoundResponse(pathname: string): NextResponse {
+    const home = localePrefixOf(pathname) || '/';
+    return new NextResponse(
+        `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex"><title>404</title></head><body style="font:16px system-ui,sans-serif;text-align:center;padding:20vh 1rem"><h1>404</h1><p><a href="${home}">OpenCouncil</a></p></body></html>`,
+        { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store' } },
+    );
+}
 
-// Page paths that go through i18n routing (i.e. not api/_next/_vercel/qr or
-// dotted asset paths). Both the realm-locale rewrite and the i18n handoff
-// gate on this.
-const APP_PATH = /^\/(?!api|_next|_vercel|qr\/|\..+).*/;
+// Page paths that go through i18n routing: every path that reaches
+// proxyInner, except the `/qr/[code]` route handler. The matcher skips the
+// api and the build assets, and dottedPathVerdict answers for a path with a
+// dot.
+const APP_PATH = /^\/(?!qr\/)/;
 
 
 export default async function proxy(req: NextRequest) {
+    // A path with a dot is a file or a path that the app does not have. A
+    // file gets none of the page handling below, as before the matcher sent
+    // these paths here.
+    const dotted = dottedPathVerdict(req.nextUrl.pathname);
+    if (dotted === 'serve') return NextResponse.next();
+    if (dotted === 'reject') return notFoundResponse(req.nextUrl.pathname);
+
     return applySessionMirror(req, await proxyInner(req));
 }
 
@@ -37,10 +57,6 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
             status: 401,
             headers: { 'WWW-Authenticate': 'Basic' },
         });
-    }
-
-    if (JUNK_PATH.test(req.nextUrl.pathname)) {
-        return new NextResponse(null, { status: 404 });
     }
 
     // Scanner probes for server actions; see isHeaderlessMultipartPost for
@@ -92,9 +108,9 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
 
     // Next's automatic trailing-slash redirect is disabled app-wide
     // (skipTrailingSlashRedirect in next.config.mjs) because PostHog calls
-    // its /ingest endpoints with trailing slashes. /ingest itself never
-    // reaches the proxy — the matcher excludes it — so restore the
-    // canonical-URL redirect for everything else here.
+    // its /ingest endpoints with trailing slashes. The matcher excludes those
+    // endpoints (/ingest/...), so restore the canonical-URL redirect for
+    // everything else here.
     // Note: a plain URL, not req.nextUrl.clone() — NextURL keeps the trailing
     // slash as a separate flag and re-appends it when serializing, which
     // would redirect the URL to itself.
@@ -194,6 +210,20 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
         }
     }
 
+    // A first segment that is not a page must be a city of this realm (see
+    // cityIdCandidate). The check is after the redirects above, which cost
+    // nothing, and before the rewrites below. A read that fails does not turn
+    // every city page into an error: the request continues, and the city
+    // layout checks the id again.
+    const cityId = APP_PATH.test(pathname) ? cityIdCandidate(pathname) : null;
+    if (cityId !== null) {
+        const isCity = await isCityOfRealm(cityId, realm).catch((error: unknown) => {
+            console.warn(`[proxy] The city check of "${cityId}" failed, the request continues:`, error);
+            return true;
+        });
+        if (!isCity) return notFoundResponse(pathname);
+    }
+
     // Realm-locale handling: on a host whose realm default differs from the
     // app default (.fr → fr, .rs → sr), serve that locale's UI transparently.
     // Rewrite (not redirect) unprefixed app paths to the locale segment so the
@@ -265,7 +295,12 @@ export const config = {
     // `ingest` is the PostHog reverse proxy (rewrites in next.config.mjs):
     // its extensionless endpoints (/ingest/e/, /ingest/flags/) must bypass
     // basic auth and i18n routing, or events get swallowed by locale 404s.
-    matcher: ['/((?!api|ingest|_next|_vercel|.*\\..*).*)'],
+    // Each prefix ends where its tree starts: `/api-catalog` and
+    // `/_next/unknown` are not in a tree that Next serves, so they must reach
+    // the proxy, which answers 404. `/api` itself is a route (the OpenAPI
+    // document). A path with a dot does reach the proxy too: see
+    // dottedPathVerdict.
+    matcher: ['/((?!api(?:/|$)|ingest/|_next/static/|_next/image).*)'],
 };
 
 /*

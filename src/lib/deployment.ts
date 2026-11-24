@@ -1,3 +1,9 @@
+/**
+ * True under `next dev`. In this module, which imports nothing, so that the
+ * proxy's imports can read it without `@/lib/utils`.
+ */
+export const IS_DEV = process.env.NODE_ENV === 'development';
+
 // The dev-tooling gate (issue #250): dev tooling is allowed in local dev and on
 // previews, never on staging or real production.
 //

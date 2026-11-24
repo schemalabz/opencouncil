@@ -42,7 +42,10 @@ jest.mock('@/lib/cache', () => ({
     getCouncilMeetingsPreviewPublicCached: jest.fn(),
     getSubjectCountForCityCached: jest.fn(),
     getAdjacentMeetingsCached: jest.fn(async () => ({ previous: null, next: null })),
-    getAllCityIdsCached: jest.fn(async () => ['athens']),
+}));
+
+jest.mock('@/lib/db/cityRealm', () => ({
+    isCityOfRealm: jest.fn(async (cityId: string) => cityId === 'athens'),
 }));
 
 jest.mock('@/lib/auth', () => ({

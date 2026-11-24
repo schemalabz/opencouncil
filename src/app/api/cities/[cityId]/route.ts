@@ -169,6 +169,10 @@ export async function DELETE(request: Request, props: { params: Promise<{ cityId
         return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     await deleteCity(params.cityId);
+    // Not the 'max' profile: with it, Next's own cache (dev, or a build
+    // without the Valkey handler) serves the old list one more time, and the
+    // proxy and the city layout then accept the deleted id.
+    revalidateTag('cities:all', { expire: 0 });
     await deleteVoiceDataWithoutConsent({ cityId: params.cityId }, `city ${params.cityId} deleted`);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

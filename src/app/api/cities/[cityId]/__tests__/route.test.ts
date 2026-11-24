@@ -30,6 +30,7 @@ import { ConflictError } from '@/lib/api/errors';
 import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
+import { revalidateTag } from 'next/cache';
 
 function put(fields: Record<string, string | File>) {
     const formData = new FormData();
@@ -192,9 +193,21 @@ describe('DELETE /api/cities/[cityId]', () => {
         expect(order).toEqual(['city', 'voice data']);
     });
 
-    it('deletes no voice data when the city delete fails', async () => {
+    it('clears the city list at once, so the deleted id is no longer a city', async () => {
+        await remove();
+        expect(revalidateTag).toHaveBeenCalledWith('cities:all', { expire: 0 });
+    });
+
+    it('clears the city list when the voice data delete fails after the city is gone', async () => {
+        jest.mocked(deleteVoiceDataWithoutConsent).mockRejectedValueOnce(new Error('Spaces down'));
+        await expect(remove()).rejects.toThrow('Spaces down');
+        expect(revalidateTag).toHaveBeenCalledWith('cities:all', { expire: 0 });
+    });
+
+    it('deletes no voice data and keeps the city list when the city delete fails', async () => {
         jest.mocked(deleteCity).mockRejectedValueOnce(new Error('Failed to delete city'));
         await expect(remove()).rejects.toThrow('Failed to delete city');
         expect(deleteVoiceDataWithoutConsent).not.toHaveBeenCalled();
+        expect(revalidateTag).not.toHaveBeenCalled();
     });
 });
