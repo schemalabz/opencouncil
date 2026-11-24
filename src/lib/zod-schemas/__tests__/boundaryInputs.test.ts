@@ -40,14 +40,25 @@ describe('user-supplied links accept http(s) only', () => {
         ['person route profileUrl', link => personFormDataSchema.safeParse({ ...personFormData, profileUrl: link })],
         ['meeting youtubeUrl', link => meetingSchema.safeParse({ ...meeting, youtubeUrl: link })],
         ['meeting agendaUrl', link => meetingSchema.safeParse({ ...meeting, agendaUrl: link })],
-        ['city population party logo', link => cityPopulationSchema.safeParse(population({ logo: link }))],
-        ['city population person image', link => cityPopulationSchema.safeParse(population({ image: link }))],
         ['city population profileUrl', link => cityPopulationSchema.safeParse(population({ profileUrl: link }))],
     ];
 
     describe.each(fields)('%s', (_, parse) => {
         it.each(UNSAFE_LINKS)('refuses %s', link => expect(parse(link).success).toBe(false));
         it.each(SAFE_LINKS)('takes %s', link => expect(parse(link).success).toBe(true));
+        it('takes an empty value, which means no link', () => expect(parse('').success).toBe(true));
+    });
+
+    // populate_city copies these images, and the copy fetches https only.
+    describe.each([
+        ['city population party logo', (link: string) => cityPopulationSchema.safeParse(population({ logo: link }))],
+        ['city population person image', (link: string) => cityPopulationSchema.safeParse(population({ image: link }))],
+    ])('%s', (_, parse) => {
+        it.each(UNSAFE_LINKS)('refuses %s', link => expect(parse(link).success).toBe(false));
+        it.each(SAFE_LINKS.filter(link => link.startsWith('https:')))('takes %s', link => expect(parse(link).success).toBe(true));
+        it.each(SAFE_LINKS.filter(link => link.startsWith('http:')))('refuses %s, which the copy cannot fetch, and says to use https', link => {
+            expect(parse(link).error?.issues.map(issue => issue.message)).toEqual(['Use an https link to the image file']);
+        });
         it('takes an empty value, which means no link', () => expect(parse('').success).toBe(true));
     });
 

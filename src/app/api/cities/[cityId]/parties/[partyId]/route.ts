@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
+import { STORED_IMAGE_KINDS } from '@/lib/utils/imageUpload';
 import { getParty, editParty, deleteParty } from '@/lib/db/parties'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
@@ -38,7 +39,7 @@ export async function PUT(
 
         if (logo) {
             try {
-                const result = await uploadFile(logo, { prefix: 'party-logos' })
+                const result = await uploadFile(logo, { prefix: STORED_IMAGE_KINDS.partyLogo.prefix })
                 logoUrl = result.url
             } catch (error) {
                 console.error('Error uploading file:', error)

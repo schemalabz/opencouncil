@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
     "./store": "./src/store.ts",
-    "./image": "./src/image.ts"
+    "./image": "./src/image.ts",
+    "./decode": "./src/decode.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1165.0",

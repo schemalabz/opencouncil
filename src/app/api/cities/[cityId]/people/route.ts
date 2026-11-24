@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createPerson, listPeopleOfCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
+import { STORED_IMAGE_KINDS } from '@/lib/utils/imageUpload';
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, personListQuerySchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { validatePersonRoles } from '@/lib/db/personRoles'
@@ -61,7 +62,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     if (image) {
         try {
             const result = await uploadFile(image, { 
-                prefix: 'person-images',
+                prefix: STORED_IMAGE_KINDS.personImage.prefix,
             })
             imageUrl = result.url
         } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
+import { STORED_IMAGE_KINDS } from '@/lib/utils/imageUpload';
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete'
 import { validatePersonRoles } from '@/lib/db/personRoles'
@@ -62,7 +63,7 @@ export async function PUT(
 
     if (image) {
         try {
-            const result = await uploadFile(image, { prefix: 'person-images' })
+            const result = await uploadFile(image, { prefix: STORED_IMAGE_KINDS.personImage.prefix })
             imageUrl = result.url
         } catch (error) {
             console.error('Error uploading file:', error)

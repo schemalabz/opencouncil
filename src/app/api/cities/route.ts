@@ -4,6 +4,7 @@ import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
 import { assertDemoAllowed } from '@/lib/db/citiesAdmin'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { uploadFile } from '@/lib/s3'
+import { STORED_IMAGE_KINDS } from '@/lib/utils/imageUpload';
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 import { citiesListQuerySchema, createCityFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         }
 
         const result = await uploadFile(data.logoImage, {
-            prefix: 'city-logos',
+            prefix: STORED_IMAGE_KINDS.cityLogo.prefix,
             useCdn: true
         });
         const logoImageUrl = result.url;

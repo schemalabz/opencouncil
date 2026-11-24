@@ -1,10 +1,9 @@
 import 'server-only';
 import path from 'path';
 import sharp from 'sharp';
-
-// Only our public image origins may be fetched by an anonymous image request.
-const TRUSTED_HOSTS = new Set(['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com']);
-const MAX_BYTES = 2_000_000;
+import { fetchImageBytes } from '@/lib/fetchImage';
+import { OG_IMAGE_TYPES, OG_MAX_IMAGE_BYTES, OG_MAX_IMAGE_PIXELS } from '@/lib/utils/imageUpload';
+import { isPlainHttpsUrl, isStoredImageUrl } from '@/lib/utils/storedImageUrl';
 
 export interface ImageBox {
     width: number;
@@ -30,29 +29,13 @@ export const SEAL_BOX: ImageBox = { width: 88, height: 88, fit: 'inside' };
 export async function getImageData(url: string | null | undefined, box: ImageBox, extraHosts: string[] = []): Promise<string | null> {
     if (!url) return null;
     try {
+        // Only our public image origins may be fetched by an anonymous image request.
         const target = new URL(url);
-        const trusted = TRUSTED_HOSTS.has(target.hostname) || extraHosts.includes(target.hostname);
-        if (target.protocol !== 'https:' || target.username || target.password || target.port || !trusted) return null;
-        const response = await fetch(target.href, { redirect: 'error', signal: AbortSignal.timeout(3000) });
-        const type = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
-        if (!response.ok || !type || !['image/png', 'image/jpeg', 'image/webp'].includes(type) || Number(response.headers.get('content-length')) > MAX_BYTES) {
-            await response.body?.cancel();
-            return null;
-        }
-        if (!response.body) return null;
-        const reader = response.body.getReader();
-        const chunks: Uint8Array[] = [];
-        let size = 0;
-        try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                size += value.byteLength;
-                if (size > MAX_BYTES) return null;
-                chunks.push(value);
-            }
-        } finally { await reader.cancel(); }
-        const png = await sharp(Buffer.concat(chunks), { limitInputPixels: 4_000_000, animated: false })
+        const trusted = isStoredImageUrl(url) || (isPlainHttpsUrl(target) && extraHosts.includes(target.hostname));
+        if (!trusted) return null;
+        const image = await fetchImageBytes(target.href, { maxBytes: OG_MAX_IMAGE_BYTES, timeoutMs: 3000, types: OG_IMAGE_TYPES });
+        if (!image.ok) return null;
+        const png = await sharp(image.bytes, { limitInputPixels: OG_MAX_IMAGE_PIXELS, animated: false })
             .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png({ palette: Boolean(box.palette) }).toBuffer();
         return `data:image/png;base64,${png.toString('base64')}`;
     } catch { return null; }
@@ -65,7 +48,7 @@ export async function getImageData(url: string | null | undefined, box: ImageBox
 export async function getPublicImageData(publicPath: string, box: ImageBox): Promise<string | null> {
     try {
         const file = path.join(process.cwd(), 'public', publicPath.replace(/^\//, ''));
-        const png = await sharp(file, { limitInputPixels: 4_000_000 })
+        const png = await sharp(file, { limitInputPixels: OG_MAX_IMAGE_PIXELS })
             .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png({ palette: Boolean(box.palette) }).toBuffer();
         return `data:image/png;base64,${png.toString('base64')}`;
     } catch (error) {

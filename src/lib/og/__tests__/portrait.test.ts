@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { getPortraitData } from '../portrait';
+import { getImageData } from '../remoteImage';
 
 const fetchMock = jest.fn();
 const originalFetch = global.fetch;
@@ -46,4 +47,20 @@ it('rejects compressed images with excessive decoded dimensions', async () => {
     const png = await sharp({ create: { width: 2500, height: 2500, channels: 3, background: '#eee' } }).png().toBuffer();
     fetchMock.mockResolvedValue(new Response(new Uint8Array(png), { headers: { 'content-type': 'image/png' } }));
     expect(await getPortraitData('https://data.opencouncil.gr/person.png')).toBeNull();
+});
+
+it('refuses a picture whose declared type the share images do not draw', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="#eee"/></svg>';
+    fetchMock.mockResolvedValueOnce(new Response(svg, { headers: { 'content-type': 'image/svg+xml' } }));
+    expect(await getPortraitData('https://data.opencouncil.gr/person.svg')).toBeNull();
+    const png = await sharp({ create: { width: 300, height: 300, channels: 3, background: '#eee' } }).png().toBuffer();
+    fetchMock.mockResolvedValueOnce(new Response(new Uint8Array(png), { headers: { 'content-type': 'application/octet-stream' } }));
+    expect(await getPortraitData('https://data.opencouncil.gr/person.png')).toBeNull();
+});
+
+it('fetches an extra host of the caller over plain https only', async () => {
+    for (const url of ['http://cdn.example/a.png', 'https://u:p@cdn.example/a.png', 'https://cdn.example:8443/a.png']) {
+        expect(await getImageData(url, { width: 10, height: 10 }, ['cdn.example'])).toBeNull();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
 });

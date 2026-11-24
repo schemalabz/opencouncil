@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
+import { STORED_IMAGE_KINDS } from '@/lib/utils/imageUpload';
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
 import { assertDemoChangeAllowed } from '@/lib/db/citiesAdmin'
 import { deleteVoiceDataWithoutConsent } from '@/lib/db/voiceprintsDelete'
@@ -62,7 +63,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
         let logoImageUrl: string | undefined = undefined
         if (data.logoImage) {
             try {
-                const result = await uploadFile(data.logoImage, { prefix: 'city-logos' })
+                const result = await uploadFile(data.logoImage, { prefix: STORED_IMAGE_KINDS.cityLogo.prefix })
                 logoImageUrl = result.url
             } catch (error) {
                 console.error('Error uploading file:', error)
