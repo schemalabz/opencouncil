@@ -90,7 +90,7 @@ describe('generate', () => {
 
         const out = await generate('a prompt', { apiKey: 'key' });
 
-        expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: 'key' });
+        expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: 'key', apiVersion: 'v1beta' });
         expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
             model: IMAGE_MODEL,
             contents: 'a prompt',

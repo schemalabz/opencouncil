@@ -39,7 +39,7 @@ export async function toWebp(image: Buffer): Promise<Buffer> {
  * the resize is a no-op unless the model returns another size.
  */
 export async function generate(prompt: string, deps: GenerateDeps): Promise<Buffer> {
-    const ai = new GoogleGenAI({ apiKey: deps.apiKey });
+    const ai = new GoogleGenAI({ apiKey: deps.apiKey, apiVersion: 'v1beta' });
     const response = await ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: prompt,
