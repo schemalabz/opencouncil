@@ -51,17 +51,17 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5-5",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0
+      output_config: { effort: 'low' }
     });
   });
 
-  it('should include prefillSystemResponse in messages if provided', async () => {
+  it('should send the previous output as user context', async () => {
     const systemPrompt = 'You are a helpful assistant';
     const userPrompt = 'Hello, world!';
     const prefill = 'Previous response';
@@ -69,14 +69,24 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt, prefill);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-5-5",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
-        { role: 'user', content: userPrompt },
-        { role: 'assistant', content: prefill }
+        { role: 'user', content: expect.stringContaining(JSON.stringify(prefill)) }
       ],
-      temperature: 0
+      output_config: { effort: 'low' }
+    });
+  });
+
+  it('uses a caller model override without the default model effort setting', async () => {
+    await aiChat('Return JSON', 'Extract a city', undefined, undefined, { model: 'claude-haiku-4-5', maxTokens: 512 });
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      system: 'Return JSON',
+      messages: [{ role: 'user', content: 'Extract a city' }],
     });
   });
 
@@ -179,30 +189,20 @@ describe('aiChat', () => {
     expect(result.result).toEqual(expectedResponse);
   });
 
-  it.skip('should handle max_tokens stop reason by making another API call', async () => {
-    // Note: This test is challenging due to the recursive nature of the function
-    // and would require more advanced mocking techniques or refactoring the function
-    // to be more testable. For now, we're skipping this test.
-    
-    const systemPrompt = 'You are a helpful assistant';
-    const userPrompt = 'Long response';
-    
-    // Just make sure the first call is made
-    mockCreate.mockResolvedValueOnce({
-      content: [{ type: 'text', text: '{"result": "test"}' }],
-      usage: {
-        input_tokens: 100,
-        output_tokens: 50,
-        cache_creation_input_tokens: 0,
-        cache_read_input_tokens: 0
-      },
-      stop_reason: "end_turn"
-    });
-    
-    await aiChat(systemPrompt, userPrompt);
-    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }]
+  it('continues a truncated JSON response without an assistant prefill', async () => {
+    const prefix = '{"answer":"Athens ';
+    const usage = { input_tokens: 2, output_tokens: 3 };
+    mockCreate
+      .mockResolvedValueOnce({ content: [{ type: 'text', text: prefix }], usage, stop_reason: 'max_tokens' })
+      .mockResolvedValueOnce({ content: [{ type: 'text', text: 'council"}' }], usage, stop_reason: 'end_turn' });
+
+    const response = await aiChat<{ answer: string }>('Return JSON', 'Name the body');
+
+    expect(response.result).toEqual({ answer: 'Athens council' });
+    expect(response.usage).toMatchObject({ input_tokens: 4, output_tokens: 6 });
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      messages: [{ role: 'user', content: expect.stringContaining(JSON.stringify(prefix)) }],
     }));
   });
 

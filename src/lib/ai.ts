@@ -13,18 +13,17 @@ export type ResultWithUsage<T> = { result: T, usage: Anthropic.Messages.Usage };
 // Configuration types
 export interface AIConfig {
     maxTokens?: number;
-    temperature?: number;
     model?: string;
     logPrompts?: boolean;
     promptsDir?: string;
     maxContinuationAttempts?: number;
 }
 
-// Default configuration
+const DEFAULT_MODEL = 'claude-sonnet-5-5';
+
 const DEFAULT_CONFIG: AIConfig = {
     maxTokens: 8192,
-    temperature: 0,
-    model: "claude-sonnet-4-5-20250929",
+    model: DEFAULT_MODEL,
     logPrompts: IS_DEV,
     promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
     maxContinuationAttempts: 3
@@ -209,20 +208,19 @@ export async function aiChat<T>(
 
     try {
         console.log(`Sending message to claude...`);
-        let messages: Anthropic.Messages.MessageParam[] = [];
-        messages.push({ "role": "user", "content": userPrompt });
-        if (prefillSystemResponse) {
-            messages.push({ "role": "assistant", "content": prefillSystemResponse });
-        }
+        const content = prefillSystemResponse
+            ? `${userPrompt}\n\nYour previous response was cut off. Continue the JSON from this prefix. Return only the remaining text, without repeating the prefix.\n${JSON.stringify(prefillSystemResponse)}`
+            : userPrompt;
+        const messages: Anthropic.Messages.MessageParam[] = [{ role: 'user', content }];
 
         let response: Anthropic.Messages.Message;
         try {
-            const requestConfig: Anthropic.Messages.MessageCreateParams = {
+            const requestConfig: Anthropic.Messages.MessageCreateParamsNonStreaming = {
                 model: mergedConfig.model!,
                 max_tokens: mergedConfig.maxTokens!,
                 system: systemPrompt,
                 messages,
-                temperature: mergedConfig.temperature,
+                ...(mergedConfig.model === DEFAULT_MODEL ? { output_config: { effort: 'low' } } : {}),
             };
 
             response = await anthropic.messages.create(requestConfig);
@@ -293,8 +291,8 @@ export async function aiChat<T>(
             const response2 = await aiChat<T>(
                 systemPrompt,
                 userPrompt,
-                (prefillSystemResponse + finalTextBlock.text).trim(),
-                (prependToResponse + finalTextBlock.text).trim(),
+                (prefillSystemResponse ?? '') + finalTextBlock.text,
+                (prependToResponse ?? '') + finalTextBlock.text,
                 mergedConfig,
                 continuationAttempt + 1
             );
