@@ -9,11 +9,16 @@ const mockMeetingFindUnique = jest.fn();
 const mockBodyFindUnique = jest.fn();
 const mockPersonFindUnique = jest.fn();
 const mockPartyFindUnique = jest.fn();
+const mockUtteranceFindMany = jest.fn();
+const mockDeleteMany = jest.fn();
+const mockTransaction = jest.fn();
 
 jest.mock('@/auth', () => ({ auth: (...args: unknown[]) => mockAuth(...args) }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
+        utterance: { findMany: (...args: unknown[]) => mockUtteranceFindMany(...args) },
+        $transaction: (...args: unknown[]) => mockTransaction(...args),
         user: { findUnique: (...args: unknown[]) => mockUserFindUnique(...args) },
         councilMeeting: { findUnique: (...args: unknown[]) => mockMeetingFindUnique(...args) },
         administrativeBody: { findUnique: (...args: unknown[]) => mockBodyFindUnique(...args) },
@@ -23,6 +28,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getUnreleasedScope, getRoleLimitForCity, personIsOwnedByBodyAdmin } from '../auth';
+import { deleteUtterances } from '../db/utterance';
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
 
 type Row = { cityId?: string | null; partyId?: string | null; personId?: string | null; administrativeBodyId?: string | null };
@@ -49,7 +55,7 @@ function signIn(user: { isSuperAdmin?: boolean; administers: Row[] } | null) {
 // youth and culture are bodies of athens; argosYouth is a body of argos
 const BODIES: Record<string, string> = { youth: 'athens', culture: 'athens', argosYouth: 'argos' };
 
-const MEETINGS: Record<string, string | null> = { ym1: 'youth', cm1: 'culture', council1: null };
+const MEETINGS: Record<string, string | null> = { ym1: 'youth', ym2: 'youth', cm1: 'culture', council1: null };
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -227,5 +233,38 @@ describe('a superadmin', () => {
         expect(await isUserAuthorizedToEdit({})).toBe(true);
         expect(await isUserAuthorizedToEdit({ cityId: 'athens', councilMeetingId: 'cm1' })).toBe(true);
         expect(await getRoleLimitForCity('athens')).toBeNull();
+    });
+});
+
+
+describe('bulk utterance deletion meeting authorization', () => {
+    const utterance = (id: string, meetingId: string) => ({
+        id, speakerSegmentId: `segment-${id}`, speakerSegment: { cityId: 'athens', meetingId },
+    });
+
+    beforeEach(() => {
+        signIn({ administers: [{ administrativeBodyId: 'youth' }] });
+        mockDeleteMany.mockResolvedValue({ count: 3 });
+        mockTransaction.mockImplementation(async (run: (tx: unknown) => Promise<void>) => run({
+            utterance: { deleteMany: mockDeleteMany, findMany: jest.fn().mockResolvedValue([]) },
+        }));
+    });
+
+    it('checks every distinct meeting scope and accepts the body admin before deleting', async () => {
+        mockUtteranceFindMany.mockResolvedValue([
+            utterance('u1', 'ym1'), utterance('u2', 'ym1'), utterance('u3', 'ym2'),
+        ]);
+        await deleteUtterances(['u1', 'u2', 'u3']);
+        expect(mockMeetingFindUnique.mock.calls.map(([query]) => query.where.cityId_id))
+            .toEqual([{ cityId: 'athens', id: 'ym1' }, { cityId: 'athens', id: 'ym2' }]);
+        expect(mockTransaction).toHaveBeenCalledTimes(1);
+        expect(mockDeleteMany).toHaveBeenCalledWith({ where: { id: { in: ['u1', 'u2', 'u3'] } } });
+    });
+
+    it('refuses a mixed authorized and unauthorized meeting batch before any transaction', async () => {
+        mockUtteranceFindMany.mockResolvedValue([utterance('u1', 'ym1'), utterance('u2', 'cm1')]);
+        await expect(deleteUtterances(['u1', 'u2'])).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mockTransaction).not.toHaveBeenCalled();
+        expect(mockDeleteMany).not.toHaveBeenCalled();
     });
 });
