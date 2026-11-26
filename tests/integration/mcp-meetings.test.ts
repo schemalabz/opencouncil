@@ -365,6 +365,7 @@ describe('MCP transcript tools page the record - integration', () => {
         const result = await asRequest(() => mcpGetSubjectTranscript(subjectId, 2, SUPERADMIN))
         expect(result.pagination).toEqual({ total: 151, page: 2, pageSize: 150, totalPages: 2 })
         expect(result.utterances.map(u => u.text)).toEqual(['Θέμα 150'])
+        expect(result.utterances[0].url).toMatch(/^https?:\/\/[^/]+\/athens\/[^/?]+\/transcript\?t=\d+$/)
     })
 })
 

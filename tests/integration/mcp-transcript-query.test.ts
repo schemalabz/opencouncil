@@ -121,4 +121,10 @@ describe('get_transcript word filter - integration', () => {
         expect(result).not.toHaveProperty('query')
         expect(result.segments[0]).not.toHaveProperty('snippets')
     })
+
+    test('a segment url opens the transcript page at the segment start', async () => {
+        const result = await asRequest(() => mcpGetTranscript('athens', 'm1', page, SUPERADMIN))
+
+        expect(result.segments[1].url).toMatch(/^https?:\/\/[^/]+\/athens\/m1\/transcript\?t=60$/)
+    })
 })
