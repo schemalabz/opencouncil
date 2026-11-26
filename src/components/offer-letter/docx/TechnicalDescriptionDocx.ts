@@ -26,6 +26,8 @@ import {
     getOfferProcurementLines,
     offerHasEquipment,
     offerHasPhysicalPresence,
+    offerHasPresenceMinimumCharge,
+    PRESENCE_MINIMUM_CHARGE_TERM,
     type ProcurementLine,
 } from "@/lib/offers/display";
 import { formatDate } from "@/lib/utils";
@@ -88,6 +90,7 @@ export function buildTechnicalSectionChildren(offer: Offer): Paragraph[] {
                   body(
                       `Η μαγνητοσκόπηση και ζωντανή μετάδοση θα καλύπτει έως ${offer.physicalPresenceHours} ώρες συνεδριάσεων κατά τη διάρκεια της σύμβασης.`
                   ),
+                  ...(offerHasPresenceMinimumCharge(offer) ? [body(PRESENCE_MINIMUM_CHARGE_TERM)] : []),
                   bullet("Ήχος + βίντεο, καλύπτοντας όλη τη διάρκεια της συνεδρίασης."),
                   bullet("Αρχείο mp4 διαθέσιμο στο δήμο μέσω της πλατφόρμας ή κατόπιν αιτήματος μέσω email."),
                   bullet(

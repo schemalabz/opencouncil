@@ -1284,6 +1284,9 @@ model Offer {
   
   // Physical presence fields
   physicalPresenceHours Int?  // Number of hours for physical presence
+  // A meeting with physical presence that lasts less than one hour is charged
+  // as one hour. Has an effect only when physicalPresenceHours is above zero.
+  physicalPresenceMinimumCharge Boolean @default(false)
   
   respondToEmail String
   respondToPhone String

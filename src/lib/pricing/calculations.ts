@@ -11,6 +11,7 @@ import {
     getCorrectnessPricing,
     getPhysicalPresencePricing,
     SESSION_PROCESSING,
+    PHYSICAL_PRESENCE_MINIMUM_CHARGE_HOURS,
     PRICING_CONSTANTS,
     CURRENT_OFFER_VERSION
 } from './config';
@@ -110,6 +111,18 @@ export function calculateOfferTotals(offer: OfferPricingInput): OfferTotals {
         correctnessGuaranteeCost,
         paymentPlan
     };
+}
+
+/**
+ * The duration that physical presence at one meeting is charged at. With the
+ * minimum charge, a meeting shorter than the minimum is charged as the minimum.
+ * A meeting without a known duration is not charged.
+ */
+export function chargedPresenceMs(durationMs: number | null, minimumCharge: boolean): number {
+    if (!durationMs) return 0;
+    return minimumCharge
+        ? Math.max(durationMs, PHYSICAL_PRESENCE_MINIMUM_CHARGE_HOURS * 60 * 60 * 1000)
+        : durationMs;
 }
 
 /**

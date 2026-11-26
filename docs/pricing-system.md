@@ -75,6 +75,14 @@ export const PHYSICAL_PRESENCE_PRICING: readonly PhysicalPresencePricingVersion[
 
 An entry applies from its version until the next entry's version. `getPhysicalPresencePricing(offer.version || 1)` returns the entry for an offer. `PHYSICAL_PRESENCE` holds the labels only.
 
+An offer can set `physicalPresenceMinimumCharge`, the one-hour minimum charge. The offer form shows it as a checkbox under the physical presence hours. With it:
+
+- The offer letter, the offer PDF and the procurement documents state the term. The text is `PRESENCE_MINIMUM_CHARGE_TERM` in `src/lib/offers/display.ts`.
+- The report charges physical presence for at least one hour for each meeting that had an operator. `chargedPresenceMs()` in `src/lib/pricing/calculations.ts` applies the rule.
+- The meetings table of the report gets the column "Χρέωση φυσικής παρουσίας" next to the actual duration.
+
+The minimum does not change the offer total, which uses the contracted `physicalPresenceHours`. It does not change the digitization charge, which uses the actual duration. A meeting without a known duration is not charged.
+
 ### 4. Equipment Rental
 
 Customizable monthly pricing for conferencing equipment:
