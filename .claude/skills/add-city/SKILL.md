@@ -68,7 +68,7 @@ The country guide adds its specifics (offices, committees, local titles). For ev
 **Party colours.** Find the logo of each party before you give it a colour. No MCP tool changes a party after `populate_city`. A wrong colour stays until an admin edits it on the site.
 1. Search for each logo in this order: the municipality's group page, the party's website or social media page, then a local news election guide. Search with the party name and the name of its leader. A local guide can show the logos of all groups on one page (Ilioupoli: `ilioupolinews.gr/ekloges23`).
 2. Download each logo. Look at it with the Read tool. Measure its main colours from the pixels of the file, for example with `magick <file> -colors 6 -format %c histogram:info:` (`nix shell nixpkgs#imagemagick`). Do not estimate a hex value by eye.
-3. Use the main colour of the logo. When two parties get colours that a reader cannot easily tell apart, give one of them another colour from its own logo. Report each such choice at the checkpoint.
+3. Use the main colour of the logo. When two parties get colours that a reader cannot easily tell apart, give one of them another colour from its own logo. When neither logo has another usable colour, keep the logo colours and ask the user at the checkpoint which colour to use. Report each such choice at the checkpoint.
 4. Record the logo URL and the colour of each party in `sources.md`.
 5. When you find no logo for a party, do not choose a colour without the user. Tell the user before the checkpoint which parties have no logo and where you searched. Propose a distinct provisional colour for each. Use it only after the user agrees, or use the colour that the user gives.
 
