@@ -18,6 +18,8 @@ import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { monthsBetween, formatCurrency } from '@/lib/utils';
 import { getCorrectnessPricing, getPhysicalPresencePricing } from '@/lib/pricing/config';
+import { chargedPresenceMs } from '@/lib/pricing/calculations';
+import { offerHasPresenceMinimumCharge } from '@/lib/offers/display';
 import { formatTimestamp } from '@/lib/formatters/time';
 
 export interface ReportMeeting {
@@ -50,10 +52,18 @@ function getOfferPhysicalPresenceHours(offer: Offer): number {
     return offer.physicalPresenceHours ?? 0;
 }
 
+/**
+ * The duration physical presence at a meeting is charged at: zero without an
+ * operator, and at least one hour when the offer has the minimum charge.
+ */
+function meetingPresenceChargeMs(meeting: ReportMeeting, minimumCharge: boolean): number {
+    return meeting.operatorName ? chargedPresenceMs(meeting.durationMs, minimumCharge) : 0;
+}
+
 /** Hours of meetings that had an operator present — what physical presence is billed on. */
-function calculateOperatorHours(meetings: ReportMeeting[]): number {
+function calculateOperatorHours(meetings: ReportMeeting[], minimumCharge: boolean): number {
     const operatorMs = meetings.reduce(
-        (sum, m) => sum + (m.operatorName ? (m.durationMs || 0) : 0),
+        (sum, m) => sum + meetingPresenceChargeMs(m, minimumCharge),
         0
     );
     return operatorMs / (1000 * 60 * 60);
@@ -103,6 +113,8 @@ const CONTENT_WIDTH = PAGE_WIDTH - 2 * PAGE_MARGIN;
 // library writes a 100-twip grid and the tables render collapsed there.
 const PRICING_COLUMNS = [2600, 4626, 1800];
 const MEETINGS_COLUMNS = [1500, 3026, 1500, 1200, 1800];
+// With the column that shows the charged duration of physical presence.
+const MEETINGS_COLUMNS_WITH_CHARGE = [1350, 2376, 1350, 1150, 1300, 1500];
 
 function headerCell(text: string, width: number): TableCell {
     return new TableCell({
@@ -184,7 +196,8 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     }
 
     if (pricing.physicalPresenceCost > 0) {
-        addRow('Φυσική παρουσία', `${formatCurrency(getPhysicalPresencePricing(offer.version || 1).pricePerHour)}/ώρα × ${roundToOneDecimal(operatorHours)} ώρες με χειριστή`, pricing.physicalPresenceCost);
+        const minimumNote = offerHasPresenceMinimumCharge(offer) ? ' (ελάχιστη χρέωση μίας ώρας ανά συνεδρίαση)' : '';
+        addRow('Φυσική παρουσία', `${formatCurrency(getPhysicalPresencePricing(offer.version || 1).pricePerHour)}/ώρα × ${roundToOneDecimal(operatorHours)} ώρες με χειριστή${minimumNote}`, pricing.physicalPresenceCost);
     }
 
     // Subtotal
@@ -240,46 +253,67 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     });
 }
 
-function createMeetingsTable(meetings: ReportMeeting[], totalDurationMs: number): Table {
-    const [idWidth, nameWidth, dateWidth, durationWidth, operatorWidth] = MEETINGS_COLUMNS;
+function durationText(durationMs: number): string {
+    return durationMs > 0 ? formatTimestamp(durationMs / 1000) : '—';
+}
 
-    const headerRow = new TableRow({
+/**
+ * `showPresenceCharge` adds the column with the duration that physical presence
+ * is charged at, next to the actual duration. The report shows the column only
+ * when the offer has the minimum charge: without it the two durations are equal.
+ */
+function createMeetingsTable(meetings: ReportMeeting[], totalDurationMs: number, showPresenceCharge: boolean): Table {
+    const columns = showPresenceCharge ? MEETINGS_COLUMNS_WITH_CHARGE : MEETINGS_COLUMNS;
+    const [idWidth, nameWidth, dateWidth, durationWidth] = columns;
+    const operatorWidth = columns[columns.length - 1];
+    const chargeWidth = columns[4];
+
+    // One row of the table; `charge` goes in only when the column is shown.
+    const row = (
+        makeCell: (text: string, width: number) => TableCell,
+        values: { id: string; name: string; date: string; duration: string; charge: string; operator: string }
+    ) => new TableRow({
         children: [
-            headerCell('ID', idWidth),
-            headerCell('Όνομα', nameWidth),
-            headerCell('Ημερομηνία', dateWidth),
-            headerCell('Διάρκεια', durationWidth),
-            headerCell('Χειριστής', operatorWidth),
+            makeCell(values.id, idWidth),
+            makeCell(values.name, nameWidth),
+            makeCell(values.date, dateWidth),
+            makeCell(values.duration, durationWidth),
+            ...(showPresenceCharge ? [makeCell(values.charge, chargeWidth)] : []),
+            makeCell(values.operator, operatorWidth),
         ],
     });
 
-    const rows = meetings.map((m) => {
-        const durationText = m.durationMs ? formatTimestamp(m.durationMs / 1000) : '—';
-        return new TableRow({
-            children: [
-                cell(m.id, idWidth),
-                cell(m.name, nameWidth),
-                cell(format(new Date(m.dateTime), 'd MMM yyyy', { locale: el }), dateWidth),
-                cell(durationText, durationWidth),
-                cell(m.operatorName || '—', operatorWidth),
-            ],
-        });
+    const headerRow = row(headerCell, {
+        id: 'ID',
+        name: 'Όνομα',
+        date: 'Ημερομηνία',
+        duration: 'Διάρκεια',
+        charge: 'Χρέωση φυσικής παρουσίας',
+        operator: 'Χειριστής',
     });
 
-    const sumRow = new TableRow({
-        children: [
-            headerCell('', idWidth),
-            headerCell(`Σύνολο (${meetings.length} συνεδριάσεις)`, nameWidth),
-            headerCell('', dateWidth),
-            headerCell(totalDurationMs > 0 ? formatTimestamp(totalDurationMs / 1000) : '—', durationWidth),
-            headerCell('', operatorWidth),
-        ],
+    const rows = meetings.map((m) => row(cell, {
+        id: m.id,
+        name: m.name,
+        date: format(new Date(m.dateTime), 'd MMM yyyy', { locale: el }),
+        duration: durationText(m.durationMs || 0),
+        charge: durationText(meetingPresenceChargeMs(m, true)),
+        operator: m.operatorName || '—',
+    }));
+
+    const sumRow = row(headerCell, {
+        id: '',
+        name: `Σύνολο (${meetings.length} συνεδριάσεις)`,
+        date: '',
+        duration: durationText(totalDurationMs),
+        charge: durationText(meetings.reduce((sum, m) => sum + meetingPresenceChargeMs(m, true), 0)),
+        operator: '',
     });
 
     return new Table({
         rows: [headerRow, ...rows, sumRow],
         width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-        columnWidths: MEETINGS_COLUMNS,
+        columnWidths: columns,
         layout: TableLayoutType.FIXED,
         borders: TABLE_BORDERS,
     });
@@ -292,7 +326,8 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
     const totalHours = totalDurationMs / (1000 * 60 * 60);
     const totalHoursRounded = roundToOneDecimal(totalHours);
 
-    const operatorHours = calculateOperatorHours(meetings);
+    const presenceMinimumCharge = offerHasPresenceMinimumCharge(offer);
+    const operatorHours = calculateOperatorHours(meetings, presenceMinimumCharge);
     const pricing = calculateReportPricing(offer, startDate, endDate, totalHours, meetings.length, operatorHours);
 
     const reportDate = format(new Date(), 'd MMMM yyyy', { locale: el });
@@ -375,7 +410,16 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
             spacing: { after: 360 },
             children: [new TextRun({ text: 'Πίνακας Συνεδριάσεων που έχουν καλυφθεί', size: 28, bold: true })],
         }),
-        createMeetingsTable(meetings, totalDurationMs),
+        createMeetingsTable(meetings, totalDurationMs, presenceMinimumCharge),
+        ...(presenceMinimumCharge
+            ? [new Paragraph({
+                spacing: { before: 240 },
+                children: [new TextRun({
+                    text: 'Η στήλη «Χρέωση φυσικής παρουσίας» δείχνει τη διάρκεια με την οποία χρεώνεται η φυσική παρουσία σε κάθε συνεδρίαση με χειριστή. Σύμφωνα με τη σύμβαση, συνεδρίαση που διαρκεί λιγότερο από μία ώρα χρεώνεται ως μία ώρα. Η ψηφιοποίηση χρεώνεται με την πραγματική διάρκεια.',
+                    size: 20,
+                })],
+            })]
+            : []),
     ];
 
     const doc = new Document({

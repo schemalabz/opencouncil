@@ -846,7 +846,9 @@
         "adamDescription": "ΚΗΜΔΗΣ public-procurement identifier (e.g. 24PROC015123456). Setting this marks the offer as formally signed.",
         "extendedUntil": "Extended until",
         "extendedUntilDescription": "The contract stays in effect until this date. Prices and totals do not change.",
-        "extensionAdam": "Extension ΑΔΑΜ"
+        "extensionAdam": "Extension ΑΔΑΜ",
+        "physicalPresenceMinimumCharge": "One-hour minimum charge",
+        "physicalPresenceMinimumChargeDescription": "A meeting with physical presence that lasts less than one hour is charged as one hour. The offer and the contract documents state this term, and the reports apply it."
     },
     "Offer": {
         "title": "Offers",

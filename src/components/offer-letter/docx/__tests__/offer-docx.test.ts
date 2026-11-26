@@ -135,3 +135,25 @@ describe('budget table', () => {
         expect(document).toContain('<w:tblLayout w:type="fixed"/>');
     });
 });
+
+describe('one-hour minimum charge of physical presence', () => {
+    const term = 'Ελάχιστη χρέωση μίας ώρας ανά συνεδρίαση';
+    const withMinimum = { ...offer, physicalPresenceMinimumCharge: true } as Offer;
+
+    it.each(documents.map(([name]) => name))('%s states the term when the offer has it', async name => {
+        const builders: Record<string, (o: Offer) => Document | Promise<Document>> = {
+            'Τεχνική Περιγραφή': o => buildTechnicalDescriptionDoc(o),
+            'Οικονομική Προσφορά': o => buildFinancialOfferDoc(o, params),
+            'Τεχνική Προσφορά': o => buildTechnicalOfferDoc(o, params),
+        };
+
+        expect((await parts(await builders[name](withMinimum))).document).toContain(term);
+        expect((await parts(await builders[name](offer))).document).not.toContain(term);
+    });
+
+    it('does not state the term without physical presence', async () => {
+        const noPresence = { ...withMinimum, physicalPresenceHours: null } as Offer;
+
+        expect((await parts(buildTechnicalDescriptionDoc(noPresence))).document).not.toContain(term);
+    });
+});

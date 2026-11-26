@@ -81,6 +81,17 @@ export function offerHasPhysicalPresence(offer: Offer): boolean {
     return !!(offer.physicalPresenceHours && offer.physicalPresenceHours > 0);
 }
 
+export function offerHasPresenceMinimumCharge(offer: Offer): boolean {
+    return offerHasPhysicalPresence(offer) && offer.physicalPresenceMinimumCharge;
+}
+
+/**
+ * The minimum charge term, as every offer and contract document states it.
+ * "Μία ώρα" is PHYSICAL_PRESENCE_MINIMUM_CHARGE_HOURS in words.
+ */
+export const PRESENCE_MINIMUM_CHARGE_TERM =
+    'Ελάχιστη χρέωση μίας ώρας ανά συνεδρίαση: συνεδρίαση που διαρκεί λιγότερο από μία ώρα χρεώνεται ως μία ώρα.';
+
 // ─── Cost table line items ──────────────────────────────────────────────────
 
 export type OfferCostLine = {

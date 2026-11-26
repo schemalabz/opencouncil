@@ -24,6 +24,8 @@ import {
     offerGrammar,
     offerHasEquipment,
     offerHasPhysicalPresence,
+    offerHasPresenceMinimumCharge,
+    PRESENCE_MINIMUM_CHARGE_TERM,
     getOfferCostBreakdown,
 } from "@/lib/offers/display";
 import type { Offer } from "@prisma/client";
@@ -165,6 +167,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                     icon={<Clock className="w-5 h-5" />}
                                     title="Φυσική παρουσία σε συνεδριάσεις"
                                     description="Εξειδικευμένο προσωπικό για τεχνική υποστήριξη του εξοπλισμού καταγραφής κατά τις συνεδριάσεις."
+                                    term={offerHasPresenceMinimumCharge(offer) ? PRESENCE_MINIMUM_CHARGE_TERM : undefined}
                                 />
                             )}
                         </div>
@@ -533,10 +536,13 @@ function ExtraCard({
     icon,
     title,
     description,
+    term,
 }: {
     icon: React.ReactNode;
     title: string;
     description: string;
+    /** A billing term of the service, shown under the description. */
+    term?: string;
 }) {
     return (
         <div className="rounded-xl border border-neutral-200 bg-white p-5 flex gap-4">
@@ -544,6 +550,7 @@ function ExtraCard({
             <div>
                 <h4 className="font-semibold text-neutral-900">{title}</h4>
                 <p className="text-sm text-neutral-600 mt-1">{description}</p>
+                {term && <p className="text-sm text-neutral-900 mt-2">{term}</p>}
             </div>
         </div>
     );

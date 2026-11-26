@@ -34,6 +34,7 @@ import {
     SESSION_PROCESSING,
 } from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { offerFormSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
 import { effectiveEndDate } from '@/lib/offers/state'
@@ -104,6 +105,7 @@ const EMPTY_OFFER_DEFAULTS = {
     equipmentRentalDescription: "",
     includePhysicalPresence: false,
     physicalPresenceHours: 0,
+    physicalPresenceMinimumCharge: false,
     agreed: false,
     adam: "",
     extendedUntil: "",
@@ -195,6 +197,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             equipmentRentalDescription: source?.equipmentRentalDescription || "",
             includePhysicalPresence: !!(source?.physicalPresenceHours && source.physicalPresenceHours > 0),
             physicalPresenceHours: source?.physicalPresenceHours || 0,
+            physicalPresenceMinimumCharge: source?.physicalPresenceMinimumCharge ?? false,
             agreed: offer?.agreed || false,
             adam: offer?.adam || "",
             extendedUntil: offer?.extendedUntil ? dayInputValue(offer.extendedUntil) : "",
@@ -253,6 +256,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     async function onSubmit(values: z.output<typeof offerFormSchema>) {
         setIsSubmitting(true)
         try {
+            const presenceHours = values.includePhysicalPresence ? values.physicalPresenceHours || null : null;
             const commonData = {
                 recipientName: values.recipientName,
                 platformPrice: values.platformPrice,
@@ -270,7 +274,9 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                 equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
                 equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
                 equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
-                physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
+                physicalPresenceHours: presenceHours,
+                // The minimum charge is a term of physical presence only.
+                physicalPresenceMinimumCharge: presenceHours !== null && values.physicalPresenceMinimumCharge,
             };
 
             if (offer) {
@@ -699,6 +705,30 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                                             Number of hours for personnel to be physically present at meetings ({formatCurrency(getPhysicalPresencePricing(offerVersion).pricePerHour)}/hour)
                                         </FormDescription>
                                         <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="physicalPresenceMinimumCharge"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-lg border p-4">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={checked => field.onChange(checked === true)}
+                                                className="mt-0.5"
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1">
+                                            <FormLabel className="cursor-pointer">
+                                                {t('physicalPresenceMinimumCharge')}
+                                            </FormLabel>
+                                            <FormDescription>
+                                                {t('physicalPresenceMinimumChargeDescription')}
+                                            </FormDescription>
+                                        </div>
                                     </FormItem>
                                 )}
                             />

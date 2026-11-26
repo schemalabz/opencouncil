@@ -130,6 +130,10 @@ async function main() {
             row.equipmentRentalDescription
           ),
           physicalPresenceHours: toIntOrNull(row.physicalPresenceHours),
+          physicalPresenceMinimumCharge:
+            row.physicalPresenceMinimumCharge !== undefined
+              ? toBool(row.physicalPresenceMinimumCharge)
+              : false,
           respondToEmail: row.respondToEmail,
           respondToPhone: row.respondToPhone,
           respondToName: row.respondToName,

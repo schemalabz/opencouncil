@@ -17,6 +17,8 @@ import {
     offerGrammar,
     offerHasEquipment,
     offerHasPhysicalPresence,
+    offerHasPresenceMinimumCharge,
+    PRESENCE_MINIMUM_CHARGE_TERM,
     getOfferCostBreakdown,
 } from "@/lib/offers/display";
 import { ASSET_BASE, BrandLockup, C, greekUpper, LucideIcon, QRCode } from "@/components/pdf/shared";
@@ -463,6 +465,11 @@ export function OfferPdfDocument({
                                         Εξειδικευμένο προσωπικό για τεχνική υποστήριξη της
                                         καταγραφής κατά τη διάρκεια των συνεδριάσεων.
                                     </Text>
+                                    {offerHasPresenceMinimumCharge(offer) && (
+                                        <Text style={{ ...T.small, color: C.ink, marginTop: 2 }}>
+                                            {PRESENCE_MINIMUM_CHARGE_TERM}
+                                        </Text>
+                                    )}
                                 </View>
                             </View>
                         )}

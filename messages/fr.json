@@ -948,6 +948,8 @@
     "extendedUntil": "Prolongée jusqu'au",
     "extendedUntilDescription": "Le contrat reste en vigueur jusqu'à cette date. Les prix et les totaux ne changent pas.",
     "extensionAdam": "ΑΔΑΜ de la prolongation",
+    "physicalPresenceMinimumCharge": "Facturation minimale d'une heure",
+    "physicalPresenceMinimumChargeDescription": "Une séance avec présence physique qui dure moins d'une heure est facturée une heure. L'offre et les documents du contrat indiquent cette clause, et les rapports l'appliquent.",
     "agreed": "Acceptée",
     "agreedDescription": "L'offre a été acceptée (officiellement ou non). Une fois cochée, l'offre compte comme un contrat signé.",
     "hoursToGuarantee": "Heures avec garantie d’exactitude",

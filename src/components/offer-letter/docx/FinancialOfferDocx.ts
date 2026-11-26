@@ -13,7 +13,12 @@ import { PageBreak, Packer, Paragraph, TextRun } from "docx";
 import type { Document } from "docx";
 import type { Offer } from "@prisma/client";
 import { downloadBlob } from "@/lib/utils/download";
-import { getOfferProcurementLines, type ProcurementLine } from "@/lib/offers/display";
+import {
+    getOfferProcurementLines,
+    offerHasPresenceMinimumCharge,
+    PRESENCE_MINIMUM_CHARGE_TERM,
+    type ProcurementLine,
+} from "@/lib/offers/display";
 import { calculateOfferTotals } from "@/lib/pricing";
 import { euroAmountInWords } from "@/lib/formatters/currencyWords";
 import {
@@ -82,6 +87,20 @@ export async function buildFinancialOfferDoc(
             totalSentence,
             new Paragraph({ style: STYLE.NORMAL, children: [new PageBreak()] }),
             table,
+            ...(offerHasPresenceMinimumCharge(offer)
+                ? [
+                      new Paragraph({
+                          style: STYLE.NORMAL,
+                          spacing: { before: 240 },
+                          children: [
+                              new TextRun({
+                                  text: `${FINANCIAL_LABELS.presence}: ${PRESENCE_MINIMUM_CHARGE_TERM}`,
+                                  size: SIZE.BODY,
+                              }),
+                          ],
+                      }),
+                  ]
+                : []),
             ...buildSignature(),
         ],
     });

@@ -111,6 +111,13 @@ export const PHYSICAL_PRESENCE_PRICING: readonly PhysicalPresencePricingVersion[
 ] as const;
 
 /**
+ * The optional minimum charge of physical presence, per meeting. It applies to
+ * an offer that sets `physicalPresenceMinimumCharge`. The offer documents state
+ * this number in words: see PRESENCE_MINIMUM_CHARGE_TERM in `@/lib/offers/display`.
+ */
+export const PHYSICAL_PRESENCE_MINIMUM_CHARGE_HOURS = 1 as const;
+
+/**
  * Correctness guarantee pricing by offer version.
  * An entry applies from its version until the next entry's version.
  */
