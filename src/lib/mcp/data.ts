@@ -75,9 +75,12 @@ const urls = {
     person: (cityId: string, personId: string) => `${cityBaseUrl(cityId)}/${cityId}/people/${personId}`,
     party: (cityId: string, partyId: string) => `${cityBaseUrl(cityId)}/${cityId}/parties/${partyId}`,
     highlights: (cityId: string, meetingId: string) => `${cityBaseUrl(cityId)}/${cityId}/${meetingId}/highlights`,
-    /** Deep-link to the moment something was said — the site's player seeks to ?t=. */
+    /**
+     * Deep-link to the moment something was said. Only the transcript page
+     * scrolls to the utterance at ?t=; the meeting page shows its overview.
+     */
     moment: (cityId: string, meetingId: string, seconds: number) =>
-        `${cityBaseUrl(cityId)}/${cityId}/${meetingId}?t=${Math.floor(seconds)}`,
+        `${cityBaseUrl(cityId)}/${cityId}/${meetingId}/transcript?t=${Math.floor(seconds)}`,
 };
 
 /** Turn contribution markdown ("[text](REF:UTTERANCE:id)") into plain text. */
