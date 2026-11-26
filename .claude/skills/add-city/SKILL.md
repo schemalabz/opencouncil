@@ -65,12 +65,7 @@ The country guide adds its specifics (offices, committees, local titles). For ev
 7. **Model fit**: when a function, a body or a kind of sitting does not fit our people, parties, bodies, roles or meetings, do not force it into the nearest field. Record the mismatch in the country guide's «Model fit» section with the handling you propose, and raise it at the checkpoint.
 
 ### 5. Payload
-**Party colours.** Find the logo of each party before you give it a colour. No MCP tool changes a party after `populate_city`. A wrong colour stays until an admin edits it on the site.
-1. Search for each logo in this order: the municipality's group page, the party's website or social media page, then a local news election guide. Search with the party name and the name of its leader. A local guide can show the logos of all groups on one page (Ilioupoli: `ilioupolinews.gr/ekloges23`).
-2. Download each logo. Look at it with the Read tool. Measure its main colours from the pixels of the file, for example with `magick <file> -colors 6 -format %c histogram:info:` (`nix shell nixpkgs#imagemagick`). Do not estimate a hex value by eye.
-3. Every pair of party colours must be distinct. Measure each pair with CIEDE2000, for example with `differenceCiede2000` of the `culori` npm package. Each pair must have a distance of 20 or more. Start with the main colour of each logo. When a pair is closer, look at all the logo colours of all the parties together. Choose the set that has the largest smallest distance, and keep as many main colours as that set allows. Ilioupoli needed this: three logos were orange or red, and the mayor's party took the gold of its own logo. When no set of logo colours reaches 20, propose a provisional colour for the fewest parties, and ask the user. Report each colour that is not the main colour of its logo at the checkpoint.
-4. Record the logo URL and the colour of each party in `sources.md`.
-5. When you find no logo for a party, do not choose a colour without the user. Tell the user before the checkpoint which parties have no logo and where you searched. Propose a distinct provisional colour for each. Use it only after the user agrees, or use the colour that the user gives.
+**Party colours.** No MCP tool changes a party after `populate_city`. Find the logo of each party first: on the municipality's group page, the party's website or social media page, or a local election guide. Measure the colours from the logo file, not by eye. Every pair of colours must have a CIEDE2000 distance of 20 or more. When a pair is closer, use other colours from the logos. When a party has no logo, or no set of logo colours passes, tell the user before the checkpoint. Use a provisional colour only after the user agrees.
 
 **Greece**: write `roster.json`, then build `<dir>/payload.json` from it:
 ```
@@ -92,7 +87,7 @@ Prepare the boundary checks in step 6b before this checkpoint when a source is a
 1. Target environment, realm and city (and the `create_city` arguments when the city is new), the council's language and what decided it (step 2b), and the leftovers or wrong city fields that an admin must fix first (step 1). Include realm readiness: advertised domain, routing, sign-in redirects and topics (the count from `list_realms`), each confirmed, missing or unverified. When the realm has no topics, add the proposed topic list (name, `name_en`, colour, icon, description) for approval.
 2. The summary that `payload.ts` prints (each body with its channel and decision units; council order with parties and officers; committees; city roles; party leaders).
 3. Sources: one line per role group with its source.
-4. Defaults: a party-colour table (party, `colorHex`, and the logo URL, or **provisional** with the places that you searched and the user's agreement), and the smallest CIEDE2000 distance of the set; English names, independents, missing leaders, replacements found, role-date choices, spelling choices. Photos and logos: their source, and whether the municipality's terms allow us to copy and show them (the same check as the logo in step 6b); without that, pass null.
+4. Defaults: a party-colour table (party, `colorHex`, and the logo URL, or **provisional** with the user's agreement); English names, independents, missing leaders, replacements found, role-date choices, spelling choices. Photos and logos: their source, and whether the municipality's terms allow us to copy and show them (the same check as the logo in step 6b); without that, pass null.
 5. Model fit: each mismatch of step 4.7 with its proposed handling.
 6. Doubts: anything unexplained.
 7. Meetings found in step 5b, with the kind, urgency and session number each invitation prints, and the invitation's source.
@@ -140,6 +135,5 @@ Report whether the city remains `pending` or was published as a `demo`; a demo i
 - Never set a city's language without the evidence of step 2b, and never start transcription for a council whose language is not supported or not decided.
 - Never start transcription for a city whose country guide names a data protection decision as open (Germany: residents' speech and voice identification), until the user has decided it.
 - Never invent a role or a replacement you cannot cite; leave it out and say so.
-- Never give a party a colour that no logo supports without telling the user first.
 - Never import two party colours with a CIEDE2000 distance below 20.
 - Never keep personal data the import does not use (birth dates, occupations from official registers).
