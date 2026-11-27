@@ -173,7 +173,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.12",
+    "@testing-library/user-event": "^14.6.13",
     "@types/canvas-confetti": "^1.9.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.19.2",
@@ -197,7 +197,7 @@
     "prisma": "^5.22.0",
     "proj4": "^2.23.0",
     "tailwindcss": "^3.4.1",
-    "testcontainers": "^12.2.1",
+    "testcontainers": "^12.2.2",
     "ts-jest": "^29.4.15",
     "typescript": "^5"
   }
