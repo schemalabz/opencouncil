@@ -222,7 +222,7 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
     const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
     const borderColor = party?.colorHex || UNKNOWN_SPEAKER_COLOR;
     const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
-    const unverified = speakerTag ? speakerIsUnverified(speakerTag, Boolean(taskStatus.humanReview)) : false;
+    const unverified = speakerTag ? speakerIsUnverified(speakerTag, Boolean(taskStatus.reviewedByPerson)) : false;
     const headerData = { speakerTag, person, party, borderColor, segmentCount };
 
     // Hovering the speaker's header lights all their turns on the playback bar.

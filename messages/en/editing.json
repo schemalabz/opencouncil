@@ -22,16 +22,18 @@
   },
   "speakerHints": {
     "status": {
-      "agree": "Both methods agree",
-      "disagree": "The two methods disagree",
+      "agree": "The methods agree",
+      "disagree": "The methods disagree",
       "voiceprintOnly": "Found by voice recognition only",
-      "transcriptOnly": "Found from the discussion only"
+      "transcriptOnly": "Found from the discussion only",
+      "minutesOnly": "Found from the municipal minutes only"
     },
     "allPeople": "All people",
     "voiceprint": "Voice recognition",
     "transcript": "Discussion text",
-    "both": "Voice recognition and discussion text",
-    "disagree": "Voice recognition and the discussion text point to different people. Pick the right one.",
+    "minutes": "Municipal minutes",
+    "both": "More than one method",
+    "disagree": "The methods point to different people. Pick the right one.",
     "needsReview": "Methods disagree"
   },
   "guide": {

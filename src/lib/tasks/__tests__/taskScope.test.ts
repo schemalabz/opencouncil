@@ -6,7 +6,7 @@ describe('taskScope', () => {
     const superadminTypes = Object.entries(TASK_CONFIG).filter(([, config]) => config.scope === 'superadmin').map(([type]) => type);
 
     it('gives the meeting scope to the tasks that a body admin runs, and no other', () => {
-        expect(meetingTypes.sort()).toEqual(['fixTranscript', 'generateHighlight', 'processAgenda', 'summarize', 'transcribe']);
+        expect(meetingTypes.sort()).toEqual(['fixFromMinutes', 'fixTranscript', 'generateHighlight', 'processAgenda', 'summarize', 'transcribe']);
         expect(cityTypes.sort()).toEqual(['humanReview', 'pollDecisions']);
         expect(superadminTypes).toEqual(['generateVoiceprint']);
     });

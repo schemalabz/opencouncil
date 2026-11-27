@@ -1,5 +1,5 @@
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { utterance: { findMany: jest.fn(), findFirst: jest.fn() }, subject: { findMany: jest.fn().mockResolvedValue([]) } } }));
-jest.mock('@/lib/db/sharing/publicContent', () => ({ getPublicMeeting: jest.fn(), transcriptIsPublic: jest.fn() }));
+jest.mock('@/lib/db/sharing/publicContent', () => ({ ...jest.requireActual('@/lib/db/sharing/publicContent'), getPublicMeeting: jest.fn(), transcriptIsPublic: jest.fn() }));
 import prisma from '@/lib/db/prisma';
 import { getPublicMeeting, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 import { getPublicExcerpt } from '../excerpts';
@@ -14,7 +14,7 @@ const unassigned = { ...source, discussionStatus: 'OTHER', discussionSubject: nu
 describe('bounded public excerpt reconstruction', () => {
     beforeEach(async () => {
         jest.clearAllMocks();
-        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', cityId: 'city', taskStatuses: [{ id: 'review' }] });
+        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', cityId: 'city', taskStatuses: [{ id: 'review' }], _count: { taskStatuses: 1 } });
         (transcriptIsPublic as jest.Mock).mockReturnValue(true);
         (prisma.subject.findMany as jest.Mock).mockResolvedValue([]);
         query.mockResolvedValue([source]);
@@ -71,18 +71,32 @@ describe('bounded public excerpt reconstruction', () => {
         expect(result.excerpt.subject).toBeNull();
     });
     it('updates the review notice without changing the quote or invalidating its digest', async () => {
-        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', taskStatuses: [] });
+        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', taskStatuses: [], _count: { taskStatuses: 0 } });
         const unreviewed = await getPublicExcerpt(selector, 'greece');
         expect(unreviewed.status).toBe('ok');
         if (unreviewed.status !== 'ok') throw new Error('Expected publicly eligible excerpt');
         expect(unreviewed.excerpt.isReviewed).toBe(false);
-        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', taskStatuses: [{ id: 'review' }] });
+        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', taskStatuses: [{ id: 'review' }], _count: { taskStatuses: 1 } });
         const reviewed = await getPublicExcerpt(selector, 'greece');
         expect(reviewed.status).toBe('ok');
         if (reviewed.status !== 'ok') throw new Error('Expected reviewed excerpt');
         expect(reviewed.excerpt.isReviewed).toBe(true);
         expect(reviewed.excerpt.selector).toEqual(unreviewed.excerpt.selector);
         expect(reviewed.excerpt.runs).toEqual(unreviewed.excerpt.runs);
+    });
+    it('keeps a name unverified after the correction from the minutes, until a person reviews', async () => {
+        const named = { ...source, speakerSegment: { ...source.speakerSegment, speakerTag: { ...source.speakerSegment.speakerTag, personSetBy: 'minutes' } } };
+        query.mockResolvedValue([named]);
+        // The stand-in row makes the transcript reviewed; the count holds the reviews of a person only.
+        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', cityId: 'city', taskStatuses: [{ id: 'minutes-run' }], _count: { taskStatuses: 0 } });
+        const corrected = await getPublicExcerpt(selector, 'greece');
+        if (corrected.status !== 'ok') throw new Error('Expected public excerpt');
+        expect(corrected.excerpt.isReviewed).toBe(true);
+        expect(corrected.excerpt.runs[0].speakerUnverified).toBe(true);
+        (getPublicMeeting as jest.Mock).mockResolvedValue({ id: 'meeting', cityId: 'city', taskStatuses: [{ id: 'review' }], _count: { taskStatuses: 1 } });
+        const reviewed = await getPublicExcerpt(selector, 'greece');
+        if (reviewed.status !== 'ok') throw new Error('Expected public excerpt');
+        expect(reviewed.excerpt.runs[0].speakerUnverified).toBe(false);
     });
     it('applies the exact display filter to the text and subject queries', async () => {
         query.mockResolvedValue([unassigned]);

@@ -35,6 +35,9 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
  * - agenda: processAgenda reads a PDF or a .docx (documentConversion in
  *   opencouncil-tasks). It refuses a legacy .doc: convert one to PDF first.
  * - decision: the decision reading reads a PDF.
+ * - municipalMinutes: fixFromMinutes reads a PDF or a .docx, as processAgenda
+ *   does (#876). The file is private: a municipality can give us minutes that
+ *   it does not publish. The task server gets a signed URL to read it.
  * - recording: video in MP4, QuickTime or Matroska, or audio in MP3, WAV,
  *   M4A or AAC. The task server turns every source into an mp4 and an mp3
  *   (downloadYTV in opencouncil-tasks), and it has transcribed each of these.
@@ -45,8 +48,9 @@ export type UploadFormat = keyof typeof UPLOAD_FORMATS;
 export const UPLOAD_KINDS = {
     agenda: { formats: ['pdf', 'docx'], maxBytes: 20 * MiB },
     decision: { formats: ['pdf'], maxBytes: 20 * MiB },
+    municipalMinutes: { formats: ['pdf', 'docx'], maxBytes: 20 * MiB, private: true },
     recording: { formats: ['mp4', 'mov', 'mkv', 'mp3', 'wav', 'm4a', 'aac'], maxBytes: 40 * GiB },
-} as const satisfies Record<string, { formats: readonly UploadFormat[]; maxBytes: number }>;
+} as const satisfies Record<string, { formats: readonly UploadFormat[]; maxBytes: number; private?: true }>;
 export type UploadKind = keyof typeof UPLOAD_KINDS;
 
 /** The names of the kinds and formats, as the non-empty tuples a zod enum takes. */
@@ -72,7 +76,7 @@ export type UploadConfig = z.output<typeof uploadConfigSchema>;
 /** How a client sends a file to the bucket: startUpload in lib/uploads makes it. */
 export interface UploadPlan {
     key: string
-    /** Where the file is, once uploaded. */
+    /** Where the file is, once uploaded. The file of a private kind is not readable there without a signature. */
     publicUrl: string
     method: 'PUT'
     /** The headers that every PUT must send, exactly as given. */
@@ -94,6 +98,10 @@ export interface UploadPlan {
  * caller sent: an admin of one body must not get a key that names a meeting
  * of another body. A file for a meeting that does not exist yet carries the
  * id of its body, so two bodies never share a name for the same date.
+ *
+ * The name is for a person who reads the bucket. It does not prove which
+ * meeting owns a file: the key of a private file also carries a digest of
+ * the exact ids (startUpload and isMeetingUpload in lib/uploads).
  */
 export function uploadNameParts(config: UploadConfig): string[] {
     return [

@@ -11,7 +11,7 @@ import prisma from "./prisma";
 import { SUPERADMIN_TASK_TYPES, TASK_CONFIG } from '@/lib/tasks/types';
 import { MEDIA_FAILURE_RESPONSE_PREFIX } from '@/lib/tasks/taskResponse';
 import { readMediaFailureResponse } from '@/lib/tasks/mediaMetadata';
-import type { MediaFailure, ProcessAgendaResult, Subject } from '@/lib/apiTypes';
+import type { FixFromMinutesReport, FixFromMinutesResult, MediaFailure, ProcessAgendaResult, Subject } from '@/lib/apiTypes';
 
 /** The meeting a task belongs to, as named by the callback route's path. */
 export type TaskStatusScope = Pick<TaskStatus, 'cityId' | 'councilMeetingId'>;
@@ -207,4 +207,19 @@ export async function recordAgendaTextTask(cityId: string, councilMeetingId: str
             councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
         },
     });
+}
+
+/**
+ * The report of a fixFromMinutes run, from its stored result: what the
+ * minutes changed and where they disagree with the other methods. Null for
+ * another task, a run without a result, or a payload that is not JSON.
+ */
+export async function getFixFromMinutesReport(taskId: string): Promise<FixFromMinutesReport | null> {
+    const task = await prisma.taskStatus.findUnique({ where: { id: taskId }, select: { type: true, responseBody: true } });
+    if (task?.type !== 'fixFromMinutes' || !task.responseBody) return null;
+    try {
+        return (JSON.parse(task.responseBody) as Partial<FixFromMinutesResult>).report ?? null;
+    } catch {
+        return null;
+    }
 }

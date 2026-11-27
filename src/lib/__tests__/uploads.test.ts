@@ -4,6 +4,7 @@
 jest.mock('@/env.mjs', () => ({ env: { DO_SPACES_BUCKET: 'bucket', NEXTAUTH_SECRET: 'test-secret' } }));
 jest.mock('@/lib/s3', () => ({
     objectKey: jest.requireActual('@/lib/s3').objectKey,
+    objectKeyPrefix: jest.requireActual('@/lib/s3').objectKeyPrefix,
     constructPublicUrl: (bucket: string, key: string) => `https://${bucket}.test/${key}`,
     presignPut: jest.fn(async () => 'https://bucket.test/put'),
     presignPart: jest.fn(async (_key: string, _id: string, n: number) => `https://bucket.test/part-${n}`),
@@ -15,7 +16,8 @@ jest.mock('@/lib/s3', () => ({
 
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { completeMultipartUpload, listUploadedParts, objectSize, presignPart, presignPut, startMultipartUpload } from '@/lib/s3';
-import { completeUpload, partsProblem, startUpload, UPLOAD_PART_BYTES } from '../uploads';
+import { completeUpload, isMeetingUpload, partsProblem, startUpload, UPLOAD_PART_BYTES } from '../uploads';
+import { UPLOAD_FORMATS } from '@/types/upload';
 
 const PART = UPLOAD_PART_BYTES;
 const RECORDING = { cityId: 'krakow', kind: 'recording' as const, identifier: '2026-10-22' };
@@ -32,7 +34,7 @@ describe('startUpload', () => {
         const plan = await startUpload({ cityId: 'argos', kind: 'agenda', identifier: '2026-10-15' }, 'pdf', 300_000);
 
         expect(plan.key).toMatch(/^uploads\/argos_2026-10-15_agenda_[0-9a-f]{8}\.pdf$/);
-        expect(presignPut).toHaveBeenCalledWith(plan.key, 'application/pdf', 300_000, 300);
+        expect(presignPut).toHaveBeenCalledWith(plan.key, 'application/pdf', 300_000, 300, { publicRead: true });
         expect(startMultipartUpload).not.toHaveBeenCalled();
         expect(plan).toMatchObject({
             publicUrl: `https://bucket.test/${plan.key}`,
@@ -49,20 +51,36 @@ describe('startUpload', () => {
         const plan = await startUpload(RECORDING, 'mp3', 60000);
         expect(plan.key).toMatch(/\.mp3$/);
         expect(plan.headers['Content-Type']).toBe('audio/mpeg');
-        expect(presignPut).toHaveBeenCalledWith(plan.key, 'audio/mpeg', 60000, 300);
+        expect(presignPut).toHaveBeenCalledWith(plan.key, 'audio/mpeg', 60000, 300, { publicRead: true });
         expect(plan.completion).toBeNull();
     });
 
     it('keeps the MP3 content type for multipart recordings', async () => {
         const plan = await startUpload(RECORDING, 'mp3', PART + 1);
-        expect(startMultipartUpload).toHaveBeenCalledWith(plan.key, 'audio/mpeg');
+        expect(startMultipartUpload).toHaveBeenCalledWith(plan.key, 'audio/mpeg', { publicRead: true });
         expect(plan.parts).toHaveLength(2);
+    });
+
+    it('keeps the minutes private: no public ACL in the headers or the signature', async () => {
+        const plan = await startUpload({ cityId: 'argos', kind: 'municipalMinutes', councilMeetingId: 'oct15_2026' }, 'docx', 300_000);
+
+        expect(plan.key).toMatch(/^uploads\/argos_oct15_2026_municipalMinutes_[0-9a-f]{32}_[0-9a-f]{8}\.docx$/);
+        expect(presignPut).toHaveBeenCalledWith(plan.key, UPLOAD_FORMATS.docx.contentType, 300_000, 300, { publicRead: false });
+        expect(plan.headers).toEqual({ 'Content-Type': UPLOAD_FORMATS.docx.contentType });
+    });
+
+    it('refuses minutes with no meeting: no meeting could read the file', async () => {
+        await expect(startUpload({ cityId: 'argos', kind: 'municipalMinutes', identifier: '2026-10-15' }, 'docx', 300_000))
+            .rejects.toThrow(/needs the id of its meeting/);
+        await expect(startUpload({ cityId: 'argos', kind: 'municipalMinutes', identifier: '2026-10-15', administrativeBodyId: 'body-1' }, 'pdf', 300_000))
+            .rejects.toThrow(BadRequestError);
+        expect(presignPut).not.toHaveBeenCalled();
     });
 
     it('opens a multipart upload with one URL per part for a bigger file', async () => {
         const plan = await startUpload(RECORDING, 'mp4', 12_300_000_000);
 
-        expect(startMultipartUpload).toHaveBeenCalledWith(plan.key, 'video/mp4');
+        expect(startMultipartUpload).toHaveBeenCalledWith(plan.key, 'video/mp4', { publicRead: true });
         expect(plan.key).toMatch(/^uploads\/krakow_2026-10-22_recording_[0-9a-f]{8}\.mp4$/);
         expect(plan.parts.map(p => p.partNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         expect(plan.parts[11].uploadUrl).toBe('https://bucket.test/part-12');
@@ -91,6 +109,47 @@ describe('startUpload', () => {
         await expect(startUpload(RECORDING, 'mp4', 1.5)).rejects.toThrow(BadRequestError);
         expect(presignPut).not.toHaveBeenCalled();
         expect(startMultipartUpload).not.toHaveBeenCalled();
+    });
+});
+
+describe('isMeetingUpload', () => {
+    const MEETING = { cityId: 'chania', id: 'nov5_2026' };
+    const keyOf = (config: Parameters<typeof startUpload>[0]) => startUpload(config, 'pdf', 1000).then(plan => plan.key);
+    const kind = 'municipalMinutes' as const;
+
+    it('takes the minutes uploaded for the meeting', async () => {
+        expect(isMeetingUpload(await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026', administrativeBodyId: 'body-1', kind }), MEETING, kind)).toBe(true);
+        expect(isMeetingUpload(await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026', identifier: 'other', kind }), MEETING, kind)).toBe(true);
+    });
+
+    it('refuses the minutes of another meeting, of another city or of another kind', async () => {
+        expect(isMeetingUpload(await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026_2', kind }), MEETING, kind)).toBe(false);
+        expect(isMeetingUpload(await keyOf({ cityId: 'athens', councilMeetingId: 'nov5_2026', kind }), MEETING, kind)).toBe(false);
+        expect(isMeetingUpload(await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026', kind: 'agenda' }), MEETING, kind)).toBe(false);
+        expect(isMeetingUpload(await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026', kind: 'agenda' }), MEETING, 'agenda')).toBe(false);
+    });
+
+    it('refuses the minutes of a meeting whose id only reads the same in a key', async () => {
+        // A key part keeps letters, digits, `_` and `-`, so these ids give one readable name.
+        const dotted = await keyOf({ cityId: 'chania', councilMeetingId: 'm.a', kind });
+        const dashed = await keyOf({ cityId: 'chania', councilMeetingId: 'm-a', kind });
+        expect(dotted).toMatch(/^uploads\/chania_m-a_municipalMinutes_/);
+        expect(dashed).toMatch(/^uploads\/chania_m-a_municipalMinutes_/);
+
+        expect(isMeetingUpload(dotted, { cityId: 'chania', id: 'm.a' }, kind)).toBe(true);
+        expect(isMeetingUpload(dotted, { cityId: 'chania', id: 'm-a' }, kind)).toBe(false);
+        expect(isMeetingUpload(dashed, { cityId: 'chania', id: 'm.a' }, kind)).toBe(false);
+    });
+
+    it('refuses the minutes of a meeting whose id continues the name of this one', async () => {
+        const longer = await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026_municipalMinutes_x', kind });
+        expect(isMeetingUpload(longer, MEETING, kind)).toBe(false);
+    });
+
+    it('refuses a key that carries no digest of the meeting, or more than the random part after it', async () => {
+        expect(isMeetingUpload('uploads/chania_nov5_2026_municipalMinutes_0a1b2c3d.pdf', MEETING, kind)).toBe(false);
+        const key = await keyOf({ cityId: 'chania', councilMeetingId: 'nov5_2026', kind });
+        expect(isMeetingUpload(key.replace(/_([0-9a-f]{8})\.pdf$/, '_extra_$1.pdf'), MEETING, kind)).toBe(false);
     });
 });
 

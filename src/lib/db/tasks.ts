@@ -2,13 +2,21 @@
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
-import { CORE_PROCESSING_TASKS, MeetingTaskType, SUPERADMIN_TASK_TYPES, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
+import { CORE_PROCESSING_TASKS, MeetingTaskType, SUPERADMIN_TASK_TYPES, TASK_CONFIG, taskScope, taskTypesSatisfying } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
 import { findVoiceprintTasks } from "./voiceprintTasks";
 
 // Derived type for meeting task completion status
 export type MeetingTaskStatus = {
     [K in MeetingTaskType]: boolean;
+} & {
+    /**
+     * A person completed the human review. `humanReview` also reads true when
+     * a stand-in succeeded (fixFromMinutes), and a stand-in confirms no
+     * speaker name. Read this field to decide whether the names are verified
+     * (issue #982).
+     */
+    reviewedByPerson: boolean;
 };
 
 export async function getActiveTasks(): Promise<TaskStatus[]> {
@@ -156,12 +164,14 @@ export async function getMeetingTaskStatus(cityId: string, meetingId: string): P
     // so it must not call headers() (auth). Returns only which processing tasks
     // have completed (booleans) — no sensitive data — and drives public meeting
     // status. Do not add an auth gate here.
-    // Single optimized query to get all succeeded tasks for this meeting
+    // Single optimized query to get all succeeded tasks for this meeting.
+    // A task that stands in for a required step counts for it (see
+    // TaskConfig.standsInFor), so the query reads those rows too.
     const succeededTasks = await prisma.taskStatus.findMany({
         where: {
             cityId,
             councilMeetingId: meetingId,
-            type: { in: CORE_PROCESSING_TASKS },
+            type: { in: [...new Set(CORE_PROCESSING_TASKS.flatMap(taskTypesSatisfying))] },
             status: 'succeeded'
         },
         select: {
@@ -177,12 +187,14 @@ export async function getMeetingTaskStatus(cityId: string, meetingId: string): P
     // Create a set of completed task types for O(1) lookup
     const completedTaskTypes = new Set(succeededTasks.map(task => task.type));
 
-    // Initialize all task types as false, then set completed ones to true
+    // Initialize all task types as false, then set completed ones to true. A
+    // required step reads as done when the step itself or a stand-in succeeded.
     const taskStatus: MeetingTaskStatus = {} as MeetingTaskStatus;
     
     for (const taskType of Object.keys(TASK_CONFIG) as MeetingTaskType[]) {
-        taskStatus[taskType] = completedTaskTypes.has(taskType);
+        taskStatus[taskType] = taskTypesSatisfying(taskType).some(type => completedTaskTypes.has(type));
     }
+    taskStatus.reviewedByPerson = completedTaskTypes.has('humanReview');
 
     return taskStatus;
 }

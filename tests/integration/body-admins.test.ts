@@ -146,6 +146,20 @@ describe('body admins', () => {
             expect((await response.json() as { id: string }[]).map(meeting => meeting.id).sort()).toEqual(['ours', 'public'])
         })
 
+        it('gives the municipal minutes of their own meetings only (#876)', async () => {
+            const otherBody = await createAdministrativeBody(CITY, { name: 'Άλλη', name_en: 'Other', type: 'committee' })
+            await createMeeting(CITY, { id: 'ours', administrativeBodyId: bodyId, released: false, municipalMinutesUrl: 'https://example.com/ours.pdf' })
+            await createMeeting(CITY, { id: 'public', administrativeBodyId: otherBody.id, released: true, municipalMinutesUrl: 'https://example.com/private.pdf' })
+            await createMeeting(CITY, { id: 'city', administrativeBodyId: null, released: true, municipalMinutesUrl: 'https://example.com/city.pdf' })
+
+            const rows = await (await listMeetings(request(), params)).json() as { id: string; municipalMinutesUrl: string | null }[]
+            expect(Object.fromEntries(rows.map(row => [row.id, row.municipalMinutesUrl]))).toEqual({
+                ours: 'https://example.com/ours.pdf',
+                public: null,
+                city: null,
+            })
+        })
+
         it('refuses a reader', async () => {
             __setSessionEmail(null)
             expect((await listMeetings(request(), params)).status).toBe(401)

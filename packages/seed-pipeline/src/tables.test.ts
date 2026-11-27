@@ -41,6 +41,14 @@ describe('tables.json classification', () => {
         expect(named.filter((t) => !everyContent.has(t))).toEqual([]);
     });
 
+    // A municipality can give us minutes that it does not publish (#876).
+    test('the municipal minutes URL ships in neither the meeting nor a task request', () => {
+        expect(cfg.masking).toEqual(expect.arrayContaining([
+            { table: 'CouncilMeeting', column: 'municipalMinutesUrl', action: 'set-null' },
+            { table: 'TaskStatus', column: 'requestBody', action: 'json-remove-key', key: 'municipalMinutesUrl' },
+        ]));
+    });
+
     test('allowed tables are the main content tables plus the migrations table', () => {
         const allowed = allowedTables(cfg);
         expect(allowed.has(MIGRATIONS_TABLE)).toBe(true);

@@ -3,7 +3,8 @@ import prisma from './prisma';
 import { AdministrativeBodyType, Prisma, Topic } from '@prisma/client';
 import { getUnreleasedScope } from '@/lib/auth';
 import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
-import { ContributionForPerson, contributionSubjectSelect, humanReviewSucceededWhere, roleWithRelationsInclude } from './types';
+import { ContributionForPerson, contributionSubjectSelect, roleWithRelationsInclude } from './types';
+import { REVIEWED_TRANSCRIPT_TASK_TYPES } from '@/lib/tasks/types';
 
 async function unreleasedScopeForPerson(personId: string): Promise<UnreleasedScope | undefined> {
     const person = await prisma.person.findUnique({
@@ -39,7 +40,7 @@ function buildMeetingFilter(
         // that haven't passed human review.
         NOT: {
             administrativeBody: { showUnreviewedTranscript: false },
-            taskStatuses: { none: humanReviewSucceededWhere },
+            taskStatuses: { none: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' } },
         },
     };
 }

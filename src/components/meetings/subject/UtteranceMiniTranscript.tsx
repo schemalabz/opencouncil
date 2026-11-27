@@ -165,7 +165,7 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
 
   // The context's tag records who set the speaker; the prop's tag may not.
   const fullTag = getSpeakerTag(speakerSegment.speakerTag.id);
-  const unverified = fullTag ? speakerIsUnverified(fullTag, Boolean(taskStatus.humanReview)) : false;
+  const unverified = fullTag ? speakerIsUnverified(fullTag, Boolean(taskStatus.reviewedByPerson)) : false;
 
   // Get party color
   const party = person ? getPartyFromRoles(person.roles) : null;

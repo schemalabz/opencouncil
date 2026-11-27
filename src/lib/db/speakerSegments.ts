@@ -5,6 +5,7 @@ import { CouncilMeeting, City, Prisma, AdministrativeBodyType, DiscussionStatus 
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
 import { roleWithRelationsInclude } from './types';
+import { REVIEWED_TRANSCRIPT_TASK_TYPES } from '@/lib/tasks/types';
 
 export type SegmentWithRelations = {
     id: string;
@@ -495,7 +496,7 @@ export async function getLatestSegmentsForSpeaker(
         // Exclude meetings where transcript is hidden for review
         NOT: {
             administrativeBody: { showUnreviewedTranscript: false },
-            taskStatuses: { none: { type: 'humanReview', status: 'succeeded' } }
+            taskStatuses: { none: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' } }
         }
     };
 
@@ -594,7 +595,7 @@ export async function getLatestSegmentsForParty(
         // Exclude meetings where transcript is hidden for review
         NOT: {
             administrativeBody: { showUnreviewedTranscript: false },
-            taskStatuses: { none: { type: 'humanReview', status: 'succeeded' } }
+            taskStatuses: { none: { type: { in: REVIEWED_TRANSCRIPT_TASK_TYPES }, status: 'succeeded' } }
         }
     };
 
