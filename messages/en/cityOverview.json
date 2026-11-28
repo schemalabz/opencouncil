@@ -22,7 +22,10 @@
   "timelineTitle": "Recent and upcoming meetings",
   "timelineNoAgendaYet": "The agenda has not been published yet",
   "allMeetings": "All meetings",
-  "scopeCouncil": "Council",
+  "scopeCouncil": {
+    "municipality": "Council",
+    "region": "Council"
+  },
   "scopeAll": "All",
   "noMeetingsForScope": "No meetings from this body yet.",
   "councilEyebrow": "The council",
@@ -71,7 +74,10 @@
   "notisAdvance": "Next message",
   "notisReplay": "Play again",
   "notisExampleLabel": "example",
-  "scopeCommittee": "Committee",
+  "scopeCommittee": {
+    "municipality": "Committee",
+    "region": "Committee"
+  },
   "scopeCommunity": "Communities",
   "scopeYouthCouncil": "Youth",
   "period3m": "3 months",
@@ -82,8 +88,14 @@
   "inCommunities": "{count} on communities",
   "notisTeaser": "Staying informed is easy.",
   "subscribedSummary": "You're subscribed to updates",
-  "scopeCouncilFull": "City council",
-  "scopeCommitteeFull": "City committee",
+  "scopeCouncilFull": {
+    "municipality": "City council",
+    "region": "Regional council"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "City committee",
+    "region": "Regional committee"
+  },
   "scopeCommunityFull": "Communities",
   "scopeYouthCouncilFull": "Youth council",
   "scopeAllFull": "All bodies",

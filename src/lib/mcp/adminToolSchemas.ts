@@ -175,13 +175,15 @@ export type StartTaskToolArgs = z.output<typeof startTaskToolInput>;
 
 export const createCityToolInput = z.object({
     id: cityIdSchema.meta({ description: 'URL slug: lowercase letters a-z and dashes only, e.g. "chania"' }),
-    name: baseCityFields.name.meta({ description: 'City name in its own language, e.g. "Χανιά"' }),
-    name_en: baseCityFields.name_en.meta({ description: 'City name in English, e.g. "Chania"' }),
-    name_municipality: baseCityFields.name_municipality.meta({ description: 'Official name, e.g. "Δήμος Χανίων"' }),
+    name: baseCityFields.name.meta({ description: 'City name in its own language, e.g. "Χανιά". For a region, the name of the region, e.g. "Κρήτη"' }),
+    name_en: baseCityFields.name_en.meta({ description: 'City name in English, e.g. "Chania". For a region, e.g. "Crete"' }),
+    name_municipality: baseCityFields.name_municipality
+        .meta({ description: 'Official name, e.g. "Δήμος Χανίων". For a region, e.g. "Περιφέρεια Κρήτης"' }),
     name_municipality_en: baseCityFields.name_municipality_en
-        .meta({ description: 'Official name in English, e.g. "Municipality of Chania"' }),
+        .meta({ description: 'Official name in English, e.g. "Municipality of Chania". For a region, e.g. "Region of Crete"' }),
     timezone: baseCityFields.timezone.meta({ description: 'IANA time zone, e.g. "Europe/Athens"' }),
-    authorityType: baseCityFields.authorityType.default(AuthorityType.municipality),
+    authorityType: baseCityFields.authorityType.default(AuthorityType.municipality)
+        .meta({ description: 'municipality, or region for a regional authority (Περιφέρεια): its council and its committees' }),
     language: baseCityFields.language.optional()
         .meta({ description: 'The language the council speaks in its meetings. Omit for the default language of the realm; required in a realm whose UI is English' }),
     realm: z.enum(Realm).optional()

@@ -7,7 +7,7 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
-import { authorityKey } from './authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { NotisInviteCard } from '@/components/signup/NotisInviteCard';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { CityBodyFollowCard } from './CityBodyFollowCard';

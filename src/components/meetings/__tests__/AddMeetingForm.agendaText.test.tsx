@@ -27,7 +27,7 @@ const meeting = {
 } as unknown as CouncilMeeting;
 
 it('sends the pasted text and no link for a meeting that has a stored link (#829)', async () => {
-    render(<Sheet open><AddMeetingForm cityId="chania" realm="greece" timezone="Europe/Athens" meeting={meeting} /></Sheet>);
+    render(<Sheet open><AddMeetingForm cityId="chania" realm="greece" authorityType="municipality" timezone="Europe/Athens" meeting={meeting} /></Sheet>);
     fireEvent.click(screen.getByRole('button', { name: 'agendaAsText' }));
     fireEvent.change(await screen.findByPlaceholderText('agendaTextPlaceholder'), { target: { value: '1. Σχολικές αυλές' } });
     fireEvent.click(screen.getByRole('button', { name: /^(addMeeting|updateMeeting)$/ }));

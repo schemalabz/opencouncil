@@ -18,7 +18,7 @@ import { sortSubjectsByImportance } from '@/lib/utils';
 import { isCustomer } from '@/lib/cityStatus';
 import { PETITION_BLUE, PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { CHAT_SURFACE, NOTIS_CHAT } from '@/lib/notis/chat';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
 import { getRealm } from '@/lib/realm.server';
@@ -276,7 +276,7 @@ const PersonOGImage = async (cityId: string, personId: string, locale: string, t
 
     const party = getPartyFromRoles(person.roles);
     // The label the site's badges give the role, so the mayor reads as the mayor here too.
-    const roleName = getRoleLabelAt(person.roles, await getRoleTitles(locale, city.language), new Date()) ?? t('person.council');
+    const roleName = getRoleLabelAt(person.roles, await getRoleTitles(city, locale), new Date()) ?? t('person.council');
     // Released meetings only: this image is public and cached, whoever asked for it.
     const [portrait, seal, subjects] = await Promise.all([
         getPortraitData(person.image),

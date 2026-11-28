@@ -2,19 +2,19 @@ import { useLocale, useTranslations } from "next-intl";
 import { ImageOrInitials } from "@/components/ImageOrInitials";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
-import { getRoleTitle } from "@/lib/utils/roles";
+import { getRoleTitle, type RoleTitleCity } from "@/lib/utils/roles";
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from "@/lib/formatters/name";
 import SpeakerTimer from "./SpeakerTimer";
 
 interface SubjectSlideProps {
     subject: SubjectWithRelations;
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
 }
 
-export default function SubjectSlide({ subject, cityLanguage }: SubjectSlideProps) {
+export default function SubjectSlide({ subject, roleCity }: SubjectSlideProps) {
     const t = useTranslations("presentation");
-    const roleTitles = useRoleTitles(cityLanguage);
+    const roleTitles = useRoleTitles(roleCity);
     const locale = useLocale();
     const introducer = subject.introducedBy;
     const introducerParty = introducer ? getPartyFromRoles(introducer.roles) : null;

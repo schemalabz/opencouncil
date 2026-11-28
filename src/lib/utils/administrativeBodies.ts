@@ -1,6 +1,7 @@
 import { PersonWithRelations } from '../db/people';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType, type AuthorityType } from '@prisma/client';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
+import { isRegion, isRegionBodyType } from './authority';
 import { hasCityLevelRole, isRoleActive } from './roles';
 
 /** Minimal type for meetings - only what we need for extracting admin bodies */
@@ -40,20 +41,49 @@ export function toAdministrativeBodyType(value: string | undefined): Administrat
     return isAdministrativeBodyType(value) ? value : undefined;
 }
 
+/** The city of a body, as far as the label of its type needs it. */
+type BodyTypeLabelCity = { authorityType: AuthorityType };
+
 /**
- * Extract which admin body types exist from a flat list of admin bodies.
- * Returns options ordered: council -> committee -> community.
+ * The label of a body type in a region (#993), or null when the municipal
+ * label applies: the city is a municipality, or the type is not one that a
+ * region has. A caller with its own municipal label falls back to it.
  *
  * @translationNamespace Common
  */
+export function getRegionBodyTypeLabel(
+    type: AdministrativeBodyType,
+    city: BodyTypeLabelCity,
+    t: (key: string) => string
+): string | null {
+    return isRegion(city) && isRegionBodyType(type) ? t(`regionBodyType_${type}`) : null;
+}
+
 /**
- * The types present in a set of bodies. Prefer this over the meeting-derived
- * wrapper when the caller has the city's own bodies: a list capped to a window
- * of meetings knows only the bodies inside that window, so a body that last met
- * before it would offer no chip at all.
+ * The label of a body type: «Δημοτικό Συμβούλιο» in a municipality,
+ * «Περιφερειακό Συμβούλιο» in a region. The meetings tab stores a selection by
+ * this label, so every link to the tab must read the label here.
+ *
+ * @translationNamespace Common
+ */
+export function getBodyTypeLabel(
+    type: AdministrativeBodyType,
+    city: BodyTypeLabelCity,
+    t: (key: string) => string
+): string {
+    return getRegionBodyTypeLabel(type, city, t) ?? t(`adminBodyType_${type}`);
+}
+
+/**
+ * The types present in a set of bodies, as options ordered council, committee,
+ * community. Prefer this over the meeting-derived wrapper when the caller has
+ * the city's own bodies: a list capped to a window of meetings knows only the
+ * bodies inside that window, so a body that last met before it would offer no
+ * chip at all.
  */
 export function getAdministrativeBodyTypes(
     bodies: (PublicAdministrativeBody | null | undefined)[],
+    city: BodyTypeLabelCity,
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
     const typesPresent = new Set<AdministrativeBodyType>();
@@ -64,7 +94,7 @@ export function getAdministrativeBodyTypes(
         .filter(type => typesPresent.has(type))
         .map(type => ({
             value: type,
-            label: t(`adminBodyType_${type}`)
+            label: getBodyTypeLabel(type, city, t)
         }));
 }
 
@@ -94,17 +124,19 @@ export function getBodiesOfType(
 /** Extract admin body types present in a list of meetings */
 export function getAdministrativeBodyTypesForMeetings(
     meetings: MeetingWithAdminBody[],
+    city: BodyTypeLabelCity,
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
-    return getAdministrativeBodyTypes(meetings.map(m => m.administrativeBody), t);
+    return getAdministrativeBodyTypes(meetings.map(m => m.administrativeBody), city, t);
 }
 
 /** Extract admin body types present in people's roles */
 export function getAdministrativeBodyTypesForPeople(
     people: PersonWithRelations[],
+    city: BodyTypeLabelCity,
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
-    return getAdministrativeBodyTypes(people.flatMap(p => p.roles.map(r => r.administrativeBody)), t);
+    return getAdministrativeBodyTypes(people.flatMap(p => p.roles.map(r => r.administrativeBody)), city, t);
 }
 
 /** Extract individual bodies of a given type from meetings, sorted alphabetically */

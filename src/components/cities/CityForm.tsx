@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
-import { City, CityMessage } from '@prisma/client'
+import { AuthorityType, City, CityMessage } from '@prisma/client'
 import type { AdministrativeBodyWithSendSettings } from '@/lib/db/types'
 import { Loader2, Trash2 } from "lucide-react"
 import Image from 'next/image'
@@ -39,6 +39,13 @@ import { ImageCropDialog } from '@/components/ui/ImageCropDialog'
 import { CityFormSection } from './CityFormSection'
 import { useRealm } from '@/hooks/useRealm'
 import { getRealmBaseUrl } from '@/lib/realm'
+import { authorityKey, proposedOfficialName, proposedOfficialNameEn } from '@/lib/utils/authority'
+
+// The official names that the form proposes from the short name.
+const proposedNames = (authorityType: AuthorityType, name: string) => ({
+    name_municipality: proposedOfficialName(authorityType, name),
+    name_municipality_en: toGreeklish(proposedOfficialNameEn(authorityType, toGreeklish(name))) as string,
+})
 
 // Use shared schema from lib/schemas/city.ts
 const formSchema = cityFormSchema
@@ -134,6 +141,21 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         })
         return () => subscription.unsubscribe()
     }, [form, city?.id])
+
+    // The texts follow the kind that the form shows, saved or not.
+    const authority = { authorityType: form.watch('authorityType') }
+
+    // A name that is equal to the proposal follows the kind, saved or not.
+    // Any other name is the work of a person, and it stays.
+    const changeAuthorityType = (next: AuthorityType) => {
+        const name = form.getValues('name')
+        const before = proposedNames(form.getValues('authorityType'), name)
+        const after = proposedNames(next, name)
+        form.setValue('authorityType', next, { shouldDirty: true })
+        for (const field of ['name_municipality', 'name_municipality_en'] as const) {
+            if (name && form.getValues(field) === before[field]) form.setValue(field, after[field], { shouldDirty: true })
+        }
+    }
 
     async function onSubmit(values: z.output<typeof formSchema>) {
         setIsSubmitting(true)
@@ -243,25 +265,14 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     </div>
                 )}
 
-                <CityFormSection title={t('sectionIdentity')} hint={t('sectionIdentityHint')} defaultOpen>
-                    <InputWithDerivatives
-                        baseName="name"
-                        basePlaceholder={t('cityNamePlaceholder')}
-                        baseDescription={t('cityNameDescription')}
-                        derivatives={[
-                            { name: "name_en", calculate: (baseValue) => toGreeklish(baseValue), placeholder: t('cityNameEnPlaceholder'), description: t('cityNameEnDescription') },
-                            { name: "name_municipality", calculate: (baseValue) => `Δήμος ${baseValue}`, placeholder: t('cityMunicipalityPlaceholder'), description: t('cityMunicipalityDescription') },
-                            { name: "name_municipality_en", calculate: (baseValue) => toGreeklish(`Municipality of ${toGreeklish(baseValue)}`), placeholder: t('cityMunicipalityEnPlaceholder'), description: t('cityMunicipalityEnDescription') },
-                        ]}
-                        form={form}
-                    />
+                <CityFormSection title={t(authorityKey('sectionIdentity', authority))} hint={t('sectionIdentityHint')} defaultOpen>
                     <FormField
                         control={form.control}
                         name="authorityType"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{t('authorityType')}</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={changeAuthorityType} defaultValue={field.value} disabled={!isSuperAdmin}>
                                     <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder={t('selectAuthorityType')} />
@@ -278,6 +289,17 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                 <FormMessage />
                             </FormItem>
                         )}
+                    />
+                    <InputWithDerivatives
+                        baseName="name"
+                        basePlaceholder={t('cityNamePlaceholder')}
+                        baseDescription={t('cityNameDescription')}
+                        derivatives={[
+                            { name: "name_en", calculate: (baseValue) => toGreeklish(baseValue), placeholder: t('cityNameEnPlaceholder'), description: t('cityNameEnDescription') },
+                            { name: "name_municipality", calculate: (baseValue) => proposedNames(authority.authorityType, baseValue).name_municipality, placeholder: t(authorityKey('cityMunicipalityPlaceholder', authority)), description: t(authorityKey('cityMunicipalityDescription', authority)) },
+                            { name: "name_municipality_en", calculate: (baseValue) => proposedNames(authority.authorityType, baseValue).name_municipality_en, placeholder: t(authorityKey('cityMunicipalityEnPlaceholder', authority)), description: t(authorityKey('cityMunicipalityEnDescription', authority)) },
+                        ]}
+                        form={form}
                     />
                     <FormField
                         control={form.control}
@@ -441,14 +463,15 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     />
                 </CityFormSection>
 
-                <CityFormSection title={t('boundary')} hint={t('boundaryDescription')}>
+                <CityFormSection title={t('boundary')} hint={t(authorityKey('boundaryDescription', authority))}>
                     <CityBoundaryEditor cityId={city?.id} onBoundaryChange={setBoundary} />
                 </CityFormSection>
 
                 {city && (
-                    <CityFormSection title={t('administrativeBodies')} hint={t('administrativeBodiesHint')}>
+                    <CityFormSection title={t('administrativeBodies')} hint={t(authorityKey('administrativeBodiesHint', authority))}>
                         <AdministrativeBodiesList
                             cityId={city.id}
+                            authorityType={city.authorityType}
                             bodies={administrativeBodies}
                             onUpdate={refreshAdminBodies}
                         />
@@ -536,7 +559,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
-                                        {t('realmDescription')}
+                                        {t(authorityKey('realmDescription', authority))}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>

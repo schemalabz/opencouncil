@@ -79,7 +79,7 @@ const future = (days: number, rest: Omit<Parameters<typeof meeting>[0], 'dateTim
     meeting({ dateTime: new Date(Date.now() + days * DAY), ...rest });
 
 function renderTimeline(upcoming: CouncilMeetingWithSubjectPreview[], recent: CouncilMeetingWithSubjectPreview[]) {
-    return render(<MeetingsTimeline upcoming={upcoming} recent={recent} timezone="Europe/Athens" locale="el" />);
+    return render(<MeetingsTimeline upcoming={upcoming} recent={recent} authorityType="municipality" timezone="Europe/Athens" locale="el" />);
 }
 
 describe('MeetingsTimeline', () => {

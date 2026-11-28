@@ -4,10 +4,12 @@ import { City, CityStatus, Realm } from "@prisma/client";
 import { CitiesAdminTable } from "../cities-table";
 import { ALL_REALMS, getRealmBaseUrl } from "@/lib/realm";
 
-// Translations render as their keys; realm labels come from Intl.DisplayNames
-// via useLocale, so pin the locale to make them assertable.
+// Translations render as their keys, and a count follows its key; realm labels
+// come from Intl.DisplayNames via useLocale, so pin the locale to make them
+// assertable.
 jest.mock("next-intl", () => ({
-    useTranslations: () => (key: string) => key,
+    useTranslations: () => (key: string, values?: { count?: number }) =>
+        values?.count === undefined ? key : `${key}:${values.count}`,
     useLocale: () => "en",
 }));
 // The row expander embeds the full city form; irrelevant to grouping.
@@ -15,9 +17,10 @@ jest.mock("@/components/cities/CityForm", () => ({
     __esModule: true,
     default: () => null,
 }));
+// The sheet shows only its title here.
 jest.mock("@/components/FormSheet", () => ({
     __esModule: true,
-    default: () => null,
+    default: ({ title }: { title: string }) => <span>{title}</span>,
 }));
 // The QR strips button fetches and renders a PDF; irrelevant to grouping.
 jest.mock("@/components/admin/cities/CouncilQrStripsButton", () => ({
@@ -93,5 +96,34 @@ describe("CitiesAdminTable realm grouping", () => {
             "href",
             "https://pr-7.opencouncil.dev/france-city?realm=france",
         );
+    });
+});
+
+describe("CitiesAdminTable authority kinds (#993)", () => {
+    const athens = makeCity({ id: "athens", name: "Αθήνα", name_en: "Athens", realm: "greece" });
+    const thessaly = makeCity({ id: "thessalia", name: "Θεσσαλία", name_en: "Thessaly", realm: "greece", authorityType: "region" });
+
+    it("counts the municipalities and the regions of a realm apart", () => {
+        render(<CitiesAdminTable cities={[athens, thessaly]} realmBaseUrls={productionBaseUrls} />);
+        expect(screen.getByText("cityCount:1")).toBeInTheDocument();
+        expect(screen.getByText("regionCount:1")).toBeInTheDocument();
+    });
+
+    it("shows no region count for a realm that has no region", () => {
+        render(<CitiesAdminTable cities={[athens]} realmBaseUrls={productionBaseUrls} />);
+        expect(screen.getByText("cityCount:1")).toBeInTheDocument();
+        expect(screen.queryByText(/^regionCount/)).not.toBeInTheDocument();
+    });
+
+    it("shows no municipality count for a realm that has only regions", () => {
+        render(<CitiesAdminTable cities={[thessaly]} realmBaseUrls={productionBaseUrls} />);
+        expect(screen.getByText("regionCount:1")).toBeInTheDocument();
+        expect(screen.queryByText(/^cityCount/)).not.toBeInTheDocument();
+    });
+
+    it("names the kind of the authority in the title of the edit sheet", () => {
+        render(<CitiesAdminTable cities={[athens, thessaly]} realmBaseUrls={productionBaseUrls} />);
+        expect(screen.getByText("editCity.municipality")).toBeInTheDocument();
+        expect(screen.getByText("editCity.region")).toBeInTheDocument();
     });
 });

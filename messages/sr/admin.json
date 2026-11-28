@@ -14,7 +14,10 @@
         "title": "Градови",
         "description": "Сви градови груписани по домену.",
         "addCity": "Додај град",
-        "editCity": "Измени град",
+        "editCity": {
+            "municipality": "Измени град",
+            "region": "Измени град"
+        },
         "searchPlaceholder": "Претражите градове...",
         "noCities": "Нису пронађени градови",
         "columnName": "Назив",
@@ -24,7 +27,8 @@
         "columnMeetings": "Седнице",
         "columnPeople": "Особе",
         "columnParties": "Одборничке групе",
-        "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}"
+        "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}",
+        "regionCount": "{count, plural, one {# регион} few {# региона} other {# региона}}"
     },
     "taskStatus": {
         "pending": "На чекању",

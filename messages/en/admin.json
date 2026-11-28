@@ -11,12 +11,15 @@
       "privateLead": "Personal.",
       "private": "Do not share this code. Only for: {name}"
     },
-    "title": "Cities",
-    "description": "All cities grouped by realm.",
-    "addCity": "Add City",
-    "editCity": "Edit City",
-    "searchPlaceholder": "Search cities...",
-    "noCities": "No cities found",
+    "title": "Cities and regions",
+    "description": "All cities and regions grouped by realm.",
+    "addCity": "Add a city or a region",
+    "editCity": {
+      "municipality": "Edit City",
+      "region": "Edit Region"
+    },
+    "searchPlaceholder": "Search cities and regions...",
+    "noCities": "No cities or regions found",
     "columnName": "Name",
     "columnId": "ID",
     "columnLanguage": "Language",
@@ -24,7 +27,8 @@
     "columnMeetings": "Meetings",
     "columnPeople": "People",
     "columnParties": "Parties",
-    "cityCount": "{count, plural, one {# city} other {# cities}}"
+    "cityCount": "{count, plural, one {# city} other {# cities}}",
+    "regionCount": "{count, plural, one {# region} other {# regions}}"
   },
   "taskStatus": {
     "pending": "Pending",

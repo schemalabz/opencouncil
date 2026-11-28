@@ -77,6 +77,7 @@ const draw = () => render(
         pageSize={12}
         cityId="chania"
         realm="greece"
+        authorityType="municipality"
         timezone="Europe/Athens"
         canEdit={false}
         administrativeBodies={bodies}

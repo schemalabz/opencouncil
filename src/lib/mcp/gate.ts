@@ -6,6 +6,7 @@ import { currentRealm, reachesEveryRealm, rememberCityRealm } from './realm-cont
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { REALMS } from '@/lib/realm';
 import type { AppLocale } from '@/i18n/config';
+import type { RoleTitleCity } from '@/lib/utils/roles';
 import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
 /**
@@ -58,7 +59,8 @@ export async function requireVisibleMeeting(
      * language, so a tool names the meeting and the roles in it too.
      */
     locale: AppLocale;
-    contentLanguage: string;
+    /** What the role titles read from the city: its language and its kind of authority. */
+    roleCity: RoleTitleCity;
     videoUrl: string | null;
     administrativeBody: { name: string } | null;
     administrativeBodyId: string | null;
@@ -92,7 +94,7 @@ export async function requireVisibleMeeting(
             administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
             administrativeBodyId: true,
             taskStatuses: transcriptGateSelect.taskStatuses,
-            city: { select: { timezone: true, realm: true, language: true } },
+            city: { select: { timezone: true, realm: true, language: true, authorityType: true } },
         },
     });
 
@@ -108,7 +110,7 @@ export async function requireVisibleMeeting(
         dateTime: meeting.dateTime,
         name: meetingLabelInCity(meeting, locale),
         locale,
-        contentLanguage: meeting.city.language,
+        roleCity: { language: meeting.city.language, authorityType: meeting.city.authorityType },
         videoUrl: meeting.videoUrl,
         administrativeBody: meeting.administrativeBody && { name: meeting.administrativeBody.name },
         administrativeBodyId: meeting.administrativeBodyId,

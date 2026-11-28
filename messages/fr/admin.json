@@ -14,7 +14,10 @@
     "title": "Communes",
     "description": "Toutes les communes regroupées par groupe (realm).",
     "addCity": "Ajouter une commune",
-    "editCity": "Modifier la commune",
+    "editCity": {
+      "municipality": "Modifier la commune",
+      "region": "Modifier la commune"
+    },
     "searchPlaceholder": "Rechercher des communes...",
     "noCities": "Aucune commune trouvée",
     "columnName": "Nom",
@@ -24,7 +27,8 @@
     "columnMeetings": "Séances",
     "columnPeople": "Personnes",
     "columnParties": "Groupes",
-    "cityCount": "{count, plural, one {# commune} other {# communes}}"
+    "cityCount": "{count, plural, one {# commune} other {# communes}}",
+    "regionCount": "{count, plural, one {# région} other {# régions}}"
   },
   "taskStatus": {
     "pending": "En attente",

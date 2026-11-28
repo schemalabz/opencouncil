@@ -18,7 +18,8 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
-import { Party } from '@prisma/client'
+import type { AuthorityType, Party } from '@prisma/client'
+import { authorityKey } from '@/lib/utils/authority'
 import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -60,6 +61,8 @@ const ALL_ROLE_TYPES: RoleType[] = ['city', 'party', 'administrativeBody']
 interface RolesListProps {
     personId?: string;
     cityId: string;
+    /** The kind of the city: it names the city role (a municipal or a regional councillor). */
+    authorityType: AuthorityType;
     roles: RoleWithRelations[];
     parties: Party[];
     administrativeBodies: PublicAdministrativeBody[];
@@ -78,14 +81,14 @@ interface RolesListProps {
     defaultStartDate?: Date | null;
 }
 
-export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES, defaultStartDate = null }: RolesListProps) {
+export default function RolesList({ personId, cityId, authorityType, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES, defaultStartDate = null }: RolesListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [startDateOpen, setStartDateOpen] = useState(false)
     const [endDateOpen, setEndDateOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
     // Static keys, so the catalog check sees them.
-    const typeLabels: Record<RoleType, string> = { city: t('types.city'), party: t('types.party'), administrativeBody: t('types.administrativeBody') }
+    const typeLabels: Record<RoleType, string> = { city: t(authorityKey('types.city', { authorityType })), party: t('types.party'), administrativeBody: t('types.administrativeBody') }
 
     const form = useForm({
         resolver: useZodResolver(formSchema),
@@ -462,7 +465,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                             {role.name || (
                                                 role.party?.name ||
                                                 role.administrativeBody?.name ||
-                                                t('cityRole')
+                                                t(authorityKey('cityRole', { authorityType }))
                                             )}
                                         </CardTitle>
                                         {role.isHead && (

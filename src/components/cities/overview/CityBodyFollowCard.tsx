@@ -1,14 +1,15 @@
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
+import type { City } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { CtaButton } from '@/components/ui/cta-button';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { authorityKey } from './authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { RailDisclosure } from './RailDisclosure';
 
 interface CityBodyFollowCardProps {
-    city: { id: string; authorityType: string };
+    city: Pick<City, 'id' | 'authorityType'>;
     /** The bodies of the city that a reader may follow (bodyOffersFollow), at least one. */
     bodies: PublicAdministrativeBody[];
     /** Whether the reader follows one of them already. */
