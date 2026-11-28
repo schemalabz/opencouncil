@@ -25,6 +25,7 @@ import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { isMachineAccountAddress } from "@/lib/auth/machineAccounts";
+import { municipalityDestination } from "@/lib/notifications/destination";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { ALL_SCOPE, isSecondaryBody, meetingAudienceWhere } from '@/lib/utils/bodyTier';
 
@@ -392,7 +393,8 @@ export async function saveNotificationPreferences(
 
                 if (!seedUser) {
                     // seed users are created during development, so we don't need to send a magic link
-                    await sendMagicLink(email);
+                    const destination = municipalityDestination(cityId, returnTo);
+                    await sendMagicLink(email, destination);
                 }
             }
         } else {
