@@ -1,8 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type { AuthorityType } from '@prisma/client';
 import { CityCard, type CityIdentity } from '@/components/signup/CityCard';
 import { pickerHref } from '@/components/signup/signup-shared';
+import { authorityKey } from '@/lib/utils/authority';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 
 /**
@@ -25,7 +27,7 @@ export function PetitionCityCard({
     submitting = false,
     className,
 }: {
-    city: CityIdentity;
+    city: CityIdentity & { authorityType: AuthorityType };
     /** How many have asked, as the public "N+" bucket; null when too few to say. */
     bucket: PetitionBucket | null;
     /** The search the reader picked this municipality from, if they came that way. */
@@ -51,7 +53,7 @@ export function PetitionCityCard({
                 // who is updating, so the answers on this step do not travel.
                 if (dirty && !window.confirm(ts('leaveWarning'))) event.preventDefault();
             }}
-            status={bucket !== null ? tc('petitionCount', { count: bucket }) : t('notInNetwork')}
+            status={bucket !== null ? tc(authorityKey('petitionCount', city), { count: bucket }) : t('notInNetwork')}
         />
     );
 }

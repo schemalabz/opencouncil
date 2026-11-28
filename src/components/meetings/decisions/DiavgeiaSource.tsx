@@ -4,6 +4,8 @@ import { Fragment } from 'react';
 import { useTranslations } from 'next-intl';
 import { diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
 import type { ReadDiavgeiaUnitEntry } from '@/lib/utils/diavgeiaUnitScope';
+import { authorityKey } from '@/lib/utils/authority';
+import type { AuthorityType } from '@prisma/client';
 
 /** Both identifiers open the same listing, so they wear the same link style. */
 const LINK = 'underline underline-offset-2 hover:text-foreground';
@@ -33,8 +35,10 @@ const COMMA = ', ';
  * on the line rather than behind a named link. The sentence wraps, so a phone
  * keeps them.
  */
-export function DiavgeiaSourceLink({ diavgeiaUid, pollScope, dated }: {
+export function DiavgeiaSourceLink({ diavgeiaUid, pollScope, dated, authorityType }: {
     diavgeiaUid: string | null;
+    /** The sentence for a missing organisation names the authority. */
+    authorityType: AuthorityType;
     pollScope: ReadDiavgeiaUnitEntry[];
     dated: boolean;
 }) {
@@ -46,7 +50,7 @@ export function DiavgeiaSourceLink({ diavgeiaUid, pollScope, dated }: {
         return (
             <>
                 <span aria-hidden>{' · '}</span>
-                <span className="text-amber-700">{t('scope.noOrg')}</span>
+                <span className="text-amber-700">{t(authorityKey('scope.noOrg', { authorityType }))}</span>
             </>
         );
     }

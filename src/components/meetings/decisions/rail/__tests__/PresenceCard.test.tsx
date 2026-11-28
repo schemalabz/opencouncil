@@ -2,15 +2,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { PresenceCard } from '../PresenceCard';
 import { buildTimeline } from '../../timeline';
+import type { AuthorityType } from '@prisma/client';
 import type { MinutesData } from '@/lib/minutes/types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 import admin from '../../../../../../messages/el/admin.json';
 import adminEn from '../../../../../../messages/en/admin.json';
 
 /** The card reads the roll call the way the page builds it, in Greek, so each line reads as the minutes print it. */
-const renderCard = (data: MinutesData, locale: 'el' | 'en' = 'el') => render(
+const renderCard = (data: MinutesData, locale: 'el' | 'en' = 'el', authorityType: AuthorityType = 'municipality') => render(
     <NextIntlClientProvider locale={locale} messages={{ admin: locale === 'el' ? admin : adminEn }}>
-        <PresenceCard rollCall={buildTimeline(data).rollCall} />
+        <PresenceCard rollCall={buildTimeline(data).rollCall} authorityType={authorityType} />
     </NextIntlClientProvider>,
 );
 
@@ -45,6 +46,22 @@ describe('PresenceCard', () => {
         expect(lineOf('Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');
         expect(screen.getByText('1 παρόντες από 3')).toBeInTheDocument();
         expect(lineOf('1 απόντες:')).toBe('1 απόντες: Λαμπρόπουλος Παναγιώτης');
+    });
+
+    it('names the head of a region on each line that names the head (#993)', () => {
+        renderCard(councilWithAbsentPresident(), 'el', 'region');
+        expect(lineOf('Περιφερειάρχης:')).toBe('Περιφερειάρχης: Ρούσσος Σίμος (αποχώρησε από το 4ο θέμα)');
+        expect(screen.queryByText('Δήμαρχος:')).not.toBeInTheDocument();
+    });
+
+    it('names the head of a region after the president of a committee that the head presides (#993)', () => {
+        const data = committeeWithSubstitute();
+        const composition = data.councilComposition!;
+        data.absentMembers = [...data.absentMembers!, composition.members.find(m => m.personId === composition.mayor!.personId)!];
+        renderCard(data, 'el', 'region');
+        expect(lineOf('Πρόεδρος:')).toContain('Μαλτέζος Ιωάννης (Περιφερειάρχης)');
+        expect(lineOf('Απόντα μέλη (2):')).toContain('Μαλτέζος Ιωάννης (Πρόεδρος, Περιφερειάρχης)');
+        expect(screen.queryByText(/Δήμαρχ/)).not.toBeInTheDocument();
     });
 
     it('prints the absent mark in the gender of the person on the line', () => {

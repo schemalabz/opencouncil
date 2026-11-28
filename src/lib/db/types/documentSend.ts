@@ -92,7 +92,7 @@ export const readinessMeetingSelect = {
     continuationOfId: true,
     kind: true,
     continuationOf: { select: { kind: true } },
-    city: { select: { timezone: true, status: true, diavgeiaUid: true } },
+    city: { select: { timezone: true, status: true, diavgeiaUid: true, authorityType: true } },
     administrativeBodyId: true,
     administrativeBody: { select: { tier: true, documentSendSettings: { select: documentSendSettingSelect } } },
     taskStatuses: {

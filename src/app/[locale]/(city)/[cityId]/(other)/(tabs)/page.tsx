@@ -10,7 +10,8 @@ import { HOT_PERIODS, HOT_SCOPES, hotScopeAvailable, isBeyondPeriod, readPeriod,
 import { getHotSubjectCardsCached } from "@/lib/hotSubjectCards";
 import { isSecondaryBody, tabTier } from "@/lib/utils/bodyTier";
 import { withCanonicalUrl } from "@/lib/utils/hreflang";
-import { getLocalizedName } from "@/lib/formatters/name";
+import { getLocalizedName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
 import { getOgLocale } from '@/i18n/config';
 import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
@@ -46,14 +47,15 @@ export async function generateMetadata(
     }
 
     const cityName = getLocalizedName(city, locale);
-    const description = t('description', { cityName });
+    const names = { cityName, qualifier: getMunicipalityQualifier(city, locale) };
+    const description = t(authorityKey('description', city), names);
     const ogImageUrl = buildOgImageUrl(locale, { cityId });
 
     return withCanonicalUrl(`/${cityId}`, {
         title: `${cityName} | OpenCouncil`,
         description,
-        keywords: [cityName, ...(t.raw('keywords') as string[]), "OpenCouncil"],
-        authors: [{ name: t('author', { cityName }) }],
+        keywords: [cityName, ...(t.raw(authorityKey('keywords', city)) as string[]), "OpenCouncil"],
+        authors: [{ name: t(authorityKey('author', city), names) }],
         openGraph: {
             title: `${cityName} | OpenCouncil`,
             description,
@@ -64,7 +66,7 @@ export async function generateMetadata(
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: t('ogAlt', { cityName }),
+                    alt: t(authorityKey('ogAlt', city), names),
                 },
             ],
             locale: getOgLocale(locale),
@@ -177,6 +179,7 @@ export default async function CityOverviewPage(
                 scope={scope}
                 period={period}
                 availableScopes={availableScopes}
+                authorityType={city.authorityType}
                 beyondPeriod={beyondPeriod}
             />
 
@@ -205,6 +208,7 @@ export default async function CityOverviewPage(
                             <MeetingsTimeline
                                 upcoming={upcomingMeetings}
                                 recent={recentMeetings}
+                                authorityType={city.authorityType}
                                 timezone={city.timezone}
                                 locale={locale}
                             />

@@ -94,7 +94,7 @@ export async function getCouncilQrStrips(cityId: string, personIds?: string[]): 
     const catalogLocale = catalogLocaleForCityLanguage(city.language);
     const [t, roleTitles] = await Promise.all([
         getTranslations({ locale: catalogLocale, namespace: "admin.cities.qrStrip" }),
-        getRoleTitles(city.language),
+        getRoleTitles(city),
     ]);
     // One expiry for all the strips: the date printed on every one of them.
     const expiresAt = claimExpiry();

@@ -14,7 +14,10 @@
         "title": "Градови",
         "description": "Сви градови груписани по домену.",
         "addCity": "Додај град",
-        "editCity": "Измени град",
+        "editCity": {
+            "municipality": "Измени град",
+            "region": "Измени град"
+        },
         "searchPlaceholder": "Претражите градове...",
         "noCities": "Нису пронађени градови",
         "columnName": "Назив",
@@ -24,7 +27,8 @@
         "columnMeetings": "Седнице",
         "columnPeople": "Особе",
         "columnParties": "Одборничке групе",
-        "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}"
+        "cityCount": "{count, plural, one {# град} few {# града} other {# градова}}",
+        "regionCount": "{count, plural, one {# регион} few {# региона} other {# региона}}"
     },
     "taskStatus": {
         "pending": "На чекању",
@@ -471,7 +475,10 @@
         "resetExtractionsDescription": "Уклоните све издвојене податке (изводе, присуство, гласове) за сваку тему. Везе са одлукама се задржавају.",
         "scope": {
             "malformed": "са погрешно подешеном јединицом: {error}",
-            "noOrg": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће",
+            "noOrg": {
+                "municipality": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће",
+                "region": "Овај град нема ID организације на платформи Diavgeia — преузимање није могуће"
+            },
             "org": "у организацији {org}",
             "orgWide": "без подешене јединице",
             "unit": "у јединици {unit}",
@@ -521,6 +528,7 @@
             "minutesUndecided": "{n, plural, one {# тачка без одлуке} few {# тачке без одлуке} other {# тачака без одлуке}}",
             "minutesUndecidedHint": "{n, plural, one {Појавиће се у записнику без броја одлуке.} few {Појавиће се у записнику без броја одлуке.} other {Појавиће се у записнику без броја одлуке.}}",
             "minutesProvenance": "Састављају се из транскрипта и одлука са ове странице.",
+            "regionMinutes": "OpenCouncil још не саставља записник за регион.",
             "conventionsTitle": "Правила читања",
             "conventionsEdit": "Уреди правила на телу",
             "conventionsNone": "За ово тело нису забележена правила. Странице његових одлука се не читају док их неко не забележи; приказане чињенице су изведене по подразумеваним вредностима.",
@@ -544,13 +552,25 @@
         "presenceHeadline": "{present} присутних од {total}",
         "presenceAbsentInline": "{n} одсутних:",
         "presencePresentList": "Присутни ({n})",
-        "presenceMayor": "Градоначелник:",
+        "presenceMayor": {
+            "municipality": "Градоначелник:",
+            "region": "Градоначелник:"
+        },
         "presencePresident": "Председник:",
         "presenceAbsentMark": "{gender, select, female {одсутна} other {одсутан}}",
-        "presenceMayorSuffix": "(градоначелник)",
+        "presenceMayorSuffix": {
+            "municipality": "(градоначелник)",
+            "region": "(градоначелник)"
+        },
         "presenceSubstituteMark": "заменик члана",
-        "presenceChairInAbsence": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}",
-        "presenceChairMark": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}",
+        "presenceChairInAbsence": {
+            "municipality": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}",
+            "region": "због одсуства {gender, select, female {председнице} other {председника}}{mayor, select, yes {{gender, select, female {, градоначелнице} other {, градоначелника}}} other {}} {name}"
+        },
+        "presenceChairMark": {
+            "municipality": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}",
+            "region": "{gender, select, female {председница} other {председник}}{mayor, select, yes {{gender, select, female {, градоначелница} other {, градоначелник}}} other {}}"
+        },
         "presenceMembersHeadline": "{present} присутних чланова",
         "presenceMembersAbsentInline": "Одсутни чланови ({n}):",
         "presenceMembersPresentList": "Присутни чланови ({n})",

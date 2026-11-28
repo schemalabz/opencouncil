@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
+import type { AuthorityType } from '@prisma/client';
 import { ArrowUpRight, Globe, Maximize2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -31,6 +32,7 @@ import { calculateGeometryBounds } from '@/lib/geo';
  */
 export function CityMapTab({
     cityId,
+    authorityType,
     subjects,
     generalRows,
     geometry,
@@ -38,6 +40,7 @@ export function CityMapTab({
     moreHref,
 }: {
     cityId: string;
+    authorityType: AuthorityType;
     /** located subjects for this δήμος, server-loaded */
     subjects: MapSubject[];
     /** its non-located subjects, grouped (one city-hall marker) */
@@ -218,6 +221,7 @@ export function CityMapTab({
                 <div className="relative isolate min-w-0 flex-1">
                     <Map
                         className="absolute inset-0 h-full w-full"
+                        authorityType={authorityType}
                         center={center}
                         zoom={INITIAL_ZOOM}
                         pitch={0}

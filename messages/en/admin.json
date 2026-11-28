@@ -11,12 +11,15 @@
       "privateLead": "Personal.",
       "private": "Do not share this code. Only for: {name}"
     },
-    "title": "Cities",
-    "description": "All cities grouped by realm.",
-    "addCity": "Add City",
-    "editCity": "Edit City",
-    "searchPlaceholder": "Search cities...",
-    "noCities": "No cities found",
+    "title": "Cities and regions",
+    "description": "All cities and regions grouped by realm.",
+    "addCity": "Add a city or a region",
+    "editCity": {
+      "municipality": "Edit City",
+      "region": "Edit Region"
+    },
+    "searchPlaceholder": "Search cities and regions...",
+    "noCities": "No cities or regions found",
     "columnName": "Name",
     "columnId": "ID",
     "columnLanguage": "Language",
@@ -24,7 +27,8 @@
     "columnMeetings": "Meetings",
     "columnPeople": "People",
     "columnParties": "Parties",
-    "cityCount": "{count, plural, one {# city} other {# cities}}"
+    "cityCount": "{count, plural, one {# city} other {# cities}}",
+    "regionCount": "{count, plural, one {# region} other {# regions}}"
   },
   "taskStatus": {
     "pending": "Pending",
@@ -471,7 +475,10 @@
     "resetExtractionsDescription": "Remove all extracted data (excerpts, attendance, votes) for every subject. Decision links are kept.",
     "scope": {
       "malformed": "with a misconfigured unit: {error}",
-      "noOrg": "This city has no Diavgeia organization ID — polling cannot run",
+      "noOrg": {
+        "municipality": "This city has no Diavgeia organization ID — polling cannot run",
+        "region": "This region has no Diavgeia organization ID — polling cannot run"
+      },
       "org": "in organization {org}",
       "orgWide": "with no unit configured",
       "unit": "in unit {unit}",
@@ -523,6 +530,7 @@
       "minutesUndecided": "{n, plural, one {# subject without a decision} other {# subjects without a decision}}",
       "minutesUndecidedHint": "{n, plural, one {It will appear in the minutes with no decision number.} other {They will appear in the minutes with no decision number.}}",
       "minutesProvenance": "Drafted from the transcript and the decisions on this page.",
+      "regionMinutes": "OpenCouncil does not draft the minutes of a region yet.",
       "conventionsTitle": "Reading rules",
       "conventionsEdit": "Edit the rules on the body",
       "conventionsNone": "No rules are recorded for this body. Its decision pages are not read until a person records them; any facts shown were derived on the defaults.",
@@ -546,13 +554,25 @@
     "presenceHeadline": "{present} present of {total}",
     "presenceAbsentInline": "{n} absent:",
     "presencePresentList": "Present ({n})",
-    "presenceMayor": "Mayor:",
+    "presenceMayor": {
+      "municipality": "Mayor:",
+      "region": "Regional Governor:"
+    },
     "presencePresident": "President:",
     "presenceAbsentMark": "{gender, select, other {absent}}",
-    "presenceMayorSuffix": "(mayor)",
+    "presenceMayorSuffix": {
+      "municipality": "(mayor)",
+      "region": "(regional governor)"
+    },
     "presenceSubstituteMark": "substitute member",
-    "presenceChairInAbsence": "in the absence of the {gender, select, other {president}}{mayor, select, yes { and mayor} other {}}, {name}",
-    "presenceChairMark": "{gender, select, other {president}}{mayor, select, yes {, mayor} other {}}",
+    "presenceChairInAbsence": {
+      "municipality": "in the absence of the {gender, select, other {president}}{mayor, select, yes { and mayor} other {}}, {name}",
+      "region": "in the absence of the {gender, select, other {president}}{mayor, select, yes { and regional governor} other {}}, {name}"
+    },
+    "presenceChairMark": {
+      "municipality": "{gender, select, other {president}}{mayor, select, yes {, mayor} other {}}",
+      "region": "{gender, select, other {president}}{mayor, select, yes {, regional governor} other {}}"
+    },
     "presenceMembersHeadline": "{present} members present",
     "presenceMembersAbsentInline": "Absent members ({n}):",
     "presenceMembersPresentList": "Members present ({n})",

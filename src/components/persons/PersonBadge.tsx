@@ -20,9 +20,10 @@ import { useLocalizeText } from '@/hooks/useLocalizeText';
 import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import type { SpeakerSuggestion } from '@/lib/speakerIdentifications';
 import { UnverifiedSpeakerLabel } from './UnverifiedSpeakerLabel';
+import type { RoleTitleCity } from '@/lib/utils/roles';
 
 interface PersonDisplayProps {
-    cityLanguage?: string;
+    roleCity: RoleTitleCity | undefined;
     person?: PersonWithRelations;
     speakerTag?: SpeakerTag;
     label?: string;
@@ -55,7 +56,7 @@ const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: C
 const NO_PRESELECTION = 'no-preselection';
 
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption, unverified = false }: PersonDisplayProps) {
+function PersonDisplay({ roleCity, person, speakerTag, label, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption, unverified = false }: PersonDisplayProps) {
     const localize = useLocalizeText();
     const t = useTranslations('transcript.speakerPicker');
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
@@ -130,15 +131,15 @@ function PersonDisplay({ cityLanguage, person, speakerTag, label, segmentCount, 
 
                     {/* Display roles using RoleDisplay component */}
                     <div className="mt-0.5 sm:mt-1.5">
-                        <RoleDisplay
+                        {roleCity && <RoleDisplay
                             roles={activeRoles}
-                            cityLanguage={cityLanguage}
+                            roleCity={roleCity}
                             size={size === 'sm' ? 'sm' : 'md'}
                             layout="compact"
                             showIcons={false}
                             borderless={true}
                             className={cn(roleTextSize, "text-[10px] sm:text-xs")}
-                        />
+                        />}
                     </div>
                     {caption && <div className="mt-1 text-xs text-muted-foreground">{caption}</div>}
                 </div>
@@ -192,7 +193,13 @@ export function SpeakerSuggestionIndicator({ warning, suggestionAvailable }: { w
     );
 }
 
-interface PersonBadgeProps extends PersonDisplayProps {
+/**
+ * The city of the roles that the badge names. A short badge shows a picture
+ * only, so it is the one badge that needs no city.
+ */
+type BadgeRoleCity = { short: true; roleCity?: undefined } | { short?: false; roleCity: RoleTitleCity };
+
+type PersonBadgeProps = Omit<PersonDisplayProps, 'roleCity' | 'short'> & BadgeRoleCity & {
     withBorder?: boolean;
     isSelected?: boolean;
     /** Applies the picked person or label. The picker offers the `thisSegment` scope when the tag has 2 or more segments. */
@@ -218,7 +225,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
 // segment header passes stable props, so a transcript-wide re-render skips
 // every badge whose speaker did not change.
 const PersonBadge = memo(function PersonBadge({
-    cityLanguage,
+    roleCity,
     person,
     speakerTag,
     segmentCount,
@@ -358,7 +365,7 @@ const PersonBadge = memo(function PersonBadge({
             } : undefined}
         >
             <PersonDisplay
-                cityLanguage={cityLanguage}
+                roleCity={roleCity}
                 person={person}
                 speakerTag={speakerTag}
                 segmentCount={segmentCount}
@@ -437,7 +444,7 @@ const PersonBadge = memo(function PersonBadge({
                                                             )}
                                                         />
                                                         <PersonDisplay
-                                                            cityLanguage={cityLanguage}
+                                                            roleCity={roleCity}
                                                             person={suggested}
                                                             label={label}
                                                             nonInteractive
@@ -493,7 +500,7 @@ const PersonBadge = memo(function PersonBadge({
                                                     )}
                                                 />
                                                 <PersonDisplay
-                                                    cityLanguage={cityLanguage}
+                                                    roleCity={roleCity}
                                                     person={p}
                                                     size="sm"
                                                     date={date}

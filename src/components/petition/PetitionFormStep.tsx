@@ -6,7 +6,7 @@ import { Link } from '@/i18n/routing';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { AccountFields } from '@/components/signup/AccountFields';
 import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
@@ -91,7 +91,7 @@ export function PetitionFormStep({
             {signedIn ? (
                 <StepHeading title={t(authorityKey('relationTitle', city))} lead={t('relationHint')} />
             ) : (
-                <StepHeading title={t('formTitle')} lead={t('formLead')} />
+                <StepHeading title={t('formTitle')} lead={t(authorityKey('formLead', city))} />
             )}
 
             <PetitionCityCard
@@ -124,7 +124,7 @@ export function PetitionFormStep({
                     <CheckboxCard
                         checked={state.isCitizen}
                         onCheckedChange={(isCitizen) => onChange({ isCitizen })}
-                        label={t('isCitizen')}
+                        label={t(authorityKey('isCitizen', city))}
                         description={t(authorityKey('isCitizenHint', city))}
                     />
                     <CheckboxCard
@@ -151,7 +151,7 @@ export function PetitionFormStep({
                 <AccountFields
                     name={state.name}
                     email={state.email}
-                    hint={t('accountHint')}
+                    hint={t(authorityKey('accountHint', city))}
                     onChange={onChange}
                     googleAvailable={googleAvailable}
                     onGoogleStart={onGoogleStart}

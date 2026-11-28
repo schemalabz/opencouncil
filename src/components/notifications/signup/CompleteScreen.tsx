@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { CalendarDays, Check, CornerUpLeft, ExternalLink, Settings2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { authorityKey } from '@/lib/utils/authority';
 import { OsektutuBanner } from '@/components/onboarding/OsektutuBanner';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
 import { StepHeading } from '@/components/signup/SignupChrome';

@@ -19,6 +19,8 @@ import { subjectTitle } from "@/lib/subjectText";
 import { cn } from "@/lib/utils";
 import type { RelatedScope, SearchResultLight } from "@/lib/search/types";
 import type { Statistics } from "@/lib/statistics";
+import { authorityKey } from "@/lib/utils/authority";
+import type { AuthorityType } from "@prisma/client";
 
 export type RelatedSubject = SearchResultLight & { statistics?: Statistics };
 
@@ -37,6 +39,7 @@ export interface RelatedCurrent {
     /** Already localized: the page has the locale, the section does not. */
     administrativeBodyName: string | null;
     timezone: string;
+    authorityType: AuthorityType;
 }
 
 interface RelatedSubjectsProps {
@@ -121,7 +124,7 @@ function RelatedTimeline({ level, current, currentName, onOpen }: {
 
     return (
         <>
-            <Subhead count={level.subjects.length}>{t("relatedSameCity")}</Subhead>
+            <Subhead count={level.subjects.length}>{t(authorityKey('relatedSameCity', current))}</Subhead>
             <div className="relative mt-3.5">
                 {/* The rail runs behind the dots. The dots are 14px, so it sits at their
                     centre, 6px in, and stops inside the first and last of them. */}
@@ -187,14 +190,14 @@ function RelatedTimeline({ level, current, currentName, onOpen }: {
  * logo and the name — and names the body it came before; similarity is not
  * geographic, so the index's order stands.
  */
-function RelatedElsewhere({ level, onOpen }: { level: RelatedLevel; onOpen: OpenHandler }) {
+function RelatedElsewhere({ level, authorityType, onOpen }: { level: RelatedLevel; authorityType: AuthorityType; onOpen: OpenHandler }) {
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();
 
     return (
         <>
-            <Subhead count={level.subjects.length}>{t("relatedOtherCities")}</Subhead>
+            <Subhead count={level.subjects.length}>{t(authorityKey('relatedOtherCities', { authorityType }))}</Subhead>
             <ul className="m-0 mt-1 grid list-none grid-cols-1 gap-x-8 p-0 sm:grid-cols-2">
                 {level.subjects.map((subject, rank) => {
                     const city = subject.councilMeeting.city;
@@ -301,7 +304,7 @@ export function RelatedSubjects({ subjectId, subjectName, cityId, current, city,
         <section ref={sectionRef}>
             <h2 className="!m-0 !text-left tracking-[.01em]">{t("relatedSubjects")}</h2>
             {city && <RelatedTimeline level={city} current={current} currentName={localize(subjectName)} onOpen={onOpen} />}
-            {other && <RelatedElsewhere level={other} onOpen={onOpen} />}
+            {other && <RelatedElsewhere level={other} authorityType={current.authorityType} onOpen={onOpen} />}
             <div className="mt-4 flex justify-end">
                 <Button asChild variant="outline" size="sm">
                     <Link

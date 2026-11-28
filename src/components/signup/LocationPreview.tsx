@@ -164,6 +164,7 @@ function FullMap({ city, locations }: { city: CityWithGeometry; locations: Locat
     return (
         <div className="h-[60vh] w-full">
             <Map
+                authorityType={city.authorityType}
                 features={features}
                 center={view.center}
                 zoom={view.zoom}

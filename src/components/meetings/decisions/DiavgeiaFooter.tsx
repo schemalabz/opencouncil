@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { DiavgeiaSourceLink } from '@/components/meetings/decisions/DiavgeiaSource';
 import type { PollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import type { ReadDiavgeiaUnitEntry } from '@/lib/utils/diavgeiaUnitScope';
+import type { AuthorityType } from '@prisma/client';
 
 /** The footer reads the state the backoff schedule produces, so the page and
  * the task service cannot disagree about whether a poll is on its way. */
@@ -14,6 +15,7 @@ export type DiavgeiaFooterState = PollCadence;
 
 export interface DiavgeiaFooterProps {
     diavgeiaUid: string | null;
+    authorityType: AuthorityType;
     pollScope: ReadDiavgeiaUnitEntry[];
     /** The last poll's date, already formatted, or null when none has run. */
     lastCheck: string | null;
@@ -46,6 +48,7 @@ export interface DiavgeiaFooterProps {
  */
 export function DiavgeiaFooter({
     diavgeiaUid,
+    authorityType,
     pollScope,
     lastCheck,
     pollState,
@@ -68,7 +71,7 @@ export function DiavgeiaFooter({
                 instead of squeezing it into a column of single words. */}
             <p className="w-full min-w-0 sm:w-auto sm:flex-1">
                 {lastCheck ? t('status.lastCheck', { date: lastCheck }) : t('status.lastCheckNever')}
-                <DiavgeiaSourceLink diavgeiaUid={diavgeiaUid} pollScope={pollScope} dated={lastCheck !== null} />
+                <DiavgeiaSourceLink diavgeiaUid={diavgeiaUid} authorityType={authorityType} pollScope={pollScope} dated={lastCheck !== null} />
             </p>
             {pollState.kind === 'running' ? (
                 // Its own line: the sentence is two clauses long, and beside

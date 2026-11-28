@@ -38,7 +38,7 @@ const party = (id: string, name: string, members: string[]) => ({
 
 describe('CityParties', () => {
     it('finds a party by the name of one of its members', () => {
-        render(<CityParties partiesWithPersons={[party('a', 'Πρώτη Παράταξη', ['Μαρία Παπαδοπούλου']), party('b', 'Δεύτερη Παράταξη', ['Γιώργος Νικολάου'])]} cityId="chania" canEdit={false} />);
+        render(<CityParties partiesWithPersons={[party('a', 'Πρώτη Παράταξη', ['Μαρία Παπαδοπούλου']), party('b', 'Δεύτερη Παράταξη', ['Γιώργος Νικολάου'])]} cityId="chania" authorityType="municipality" canEdit={false} />);
         act(() => state.search!.setQuery('παπαδοπουλου'));
         expect(state.rows.map(p => p.id)).toEqual(['a']);
     });

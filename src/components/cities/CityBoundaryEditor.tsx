@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import type { AuthorityType } from '@prisma/client'
 import { Textarea } from '@/components/ui/textarea'
 import Map, { MapFeature } from '@/components/map/map'
 import { parseBoundaryInput, type BoundaryParseError } from '@/lib/utils/geojson'
@@ -10,6 +11,8 @@ type Boundary = GeoJSON.Polygon | GeoJSON.MultiPolygon
 interface CityBoundaryEditorProps {
     /** Set in edit mode — used to fetch the currently stored boundary for preview. */
     cityId?: string
+    /** The kind that the form holds now, for the accessible name of the preview. */
+    authorityType: AuthorityType
     /** Fires with the parsed boundary when a valid paste exists, null otherwise. */
     onBoundaryChange: (geometry: Boundary | null) => void
 }
@@ -21,7 +24,7 @@ interface CityBoundaryEditorProps {
  * next to nothing-yet/stored-boundary states. The parsed geometry is only
  * handed up to CityForm; persisting happens on form submit.
  */
-export default function CityBoundaryEditor({ cityId, onBoundaryChange }: CityBoundaryEditorProps) {
+export default function CityBoundaryEditor({ cityId, authorityType, onBoundaryChange }: CityBoundaryEditorProps) {
     const t = useTranslations('CityForm')
     const [input, setInput] = useState('')
     const [pasted, setPasted] = useState<Boundary | null>(null)
@@ -102,6 +105,7 @@ export default function CityBoundaryEditor({ cityId, onBoundaryChange }: CityBou
             {shown && (
                 <div className="h-64 rounded-md overflow-hidden border">
                     <Map
+                        authorityType={authorityType}
                         features={features}
                         zoomToGeometry={shown}
                         animateRotation={false}

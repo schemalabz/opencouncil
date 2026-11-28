@@ -1,4 +1,5 @@
-import type { AdministrativeBodyType, BodyTier } from '@prisma/client';
+import type { AdministrativeBodyType, AuthorityType, BodyTier } from '@prisma/client';
+import { authorityKey } from '@/lib/utils/authority';
 import type { BodyScope } from '@/lib/utils/bodyTier';
 
 /**
@@ -15,6 +16,11 @@ export const HOT_SCOPES: Record<HotScope, {
     label: string;
     /** What the body is called, for the open menu where there is room to say it. */
     fullLabel: string;
+    /**
+     * Whether the labels name the authority («Δημοτικό», «Περιφερειακό»). The
+     * catalog then holds one text for each kind (see authorityKey).
+     */
+    namesAuthority: boolean;
     /** The bodies it ranks. An empty scope is every primary body (see BodyScope). */
     scope: BodyScope;
     isDefault: boolean;
@@ -22,13 +28,26 @@ export const HOT_SCOPES: Record<HotScope, {
     // The council is what a reader means by "the council decided", and the
     // committees and κοινότητες of a busy municipality would otherwise crowd it
     // out of its own ranking.
-    council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', scope: { types: ['council'] }, isDefault: true },
-    committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', scope: { types: ['committee'] }, isDefault: false },
-    community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', scope: { types: ['community'] }, isDefault: false },
+    council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', namesAuthority: true, scope: { types: ['council'] }, isDefault: true },
+    committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', namesAuthority: true, scope: { types: ['committee'] }, isDefault: false },
+    community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', namesAuthority: false, scope: { types: ['community'] }, isDefault: false },
     // The secondary tier (#829). Its label keeps the youth wording.
-    secondary: { label: 'scopeYouthCouncil', fullLabel: 'scopeYouthCouncilFull', scope: { tier: 'secondary' }, isDefault: false },
-    all: { label: 'scopeAll', fullLabel: 'scopeAllFull', scope: {}, isDefault: false },
+    secondary: { label: 'scopeYouthCouncil', fullLabel: 'scopeYouthCouncilFull', namesAuthority: false, scope: { tier: 'secondary' }, isDefault: false },
+    all: { label: 'scopeAll', fullLabel: 'scopeAllFull', namesAuthority: false, scope: {}, isDefault: false },
 };
+
+/**
+ * The `cityOverview` message of a scope's label for one city: the council and
+ * the committee of a region read «ΠΣ» and «Περιφερειακό Συμβούλιο» (#993).
+ */
+export function hotScopeLabelKey(
+    scope: HotScope,
+    form: 'label' | 'fullLabel',
+    city: { authorityType: AuthorityType },
+): string {
+    const { namesAuthority, [form]: key } = HOT_SCOPES[scope];
+    return namesAuthority ? authorityKey(key, city) : key;
+}
 
 export const HOT_PERIODS: Record<HotPeriod, {
     label: string;

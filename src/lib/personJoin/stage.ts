@@ -59,7 +59,7 @@ export async function getJoinStage(token: string | undefined, userId: string | n
         id: row.id,
         name: row.name,
         image: row.image,
-        title: getCouncilTitle(row.roles, await getRoleTitles(row.city.language)),
+        title: getCouncilTitle(row.roles, await getRoleTitles(row.city)),
         cityId: row.cityId,
         cityName: row.city.name,
     };

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { handleApiError } from '@/lib/api/errors';
+import { ConflictError, handleApiError } from '@/lib/api/errors';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
+import { authorityHasDocument } from '@/lib/utils/authority';
 
 export async function GET(
     request: Request,
@@ -17,6 +18,12 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         if (searchParams.get('format') === 'json') {
             return NextResponse.json(data);
+        }
+
+        // The decisions page reads the JSON for its own tables. The document is
+        // the part that a region does not get (authorityHasDocument).
+        if (!authorityHasDocument(data.city, 'minutes')) {
+            throw new ConflictError('The minutes are not available for a region');
         }
 
         // Default: return DOCX binary

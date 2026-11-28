@@ -69,7 +69,7 @@ export async function getRequestOnTranscriptRequestBody(
     if (!city) {
         throw new Error('City not found');
     }
-    const roleTitles = await getRoleTitles(city.language);
+    const roleTitles = await getRoleTitles(city);
 
     // Realm-scoped taxonomy — use the city's realm, not a global topic set.
     const topics = await getTopics(city.realm);

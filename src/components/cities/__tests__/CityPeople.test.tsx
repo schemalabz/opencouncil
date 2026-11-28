@@ -98,6 +98,7 @@ const draw = (query: string, superAdminRoster: PersonWithRelations[] | null = pe
             partiesWithPersons={[]}
             administrativeBodies={[]}
             cityId="chania"
+            roleCity={{ language: 'el', authorityType: 'municipality' }}
             canEdit={false}
             superAdminRoster={superAdminRoster}
             secondaryTier={{ available: false, shown: false }}

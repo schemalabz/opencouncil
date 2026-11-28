@@ -56,6 +56,7 @@ import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRai
 import type { ConventionsPanel } from '@/components/meetings/decisions/rail/ConventionsSection';
 import type { DerivationOutput } from '@/lib/derivation/types';
 import { nameIssue } from '@/lib/derivation/issueText';
+import { authorityHasDocument } from '@/lib/utils/authority';
 
 /** MeetingCandidate as it arrives over JSON — dates serialized to strings. */
 type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
@@ -1411,7 +1412,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                     </div>
                 )}
 
-                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} />}
+                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} authorityType={city.authorityType} />}
 
                 {extracted && extracted.votes.length > 0 && (() => {
                     const voteResult = calculateVoteResult(extracted.votes);
@@ -1572,6 +1573,7 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                                 loadFailed={loadFailed}
                                 onRetryLoad={() => { void fetchDecisions(); }}
                                 diavgeiaUid={city.diavgeiaUid}
+                                authorityType={city.authorityType}
                                 pollScope={pollScope}
                                 lastCheck={pollingStatus?.lastPollAt
                                     ? formatDate(new Date(pollingStatus.lastPollAt), city.timezone, locale)
@@ -1722,6 +1724,8 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings, minutesSend: 
                         minutes={minutes}
                         timeline={timeline}
                         isSuperAdmin={isSuperAdmin}
+                        minutesAvailable={authorityHasDocument(city, 'minutes')}
+                        authorityType={city.authorityType}
                         onPreviewMinutes={() => setPreviewOpen(true)}
                         onExportDocx={handleExportDocx}
                         onExportDecisionsTable={handleExportDecisionsTable}

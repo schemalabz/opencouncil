@@ -29,6 +29,8 @@ jest.mock('@/lib/db/prisma', () => {
         councilMeeting: {
             findUnique: (...a: unknown[]) => mockMeetingFindUnique(...a),
         },
+        // The kind of the authority, for the body types it may have.
+        city: { findUnique: async () => ({ authorityType: 'municipality' }) },
         documentSendSetting: {
             findMany: (...a: unknown[]) => mockSettingFindMany(...a),
             upsert: (...a: unknown[]) => mockSettingUpsert(...a),

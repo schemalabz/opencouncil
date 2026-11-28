@@ -8,6 +8,7 @@ import { PlaceSuggestion } from '@/lib/google-maps';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 import { CityWithGeometry } from '@/lib/db/cities';
+import { authorityKey } from '@/lib/utils/authority';
 import { useLocationSearch, type LocationSearchError } from './useLocationSearch';
 
 interface LocationSelectorProps {
@@ -37,7 +38,7 @@ export function LocationSelector({
     const errorMessage = (error: LocationSearchError): string => {
         switch (error.kind) {
             case 'noResults':
-                return t('locationSearchNoResults', { query: error.query, cityName: city.name });
+                return t(authorityKey('locationSearchNoResults', city), { query: error.query, cityName: city.name });
             case 'unavailable':
                 return t('locationSearchUnavailable');
             case 'limitExceeded':
@@ -75,8 +76,8 @@ export function LocationSelector({
                             data-1p-ignore
                             data-lpignore="true"
                             data-form-type="other"
-                            placeholder={t('searchAddressPlaceholder', { cityName: city.name })}
-                            aria-label={t('searchAddressInMunicipality', { cityName: city.name })}
+                            placeholder={t(authorityKey('searchAddressPlaceholder', city), { cityName: city.name })}
+                            aria-label={t(authorityKey('searchAddressInMunicipality', city), { cityName: city.name })}
                             className={`pl-10 py-5 text-base md:text-sm ${search.busy ? 'pr-10' : ''}`}
                             value={inputValue}
                             onChange={(e) => search.changeInput(e.target.value)}

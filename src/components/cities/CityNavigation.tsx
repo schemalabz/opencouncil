@@ -3,11 +3,12 @@ import { useTranslations } from 'next-intl';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 import { ReactNode } from 'react';
-import { City } from '@prisma/client';
+import type { AuthorityType } from '@prisma/client';
+import { authorityKey } from '@/lib/utils/authority';
 
 type CityNavigationProps = {
     cityId: string;
-    city?: { consultationsEnabled: boolean };
+    city: { consultationsEnabled: boolean; authorityType: AuthorityType };
     /** Consultations that take comments now; the tab shows the number in orange. */
     openConsultations?: number;
 };
@@ -60,7 +61,7 @@ export function CityNavigation({ cityId, city, openConsultations = 0 }: CityNavi
                 `sr-only` span, which is absolutely positioned. Without it the
                 span escapes the nav's overflow clipping, sits past the last
                 tab and widens the whole page on a phone. */}
-            <nav aria-label={t('citySections')} className="relative flex gap-4 sm:gap-6 md:gap-7 overflow-x-auto scrollbar-hide -mb-px">
+            <nav aria-label={t(authorityKey('citySections', city))} className="relative flex gap-4 sm:gap-6 md:gap-7 overflow-x-auto scrollbar-hide -mb-px">
                 <NavLink
                     href={`/${cityId}`}
                     segment={currentSegment}
@@ -96,7 +97,7 @@ export function CityNavigation({ cityId, city, openConsultations = 0 }: CityNavi
                 >
                     {t('map')}
                 </NavLink>
-                {city?.consultationsEnabled && (
+                {city.consultationsEnabled && (
                     <NavLink
                         href={`/${cityId}/consultations`}
                         segment={currentSegment}

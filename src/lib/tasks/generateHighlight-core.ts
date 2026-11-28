@@ -2,7 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { startTask } from './tasks';
 import { generateHighlightOptionsSchema } from './generateHighlightOptions';
 import { GenerateHighlightRequest } from '@/lib/apiTypes';
-import { getSpeakerDisplayInfo, getRoleTitle } from '@/lib/utils/roles';
+import { getIndependentMemberLabel, getSpeakerDisplayInfo, getRoleTitle } from '@/lib/utils/roles';
 import { getRoleTitles } from '@/i18n/roleTitles';
 
 // NOT a "use server" module: this performs no authorization, so exposing it as
@@ -26,7 +26,7 @@ export async function requestGenerateHighlightCore(highlightId: string, rawOptio
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
         include: {
-            meeting: { include: { city: { select: { language: true } } } },
+            meeting: { include: { city: { select: { language: true, authorityType: true } } } },
             highlightedUtterances: {
                 orderBy: {
                     utterance: {
@@ -66,7 +66,7 @@ export async function requestGenerateHighlightCore(highlightId: string, rawOptio
         throw new Error('Meeting media not found: videoUrl is required');
     }
 
-    const roleTitles = await getRoleTitles(highlight.meeting.city.language);
+    const roleTitles = await getRoleTitles(highlight.meeting.city);
 
     const utterances = highlight.highlightedUtterances.map(hu => {
         const u = hu.utterance;
@@ -87,7 +87,7 @@ export async function requestGenerateHighlightCore(highlightId: string, rawOptio
 
             // getSpeakerLabels' rule without simplifyRoleName: the overlay has room for the deputy mayor's portfolio.
             roleLabel = (role ? getRoleTitle(role, roleTitles) : null)
-                ?? (isIndependent ? roleTitles.t('independentCouncilMember') : undefined);
+                ?? (isIndependent ? getIndependentMemberLabel(roleTitles) : undefined);
         }
 
         return {

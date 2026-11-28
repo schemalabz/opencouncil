@@ -19,7 +19,10 @@
     "comments": "{count, plural, one {# σχόλιο} other {# σχόλια}}"
   },
   "person": {
-    "council": "Δημοτικό Συμβούλιο",
+    "council": {
+      "municipality": "Δημοτικό Συμβούλιο",
+      "region": "Περιφερειακό Συμβούλιο"
+    },
     "recent": "Πρόσφατες τοποθετήσεις"
   },
   "party": {
@@ -27,7 +30,10 @@
     "leader": "Επικεφαλής: {name}"
   },
   "people": {
-    "title": "Δημοτικοί Σύμβουλοι"
+    "title": {
+      "municipality": "Δημοτικοί Σύμβουλοι",
+      "region": "Περιφερειακοί Σύμβουλοι"
+    }
   },
   "subject": {
     "speakers": "{count, plural, one {# ομιλητής} other {# ομιλητές}}",

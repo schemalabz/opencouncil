@@ -10,7 +10,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             name_municipality: 'Δήμος Ζωγράφου',
             timezone: 'Europe/Athens',
             logoImage: null,
-            realm: 'greece',
+            realm: 'greece', authorityType: 'municipality',
         },
         meeting: {
             id: 'meeting-1',
