@@ -169,7 +169,7 @@ export default async function ConsultationPage(props: PageProps) {
     // The header has no ground of its own until the page scrolls, and the consultation's page is grey
     // (on a computer only the panel scrolls, so it never would): give it the site's white. It spans the
     // full width like the map and the consultation bar below it, not the site's centred column.
-    const header = <Header path={pathElements} currentEntity={{ cityId: city.id }} showExplain={hasExplainPage(realm)} noContainer className="border-b border-border/60 bg-background" />;
+    const header = <Header path={pathElements} currentEntity={{ cityId: city.id, authorityType: city.authorityType }} showExplain={hasExplainPage(realm)} noContainer className="border-b border-border/60 bg-background" />;
 
     // Generate structured data for SEO
     const structuredData = {

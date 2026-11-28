@@ -25,6 +25,7 @@ const city = {
     name_municipality: 'Δήμος Αγίας Παρασκευής',
     name_municipality_en: null,
     logoImage: null,
+    authorityType: 'municipality' as const,
 };
 const supported = { ...city, status: 'supported' as CityStatus };
 
@@ -35,7 +36,13 @@ describe('PetitionCityCard', () => {
         render(<PetitionCityCard city={city} bucket={25} pickerQuery="" />);
 
         expect(screen.getByText('Δήμος Αγίας Παρασκευής')).toBeInTheDocument();
-        expect(screen.getByText('petitionCount 25')).toBeInTheDocument();
+        expect(screen.getByText('petitionCount.municipality 25')).toBeInTheDocument();
+    });
+
+    it('counts the residents of a region and not the citizens of a municipality', () => {
+        render(<PetitionCityCard city={{ ...city, authorityType: 'region' }} bucket={25} pickerQuery="" />);
+
+        expect(screen.getByText('petitionCount.region 25')).toBeInTheDocument();
     });
 
     it('says the municipality is not in the network when too few have asked', () => {

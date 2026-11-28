@@ -271,7 +271,7 @@ export default async function CommentsPage(props: PageProps) {
     return (
         <>
         <div className="print:hidden">
-            <Header path={pathElements} currentEntity={{ cityId: city.id }} showExplain={hasExplainPage(realm)} />
+            <Header path={pathElements} currentEntity={{ cityId: city.id, authorityType: city.authorityType }} showExplain={hasExplainPage(realm)} />
         </div>
         <div className="min-h-screen bg-white">
             {/* Header - visible on screen only */}

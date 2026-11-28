@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
-import { authorityKey } from '@/components/cities/overview/authorityKey';
+import type { AuthorityType } from '@prisma/client';
+import { authorityKey } from '@/lib/utils/authority';
 import { CtaButton } from '@/components/ui/cta-button';
 import { notificationsSignupHref } from '@/lib/utils/notificationsSignupHref';
 import { NotisChatCard } from './NotisChatCard';
@@ -16,7 +17,7 @@ export function NotisInviteCard({
     className,
 }: {
     /** The municipality the invitation is for. Without one it leads to the picker. */
-    city?: { id: string; authorityType: string; supportsNotifications: boolean };
+    city?: { id: string; authorityType: AuthorityType; supportsNotifications: boolean };
     /** Where the card is mounted, carried by the click event. */
     surface: 'city' | 'profile';
     className?: string;

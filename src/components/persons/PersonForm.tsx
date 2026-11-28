@@ -20,7 +20,7 @@ import {
 } from "../../components/ui/form"
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
-import { Party, Person, Role } from '@prisma/client'
+import { AuthorityType, Party, Person, Role } from '@prisma/client'
 import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Loader2, Check, Trash2 } from "lucide-react"
@@ -38,6 +38,8 @@ interface PersonFormProps {
     person?: Person & { roles?: RoleWithRelations[] }
     onSuccess?: () => void
     cityId: string,
+    /** The kind of the city, for the labels of the role editor; see RolesList. */
+    authorityType: AuthorityType
     parties: Party[]
     administrativeBodies: PublicAdministrativeBody[]
     /**
@@ -58,7 +60,7 @@ interface PersonFormProps {
     canEditImage?: boolean
 }
 
-export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes, defaultRoleStart, canEditImage = true }: PersonFormProps) {
+export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, authorityType, canEditRoles = true, roleTypes, defaultRoleStart, canEditImage = true }: PersonFormProps) {
     const router = useRouter()
     const [removeImage, setRemoveImage] = useState(false)
     const [cropFile, setCropFile] = useState<File | null>(null)
@@ -315,6 +317,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         <RolesList
                             personId={person?.id}
                             cityId={cityId}
+                            authorityType={authorityType}
                             roles={roles}
                             parties={parties}
                             administrativeBodies={administrativeBodies}

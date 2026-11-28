@@ -1,6 +1,7 @@
 // Not in a "use server" file: every export there is a callable Server Action,
 // and this writes a meeting without checking who asks.
 import "server-only";
+import type { AuthorityType } from '@prisma/client';
 import type { AgendaMeetingInAgenda, AgendaMeetingRecord } from '@/lib/apiTypes';
 import prisma from '@/lib/db/prisma';
 import { describeMismatch, holdsAnotherMeeting, meetingsOfThisBody, SIBLING_WINDOW_MS, reconcileAgendaMeetingRecord, type AgendaRecordReconciliation, type SiblingCandidate } from '@/lib/agendaMeetingRecord';
@@ -9,11 +10,12 @@ import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
 import { analyzeStoredName, storedNameLoss } from '@/lib/meetingRecordBackfill';
 import { meetingNameInCity } from '@/lib/meetingName';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
+import { authorityMeetingKindNeedsReview } from '@/lib/utils/authority';
 
 type MeetingForRecord = Parameters<typeof meetingNameInCity>[0] & {
     id: string;
     cityId: string;
-    city: { name_en: string; timezone: string };
+    city: { name_en: string; timezone: string; authorityType: AuthorityType };
 };
 
 /**
@@ -93,6 +95,9 @@ export async function applyAgendaMeetingRecord(
     }
     if (written.kind !== undefined || written.urgent !== undefined || written.sessionNumber !== undefined) {
         await syncMeetingToCalendar(meeting.cityId, meeting.id);
+    }
+    if (written.kind && authorityMeetingKindNeedsReview(meeting.city)) {
+        problems.push(`kind ${written.kind} written from the invitation of a ${meeting.city.authorityType}: nobody checked the rules for the kinds of its meetings against the law, so review the kind`);
     }
     if (problems.length > 0) {
         console.warn(`processAgenda: the agenda of ${meeting.cityId}/${meeting.id} needs a look: ${problems.join('; ')}`);

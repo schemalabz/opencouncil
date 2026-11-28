@@ -1,4 +1,5 @@
-import type { AdministrativeBodyType, CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Prisma, Realm } from '@prisma/client';
+import type { AdministrativeBodyType, AuthorityType, CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus, Prisma, Realm } from '@prisma/client';
+import { authorityRequiresMeetingBody } from '@/lib/utils/authority';
 
 /** The columns of a meeting that the lifecycle rules read, as they will be after the write. */
 export interface MeetingRecordState {
@@ -25,6 +26,8 @@ export interface MeetingRecordState {
 export interface LifecycleContext {
     /** The realm of the city. Null when the city does not exist: the write then fails on its key. */
     realm: Realm | null;
+    /** The kind of the authority: a region has no meeting without a body. Null with the realm. */
+    authorityType: AuthorityType | null;
     body: { type: AdministrativeBodyType } | 'missing' | null;
     postponedFrom: { administrativeBodyId: string | null; scheduleStatus: MeetingScheduleStatus; dateTime: Date } | 'missing' | null;
     /** Another meeting is already the new meeting of the postponed meeting. */
@@ -41,6 +44,7 @@ export const LIFECYCLE_RULE_CODES = [
     'greekRealmOnly',
     'councilOnlyKind',
     'bodyMissing',
+    'regionNeedsBody',
     'postponedFromMissing',
     'postponedFromNotPostponed',
     'postponedFromTaken',
@@ -267,6 +271,10 @@ export function validateMeetingRecord(next: MeetingRecordState, ctx: LifecycleCo
         fail('bodyMissing', `The administrative body ${next.administrativeBodyId} does not exist in this city.`);
     } else if (next.kind && COUNCIL_ONLY_KINDS.has(next.kind) && !isCouncil(ctx.body)) {
         fail('councilOnlyKind', 'Only a council holds a special meeting.');
+    }
+
+    if (ctx.body === null && ctx.authorityType !== null && authorityRequiresMeetingBody({ authorityType: ctx.authorityType })) {
+        fail('regionNeedsBody', 'A meeting of a region must name its administrative body.');
     }
 
     if (next.postponedFromId) {

@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 function renderForm(meeting?: CouncilMeeting, realm: Realm = 'greece', timezone = 'Europe/Athens') {
-    return render(<Sheet open><AddMeetingForm cityId="chania" realm={realm} timezone={timezone} meeting={meeting} /></Sheet>);
+    return render(<Sheet open><AddMeetingForm cityId="chania" realm={realm} authorityType="municipality" timezone={timezone} meeting={meeting} /></Sheet>);
 }
 
 async function submittedBody(): Promise<Record<string, unknown>> {
@@ -55,6 +55,45 @@ function existingMeeting(fields: Partial<CouncilMeeting>): CouncilMeeting {
 function selectedFromInvitation(container: HTMLElement): number {
     return container.querySelectorAll('option[value="fromInvitation"]:checked').length;
 }
+
+describe('AddMeetingForm: the body of a meeting of a region (#993)', () => {
+    const bodies = [{ id: 'council', name: 'Περιφερειακό Συμβούλιο', type: 'council', place: null }];
+    /** The option of the body select that stands for no body. */
+    const noBodyOption = (container: HTMLElement) =>
+        [...container.querySelectorAll('option')].find(option => option.textContent === 'noAdministrativeBody');
+
+    function renderRegionForm(meeting?: CouncilMeeting) {
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+            if (init?.method) return { ok: true, json: async () => ({ id: 'm1' }) };
+            return { ok: true, json: async () => (url.includes('administrative-bodies') ? bodies : []) };
+        });
+        return render(<Sheet open><AddMeetingForm cityId="thessalia" realm="greece" authorityType="region" timezone="Europe/Athens" meeting={meeting} /></Sheet>);
+    }
+
+    it('offers no meeting without a body, and sends nothing until the admin picks one', async () => {
+        const { container } = renderRegionForm();
+        await waitFor(() => expect(container.querySelector('option[value="council"]')).not.toBeNull());
+        expect(noBodyOption(container)).toBeUndefined();
+
+        fireEvent.click(screen.getByRole('button', { name: meetingSubmitLabel() }));
+        // The placeholder of the select and the error under it.
+        await waitFor(() => expect(screen.getAllByText('selectAdministrativeBody').length).toBeGreaterThan(1));
+        expect(fetchMock.mock.calls.some(([, init]) => init?.method)).toBe(false);
+    });
+
+    it('sends a meeting of a region that names its body', async () => {
+        const { container } = renderRegionForm(existingMeeting({ cityId: 'thessalia', administrativeBodyId: 'council' }));
+        await waitFor(() => expect(container.querySelector('option[value="council"]')).not.toBeNull());
+
+        expect((await submittedBody()).administrativeBodyId).toBe('council');
+    });
+
+    it('keeps the choice of no body for a municipality', async () => {
+        const { container } = renderForm();
+        expect(noBodyOption(container)).toBeDefined();
+        expect((await submittedBody()).administrativeBodyId).toBeNull();
+    });
+});
 
 describe('AddMeetingForm: kind and format', () => {
     it('sends an urgent meeting when the admin ticks «Έκτακτη»', async () => {

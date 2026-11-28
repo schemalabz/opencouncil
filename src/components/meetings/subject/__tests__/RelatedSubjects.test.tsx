@@ -47,7 +47,7 @@ function subject({ id, cityId, cityName, dateTime, name, body }: {
     } as unknown as RelatedSubject;
 }
 
-const CURRENT = { dateTime: '2025-06-18T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens' };
+const CURRENT = { dateTime: '2025-06-18T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens', authorityType: 'municipality' as const };
 
 const cityLevel: RelatedLevel = {
     subjects: [
@@ -62,8 +62,8 @@ const otherLevel: RelatedLevel = {
     ],
 };
 
-const renderRelated = (levels: { city?: RelatedLevel; other?: RelatedLevel }) =>
-    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" cityId="vrilissia" current={CURRENT} city={levels.city} other={levels.other} />);
+const renderRelated = (levels: { city?: RelatedLevel; other?: RelatedLevel }, current: typeof CURRENT | (Omit<typeof CURRENT, 'authorityType'> & { authorityType: 'region' }) = CURRENT) =>
+    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" cityId="vrilissia" current={current} city={levels.city} other={levels.other} />);
 
 // jsdom has no IntersectionObserver. The stub keeps the callbacks, so a case
 // decides when the section comes into view.
@@ -121,8 +121,17 @@ describe('RelatedSubjects', () => {
     it('draws only the levels it is given', () => {
         const { queryByText } = renderRelated({ other: otherLevel });
 
-        expect(queryByText('relatedSameCity')).toBeNull();
-        expect(queryByText('relatedOtherCities')).not.toBeNull();
+        expect(queryByText('relatedSameCity.municipality')).toBeNull();
+        expect(queryByText('relatedOtherCities.municipality')).not.toBeNull();
+    });
+
+    it('names the two levels of a region with the region texts', () => {
+        const { queryByText } = renderRelated({ city: cityLevel, other: otherLevel }, { ...CURRENT, authorityType: 'region' });
+
+        expect(queryByText('relatedSameCity.region')).not.toBeNull();
+        expect(queryByText('relatedOtherCities.region')).not.toBeNull();
+        expect(queryByText('relatedSameCity.municipality')).toBeNull();
+        expect(queryByText('relatedOtherCities.municipality')).toBeNull();
     });
 
     // The timeline is in meeting order, so its position is not a rank.

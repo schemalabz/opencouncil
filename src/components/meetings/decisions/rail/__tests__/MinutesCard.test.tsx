@@ -9,6 +9,7 @@ jest.mock('next-intl', () => ({
 function renderCard(overrides: Partial<React.ComponentProps<typeof MinutesCard>> = {}) {
     return render(
         <MinutesCard
+            available
             onPreview={jest.fn()}
             onExport={jest.fn()}
             previewDisabled={false}
@@ -68,6 +69,16 @@ describe('MinutesCard', () => {
         renderCard({ readiness: { subjects: 12, undecided: 0 } });
         expect(screen.getByText('rail.minutesAllDecided')).toBeInTheDocument();
         expect(screen.queryByText(/rail\.minutesUndecided/)).not.toBeInTheDocument();
+    });
+
+    it('offers no document for an authority that gets no minutes, and says so (#993)', () => {
+        renderCard({ available: false, showRederive: true, send: <span>send line</span> });
+        expect(screen.getByText('rail.regionMinutes')).toBeInTheDocument();
+        expect(screen.queryByText('previewMinutes')).not.toBeInTheDocument();
+        expect(screen.queryByText('exportDocx')).not.toBeInTheDocument();
+        expect(screen.queryByText('send line')).not.toBeInTheDocument();
+        // The re-derivation repairs the tables of the page, not the document.
+        expect(screen.getByText('rederive')).toBeInTheDocument();
     });
 
     it('explains the unavailable preview when the meeting has no subjects, instead of only greying it', () => {

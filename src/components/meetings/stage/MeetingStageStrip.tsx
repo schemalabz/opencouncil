@@ -8,6 +8,7 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
+import { authorityKey } from '@/lib/utils/authority';
 import { bodyOffersUpdates, preferenceCoversBody } from '@/lib/utils/bodyTier';
 import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { presentationExplainHref, type PresentationKey, type PublicMeetingPresentation } from '@/lib/meetingPresentation';
@@ -163,7 +164,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             const reason = presentation.type === stage ? presentation.reason : null;
             text = (
                 <>
-                    {t(`strip.${stage}`, { date: formatDate(date, timezone, locale) })}
+                    {stage === 'postponed'
+                        ? t(authorityKey('strip.postponed', city), { date: formatDate(date, timezone, locale) })
+                        : t('strip.cancelled', { date: formatDate(date, timezone, locale) })}
                     {reason && <> {t('strip.reason', { reason })}</>}
                 </>
             );

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import type { AuthorityType } from '@prisma/client';
 import { RailCard } from '@/components/ui/rail-card';
 import type { RollCall } from '@/components/meetings/decisions/timeline';
 import { RollCallHeadLines, useRollCallName } from '@/components/meetings/decisions/RollCallLines';
@@ -11,9 +12,9 @@ import { RollCallHeadLines, useRollCallName } from '@/components/meetings/decisi
  * expander. A council counts against its ΣΥΝΘΕΣΗ; a committee counts its
  * members and names the substitutes who sat in. Renders nothing when the
  * minutes hold no roll call. */
-export function PresenceCard({ rollCall }: { rollCall: RollCall | null }) {
+export function PresenceCard({ rollCall, authorityType }: { rollCall: RollCall | null; authorityType: AuthorityType }) {
     const tPage = useTranslations('admin.decisionsPage');
-    const nameOf = useRollCallName();
+    const nameOf = useRollCallName(authorityType);
     const [expanded, setExpanded] = useState(false);
 
     if (!rollCall) return null;
@@ -24,7 +25,7 @@ export function PresenceCard({ rollCall }: { rollCall: RollCall | null }) {
     return (
         <RailCard title={tPage('attendance')}>
             <div className="space-y-1.5 text-xs">
-                <RollCallHeadLines rollCall={rollCall} perSubject={false} />
+                <RollCallHeadLines rollCall={rollCall} perSubject={false} authorityType={authorityType} />
                 <div className="font-medium">
                     {isCommittee
                         ? tPage('presenceMembersHeadline', { present: present.length })

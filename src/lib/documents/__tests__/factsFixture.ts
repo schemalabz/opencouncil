@@ -52,7 +52,7 @@ export function readinessFacts(overrides: Partial<ReadinessFacts> = {}): Readine
         continuationOfId: null,
         kind: 'ordinary',
         continuationOf: null,
-        city: { timezone: 'Europe/Athens', status: 'supported', diavgeiaUid: null },
+        city: { timezone: 'Europe/Athens', status: 'supported', diavgeiaUid: null, authorityType: 'municipality' },
         administrativeBodyId: 'b1',
         administrativeBody: { tier: 'primary' as const, documentSendSettings: [setting('transcript'), setting('minutes')] },
         taskStatuses: [summarizeTask, reviewTask],

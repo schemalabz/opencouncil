@@ -13,7 +13,7 @@ jest.mock('@/components/ImageOrInitials', () => ({ ImageOrInitials: () => null }
 jest.mock('@/i18n/routing', () => ({ getPathname: ({ href }: { href: string }) => href, Link: ({ children, href, title, 'aria-label': label }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a href={href} title={title} aria-label={label}>{children}</a> }));
 
 const contribution = { id: 'contribution1', text: 'Summary of the contribution.', speakerId: null, speakerName: null };
-const props = { contribution, subjectId: 'subject1', meeting: { id: 'meeting1', cityId: 'city1', released: true }, speaker: null };
+const props = { contribution, subjectId: 'subject1', meeting: { id: 'meeting1', cityId: 'city1', released: true }, speaker: null, roleCity: { language: 'el', authorityType: 'municipality' } as const };
 
 const writeText = jest.fn().mockResolvedValue(undefined);
 describe('contribution sharing entry points', () => {

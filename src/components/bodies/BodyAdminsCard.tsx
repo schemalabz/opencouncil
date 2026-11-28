@@ -10,17 +10,20 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { BodyAdmin } from '@/lib/db/bodyAdmins';
 import { formatDate } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
+import { authorityKey } from '@/lib/utils/authority';
 import { apiErrorMessage } from '@/lib/utils/validationIssues';
+import type { AuthorityType } from '@prisma/client';
 
 interface BodyAdminsCardProps {
     cityId: string;
+    authorityType: AuthorityType;
     bodyId: string;
     /** An admin of the city may remove the last admin of the body; a body admin may not. */
     canRemoveLast: boolean;
 }
 
 /** The admins of the body (#828): the accounts that run it, and a form that invites one more by email. */
-export function BodyAdminsCard({ cityId, bodyId, canRemoveLast }: BodyAdminsCardProps) {
+export function BodyAdminsCard({ cityId, authorityType, bodyId, canRemoveLast }: BodyAdminsCardProps) {
     const t = useTranslations('body');
     const locale = useLocale();
     const { toast } = useToast();
@@ -114,7 +117,7 @@ export function BodyAdminsCard({ cityId, bodyId, canRemoveLast }: BodyAdminsCard
                                 variant="ghost"
                                 size="sm"
                                 disabled={busy || lastOne}
-                                title={lastOne ? t('lastAdmin') : t('remove')}
+                                title={lastOne ? t(authorityKey('lastAdmin', { authorityType })) : t('remove')}
                                 onClick={() => remove(admin)}
                             >
                                 <Trash2 className="h-4 w-4" aria-hidden />

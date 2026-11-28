@@ -11,12 +11,15 @@
       "privateLead": "Προσωπικό.",
       "private": "Μην μοιραστείτε αυτόν τον κωδικό. Μόνο για: {name}"
     },
-    "title": "Δήμοι",
-    "description": "Όλοι οι δήμοι ομαδοποιημένοι ανά ομάδα (realm).",
-    "addCity": "Προσθήκη Δήμου",
-    "editCity": "Επεξεργασία Δήμου",
-    "searchPlaceholder": "Αναζήτηση δήμων...",
-    "noCities": "Δεν βρέθηκαν δήμοι",
+    "title": "Δήμοι και Περιφέρειες",
+    "description": "Όλοι οι δήμοι και οι περιφέρειες, ομαδοποιημένοι ανά ομάδα (realm).",
+    "addCity": "Προσθήκη Δήμου ή Περιφέρειας",
+    "editCity": {
+      "municipality": "Επεξεργασία Δήμου",
+      "region": "Επεξεργασία Περιφέρειας"
+    },
+    "searchPlaceholder": "Αναζήτηση δήμων και περιφερειών...",
+    "noCities": "Δεν βρέθηκαν δήμοι ή περιφέρειες",
     "columnName": "Όνομα",
     "columnId": "Αναγνωριστικό",
     "columnLanguage": "Γλώσσα",
@@ -24,7 +27,8 @@
     "columnMeetings": "Συνεδριάσεις",
     "columnPeople": "Πρόσωπα",
     "columnParties": "Παρατάξεις",
-    "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}"
+    "cityCount": "{count, plural, one {# δήμος} other {# δήμοι}}",
+    "regionCount": "{count, plural, one {# περιφέρεια} other {# περιφέρειες}}"
   },
   "taskStatus": {
     "pending": "Σε εκκρεμότητα",
@@ -471,7 +475,10 @@
     "resetExtractionsDescription": "Διαγραφή όλων των εξαγόμενων δεδομένων (αποσπάσματα, παρουσίες, ψήφοι) για κάθε θέμα. Οι συνδέσεις αποφάσεων διατηρούνται.",
     "scope": {
       "malformed": "με λανθασμένη ρύθμιση μονάδας: {error}",
-      "noOrg": "Ο δήμος δεν έχει ID οργανισμού στη Διαύγεια — η ανάκτηση δεν μπορεί να εκτελεστεί",
+      "noOrg": {
+        "municipality": "Ο δήμος δεν έχει ID οργανισμού στη Διαύγεια — η ανάκτηση δεν μπορεί να εκτελεστεί",
+        "region": "Η περιφέρεια δεν έχει ID οργανισμού στη Διαύγεια — η ανάκτηση δεν μπορεί να εκτελεστεί"
+      },
       "org": "στον οργανισμό {org}",
       "orgWide": "χωρίς ρυθμισμένη μονάδα",
       "unit": "στη μονάδα {unit}",
@@ -523,6 +530,7 @@
       "minutesUndecided": "{n, plural, one {# θέμα χωρίς απόφαση} other {# θέματα χωρίς απόφαση}}",
       "minutesUndecidedHint": "{n, plural, one {Θα εμφανιστεί στα πρακτικά χωρίς αριθμό απόφασης.} other {Θα εμφανιστούν στα πρακτικά χωρίς αριθμό απόφασης.}}",
       "minutesProvenance": "Συντάσσονται από την απομαγνητοφώνηση και τις αποφάσεις αυτής της σελίδας.",
+      "regionMinutes": "Το OpenCouncil δεν συντάσσει ακόμη πρακτικά για περιφέρεια.",
       "conventionsTitle": "Κανόνες ανάγνωσης",
       "conventionsEdit": "Επεξεργασία κανόνων στο σώμα",
       "conventionsNone": "Δεν έχουν καταγραφεί κανόνες για αυτό το σώμα. Οι σελίδες των αποφάσεών του δεν διαβάζονται μέχρι να τους καταγράψει κάποιος· όσα στοιχεία εμφανίζονται προέκυψαν με τις προεπιλογές.",
@@ -546,13 +554,25 @@
     "presenceHeadline": "{present} παρόντες από {total}",
     "presenceAbsentInline": "{n} απόντες:",
     "presencePresentList": "Παρόντες ({n})",
-    "presenceMayor": "Δήμαρχος:",
+    "presenceMayor": {
+      "municipality": "Δήμαρχος:",
+      "region": "Περιφερειάρχης:"
+    },
     "presencePresident": "Πρόεδρος:",
     "presenceAbsentMark": "{gender, select, female {απούσα} other {απών}}",
-    "presenceMayorSuffix": "(Δήμαρχος)",
+    "presenceMayorSuffix": {
+      "municipality": "(Δήμαρχος)",
+      "region": "(Περιφερειάρχης)"
+    },
     "presenceSubstituteMark": "αναπλ. μέλος",
-    "presenceChairInAbsence": "λόγω απουσίας {gender, select, female {της Προέδρου} other {του Προέδρου}}{mayor, select, yes {, Δημάρχου} other {}} {name}",
-    "presenceChairMark": "{mayor, select, yes {Πρόεδρος, Δήμαρχος} other {Πρόεδρος}}",
+    "presenceChairInAbsence": {
+      "municipality": "λόγω απουσίας {gender, select, female {της Προέδρου} other {του Προέδρου}}{mayor, select, yes {, Δημάρχου} other {}} {name}",
+      "region": "λόγω απουσίας {gender, select, female {της Προέδρου} other {του Προέδρου}}{mayor, select, yes {, Περιφερειάρχη} other {}} {name}"
+    },
+    "presenceChairMark": {
+      "municipality": "{mayor, select, yes {Πρόεδρος, Δήμαρχος} other {Πρόεδρος}}",
+      "region": "{mayor, select, yes {Πρόεδρος, Περιφερειάρχης} other {Πρόεδρος}}"
+    },
     "presenceMembersHeadline": "{present} παρόντα μέλη",
     "presenceMembersAbsentInline": "Απόντα μέλη ({n}):",
     "presenceMembersPresentList": "Παρόντα μέλη ({n})",

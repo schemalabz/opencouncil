@@ -5,8 +5,10 @@ import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
 import { withCanonicalUrl } from '@/lib/utils/hreflang';
-import { getLocalizedName } from "@/lib/formatters/name";
+import { getLocalizedName, getMunicipalityQualifier } from "@/lib/formatters/name";
+import { authorityKey } from "@/lib/utils/authority";
 import { getOgLocale } from '@/i18n/config';
+import { getTranslations } from 'next-intl/server';
 import { buildOgImageUrl } from '@/lib/og/locale';
 
 interface PageProps {
@@ -15,15 +17,16 @@ interface PageProps {
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
     const params = await props.params;
-    const [city, consultations] = await Promise.all([
+    const [city, consultations, t] = await Promise.all([
         getCityCached(params.cityId),
-        getAllConsultationsForCity(params.cityId)
+        getAllConsultationsForCity(params.cityId),
+        getTranslations({ locale: params.locale, namespace: 'metadata.consultations' }),
     ]);
 
     if (!city) {
         return {
-            title: "Διαβουλεύσεις δεν βρέθηκαν | OpenCouncil",
-            description: "Ο δήμος που ζητάτε δεν βρέθηκε ή δεν έχει διαβουλεύσεις.",
+            title: t('notFoundTitle'),
+            description: t('notFoundDescription'),
         };
     }
 
@@ -35,32 +38,31 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     const totalConsultationsCount = consultations.length;
 
     const cityName = getLocalizedName(city, params.locale);
+    const names = { cityName, qualifier: getMunicipalityQualifier(city, params.locale) };
+    const counts = { activeCount: activeConsultationsCount, totalCount: totalConsultationsCount };
     const description = totalConsultationsCount > 0
         ? activeConsultationsCount > 0
-            ? `Δείτε και συμμετέχετε σε ${activeConsultationsCount} ${activeConsultationsCount === 1 ? 'ενεργή διαβούλευση' : 'ενεργές διαβουλεύσεις'} από συνολικά ${totalConsultationsCount} στον Δήμο ${cityName}. Εκφράστε τη γνώμη σας για τους νέους κανονισμούς και τις πολιτικές που επηρεάζουν την πόλη σας.`
-            : `Δείτε ${totalConsultationsCount} ${totalConsultationsCount === 1 ? 'παλαιότερη διαβούλευση' : 'παλαιότερες διαβουλεύσεις'} στον Δήμο ${cityName}. Δεν υπάρχουν ενεργές διαβουλεύσεις αυτή τη στιγμή.`
-        : `Δεν υπάρχουν διαβουλεύσεις στον Δήμο ${cityName} αυτή τη στιγμή. Ελέγχετε ξανά σύντομα για νέες ευκαιρίες συμμετοχής.`;
+            ? t(authorityKey('descriptionActive', city), { ...names, ...counts })
+            : t(authorityKey('descriptionPast', city), { ...names, ...counts })
+        : t(authorityKey('descriptionNone', city), names);
+    const shortTitle = t('shortTitle', { cityName });
 
     // Generate OG image URL for city
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId });
 
     return withCanonicalUrl(`/${params.cityId}/consultations`, {
-        title: `Δημόσιες Διαβουλεύσεις | ${cityName} | OpenCouncil`,
+        title: t('title', { cityName }),
         description,
         keywords: [
-            'διαβουλεύσεις',
-            'δημόσιες διαβουλεύσεις',
-            'συμμετοχικός σχεδιασμός',
-            'τοπική αυτοδιοίκηση',
-            'κανονισμοί',
+            ...(t.raw('keywords') as string[]),
             cityName,
             'OpenCouncil',
-            ...(activeConsultationsCount > 0 ? ['ενεργές διαβουλεύσεις'] : []),
-            ...(totalConsultationsCount > activeConsultationsCount ? ['παλαιότερες διαβουλεύσεις'] : [])
+            ...(activeConsultationsCount > 0 ? [t('keywordActive')] : []),
+            ...(totalConsultationsCount > activeConsultationsCount ? [t('keywordPast')] : [])
         ],
-        authors: [{ name: `Δήμος ${cityName}` }],
+        authors: [{ name: t(authorityKey('author', city), names) }],
         openGraph: {
-            title: `Δημόσιες Διαβουλεύσεις | ${cityName}`,
+            title: shortTitle,
             description,
             type: 'website',
             siteName: 'OpenCouncil',
@@ -69,14 +71,14 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Δημόσιες διαβουλεύσεις | ${cityName}`,
+                    alt: t('ogAlt', { cityName }),
                 }
             ],
             locale: getOgLocale(params.locale),
         },
         twitter: {
             card: 'summary_large_image',
-            title: `Δημόσιες Διαβουλεύσεις | ${cityName}`,
+            title: shortTitle,
             description,
             images: [ogImageUrl],
         },

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import type * as z from 'zod';
+import type { AuthorityType } from '@prisma/client';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ import { useValidationMessage, useZodResolver } from '@/hooks/useLocalizedValida
 
 interface BodyContactsFormProps {
     cityId: string;
+    authorityType: AuthorityType;
     bodyId: string;
     contacts: BodyContacts;
     /** A body of the secondary tier (#829): its admin switches its updates on and off. */
@@ -38,7 +40,7 @@ interface BodyContactsFormProps {
  * who follow it (#829). PUT with these fields alone reaches the contacts
  * write of the body route.
  */
-export function BodyContactsForm({ cityId, bodyId, contacts, secondary }: BodyContactsFormProps) {
+export function BodyContactsForm({ cityId, authorityType, bodyId, contacts, secondary }: BodyContactsFormProps) {
     const t = useTranslations('body');
     const router = useRouter();
     const { toast } = useToast();
@@ -104,7 +106,7 @@ export function BodyContactsForm({ cityId, bodyId, contacts, secondary }: BodyCo
                         </FormItem>
                     )}
                 />
-                <DocumentSendFields form={form} />
+                <DocumentSendFields form={form} authorityType={authorityType} />
                 {secondary && (
                     <FormField
                         control={form.control}

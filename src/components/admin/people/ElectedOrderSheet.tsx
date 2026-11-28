@@ -26,12 +26,15 @@ import { toast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { compareRanks } from '@/lib/sorting/people';
 import { downloadFile } from '@/lib/export/download';
+import { authorityKey } from '@/lib/utils/authority';
+import type { AuthorityType } from '@prisma/client';
 
 interface ElectedOrderSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     people: PersonWithRelations[];
     cityId: string;
+    authorityType: AuthorityType;
     administrativeBodyId: string;
 }
 
@@ -88,6 +91,7 @@ export default function ElectedOrderSheet({
     onOpenChange,
     people,
     cityId,
+    authorityType,
     administrativeBodyId,
 }: ElectedOrderSheetProps) {
     const router = useRouter();
@@ -288,7 +292,7 @@ export default function ElectedOrderSheet({
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        {t('description')}
+                        {t(authorityKey('description', { authorityType }))}
                     </p>
                     <div className="flex items-center justify-between rounded-md border border-dashed px-3 py-2">
                         <p className="text-xs text-muted-foreground">

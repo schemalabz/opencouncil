@@ -22,17 +22,32 @@
   "timelineTitle": "Séances récentes et à venir",
   "timelineNoAgendaYet": "L'ordre du jour n'a pas encore été publié",
   "allMeetings": "Toutes les séances",
-  "scopeCouncil": "Conseil",
+  "scopeCouncil": {
+    "municipality": "Conseil",
+    "region": "Conseil"
+  },
   "scopeAll": "Tout",
   "noMeetingsForScope": "Aucune séance de cet organe pour l'instant.",
-  "councilEyebrow": "Le conseil municipal",
+  "councilEyebrow": {
+    "municipality": "Le conseil municipal",
+    "region": "Le conseil municipal"
+  },
   "councilTitle": "Groupes et élus",
   "allParties": "Tous les groupes",
   "allPeople": "Tous les élus",
   "peopleEyebrow": "{count, plural, =1 {1 membre} other {# membres}}",
-  "seatsInCouncil": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
-  "inCommittees": "{count} en commission municipale",
-  "governingParty": "Majorité municipale",
+  "seatsInCouncil": {
+    "municipality": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}",
+    "region": "{count, plural, =1 {siège au conseil} other {sièges au conseil}}"
+  },
+  "inCommittees": {
+    "municipality": "{count} en commission municipale",
+    "region": "{count} en commission municipale"
+  },
+  "governingParty": {
+    "municipality": "Majorité municipale",
+    "region": "Majorité municipale"
+  },
   "notisName": "Notis",
   "notisIntro": {
     "municipality": "le voisin numérique bien informé qui suit ce qui se passe dans la commune",
@@ -55,7 +70,10 @@
   "channelEmail": "E-mail",
   "channelPhone": "WhatsApp et SMS",
   "changePreferences": "Modifier les préférences",
-  "allMyCities": "Toutes mes communes",
+  "allMyCities": {
+    "municipality": "Toutes mes communes",
+    "region": "Toutes mes communes"
+  },
   "notisMsg1": "La place de votre quartier change : de grands arbres, de l'eau, de la terre au lieu du béton. Le projet a été adopté à l'unanimité hier soir.",
   "notisMsg2": "Y aura-t-il une aire de jeux ?",
   "notisMsg3": "Pas officiellement — la réglementation impose un sol plastique et interdit les arbres. Il y aura des jeux en matériaux naturels, et une vraie aire de jeux a été demandée ailleurs.",
@@ -71,7 +89,10 @@
   "notisAdvance": "Message suivant",
   "notisReplay": "Revoir",
   "notisExampleLabel": "exemple",
-  "scopeCommittee": "Commission",
+  "scopeCommittee": {
+    "municipality": "Commission",
+    "region": "Commission"
+  },
   "scopeCommunity": "Communes",
   "scopeYouthCouncil": "Jeunes",
   "period3m": "3 mois",
@@ -82,8 +103,14 @@
   "inCommunities": "{count} en communautés",
   "notisTeaser": "Rester informé, c'est simple.",
   "subscribedSummary": "Vous êtes abonné aux notifications",
-  "scopeCouncilFull": "Conseil municipal",
-  "scopeCommitteeFull": "Commission municipale",
+  "scopeCouncilFull": {
+    "municipality": "Conseil municipal",
+    "region": "Conseil municipal"
+  },
+  "scopeCommitteeFull": {
+    "municipality": "Commission municipale",
+    "region": "Commission municipale"
+  },
   "scopeCommunityFull": "Communes déléguées",
   "scopeYouthCouncilFull": "Conseil des jeunes",
   "scopeAllFull": "Tous les organes",
@@ -96,7 +123,10 @@
     "municipality": "{qualifier} n'est pas encore sur OpenCouncil",
     "region": "La région {qualifier} n'est pas encore sur OpenCouncil"
   },
-  "petitionCount": "{count}+ habitants l'ont déjà demandé",
+  "petitionCount": {
+    "municipality": "{count}+ habitants l'ont déjà demandé",
+    "region": "{count}+ habitants l'ont déjà demandé"
+  },
   "petitionBody": {
     "municipality": "Aidez-nous à amener OpenCouncil dans la commune. Quand nous parlerons à la commune, nous pourrons expliquer que de nombreux habitants l'ont déjà demandé.",
     "region": "Aidez-nous à amener OpenCouncil dans la région. Quand nous parlerons à la région, nous pourrons expliquer que de nombreux habitants l'ont déjà demandé."

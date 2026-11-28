@@ -1,6 +1,6 @@
 "use client"
 import { useRef, useState } from 'react'
-import type { AdministrativeBodyType, BodyTier } from '@prisma/client'
+import type { AdministrativeBodyType, AuthorityType, BodyTier } from '@prisma/client'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -30,7 +30,8 @@ import {
 } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSendSettings, AdministrativeBodyWithSettings } from '@/lib/db/types'
-import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
+import { ADMIN_BODY_TYPE_ORDER, getRegionBodyTypeLabel } from '@/lib/utils/administrativeBodies'
+import { authorityAllowsBodyType, authorityKey } from '@/lib/utils/authority'
 import { defaultNotificationBehavior, defaultTierOf } from '@/lib/utils/bodyTier'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
@@ -69,6 +70,8 @@ function ConventionsMessage({ error }: { error: unknown }) {
 
 interface AdministrativeBodiesListProps {
     cityId: string;
+    /** The kind of authority decides the types on offer and their names: a region has a council and committees only. */
+    authorityType: AuthorityType;
     bodies: AdministrativeBodyWithSendSettings[];
     onUpdate: () => void;
 }
@@ -89,7 +92,7 @@ function getFormDefaults(body?: AdministrativeBodyWithSendSettings | null): Admi
     };
 }
 
-export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: AdministrativeBodiesListProps) {
+export default function AdministrativeBodiesList({ cityId, authorityType, bodies, onUpdate }: AdministrativeBodiesListProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isConfirmingConventions, setIsConfirmingConventions] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
@@ -97,6 +100,12 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBodyWithSendSettings | null>(null)
     const t = useTranslations('AdministrativeBodiesList')
+    const tCommon = useTranslations('Common')
+    const typeLabel = (type: AdministrativeBodyType) =>
+        getRegionBodyTypeLabel(type, { authorityType }, tCommon) ?? t(`types.${type}`)
+    // A body keeps the type it has, so the form of an existing body offers it too.
+    const typesOnOffer = ADMIN_BODY_TYPE_ORDER.filter(type =>
+        authorityAllowsBodyType({ authorityType }, type) || type === editingBody?.type)
     const { data: session } = useSession()
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false
     const validationMessage = useValidationMessage()
@@ -271,13 +280,13 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {ADMIN_BODY_TYPE_ORDER.map((type) => (
-                                                    <SelectItem key={type} value={type}>{t(`types.${type}`)}</SelectItem>
+                                                {typesOnOffer.map((type) => (
+                                                    <SelectItem key={type} value={type}>{typeLabel(type)}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>
-                                            {t('typeDescription')}
+                                            {t(authorityKey('typeDescription', { authorityType }))}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
@@ -343,7 +352,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     <FormItem>
                                         <FormLabel>{t('place')}</FormLabel>
                                         <FormControl>
-                                            <Input {...field} placeholder={t('placePlaceholder')} />
+                                            <Input {...field} placeholder={t(authorityKey('placePlaceholder', { authorityType }))} />
                                         </FormControl>
                                         <FormDescription>
                                             {t('placeDescription')}
@@ -352,7 +361,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
-                            <DocumentSendFields form={form} />
+                            <DocumentSendFields form={form} authorityType={authorityType} />
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"
@@ -491,7 +500,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{body.name}</span>
                                 <span className="block truncate text-xs text-muted-foreground">
-                                    {t(`types.${body.type}`)} · {body.name_en}
+                                    {typeLabel(body.type)} · {body.name_en}
                                 </span>
                             </span>
                             <Button

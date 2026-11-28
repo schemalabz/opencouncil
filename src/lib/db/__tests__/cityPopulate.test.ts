@@ -61,7 +61,7 @@ const DATA = {
 beforeEach(() => {
     jest.clearAllMocks();
     mockCityUpdate.mockReset();
-    mockQueryRaw.mockResolvedValue([{ id: 'lyon' }]);
+    mockQueryRaw.mockResolvedValue([{ id: 'lyon', authorityType: 'municipality' }]);
     mockCityCount.mockResolvedValue(1);
     mockStorageProblem.mockReturnValue(null);
     for (const count of Object.values(mockCounts)) count.mockResolvedValue(0);
@@ -106,6 +106,18 @@ describe('populateCity', () => {
     it('refuses a city that is deleted by the time the lock is taken', async () => {
         mockQueryRaw.mockResolvedValue([]);
         await expect(populateCity({ ...DATA, cityId: 'nope' })).rejects.toThrow(NotFoundError);
+    });
+
+    it('refuses a body of a type that a region does not have, and writes nothing (#993)', async () => {
+        mockQueryRaw.mockResolvedValue([{ id: 'thessaly', authorityType: 'region' }]);
+        const committee = { name: 'Επιτροπή', name_en: 'Committee', type: 'committee' as const };
+        const community = { name: 'Κοινότητα', name_en: 'Community', type: 'community' as const };
+        await expect(populateCity({ ...DATA, administrativeBodies: [...DATA.administrativeBodies, committee, community] }))
+            .rejects.toThrow(new BadRequestError('A region has no administrative body of type community'));
+        expect(mockCreate).not.toHaveBeenCalled();
+
+        await populateCity({ ...DATA, administrativeBodies: [...DATA.administrativeBodies, committee] });
+        expect(mockCreate).toHaveBeenCalledTimes(2);
     });
 
     it('saves no photo for a person whose every role is on a youth council (#829)', async () => {

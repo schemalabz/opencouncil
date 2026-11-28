@@ -1,6 +1,12 @@
 {
-  "metaTitle": "Bring OpenCouncil to your municipality | OpenCouncil",
-  "metaDescription": "Ask for your municipality to join OpenCouncil. Your name counts when we talk to it.",
+  "metaTitle": {
+    "municipality": "Bring OpenCouncil to your municipality | OpenCouncil",
+    "region": "Bring OpenCouncil to your region | OpenCouncil"
+  },
+  "metaDescription": {
+    "municipality": "Ask for your municipality to join OpenCouncil. Your name counts when we talk to it.",
+    "region": "Ask for your region to join OpenCouncil. Your name counts when we talk to it."
+  },
   "eyebrow": "Request",
   "pickerTitle": "Bring OpenCouncil to your municipality",
   "pickerLead": "The more people ask, the easier a municipality joins. Your name counts when we talk to them.",
@@ -10,17 +16,32 @@
     "municipality": "{qualifier} is not on OpenCouncil yet",
     "region": "{qualifier} is not on OpenCouncil yet"
   },
-  "lead": "Ask for it. The more people ask, the easier a municipality joins, and your name counts when we talk to it.",
+  "lead": {
+    "municipality": "Ask for it. The more people ask, the easier a municipality joins, and your name counts when we talk to it.",
+    "region": "Ask for it. The more people ask, the easier a region joins, and your name counts when we talk to it."
+  },
   "notInNetwork": "Not on OpenCouncil yet",
-  "pricingNote": "We work commercially with the municipalities we serve. Our prices are public at <link>opencouncil.gr/about</link>.",
-  "introNote": "We use your name only when we talk to the municipality, as a resident who wants this.",
+  "pricingNote": {
+    "municipality": "We work commercially with the municipalities we serve. Our prices are public at <link>opencouncil.gr/about</link>.",
+    "region": "We work commercially with the authorities we serve. Our prices are public at <link>opencouncil.gr/about</link>."
+  },
+  "introNote": {
+    "municipality": "We use your name only when we talk to the municipality, as a resident who wants this.",
+    "region": "We use your name only when we talk to the region, as a resident who wants this."
+  },
   "alreadyRequestedBody": "You have already asked — thank you. The next step updates your details.",
-  "ctaStart": "I want OpenCouncil in my municipality",
+  "ctaStart": {
+    "municipality": "I want OpenCouncil in my municipality",
+    "region": "I want OpenCouncil in my region"
+  },
   "ctaUpdate": "Update my details",
   "ctaSubmit": "Send the request",
   "ctaSubmitting": "Sending…",
   "formTitle": "Who is asking?",
-  "formLead": "Your name, as a resident who wants OpenCouncil in their municipality.",
+  "formLead": {
+    "municipality": "Your name, as a resident who wants OpenCouncil in their municipality.",
+    "region": "Your name, as a resident who wants OpenCouncil in their region."
+  },
   "relationTitle": {
     "municipality": "What is your link to the municipality?",
     "region": "What is your link to the region?"
@@ -35,7 +56,10 @@
     "municipality": "I live in the municipality.",
     "region": "I live in the region."
   },
-  "isCitizen": "I am a registered citizen",
+  "isCitizen": {
+    "municipality": "I am a registered citizen",
+    "region": "I am a registered voter"
+  },
   "isCitizenHint": {
     "municipality": "I vote in the municipality.",
     "region": "I vote in the region."
@@ -43,7 +67,10 @@
   "isOther": "Other",
   "isOtherHint": "Say it in a few words.",
   "otherPlaceholder": "I spend my summers here",
-  "accountHint": "So we can write to you when the municipality joins.",
+  "accountHint": {
+    "municipality": "So we can write to you when the municipality joins.",
+    "region": "So we can write to you when the region joins."
+  },
   "phoneHint": "optional",
   "consent": "We will write to you only about the request.",
   "doneTitle": "Thank you — your request is recorded",

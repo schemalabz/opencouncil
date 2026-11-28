@@ -1,12 +1,13 @@
 ---
 name: add-city
-description: Onboard a municipality into OpenCouncil, in any country — check that its meetings can be processed, research its council, officers and groups from the country's official sources, build the populate_city payload, stop for approval, populate, then prepare its newest meetings (agenda and video) for processing. Country context lives in the Countries database in Notion; the first city of a new country drafts its guide from the Notion template. Use when asked to add, onboard or set up a city or a demo city.
+description: Onboard a municipality into OpenCouncil, in any country, or a Greek region (Περιφέρεια) — check that its meetings can be processed, research its council, officers and groups from the country's official sources, build the populate_city payload, stop for approval, populate, then prepare its newest meetings (agenda and video) for processing. Country context lives in the Countries database in Notion; the first city of a new country drafts its guide from the Notion template. Use when asked to add, onboard or set up a city, a demo city or a region.
 ---
 
 # add-city
 
 Turns a municipality into a populated city with its newest meetings ready for processing.
 You (the session) do all reading and judgement. Writes go through the OpenCouncil MCP.
+A Greek region (Περιφέρεια) follows the same steps with the differences in [A Greek region](#a-greek-region-περιφέρεια): read that section first.
 Decisions are out of scope: a body's decision conventions are set on its admin page, and pollDecisions reads the decisions. Where the country publishes decisions per unit, the country guide says how to find each body's unit, and the payload carries it (Greece: `diavgeiaUnitIds`).
 
 ## Context in Notion
@@ -128,6 +129,22 @@ For each body with video, the newest sitting (step 5b):
 City link, people/roles counts, meetings with links and task ids, boundary (ready or set) and logo (added, or why not), defaults, doubts, `sources.md`; and the country guide and (for a non-Greek city) International Cities record links, with what was updated.
 
 Report whether the city remains `pending` or was published as a `demo`; a demo is sufficient for public discovery. Setting `supported` is a separate customer-activation workflow, outside this skill. Identify what that later automatic work would need, using the values the run found. The crons start paid work only for a supported city: decision polling needs the city's decision-source id (Greece: the Diavgeia org uid); without a body's units (`diavgeiaUnitIds`) it searches the whole organisation, which finds many unrelated decisions, and it reads a decision's contents only when the body has decision conventions. Livestream polling needs each body's `youtubeChannelUrl`. Say which of these are missing.
+
+## A Greek region (Περιφέρεια)
+
+A region is a city row with `authorityType: region`. Its council is the Περιφερειακό Συμβούλιο, and its head is the Περιφερειάρχης. Every step above applies. This section lists only what differs. Where a step says "municipality", read "region".
+
+- **The city (step 1).** Call `create_city` with `authorityType: region`. The field is set at creation, and no MCP tool changes it later. Only a superadmin changes it, in the admin city form, and only while the city has no body of another type and no meeting without a body. `name` is the name of the region («Θεσσαλία»), and the official name is «Περιφέρεια Θεσσαλίας» / "Region of Thessaly".
+- **The id.** `region-<ASCII form of name_en>`: `region-thessaly`, `region-crete`. A municipality id is the bare ASCII name, so the prefix keeps a region away from a municipality that has the same name today or gets it later. The id is permanent.
+- **Bodies.** A region has two body types: `council` (Περιφερειακό Συμβούλιο) and `committee` (Περιφερειακή Επιτροπή, and each other committee that holds public meetings). The app refuses `community` and `youthCouncil` for a region. Give each committee its own official name: all of them share one type, so the name is the only thing that tells them apart.
+- **Sources of the roster (step 3).** `scripts/election.ts` reads the municipal elections only. Do not use it for a region. Take the result of the regional election of October 2023 from the Ministry of Interior (`ekloges.ypes.gr`): the lists (παρατάξεις), their seats and their heads. Take the seated members from the first roll call of the term and the newest roll call, on Diavgeia or on the region's site, as for a municipality. Take the Αντιπεριφερειάρχες from the newest act of the Περιφερειάρχης that names them, and the committee from the newest election of its members.
+- **Roles (step 4).** The head is a city role «Περιφερειάρχης» / "Regional Governor" with `isHead`. Each deputy is a city role «Αντιπεριφερειάρχης …» / "Deputy Regional Governor for …": a region has thematic deputies and one deputy for each περιφερειακή ενότητα, and both kinds go in. The Εκτελεστικός Γραμματέας is a city role too. Do not copy the municipal rule that the head has no council seat: read the roll call, and say at the checkpoint whether it lists the Περιφερειάρχης among the members.
+- **Payload (step 5).** The Greek roster of `payload.ts` writes the municipal titles («Δήμαρχος», the municipal presidium and committee). Do not build a region from a `roster.json`. Write `<dir>/payload.json` in the `populate_city` format, as for another country, and print it with `payload.ts` for the checkpoint.
+- **Decisions.** A region is its own organisation on Diavgeia. Find its organisation uid (label «ΠΕΡΙΦΕΡΕΙΑ …») and the units of its council and its committees with the Diavgeia tools. The units go in the payload as `diavgeiaUnitIds`. An admin enters the organisation uid on the admin city form: no MCP tool sets it, so list it for an admin at the checkpoint.
+- **Boundary (step 6b).** Set the boundary before `processAgenda`. A subject location of a region farther than 1 km from the boundary is saved with no location, so a missing island or a wrong outline loses pins. The outline is the whole region: every περιφερειακή ενότητα and every island, as one multipolygon. With no boundary, the app keeps each location as the geocoder gives it.
+- **Publication (steps 6 and 6c).** A region stays `pending`. Do not propose a demo: the app refuses a demo in a realm that has a supported city, and Greece has supported cities. The pages of a pending region open by their URL, and the region stays out of the map, the lists, the search and the sitemap. Keep `supportsNotifications` off.
+- **Meetings (step 7).** Each meeting of a region must name its body: `create_meeting` and `update_meeting` refuse a meeting with no `administrativeBodyId` (`regionNeedsBody`). A regional council has more members and longer sittings than most municipal councils, so give the user the duration and the file size before the upload.
+- **Not for a region yet.** The platform builds no minutes for a region. Search, the landing map and notifications do not cover a region (schemalabz/opencouncil#994). Say so in the report.
 
 ## Never
 - Never write to production unless the user asked for it in this session.

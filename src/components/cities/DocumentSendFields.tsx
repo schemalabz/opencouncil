@@ -1,7 +1,7 @@
 "use client"
 import { useTranslations } from 'next-intl'
 import type { FieldValues, Path, UseFormReturn } from "react-hook-form"
-import type { DocumentKind } from '@prisma/client'
+import type { AuthorityType, DocumentKind } from '@prisma/client'
 import {
     FormControl,
     FormDescription,
@@ -13,10 +13,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS } from '@/lib/documents/settings'
+import { authorityHasDocument } from '@/lib/utils/authority'
 import type { DocumentSendCards } from '@/lib/zod-schemas/administrativeBody'
 
 interface DocumentSendFieldsProps<T extends FieldValues & { documentSendSettings: DocumentSendCards }> {
     form: UseFormReturn<T>
+    /** A region has no card for the minutes (authorityHasDocument). */
+    authorityType: AuthorityType
 }
 
 /**
@@ -24,7 +27,7 @@ interface DocumentSendFieldsProps<T extends FieldValues & { documentSendSettings
  * its To address and its CC list. The body form of the city and the page of
  * the body both edit the settings through it (#874).
  */
-export function DocumentSendFields<T extends FieldValues & { documentSendSettings: DocumentSendCards }>({ form }: DocumentSendFieldsProps<T>) {
+export function DocumentSendFields<T extends FieldValues & { documentSendSettings: DocumentSendCards }>({ form, authorityType }: DocumentSendFieldsProps<T>) {
     const t = useTranslations('AdministrativeBodiesList')
     const path = (document: DocumentKind, field?: 'enabled' | 'to' | 'cc') =>
         (field ? `documentSendSettings.${document}.${field}` : `documentSendSettings.${document}`) as Path<T>
@@ -35,7 +38,7 @@ export function DocumentSendFields<T extends FieldValues & { documentSendSetting
                 <h3 className="text-sm font-medium">{t('documentSends.title')}</h3>
                 <p className="text-sm text-muted-foreground">{t('documentSends.description')}</p>
             </div>
-            {DOCUMENT_KINDS.map((document) => {
+            {DOCUMENT_KINDS.filter(document => authorityHasDocument({ authorityType }, document)).map((document) => {
                 const enabled = form.watch(path(document, 'enabled'))
                 // An address typed and then switched off still fails its check, so its field stays in view
                 const addressError = form.getFieldState(path(document), form.formState).invalid

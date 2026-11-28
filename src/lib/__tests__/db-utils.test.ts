@@ -81,6 +81,7 @@ function setupCommonMocks() {
         name: 'Test City',
         language: 'el',
         realm: 'greece',
+        authorityType: 'municipality',
     });
 }
 
@@ -162,6 +163,16 @@ describe('getRequestOnTranscriptRequestBody', () => {
 
         expect(result.country).toBe('RS');
         expect(result.cityLanguage).toBe('sr');
+    });
+
+    it('sends the kind of the authority, so the backend words its prompts for a region (#993)', async () => {
+        mockGetTranscript.mockResolvedValue([]);
+        mockGetPeopleWhoMaySpeak.mockResolvedValue([]);
+
+        expect((await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID)).authorityType).toBe('municipality');
+
+        mockCity({ id: CITY_ID, name: 'Θεσσαλία', language: 'el', realm: 'greece', authorityType: 'region' });
+        expect((await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID)).authorityType).toBe('region');
     });
 
     it('resolves speakers NOT in the meeting people list but identified in transcript', async () => {

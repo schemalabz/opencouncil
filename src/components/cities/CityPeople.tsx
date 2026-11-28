@@ -13,7 +13,7 @@ import { sortBodyMembers, sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getBodiesOfTypeFromPeople } from '@/lib/utils/administrativeBodies';
 import { BadgePicker } from '@/components/ui/badge-picker';
-import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
+import { filterActiveRoles, getRoleText, isRoleActive, type RoleTitleCity } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { AdminToolButton } from '@/components/admin/AdminStrip';
@@ -26,7 +26,7 @@ type CityPeopleProps = {
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: PublicAdministrativeBody[],
     cityId: string,
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
     canEdit: boolean,
     /**
      * Every person of the city, in every tier, for the superadmin tools; null
@@ -49,7 +49,7 @@ export default function CityPeople({
     partiesWithPersons,
     administrativeBodies,
     cityId,
-    cityLanguage,
+    roleCity,
     canEdit,
     superAdminRoster,
     editableBodyIds,
@@ -58,7 +58,7 @@ export default function CityPeople({
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
-    const roleTitles = useRoleTitles(cityLanguage);
+    const roleTitles = useRoleTitles(roleCity);
 
     // Both name columns, not just the localized one: a reader on the Greek page
     // may well type a councillor's name in Latin script. `getRoleText` adds the
@@ -91,8 +91,8 @@ export default function CityPeople({
     // The chips come from the people on show, so no chip leads to an empty
     // roster.
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(people, tCommon),
-        [people, tCommon]
+        getAdministrativeBodyTypesForPeople(people, roleCity, tCommon),
+        [people, roleCity, tCommon]
     );
 
     // The council carries no sub-bodies, so only a narrower type offers a body.
@@ -155,16 +155,16 @@ export default function CityPeople({
 
     return (
         <>
-        <List<PersonWithRelations, { cityLanguage?: string }, AdministrativeBodyType, ComponentProps<typeof PersonForm>>
+        <List<PersonWithRelations, { roleCity: RoleTitleCity }, AdministrativeBodyType, ComponentProps<typeof PersonForm>>
             state={state}
             editable={canEdit}
             adminTools={adminTools}
             ItemComponent={PersonCard}
-            itemProps={{ cityLanguage }}
+            itemProps={{ roleCity }}
             FormComponent={PersonForm}
             formProps={editableBodyIds
-                ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)), roleTypes: ['administrativeBody' as const] }
-                : { cityId, parties, administrativeBodies }}
+                ? { cityId, authorityType: roleCity.authorityType, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)), roleTypes: ['administrativeBody' as const] }
+                : { cityId, authorityType: roleCity.authorityType, parties, administrativeBodies }}
             t={t}
             renderFilter={({ selectedValues, onChange }) => {
                 if (typeOptions.length <= 1 && !secondaryTier.available) return null;
@@ -210,6 +210,7 @@ export default function CityPeople({
                 onOpenChange={setElectedOrderOpen}
                 people={superAdminRoster}
                 cityId={cityId}
+                authorityType={roleCity.authorityType}
                 administrativeBodyId={electedOrderBodyId}
             />
         )}

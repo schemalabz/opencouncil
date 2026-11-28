@@ -22,6 +22,13 @@ export interface TaskRequest {
 // the Prisma `CityLanguage` enum.
 export type CityLanguage = 'el' | 'fr' | 'sr' | 'de' | 'nl' | 'it' | 'pl' | 'pt' | 'es' | 'fi' | 'ca' | 'sv' | 'gl' | 'bs' | 'en' | 'cy' | 'ga' | 'da' | 'no' | 'is' | 'et' | 'lv' | 'lt' | 'cs' | 'sk' | 'hu' | 'sl' | 'hr' | 'ro' | 'bg' | 'mk' | 'mt' | 'lb' | 'uk' | 'ru' | 'tr' | 'sq' | 'eu';
 
+// The kind of local authority that the city row holds. Mirrors the Prisma
+// `AuthorityType` enum. The backend words its prompts for it: a region has a
+// regional council and a Περιφερειάρχης, and its places are in many towns. A
+// backend that predates the field ignores it, and one that gets no value
+// reads a municipality.
+export type AuthorityType = 'municipality' | 'region';
+
 // Uppercase country code (ISO 3166-1 alpha-2, plus XK for Kosovo). The
 // backend restricts geocoding of subject locations to it; without it everything
 // is geocoded as if it were in Greece. Comes from the city's realm, not its
@@ -133,6 +140,7 @@ export interface ProcessAgendaRequest extends TaskRequest {
     }[];
     topicLabels: TopicLabelInfo[];
     cityName: string;
+    authorityType: AuthorityType;
     cityLanguage: CityLanguage;
     country: Country;
     date: string;
@@ -342,6 +350,7 @@ export interface RequestOnTranscript extends TaskRequest {
     }[];
     topicLabels: TopicLabelInfo[];
     cityName: string;
+    authorityType: AuthorityType;
     cityLanguage: CityLanguage;
     country: Country;
     administrativeBodyName: string | null;

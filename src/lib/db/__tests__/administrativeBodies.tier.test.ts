@@ -5,6 +5,7 @@
  * tier that changes the type still changes which tier the type stands for.
  */
 const mockFindUnique = jest.fn();
+const mockCityFindUnique = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
@@ -16,6 +17,7 @@ jest.mock('@/lib/db/prisma', () => {
             create: (...a: unknown[]) => mockCreate(...a),
             update: (...a: unknown[]) => mockUpdate(...a),
         },
+        city: { findUnique: (...a: unknown[]) => mockCityFindUnique(...a) },
         $transaction: (run: (tx: unknown) => Promise<unknown>) => run(client),
     };
     return { __esModule: true, default: client };
@@ -25,7 +27,7 @@ jest.mock('@/lib/auth', () => ({
     getCurrentUser: jest.fn(),
 }));
 
-import { ForbiddenError } from '@/lib/api/errors';
+import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { createAdministrativeBody, editAdministrativeBody } from '@/lib/db/administrativeBodies';
 
 const YOUTH = { name: 'Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' as const };
@@ -49,6 +51,7 @@ function asCityAdmin() {
 beforeEach(() => {
     jest.clearAllMocks();
     asCityAdmin();
+    mockCityFindUnique.mockResolvedValue({ authorityType: 'municipality' });
     const row = ({ data }: { data: object }) => Promise.resolve({ id: 'b1', decisionConventions: null, ...data });
     mockCreate.mockImplementation(row);
     mockUpdate.mockImplementation(row);
@@ -117,5 +120,54 @@ describe('editAdministrativeBody: the tier that the edit leaves', () => {
         await editAdministrativeBody('b1', { ...YOUTH, type: 'council' });
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({});
         expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: 'council' }) }));
+    });
+});
+
+describe('the body types of a region (#993)', () => {
+    const COMMITTEE = { ...NEW_BODY, name: 'Περιφερειακή Επιτροπή', name_en: 'Regional Committee', type: 'committee' as const, tier: 'primary' as const };
+    const stored = (type: string) => mockFindUnique.mockResolvedValue({ cityId: 'thessaly', type, tier: 'primary' });
+
+    beforeEach(() => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        mockCityFindUnique.mockResolvedValue({ authorityType: 'region' });
+    });
+
+    it.each(['council', 'committee'] as const)('creates a %s', async type => {
+        await createAdministrativeBody({ ...COMMITTEE, type });
+        expect(mockCityFindUnique).toHaveBeenCalledWith({ where: { id: 'zografou' }, select: { authorityType: true } });
+        expect(mockCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ type }) });
+    });
+
+    it.each(['community', 'youthCouncil'] as const)('answers 400 to a new %s, and creates nothing', async type => {
+        await expect(createAdministrativeBody({ ...COMMITTEE, type })).rejects.toThrow(BadRequestError);
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    it('answers 400 to an edit that makes a committee a community, and writes nothing', async () => {
+        stored('committee');
+        await expect(editAdministrativeBody('b1', { type: 'community' })).rejects.toThrow(BadRequestError);
+        expect(mockCityFindUnique).toHaveBeenCalledWith({ where: { id: 'thessaly' }, select: { authorityType: true } });
+        expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('lets an edit make a committee a council', async () => {
+        stored('committee');
+        await editAdministrativeBody('b1', { type: 'council' });
+        expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    // A row that predates the rule stays editable: only a change of type meets the rule.
+    it('edits a body of a type that a region does not have, when the type stays', async () => {
+        stored('community');
+        await editAdministrativeBody('b1', { name: 'Κοινότητα', type: 'community' });
+        await editAdministrativeBody('b1', { name: 'Κοινότητα' });
+        expect(mockCityFindUnique).not.toHaveBeenCalled();
+        expect(mockUpdate).toHaveBeenCalledTimes(2);
+    });
+
+    it('answers 404 to a new body of a city that does not exist', async () => {
+        mockCityFindUnique.mockResolvedValue(null);
+        await expect(createAdministrativeBody(COMMITTEE)).rejects.toThrow(NotFoundError);
+        expect(mockCreate).not.toHaveBeenCalled();
     });
 });

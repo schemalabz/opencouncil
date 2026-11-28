@@ -5,7 +5,7 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { cn, filterActiveRoles } from '@/lib/utils';
-import { getPartyFromRoles, getRoleText, sortRolesByPriority } from '@/lib/utils/roles';
+import { getPartyFromRoles, getRoleText, sortRolesByPriority, type RoleTitleCity } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 
@@ -14,7 +14,7 @@ const ROLES_SHOWN = 2;
 
 interface PersonCardProps {
     item: PersonWithRelations;
-    cityLanguage?: string;
+    roleCity: RoleTitleCity;
     /** Which surface renders the card — the person_opened analytics discriminator. */
     analyticsSurface?: string;
     editable: boolean;
@@ -34,10 +34,10 @@ interface PersonCardProps {
  * Deliberately hook-light so it renders in a Server Component and inside List,
  * which is a client component.
  */
-export default function PersonCard({ item: person, cityLanguage, analyticsSurface = 'people_list' }: PersonCardProps) {
+export default function PersonCard({ item: person, roleCity, analyticsSurface = 'people_list' }: PersonCardProps) {
     const t = useTranslations('Person');
     const locale = useLocale();
-    const roleTitles = useRoleTitles(cityLanguage);
+    const roleTitles = useRoleTitles(roleCity);
     const party = getPartyFromRoles(person.roles);
     // getRoleText, not `role.name`: two thirds of councillors hold no titled
     // role, and filtering on the name column left their cards with an empty role
