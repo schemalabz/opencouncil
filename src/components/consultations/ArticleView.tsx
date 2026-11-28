@@ -1,9 +1,10 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { smallActionClass, ViewLink } from "./views/ui";
+import { CommentIconLink, CommentIconSpace, CommentLink } from "./views/ui";
 import MarkdownContent from "./MarkdownContent";
 import { Article, ReferenceFormat, RegulationData } from "./types";
+import type { DocumentWording } from "./wording";
 
 interface ArticleViewProps {
     article: Article;
@@ -12,9 +13,14 @@ interface ArticleViewProps {
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
     regulationData?: RegulationData;
+    wording: DocumentWording;
+    /** The number of the chapter that holds the article. */
+    chapterNum: number | undefined;
     commentCount: number;
     commentHref: string;
     active: boolean;
+    /** The reader came for this article, or is writing a comment on it. */
+    isCurrent?: boolean;
 }
 
 /** An article inside its chapter's card: its number and title open the text and its comment button. */
@@ -25,25 +31,36 @@ export default function ArticleView({
     referenceFormat,
     onReferenceClick,
     regulationData,
+    wording,
+    chapterNum,
     commentCount,
     commentHref,
-    active
+    active,
+    isCurrent = false,
 }: ArticleViewProps) {
+    const commentLabel = active ? wording.commentOnArticle(chapterNum, article.num) : 'Τα σχόλια';
+    // An article that has ended and has no comments has nothing to open.
+    const showsCommentIcon = active || commentCount > 0;
+
     return (
-        <div id={article.id} className="scroll-mt-16 border-t border-stone-100 sm:scroll-mt-24">
+        <div id={article.id} className={cn("scroll-mt-16 border-t border-stone-100 sm:scroll-mt-24", isCurrent && "bg-[#fff7ed] shadow-[inset_3px_0_0_#c2410c]")}>
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
-                <h3 className="m-0">
-                    <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-stone-50">
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-[13px] font-normal text-stone-600">Άρθρο {article.num}</span>
-                            <span className="block text-[17px] font-semibold leading-snug">{article.title}</span>
-                        </span>
-                        {commentCount > 0 && (
-                            <span className="shrink-0 text-[13px] font-normal text-stone-600">{commentCount} {commentCount === 1 ? 'σχόλιο' : 'σχόλια'}</span>
-                        )}
-                        <ChevronDown className={cn("h-[18px] w-[18px] shrink-0 text-stone-500 transition-transform", isExpanded && "rotate-180")} aria-hidden="true" />
-                    </CollapsibleTrigger>
-                </h3>
+                {/* The comment icon is a link, so it sits over the heading's button, not inside it. */}
+                <div className="relative">
+                    <h3 className="m-0">
+                        <CollapsibleTrigger className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-black/[0.02]">
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-normal text-stone-600">{wording.articleLabel(chapterNum, article.num)}</span>
+                                <span className="block text-[17px] font-semibold leading-snug">{article.title}</span>
+                            </span>
+                            {showsCommentIcon && <CommentIconSpace />}
+                            <ChevronDown className={cn("h-[18px] w-[18px] shrink-0 text-stone-500 transition-transform", isExpanded && "rotate-180")} aria-hidden="true" />
+                        </CollapsibleTrigger>
+                    </h3>
+                    {showsCommentIcon && (
+                        <CommentIconLink href={commentHref} label={commentLabel} count={commentCount} />
+                    )}
+                </div>
 
                 <CollapsibleContent className="px-5 pb-4">
                     <MarkdownContent
@@ -53,9 +70,9 @@ export default function ArticleView({
                         onReferenceClick={onReferenceClick}
                         regulationData={regulationData}
                     />
-                    <ViewLink href={commentHref} className={cn(smallActionClass, "mt-3 inline-flex")}>
-                        {active ? 'Σχολιάστε αυτό το άρθρο' : 'Τα σχόλια'}{commentCount > 0 ? ` (${commentCount})` : ''}
-                    </ViewLink>
+                    <CommentLink href={commentHref} className="mt-3">
+                        {commentLabel}{commentCount > 0 ? ` (${commentCount})` : ''}
+                    </CommentLink>
                 </CollapsibleContent>
             </Collapsible>
         </div>

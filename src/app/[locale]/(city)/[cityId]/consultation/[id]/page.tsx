@@ -6,6 +6,7 @@ import type { ConfirmedPendingComment, PendingCommentConfirmation } from "@/comp
 import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
+import { documentWording } from "@/components/consultations/wording";
 import { auth } from "@/auth";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Suspense } from "react";
@@ -52,7 +53,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     // Generate rich description
     const title = localizeText(regulationData?.title || consultation.name, params.locale);
     const cityName = getLocalizedName(city, params.locale);
-    const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${cityName}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
+    const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${cityName}. ${chaptersCount > 0 ? `Περιλαμβάνει ${documentWording(regulationData?.documentType).chapterCount(chaptersCount)}${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
     const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, consultationId: params.id });

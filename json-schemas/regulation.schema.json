@@ -89,6 +89,12 @@
         "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
       }
     },
+    "documentType": {
+      "type": "string",
+      "enum": ["study", "regulation"],
+      "default": "study",
+      "description": "Το είδος του κειμένου. «study»: μελέτη με κεφάλαια και άρθρα. «regulation»: κανονιστικό κείμενο, όπου κάθε «chapter» είναι ένα άρθρο του («Άρθρο 4») και τα «articles» του είναι οι αριθμημένες παράγραφοί του («4.1»)"
+    },
     "defaultView": {
       "type": "string",
       "enum": ["map", "document"],
@@ -169,7 +175,15 @@
           },
           "commentLabel": {
             "type": "string",
-            "description": "Κείμενο του συνδέσμου σχολίου (προεπιλογή «Σχολιάστε»)"
+            "description": "Κείμενο του συνδέσμου σχολίου (προεπιλογή: το όνομα του κεφαλαίου ή του άρθρου του commentOn, αλλιώς «Σχολιάστε»)"
+          },
+          "basedOn": {
+            "type": "array",
+            "description": "Τα κεφάλαια και τα άρθρα που συνοψίζει η κάρτα· η κάρτα παραπέμπει σε αυτά (προεπιλογή: το commentOn)",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+            }
           },
           "explains": {
             "type": "array",

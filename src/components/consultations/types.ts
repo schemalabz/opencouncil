@@ -115,7 +115,8 @@ export interface OverviewCard {
     title: string;
     body: string; // markdown
     commentOn?: string; // id of the chapter, article, geoset or geometry that comments on this card go to
-    commentLabel?: string; // default "Σχολιάστε"
+    commentLabel?: string; // default: the name of `commentOn` when it is a chapter or an article, else "Σχολιάστε"
+    basedOn?: string[]; // ids of the chapters and articles that the card sums up; the card links to them. Default: `commentOn`
     explains?: string[]; // geoset ids this card explains; a place of those geosets links here
     linkLabel?: string; // text of that link; default the card's title
 }
@@ -125,9 +126,17 @@ export interface Definition {
     definition: string; // Markdown definition with {REF:id} support
 }
 
+/**
+ * What the text is. A `study` has chapters with articles. A `regulation` is a legal text: each
+ * top-level item is one of its articles ("Άρθρο 4"), and the items under it are that article's
+ * numbered paragraphs ("4.1"). The type picks the words of every screen: see `wording.ts`.
+ */
+export type DocumentType = 'study' | 'regulation';
+
 export interface RegulationData {
     title: string;
     summary?: string; // Markdown summary of the entire regulation with {REF:id} support
+    documentType?: DocumentType; // Default: 'study'
     contactEmail: string; // Email for citizen comments (required in schema)
     ccEmails?: string[]; // Additional emails to CC on comments (optional)
     sources: Source[]; // Array of source documents (required in schema)

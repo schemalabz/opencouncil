@@ -16,6 +16,8 @@ export interface CommentsViewProps {
     geoSets: GeoSetData[];
     href: (view: ConsultationView, entityId?: string | null) => string;
     backHref: string;
+    /** The start screen, when it asks for the reader's address: where a first comment begins. */
+    startHref?: string;
     /** The printable list of every comment, for the municipality's staff. */
     printHref: string;
     /** Where "Σχολιάστε κι εσείς" leads while the consultation is open. */
@@ -33,7 +35,7 @@ export interface CommentsViewProps {
 type Sort = 'newest' | 'popular';
 
 /** Every comment, newest or most agreed with first, each with the place it is about. */
-export default function CommentsView({ comments, regulationData, geoSets, href, backHref, printHref, commentHref, currentUserId, municipalityName, canRespond, onUpvoted, onDeleted, onResponded }: CommentsViewProps) {
+export default function CommentsView({ comments, regulationData, geoSets, href, backHref, startHref, printHref, commentHref, currentUserId, municipalityName, canRespond, onUpvoted, onDeleted, onResponded }: CommentsViewProps) {
     const [sort, setSort] = useState<Sort>('newest');
 
     const sorted = useMemo(() => [...comments].sort((a, b) => sort === 'popular'
@@ -55,7 +57,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
                 {comments.length === 0 ? (
                     <div className={cn(cardClass, "flex flex-col gap-2 p-5")}>
                         <p className="text-[17px] text-stone-700">Κανείς δεν έχει σχολιάσει ακόμα.</p>
-                        <ViewLink href={href('home')} className={cn(textLinkClass, "text-[17px]")}>Ξεκινήστε από τον δρόμο σας</ViewLink>
+                        {startHref && <ViewLink href={startHref} className={cn(textLinkClass, "text-[17px]")}>Ξεκινήστε από τον δρόμο σας</ViewLink>}
                     </div>
                 ) : (
                     <>
